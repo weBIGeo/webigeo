@@ -181,27 +181,6 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         out_Color = vec4(mix(out_Color.rgb, overlay_color.rgb, overlay_color.a), out_Color.a);
     }
 
-    // Test encode/decode normal
-    var xci:i32 = i32(tci.x);
-    var ni:i32 = -1;
-    if (xci % 10 == 0) {
-        ni = xci / 10;
-        if (ni > 30) {
-            ni = -1;
-        }
-    }
-    if (ni > 0) {
-        let bcomp = f32(ni)/30.0;
-        if (!test_encode_decode(u32(ni))) {
-            out_Color = vec4f(1.0, 0.0, 0.0, 1.0);
-        } else {
-            out_Color = vec4f(0.0, 1.0, 0.0, 1.0);
-        }
-
-        
-    
-    }
-
 /*
     // OVERLAY SHADOW MAPS
     if (bool(conf.overlay_shadowmaps_enabled)) {
