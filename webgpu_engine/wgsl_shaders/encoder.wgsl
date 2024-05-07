@@ -17,88 +17,59 @@
 * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *****************************************************************************/
 
-fn v3f32_to_oct(v: vec3<f32>) -> vec2<f32> {
-    var p:vec2<f32> = v.xy * (1.0 / (abs(v.x) + abs(v.y) + abs(v.z)));
-    if (v.z <= 0.0) {
-        p = (1.0 - abs(p.yx)) * sign(p);
+// Implementation of the octahedral normal encoding based on the paper
+// "A Survey of Efficient Representations for Independent Unit Vector" by Cigolle et al.
+// see https://jcgt.org/published/0003/02/01/ listings 1 and 2
+
+// Converts a normalized 3D vector into 2D octahedral coordinates.
+// - n: A normalized vec3f representing the input normal vector.
+// - Returns: A vec2f representing the normal vector encoded in the range [-1, 1] in an octahedral projection.
+// - Requirement: n must be normalized.
+fn v3f32_to_oct(n: vec3<f32>) -> vec2<f32> {
+    var en:vec2<f32> = n.xy * (1.0 / (abs(n.x) + abs(n.y) + abs(n.z)));
+    if (n.z <= 0.0) {
+        en = (1.0 - abs(en.yx)) * sign(en);
     }
-    return p;
+    return en;
 }
 
-fn oct_to_v3f32(e: vec2<f32>) -> vec3<f32> {
-    var v:vec3<f32> = vec3f(e.xy, 1.0 - abs(e.x) - abs(e.y));
-    if (v.z < 0.0) {
-        let xy:vec2<f32> = (1.0 - abs(v.yx)) * sign(v.xy);
-        v = vec3f(xy, v.z);
+// Converts 2D octahedral coordinates back to a normalized 3D vector.
+// - en: A vec2f representing the octahedral projection coordinates.
+// - Returns: A normalized vec3f containing the decoded normal vector.
+fn oct_to_v3f32(en: vec2<f32>) -> vec3<f32> {
+    var n:vec3<f32> = vec3f(en.xy, 1.0 - abs(en.x) - abs(en.y));
+    if (n.z < 0.0) {
+        n = vec3f((1.0 - abs(n.yx)) * sign(n.xy), n.z);
     }
-    return normalize(v);
+    return normalize(n);
 }
 
+// Encodes a 2D vector into a 2D unsigned integer vector using a 16-bit range.
+// - v: A vec2f representing the input vector in the range [0, 1].
+// - Returns: A vec2u32 representing the encoded values with each component scaled to the range [0, 65535].
+// - Requirement: v must be in the range [0, 1].
 fn v2f32_to_v2u16(v: vec2<f32>) -> vec2<u32> {
     return vec2<u32>(u32(v.x * 65535.0), u32(v.y * 65535.0));
 }
 
+// Decodes a 2D unsigned integer vector into a normalized 2D vector in the range [0, 1].
+// - e: A vec2u32 representing the encoded values with each component in the range [0, 65535].
+// - Returns: A vec2f representing the decoded values in the range [0, 1].
 fn v2u16_to_v2f32(e: vec2<u32>) -> vec2<f32> {
     return vec2<f32>(f32(e.x) / 65535.0, f32(e.y) / 65535.0);
 }
 
+// Encodes a normalized 3D vector into a 2D unsigned integer vector using octahedral projection.
+// - n: A normalized vec3f representing the input normal vector.
+// - Returns: A vec2u32 representing the encoded values using octahedral projection with each component in the range [0, 65535].
+// - Requirement: n must be normalized.
 fn octNormalEncode2u16(n: vec3<f32>) -> vec2<u32> {
     return v2f32_to_v2u16(fma(v3f32_to_oct(n), vec2f(0.5), vec2f(0.5)));
 }
 
+// Decodes a 2D unsigned integer vector into a normalized 3D vector using octahedral projection.
+// - e: A vec2u32 representing the encoded octahedral projection coordinates with each component in the range [0, 65535].
+// - Returns: A vec3f representing the normalized decoded normal vector.
 fn octNormalDecode2u16(e: vec2<u32>) -> vec3<f32> {
     return oct_to_v3f32(fma(v2u16_to_v2f32(e), vec2f(2.0), vec2f(-1.0)));
-}
-
-fn test_encode_decode(index: u32) -> bool {
-    // Hardcoded array of 30 random 3D normal vectors on the sphere
-    const normals = array<vec3<f32>, 30>(
-        vec3<f32>(0.39699535, -0.81505162, -0.42200183),
-        vec3<f32>(-0.31692511, 0.59624728, 0.73759586),
-        vec3<f32>(-0.14564543, 0.12842754, -0.98096574), //
-        vec3<f32>(-0.80710207, -0.46301556, -0.36633707),
-        vec3<f32>(-0.68746201, -0.14618284, -0.71135544),
-        vec3<f32>(0.02965749, -0.99245204, -0.11899317), //
-        vec3<f32>(0.60817772, 0.35842544, -0.7082733),
-        vec3<f32>(0.97508881, 0.08914032, 0.2031153),
-        vec3<f32>(0.66715458, -0.19226677, 0.71967927),
-        vec3<f32>(-0.98279948, -0.17054225, 0.07085561),
-        vec3<f32>(-0.74318295, -0.50567332, -0.43814792),
-        vec3<f32>(0.21984913, 0.32365938, -0.92027766),
-        vec3<f32>(-0.07416941, -0.84925083, -0.52275417),
-        vec3<f32>(-0.76293398, 0.63764431, -0.1064964), //
-        vec3<f32>(-0.49378689, -0.28316461, -0.82218752),
-        vec3<f32>(0.5039764, 0.48216794, 0.7166044),
-        vec3<f32>(-0.98353394, 0.17788784, 0.03188891),
-        vec3<f32>(-0.49572083, 0.02600753, -0.86809243), //
-        vec3<f32>(0.0365897, 0.85014579, -0.52527453),
-        vec3<f32>(-0.99443364, -0.10047565, -0.03172355),
-        vec3<f32>(0.36831011, 0.49694383, 0.78574455),
-        vec3<f32>(-0.19069606, 0.52194128, 0.83139179),
-        vec3<f32>(0.45796809, 0.87327089, -0.16632255),
-        vec3<f32>(0.65061251, 0.54547444, 0.52835689),
-        vec3<f32>(0.41517041, 0.25270464, 0.87394159),
-        vec3<f32>(-0.20196329, 0.19700557, 0.95937461), //
-        vec3<f32>(0.78059361, -0.58029439, -0.23223271),
-        vec3<f32>(0.84343753, -0.39897854, 0.35976277), //
-        vec3<f32>(-0.44146773, 0.88629247, -0.13997106), //
-        vec3<f32>(-0.32489965, 0.94552451, -0.02058183) //
-    );
-
-    // Encode and decode the vector at the specified index
-    let encoded = octNormalEncode2u16(normals[index]);
-    let decoded = octNormalDecode2u16(encoded);
-
-    //let encoded = float32x3_to_oct(normals[index]);
-    //if (encoded.x < -1.0 || encoded.x > 1.0 || encoded.y < -1.0 || encoded.y > 1.0) {
-    //    return false;
-    //}
-    //let decoded = oct_to_float32x3(encoded);
-
-    // Compute the error between the original and decoded vectors
-    let error = length(decoded - normals[index]);
-    let epsilon = 0.001;
-
-    // Check if the error is within the acceptable epsilon range
-    return error < epsilon;
 }
