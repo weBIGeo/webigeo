@@ -28,7 +28,6 @@
 #include "raii/Buffer.h"
 #include "raii/TextureWithSampler.h"
 #include <QObject>
-#include <nucleus/Tile.h>
 #include <nucleus/tile_scheduler/DrawListGenerator.h>
 #include <nucleus/tile_scheduler/tile_types.h>
 #include <webgpu/webgpu.h>
