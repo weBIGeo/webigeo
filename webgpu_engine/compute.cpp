@@ -35,6 +35,9 @@ std::vector<tile::Id> RectangularTileRegion::get_tiles() const
     return tiles;
 }
 
+// explicit template specialization for hashing tile::Id and returning uint16_t hashes
+template <> uint16_t gpu_hash<tile::Id, uint16_t>(const tile::Id& id) { return nucleus::srs::hash_uint16(id); }
+
 TextureArrayComputeTileStorage::TextureArrayComputeTileStorage(
     WGPUDevice device, const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format, WGPUTextureUsageFlags usage)
     : m_device { device }
