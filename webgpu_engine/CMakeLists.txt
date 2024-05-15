@@ -42,6 +42,8 @@ set(SOURCES
     raii/CombinedComputePipeline.h raii/CombinedComputePipeline.cpp
     util/VertexBufferInfo.h util/VertexBufferInfo.cpp
     util/VertexFormat.h
+    compute/GpuHashMap.h compute/GpuHashMap.cpp
+    compute/GpuTileStorage.h compute/GpuTileStorage.cpp
     compute.h compute.cpp
 )
 

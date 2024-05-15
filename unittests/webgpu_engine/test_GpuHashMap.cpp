@@ -17,8 +17,7 @@
  *****************************************************************************/
 
 #include "UnittestWebgpuContext.h"
-#include "webgpu_engine/compute.h"
-#include "webgpu_engine/raii/Buffer.h"
+#include "webgpu_engine/compute/GpuHashMap.h"
 #include <catch2/catch_test_macros.hpp>
 
 TEST_CASE("webgpu hash map")
