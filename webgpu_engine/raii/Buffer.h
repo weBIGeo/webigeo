@@ -23,8 +23,13 @@
 #include <QString>
 #include <iostream>
 #include <queue>
-#include <thread>
 #include <webgpu/webgpu.h>
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#else
+#include <thread>
+#endif
 
 namespace webgpu_engine::raii {
 
