@@ -23,8 +23,8 @@
 #include <QString>
 #include <iostream>
 #include <queue>
-#include <thread>
 #include <webgpu/webgpu.h>
+#include <webgpu/webgpu_interface.hpp>
 
 namespace webgpu_engine::raii {
 
@@ -135,27 +135,18 @@ public:
     /// Read back buffer synchronously. Blocks until buffer is mapped and read back but at most max_timeout_ms.
     std::vector<T> read_back_sync(WGPUDevice device, uint32_t max_timeout_ms = 1000)
     {
-        bool waiting_for_readback = true;
+        bool work_done = false;
         std::vector<T> sync_buffer;
 
-        read_back_async(device, [&waiting_for_readback, &sync_buffer](std::vector<T> async_buffer) {
+        read_back_async(device, [&work_done, &sync_buffer](std::vector<T> async_buffer) {
             sync_buffer.swap(async_buffer);
-            waiting_for_readback = false;
+            work_done = true;
         });
 
-        uint32_t sleep_counter = 0;
-        while (waiting_for_readback && sleep_counter < max_timeout_ms) {
-#ifdef __EMSCRIPTEN__
-            emscripten_sleep(1); // using asyncify to return to js event loop
-#else
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            wgpuDeviceTick(device); // polling events for DAWN
-#endif
-            sleep_counter++;
-        }
+        webgpuSleepAndWaitForFlag(device, &work_done, 1, max_timeout_ms);
 
-        if (waiting_for_readback) {
-            std::cout << "failed sync readback: timeout or failed buffer mapping" << std::endl;
+        if (!work_done) {
+            std::cerr << "failed sync readback: timeout or failed buffer mapping" << std::endl;
             exit(-1);
         }
         return sync_buffer;

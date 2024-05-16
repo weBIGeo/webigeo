@@ -69,7 +69,7 @@ public:
 
     // Not happy with the following three in public, but we need to have access inside the lambdas.
     std::unique_ptr<raii::RawBuffer<glm::vec4>> m_position_readback_buffer;
-    bool m_readback_in_progress = false;
+    bool m_position_readback_done = true;
     glm::vec4 m_position_readback_result;
 
 public slots:
@@ -100,7 +100,6 @@ private:
     // we can directly readback the content of the position buffer and don't need the readback depth
     // buffer anymore. May actually increase performance as we don't need to fill the seperate buffer.
     glm::vec4 synchronous_position_readback(const glm::dvec2& normalised_device_coordinates);
-    void wait_until_readback_status(int wait_until_status);
 
 private:
     WGPUInstance m_instance = nullptr;

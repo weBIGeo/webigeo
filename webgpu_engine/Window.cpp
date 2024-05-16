@@ -274,7 +274,7 @@ void Window::paint([[maybe_unused]] QOpenGLFramebufferObject* framebuffer)
 
 
 glm::vec4 Window::synchronous_position_readback(const glm::dvec2& ndc) {
-    if (m_readback_in_progress) return {};
+    if (!m_position_readback_done) return {};
 
     // A little bit silly, but we have to transform it back to device coordinates
     glm::uvec2 device_coordinates = {
@@ -286,10 +286,6 @@ glm::vec4 Window::synchronous_position_readback(const glm::dvec2& ndc) {
     device_coordinates = glm::clamp(device_coordinates, glm::uvec2(0), glm::uvec2(m_swapchain_size - glm::vec2(1.0)));
 
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(m_device, {});
-
-           // readback depth buffer
-    // ToDo: Only create once
-    m_position_readback_buffer = std::make_unique<raii::RawBuffer<glm::vec4>>(m_device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead, 256 / sizeof(glm::vec4), "readback buffer");
 
     const auto& src_texture = m_gbuffer->color_texture(1);
     // Define Source Texture
@@ -324,46 +320,34 @@ glm::vec4 Window::synchronous_position_readback(const glm::dvec2& ndc) {
     wgpuQueueSubmit(m_queue, 1, &command);
     wgpuCommandBufferRelease(command);
 
-    m_readback_in_progress = true;
+    m_position_readback_done = false;
     wgpuQueueOnSubmittedWorkDone(m_queue, []([[maybe_unused]]WGPUQueueWorkDoneStatus status, void* pUserData) {
             auto onBufferMapped = [](WGPUBufferMapAsyncStatus status, void* pUserData) {
                 Window* _this = reinterpret_cast<Window*>(pUserData);
 
                 if (status != WGPUBufferMapAsyncStatus_Success) {
                     std::cout << "Error in buffer mapping" << std::endl;
-                    _this->m_readback_in_progress = false;
+                    _this->m_position_readback_done = true;
+                    return;
                 };
 
                 glm::vec4* bufferData = (glm::vec4*)wgpuBufferGetConstMappedRange(_this->m_position_readback_buffer->handle(), 0, sizeof(glm::vec4));
                 _this->m_position_readback_result = bufferData[0];
                 wgpuBufferUnmap(_this->m_position_readback_buffer->handle());
-                _this->m_readback_in_progress = false;
+                _this->m_position_readback_done = true;
             };
             Window* _this = reinterpret_cast<Window*>(pUserData);
+            if (status != WGPUQueueWorkDoneStatus_Success) {
+                std::cout << "Error in queue work" << std::endl;
+                _this->m_position_readback_done = true;
+                return;
+            }
             wgpuBufferMapAsync(_this->m_position_readback_buffer->handle(), WGPUMapMode_Read, 0, sizeof(glm::vec4), onBufferMapped, pUserData);
         }, this);
 
-    int sleepcnt = 0;
-    const int max_timeout = 1000;
-    while (m_readback_in_progress) {
-#ifdef __EMSCRIPTEN__
-        emscripten_sleep(1);    // using asyncify to return to js event loop
-#else
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        wgpuDeviceTick(m_device); // polling events for DAWN
-#endif
-        wgpuInstanceProcessEvents(m_instance); // not sure if necessary
+    webgpuSleepAndWaitForFlag(m_device, &m_position_readback_done);
 
-        sleepcnt++;
-        if (sleepcnt > max_timeout) {
-            std::cout << "Timeout in readback" << std::endl;
-            break;
-        }
-    }
-
-    std::cout << "Waited for " << sleepcnt << "ms" << std::endl;
-
-    std::cout << "Position: " << glm::to_string(m_position_readback_result) << std::endl;
+    //std::cout << "Position: " << glm::to_string(m_position_readback_result) << std::endl;
     return m_position_readback_result;
 }
 
@@ -727,6 +711,8 @@ void Window::create_buffers()
         = std::make_unique<raii::Buffer<uboSharedConfig>>(m_device, WGPUBufferUsage::WGPUBufferUsage_CopyDst | WGPUBufferUsage::WGPUBufferUsage_Uniform);
     m_camera_config_ubo
         = std::make_unique<raii::Buffer<uboCameraConfig>>(m_device, WGPUBufferUsage::WGPUBufferUsage_CopyDst | WGPUBufferUsage::WGPUBufferUsage_Uniform);
+    m_position_readback_buffer
+        = std::make_unique<raii::RawBuffer<glm::vec4>>(m_device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead, 256 / sizeof(glm::vec4), "position readback buffer");
 }
 
 void Window::create_depth_texture(uint32_t width, uint32_t height)
