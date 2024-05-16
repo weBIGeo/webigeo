@@ -21,6 +21,14 @@
 // "A Survey of Efficient Representations for Independent Unit Vector" by Cigolle et al.
 // see https://jcgt.org/published/0003/02/01/ listings 1 and 2
 
+// Custom implementation of the sign function for a vec2f which in contrast to the standard sign function
+// returns 1.0 for 0.0 as input.
+// - v: A vec2f representing the input vector.
+// - Returns: A vec2f containing the componentwise sign of the input vector.
+fn signNotZero(v: vec2f) -> vec2f {
+    return sign(v) + vec2f(v == vec2f(0.0));
+}
+
 // Converts a normalized 3D vector into 2D octahedral coordinates.
 // - n: A normalized vec3f representing the input normal vector.
 // - Returns: A vec2f representing the normal vector encoded in the range [-1, 1] in an octahedral projection.
@@ -28,7 +36,7 @@
 fn v3f32_to_oct(n: vec3<f32>) -> vec2<f32> {
     var en:vec2<f32> = n.xy * (1.0 / (abs(n.x) + abs(n.y) + abs(n.z)));
     if (n.z <= 0.0) {
-        en = (1.0 - abs(en.yx)) * sign(en);
+        en = (1.0 - abs(en.yx)) * signNotZero(en);
     }
     return en;
 }
@@ -39,7 +47,7 @@ fn v3f32_to_oct(n: vec3<f32>) -> vec2<f32> {
 fn oct_to_v3f32(en: vec2<f32>) -> vec3<f32> {
     var n:vec3<f32> = vec3f(en.xy, 1.0 - abs(en.x) - abs(en.y));
     if (n.z < 0.0) {
-        n = vec3f((1.0 - abs(n.yx)) * sign(n.xy), n.z);
+        n = vec3f((1.0 - abs(n.yx)) * signNotZero(n.xy), n.z);
     }
     return normalize(n);
 }
