@@ -80,14 +80,27 @@ std::string ShaderModuleManager::get_contents(const std::string& name) {
     return preprocessed_contents;
 }
 
-std::unique_ptr<raii::ShaderModule> ShaderModuleManager::create_shader_module(const std::string& name)
+std::unique_ptr<raii::ShaderModule> ShaderModuleManager::create_shader_module(const std::string& filename)
 {
-    const std::string code = get_contents(name);
+    const std::string code = get_contents(filename);
     WGPUShaderModuleDescriptor shader_module_desc {};
     WGPUShaderModuleWGSLDescriptor wgsl_desc {};
     wgsl_desc.chain.next = nullptr;
     wgsl_desc.chain.sType = WGPUSType::WGPUSType_ShaderModuleWGSLDescriptor;
     wgsl_desc.code = code.data();
+    shader_module_desc.label = filename.data();
+    shader_module_desc.nextInChain = &wgsl_desc.chain;
+    return std::make_unique<raii::ShaderModule>(m_device, shader_module_desc);
+}
+
+std::unique_ptr<raii::ShaderModule> ShaderModuleManager::create_shader_module(const std::string& name, const std::string& code)
+{
+    const std::string preprocessed_code = preprocess(code);
+    WGPUShaderModuleDescriptor shader_module_desc {};
+    WGPUShaderModuleWGSLDescriptor wgsl_desc {};
+    wgsl_desc.chain.next = nullptr;
+    wgsl_desc.chain.sType = WGPUSType::WGPUSType_ShaderModuleWGSLDescriptor;
+    wgsl_desc.code = preprocessed_code.data();
     shader_module_desc.label = name.data();
     shader_module_desc.nextInChain = &wgsl_desc.chain;
     return std::make_unique<raii::ShaderModule>(m_device, shader_module_desc);
