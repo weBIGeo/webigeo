@@ -54,6 +54,7 @@
 #include <assert.h>
 #include <iostream>
 #include <stdio.h>
+#include <thread>
 #include <webgpu/webgpu.h>
 
 #ifdef __EMSCRIPTEN__
@@ -204,6 +205,28 @@ void webgpuPlatformInit() {
     dawnProcSetProcs(&(dawn::native::GetProcs()));
 #endif
 
+}
+
+// NOTE: USE WITH CAUTION!
+void webgpuSleep(const WGPUDevice& device, int milliseconds) {
+#ifdef __EMSCRIPTEN__
+    emscripten_sleep(1); // using asyncify to return to js event loop
+#else
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    wgpuDeviceTick(device); // polling events for DAWN
+#endif
+}
+
+void webgpuSleepAndWaitForFlag(const WGPUDevice& device, bool* flag, int sleepInterval, int timeout) {
+    int time = 0;
+    while (!*flag) {
+        webgpuSleep(device, sleepInterval);
+        time += sleepInterval;
+        if (time > timeout) {
+            std::cerr << "Timeout while waiting for flag" << std::endl;
+            return;
+        }
+    }
 }
 
 // Request webgpu adapter synchronously. Adapted from webgpu.hpp to vanilla webGPU types.
