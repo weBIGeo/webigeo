@@ -32,7 +32,6 @@
 #endif
 
 #include "raii/Sampler.h"
-#include <QImage>
 #include <thread>
 
 #include <glm/gtx/string_cast.hpp>
@@ -790,7 +789,7 @@ WGPURequiredLimits Window::required_gpu_limits() const
 #endif
 
     required_limits.limits.maxColorAttachmentBytesPerSample
-        = 64; // supported on 71% of devices (https://web3dsurvey.com/webgpu/limits/maxColorAttachmentBytesPerSample)
+        = 32; // 64 is supported on 71% of devices (https://web3dsurvey.com/webgpu/limits/maxColorAttachmentBytesPerSample)
 
     return required_limits;
 }
