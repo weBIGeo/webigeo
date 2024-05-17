@@ -3,6 +3,7 @@
  * Copyright (C) 2022 Adam Celarek
  * Copyright (C) 2023 Jakob Lindner
  * Copyright (C) 2024 Patrick Komon
+ * Copyright (C) 2024 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,7 +30,7 @@ std::optional<Definition> FirstPersonInteraction::mouse_move_event(const event_p
 {
 
     if (e.buttons == Qt::LeftButton || e.buttons == Qt::MiddleButton) {
-        const glm::vec2 delta = e.position - e.last_position;
+        const glm::vec2 delta = e.point.position - e.point.last_position;
         camera.orbit_clamped(camera.position(), glm::vec2(delta.x, delta.y) * -0.1f);
     }
 

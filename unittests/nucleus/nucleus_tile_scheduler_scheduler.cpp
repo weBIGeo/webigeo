@@ -1,6 +1,7 @@
 /*****************************************************************************
  * Alpine Terrain Renderer
  * Copyright (C) 2023 Adam Celarek
+ * Copyright (C) 2024 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,6 +23,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <QSignalSpy>
 #include <QThread>
+#include <QImage>
 
 #include "catch2_helpers.h"
 #include "nucleus/camera/PositionStorage.h"
@@ -29,6 +31,7 @@
 #include "nucleus/tile_scheduler/tile_types.h"
 #include "nucleus/tile_scheduler/utils.h"
 #include "nucleus/utils/tile_conversion.h"
+#include "qbuffer.h"
 #include "radix/TileHeights.h"
 #include "test_helpers.h"
 
@@ -51,8 +54,8 @@ constexpr auto timing_multiplicator = 1;
 
 std::unique_ptr<Scheduler> scheduler_with_true_heights()
 {
-    static auto ortho_tile = Scheduler::white_jpeg_tile(256);
-    static auto height_tile = Scheduler::black_png_tile(64);
+    static auto ortho_tile = test_helpers::white_jpeg_tile(256);
+    static auto height_tile = test_helpers::black_png_tile(64);
 
     auto scheduler = std::make_unique<Scheduler>(ortho_tile, height_tile);
     QSignalSpy spy(scheduler.get(), &Scheduler::quads_requested);
@@ -76,8 +79,8 @@ std::unique_ptr<Scheduler> scheduler_with_true_heights()
 
 std::unique_ptr<Scheduler> default_scheduler()
 {
-    static auto ortho_tile = Scheduler::white_jpeg_tile(256);
-    static auto height_tile = Scheduler::black_png_tile(64);
+    static auto ortho_tile = test_helpers::white_jpeg_tile(256);
+    static auto height_tile = test_helpers::black_png_tile(64);
 
     auto scheduler = std::make_unique<Scheduler>(ortho_tile, height_tile);
     QSignalSpy spy(scheduler.get(), &Scheduler::quads_requested);
@@ -116,7 +119,7 @@ std::pair<QByteArray, QByteArray> example_tile_data()
         auto ortho_file = QFile(QString("%1%2").arg(ALP_TEST_DATA_DIR, "test-tile_ortho.jpeg"));
         ortho_file.open(QFile::ReadOnly);
         const auto ortho_bytes = ortho_file.readAll();
-        REQUIRE(!nucleus::utils::tile_conversion::toQImage(ortho_bytes).isNull());
+        REQUIRE(!QImage::fromData(ortho_bytes).isNull());
         return ortho_bytes;
     }();
 
@@ -124,7 +127,7 @@ std::pair<QByteArray, QByteArray> example_tile_data()
         auto height_file = QFile(QString("%1%2").arg(ALP_TEST_DATA_DIR, "test-tile.png"));
         height_file.open(QFile::ReadOnly);
         const auto height_bytes = height_file.readAll();
-        REQUIRE(!nucleus::utils::tile_conversion::toQImage(height_bytes).isNull());
+        REQUIRE(!QImage::fromData(height_bytes).isNull());
         return height_bytes;
     }();
 

@@ -24,7 +24,6 @@
 #include "base_types.h"
 #include "nucleus/Raster.h"
 #include "nucleus/utils/ColourTexture.h"
-#include <QImage>
 #include <map>
 #include <webgpu/webgpu.h>
 
@@ -35,13 +34,10 @@ namespace webgpu_engine::raii {
 /// Preferably to be used with std::unique_ptr or std::shared_ptr.
 class Texture : public GpuResource<WGPUTexture, WGPUTextureDescriptor, WGPUDevice> {
 public:
-    static const std::map<QImage::Format, WGPUTextureFormat> qimage_to_webgpu_format;
     static const std::map<WGPUTextureFormat, size_t> bytes_per_element;
 
 public:
     using GpuResource::GpuResource;
-
-    void write(WGPUQueue queue, QImage image, uint32_t layer = 0);
 
     // TODO could make this a function template and pass type instead of using uint16_t? but not needed rn
     void write(WGPUQueue queue, const nucleus::Raster<uint16_t>& data, uint32_t layer = 0);

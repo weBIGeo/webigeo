@@ -1,6 +1,7 @@
 /*****************************************************************************
  * Alpine Terrain Renderer
  * Copyright (C) 2024 Lucas Dworschak
+ * Copyright (C) 2024 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +21,6 @@
 
 #include <QDebug>
 #include <QFile>
-#include <QIcon>
 #include <QSize>
 #include <QStringLiteral>
 
@@ -98,7 +98,8 @@ void MapLabelManager::init()
         label.init(m_char_data, &m_fontinfo, uv_width_norm);
     }
 
-    m_icon = QImage(":/map_icons/peak.png");
+    /* REPLACED WITH QGUI
+    m_icon = QImage(":/map_icons/peak.png");*/
 }
 
 Raster<uint8_t> MapLabelManager::make_font_raster()
@@ -210,10 +211,11 @@ const std::vector<unsigned int>& MapLabelManager::indices() const
     return m_indices;
 }
 
+/* REPLACED WITH QGUI
 const QImage& MapLabelManager::icon() const
 {
     return m_icon;
-}
+}*/
 const Raster<glm::u8vec2>& MapLabelManager::font_atlas() const { return m_font_atlas; }
 
 } // namespace nucleus

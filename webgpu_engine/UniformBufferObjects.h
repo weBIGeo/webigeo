@@ -19,7 +19,6 @@
 #pragma once
 
 #include <QObject>
-#include <QVector4D>
 #include <glm/glm.hpp>
 
 #include <QByteArray>
@@ -44,24 +43,22 @@
 namespace webgpu_engine {
 
 struct uboSharedConfig {
-
-    Q_GADGET
 public:
     // rgb...Color, a...intensity
-    QVector4D m_sun_light = QVector4D(1.0, 1.0, 1.0, 0.15);
+    glm::vec4 m_sun_light = glm::vec4(1.0, 1.0, 1.0, 0.15);
     // The direction of the light/sun in WS (northwest lighting at 45 degrees)
-    QVector4D m_sun_light_dir = QVector4D(1.0, -1.0, -1.0, 0.0).normalized();
-    //QVector4D m_sun_pos = QVector4D(1.0, 1.0, 3000.0, 1.0);
+    glm::vec4 m_sun_light_dir = glm::normalize(glm::vec4(1.0, -1.0, -1.0, 0.0));
+    //glm::vec4 m_sun_pos = glm::vec4(1.0, 1.0, 3000.0, 1.0);
     // rgb...Color, a...intensity
-    QVector4D m_amb_light = QVector4D(1.0, 1.0, 1.0, 0.4);
+    glm::vec4 m_amb_light = glm::vec4(1.0, 1.0, 1.0, 0.4);
     // rgba...Color of the phong-material (if a 0 -> ortho picture)
-    QVector4D m_material_color = QVector4D(0.5, 0.5, 0.5, 0.0);
+    glm::vec4 m_material_color = glm::vec4(0.5, 0.5, 0.5, 0.0);
     // amb, diff, spec, shininess
-    QVector4D m_material_light_response = QVector4D(1.5, 3.0, 0.0, 32.0);
+    glm::vec4 m_material_light_response = glm::vec4(1.5, 3.0, 0.0, 32.0);
     // enabled, min angle, max angle, angle blend space
-    QVector4D m_snow_settings_angle = QVector4D(0.0, 0.0, 30.0, 5.0);
+    glm::vec4 m_snow_settings_angle = glm::vec4(0.0, 0.0, 30.0, 5.0);
     // min altitude (snowline), variating altitude, altitude blend space, spec addition
-    QVector4D m_snow_settings_alt = QVector4D(1000.0, 200.0, 200.0, 1.0);
+    glm::vec4 m_snow_settings_alt = glm::vec4(1000.0, 200.0, 200.0, 1.0);
 
     float m_overlay_strength = 0.5f;
     float m_ssao_falloff_to_value = 0.5f;
@@ -83,35 +80,6 @@ public:
     uint32_t m_overlay_shadowmaps_enabled = false;
     uint32_t m_padi1 = 0;
 
-    // WARNING: Don't move the following Q_PROPERTIES to the top, otherwise the MOC
-    // will do weird things with the data alignment!!
-    Q_PROPERTY(QVector4D sun_light MEMBER m_sun_light)
-    Q_PROPERTY(QVector4D sun_light_dir MEMBER m_sun_light_dir)
-    Q_PROPERTY(QVector4D amb_light MEMBER m_amb_light)
-    Q_PROPERTY(QVector4D material_color MEMBER m_material_color)
-    Q_PROPERTY(QVector4D material_light_response MEMBER m_material_light_response)
-    Q_PROPERTY(QVector4D snow_settings_angle MEMBER m_snow_settings_angle)
-    Q_PROPERTY(QVector4D snow_settings_alt MEMBER m_snow_settings_alt)
-
-    Q_PROPERTY(float overlay_strength MEMBER m_overlay_strength)
-    Q_PROPERTY(float ssao_falloff_to_value MEMBER m_ssao_falloff_to_value)
-
-    Q_PROPERTY(bool phong_enabled MEMBER m_phong_enabled)
-    Q_PROPERTY(unsigned int normal_mode MEMBER m_normal_mode)
-    Q_PROPERTY(unsigned int overlay_mode MEMBER m_overlay_mode)
-    Q_PROPERTY(bool overlay_postshading_enabled MEMBER m_overlay_postshading_enabled)
-
-    Q_PROPERTY(bool ssao_enabled MEMBER m_ssao_enabled)
-    Q_PROPERTY(unsigned int ssao_kernel MEMBER m_ssao_kernel)
-    Q_PROPERTY(bool ssao_range_check MEMBER m_ssao_range_check)
-    Q_PROPERTY(unsigned int ssao_blur_kernel_size MEMBER m_ssao_blur_kernel_size)
-
-    Q_PROPERTY(bool height_lines_enabled MEMBER m_height_lines_enabled)
-    Q_PROPERTY(bool csm_enabled MEMBER m_csm_enabled)
-    Q_PROPERTY(bool overlay_shadowmaps_enabled MEMBER m_overlay_shadowmaps_enabled)
-
-    bool operator==(const uboSharedConfig&) const = default;
-    bool operator!=(const uboSharedConfig&) const = default;
 };
 
 struct uboCameraConfig {
@@ -146,19 +114,6 @@ struct uboShadowConfig {
 };
 */
 
-// This struct is only used for unit tests
-struct uboTestConfig {
-    Q_GADGET
-public:
-    QVector4D m_tv4 = QVector4D(0.1f, 0.2f, 0.3f, 0.4f);
-    float m_tf32 = 0.5f;
-    uint32_t m_tu32 = 201u;
-    Q_PROPERTY(QVector4D tv4 MEMBER m_tv4)
-    Q_PROPERTY(float tf32 MEMBER m_tf32)
-    Q_PROPERTY(unsigned int tu32 MEMBER m_tu32)
-    bool operator!=(const uboSharedConfig&) const { return true; }
-};
-
 // FOR SERIALIZATION
 // NOTE: The following are the default serialize functions. (nothing happens) If the functionality is needed
 // have a look at how you have to override those functions for the specific ubos.
@@ -168,12 +123,8 @@ template <typename T>
 void unserialize_ubo(QDataStream& /*in*/, T& /*data*/, uint32_t /*version*/) { }
 
 // override for shared_config
-void serialize_ubo(QDataStream& out, const uboSharedConfig& data);
-void unserialize_ubo(QDataStream& in, uboSharedConfig& data, uint32_t version);
-
-// override for test_config
-void serialize_ubo(QDataStream& out, const uboTestConfig& data);
-void unserialize_ubo(QDataStream& in, uboTestConfig& data, uint32_t version);
+//void serialize_ubo(QDataStream& out, const uboSharedConfig& data);
+//void unserialize_ubo(QDataStream& in, uboSharedConfig& data, uint32_t version);
 
 // Returns String representation of buffer data (Base64)
 template <typename T>

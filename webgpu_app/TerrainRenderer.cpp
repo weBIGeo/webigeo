@@ -19,8 +19,8 @@
 
 #include "TerrainRenderer.h"
 
-#include <QImage>
 #include <map>
+#include <QFile>
 #include <webgpu/webgpu_interface.hpp>
 #include <iostream>
 
@@ -29,7 +29,7 @@
 #include "backends/imgui_impl_glfw.h"
 #endif
 
-#include "nucleus/tile_scheduler/Scheduler.h"
+#include "nucleus/stb/stb_image_loader.h"
 #include "webgpu_engine/Window.h"
 
 #ifdef __EMSCRIPTEN__
@@ -94,14 +94,14 @@ void TerrainRenderer::init_window() {
 
 #ifndef __EMSCRIPTEN__
     // Load Icon for Window
-    QImage icon(":/icons/logo32.png"); // Note: When we remove QGUI as dependency this has to go
-    if (!icon.isNull()) {
-        QImage formattedIcon = icon.convertToFormat(QImage::Format_RGBA8888);
-
+    QFile file(":/icons/logo32.png");
+    if (file.open(QIODevice::ReadOnly)) {
+        QByteArray byteArray = file.readAll();
+        auto icon = nucleus::stb::load_8bit_rgba_image_from_memory(byteArray);
         GLFWimage images[1];
-        images[0].width = formattedIcon.width();
-        images[0].height = formattedIcon.height();
-        images[0].pixels = formattedIcon.bits();
+        images[0].width = int(icon.width());
+        images[0].height = int(icon.height());
+        images[0].pixels = icon.bytes();
         glfwSetWindowIcon(m_window, 1, images);
     } else {
         std::cerr << "Could not load icon image!" << std::endl;
@@ -224,8 +224,8 @@ void TerrainRenderer::on_key_callback(int key, [[maybe_unused]]int scancode, int
 
 void TerrainRenderer::on_cursor_position_callback(double x_pos, double y_pos)
 {
-    m_mouse.last_position = m_mouse.position;
-    m_mouse.position = { x_pos,  y_pos };
+    m_mouse.point.last_position = m_mouse.point.position;
+    m_mouse.point.position = { x_pos, y_pos };
     //std::cout << "mouse moved, x=" << x_pos << ", y=" << y_pos << std::endl;
     emit mouse_moved(m_mouse);
 }
@@ -275,7 +275,7 @@ void TerrainRenderer::on_scroll_callback(double x_offset, double y_offset)
 {
     nucleus::event_parameter::Wheel wheel {};
     wheel.angle_delta = QPoint(static_cast<int>(x_offset), static_cast<int>(y_offset) * 50.0f);
-    wheel.position = m_mouse.position;
+    wheel.point.position = m_mouse.point.position;
     //std::cout << "wheel  turned, delta x=" << x_offset << ", y=" << y_offset << std::endl;
     emit wheel_turned(wheel);
 }

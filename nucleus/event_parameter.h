@@ -20,20 +20,37 @@
 
 #pragma once
 
-#include <QMetaType>
-#include <QMouseEvent>  //ToDo: Remove with QGui
-#include <QTouchEvent>
 
-#include <glm/vec2.hpp>
+#include <QPoint>
+#include <QMetaType>
+#include <glm/glm.hpp>
+#include <vector>
 
 namespace nucleus::event_parameter {
+
+// compatible to QEventPoint::State
+enum TouchPointState {
+    TouchPointUnknownState = 0x00,
+    TouchPointPressed    = 0x01,
+    TouchPointMoved      = 0x02,
+    TouchPointStationary = 0x04,
+    TouchPointReleased   = 0x08
+};
+
+// loosely based on QEventPoint
+struct EventPoint {
+    TouchPointState state;
+    glm::vec2 position = glm::vec2(0);
+    glm::vec2 last_position = glm::vec2(0);
+    glm::vec2 press_position = glm::vec2(0);
+};
 
 struct Touch {
     bool is_begin_event = false;
     bool is_end_event = false;
     bool is_update_event = false;
-    QList<QEventPoint> points; //TODO remove, QT::QUI dependency
-    QEventPoint::States states;
+    std::vector<EventPoint> points;
+    //QList<QEventPoint> points; //TODO remove, QT::QUI dependency
 };
 
 struct Mouse {
@@ -42,10 +59,11 @@ struct Mouse {
     bool is_update_event = false;
     Qt::MouseButton button = Qt::NoButton; //TODO unused?
     Qt::MouseButtons buttons;
-    QEventPoint point = QEventPoint(); //TODO remove, Qt::GUI dependency
-    glm::vec2 position = glm::vec2(0);
-    glm::vec2 last_position = glm::vec2(0);
-    glm::vec2 press_position = glm::vec2(0);
+    EventPoint point;
+    //QEventPoint point = QEventPoint(); //TODO remove, Qt::GUI dependency
+    //glm::vec2 position = glm::vec2(0);
+    //glm::vec2 last_position = glm::vec2(0);
+    //glm::vec2 press_position = glm::vec2(0);
 };
 
 struct Wheel {
@@ -53,14 +71,16 @@ struct Wheel {
     bool is_end_event = false;
     bool is_update_event = false;
     QPoint angle_delta;
-    QEventPoint point = QEventPoint(); // TODO remove, Qt::GUI dependency
-    glm::vec2 position = glm::vec2(0);
+    EventPoint point;
+    //QEventPoint point = QEventPoint(); // TODO remove, Qt::GUI dependency
+    //glm::vec2 position = glm::vec2(0);
 };
 }
 Q_DECLARE_METATYPE(nucleus::event_parameter::Touch)
 Q_DECLARE_METATYPE(nucleus::event_parameter::Mouse)
 Q_DECLARE_METATYPE(nucleus::event_parameter::Wheel)
 
+/* ARE THOSE USED?
 namespace nucleus::event_parameter {
 inline Touch make(const QTouchEvent* event)
 {
@@ -81,4 +101,4 @@ inline Wheel make(const QWheelEvent* event)
     return { event->isBeginEvent(), event->isEndEvent(), event->isUpdateEvent(),
         event->angleDelta(), event->points().front() };
 }
-}
+}*/

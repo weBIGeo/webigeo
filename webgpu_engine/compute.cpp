@@ -19,6 +19,8 @@
 #include "compute.h"
 #include "nucleus/utils/tile_conversion.h"
 
+#include "nucleus/stb/stb_image_loader.h"
+
 namespace webgpu_engine {
 
 std::vector<tile::Id> RectangularTileRegion::get_tiles() const
@@ -99,8 +101,10 @@ void TextureArrayComputeTileStorage::store(const tile::Id& id, std::shared_ptr<Q
     const size_t found_index = found - m_layer_index_to_tile_id.begin();
 
     // convert to raster and store in texture array
-    const auto raster = nucleus::utils::tile_conversion::qImage2uint16Raster(nucleus::utils::tile_conversion::toQImage(*data));
-    m_texture_array->texture().write(m_queue, raster, uint32_t(found_index));
+
+    const nucleus::Raster<glm::u8vec4> height_image = nucleus::stb::load_8bit_rgba_image_from_memory(*data);
+    const auto heightraster = nucleus::utils::tile_conversion::u8vec4raster_to_u16raster(height_image);
+    m_texture_array->texture().write(m_queue, heightraster, uint32_t(found_index));
 
     GpuTileId gpu_tile_id = { .x = id.coords.x, .y = id.coords.y, .zoomlevel = id.zoom_level };
     m_tile_ids->write(m_queue, &gpu_tile_id, 1, found_index);
@@ -240,11 +244,11 @@ void ComputeController::write_output_tiles(const std::filesystem::path& dir) con
 {
     std::filesystem::create_directories(dir);
 
-    auto read_back_callback = [this, dir](size_t layer_index, std::shared_ptr<QByteArray> data) {
-        QImage img((const uchar*)data->constData(), m_output_tile_resolution.x, m_output_tile_resolution.y, QImage::Format_RGBA8888);
+    auto read_back_callback = [dir](size_t layer_index, [[maybe_unused]]std::shared_ptr<QByteArray> data) {
+        //QImage img((const uchar*)data->constData(), m_output_tile_resolution.x, m_output_tile_resolution.y, QImage::Format_RGBA8888);
         std::filesystem::path file_path = dir / std::format("tile_{}.png", layer_index);
-        std::cout << "write to file " << file_path << std::endl;
-        img.save(file_path.generic_string().c_str(), "PNG");
+        std::cout << "write to file NOT IMPLEMENTED " << file_path << std::endl;
+        //img.save(file_path.generic_string().c_str(), "PNG");
     };
 
     std::cout << "write to files" << std::endl;
