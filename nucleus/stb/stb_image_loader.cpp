@@ -19,6 +19,7 @@
 #include "stb_image_loader.h"
 #include <stb_slim/stb_image.h>
 #include <stdexcept>
+#include <QFile>
 
 namespace nucleus::stb {
 
@@ -42,10 +43,25 @@ Raster<glm::u8vec4> load_8bit_rgba_image_from_memory(const QByteArray& byteArray
     // we can't use the allocated memory directly, because for that we would need a custom
     // allocator for the std::vector class.
     Raster<glm::u8vec4> raster(glm::uvec2(width, height));
-    std::memcpy(raster.data(), data, raster.size_in_bytes());
+    memcpy(raster.data(), data, raster.size_in_bytes());
     stbi_image_free(data);
 
     return raster;
 }
+
+Raster<glm::u8vec4> load_8bit_rgba_image_from_file(const QString& filename)
+{
+    QFile file(filename);
+    if (!file.open(QIODevice::ReadOnly)) {
+        throw std::runtime_error("Failed to open file: " + filename.toStdString());
+    }
+
+    QByteArray byteArray = file.readAll();
+    file.close();
+
+    // NOTE: We don't use the stb_image loader directly, because QFile can load from ressources
+    return load_8bit_rgba_image_from_memory(byteArray);
+}
+
 
 } // namespace nucleus

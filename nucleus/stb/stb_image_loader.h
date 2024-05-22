@@ -25,6 +25,8 @@ namespace nucleus::stb {
 
 Raster<glm::u8vec4> load_8bit_rgba_image_from_memory(const QByteArray& byteArray);
 
+Raster<glm::u8vec4> load_8bit_rgba_image_from_file(const QString& filename);
+
 } // namespace nucleus
 
 

@@ -25,6 +25,12 @@
 
 #include <glm/glm.hpp>
 
+#ifdef QT_GUI_LIB
+// Qt GUI module is available
+#include <QtGui/QImage>
+#endif
+
+
 namespace nucleus {
 
 template <typename T>
@@ -86,6 +92,30 @@ public:
     [[nodiscard]] uint8_t* bytes() { return reinterpret_cast<uint8_t*>(m_data.data()); }
 
     void fill(const T& value) { std::fill(begin(), end(), value); }
+
+#ifdef QT_GUI_LIB
+    [[nodiscard]] QImage toQImage() const {
+        static_assert(std::is_same<T, glm::u8vec4>::value, "toQImage is only implemented for u8vec4 (RGBA8) rasters");
+
+        //assert(m_data.size() == m_width * m_height * 4); // Ensure the data is RGBA8
+        QImage image(m_width, m_height, QImage::Format_RGBA8888);
+        memcpy(image.bits(), m_data.data(), m_data.size() * sizeof(T));
+        return image;
+    }
+
+    template<typename U = T>
+    static Raster<U> fromQImage(const QImage& image) {
+        static_assert(std::is_same<U, glm::u8vec4>::value, "fromQImage is only implemented for u8vec4 (RGBA8) rasters");
+
+        assert(image.format() == QImage::Format_RGBA8888); // Ensure the image is in the correct format
+
+        glm::uvec2 size(image.width(), image.height());
+        Raster<U> raster(size);
+
+        std::memcpy(raster.data(), image.bits(), image.sizeInBytes());
+        return raster;
+    }
+#endif
 
     auto begin() { return m_data.begin(); }
     auto end() { return m_data.end(); }

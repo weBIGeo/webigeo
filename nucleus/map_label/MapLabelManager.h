@@ -36,8 +36,8 @@ public:
     const std::vector<MapLabel>& labels() const;
     const std::vector<unsigned int>& indices() const;
     const Raster<glm::u8vec2>& font_atlas() const;
-    /* REPLACED WITH QGUI
-    const QImage& icon() const;*/
+    /* Replaced to Raster with the removal of QtGUI, use Raster::toQImage() */
+    const Raster<glm::u8vec4>& icon() const;
 
 private:
     void init();
@@ -63,7 +63,6 @@ private:
     QByteArray m_font_file;
 
     Raster<glm::u8vec2> m_font_atlas;
-    /* REPLACED WITH QGUI
-    QImage m_icon; */
+    Raster<glm::u8vec4> m_icon;
 };
 } // namespace nucleus
