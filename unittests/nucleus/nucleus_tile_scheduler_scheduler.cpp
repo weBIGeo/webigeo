@@ -25,13 +25,10 @@
 #include <QThread>
 #include <QImage>
 
-#include "catch2_helpers.h"
 #include "nucleus/camera/PositionStorage.h"
 #include "nucleus/tile_scheduler/Scheduler.h"
 #include "nucleus/tile_scheduler/tile_types.h"
 #include "nucleus/tile_scheduler/utils.h"
-#include "nucleus/utils/tile_conversion.h"
-#include "qbuffer.h"
 #include "radix/TileHeights.h"
 #include "test_helpers.h"
 
@@ -51,7 +48,6 @@ constexpr auto timing_multiplicator = 1;
 #else
 constexpr auto timing_multiplicator = 1;
 #endif
-
 std::unique_ptr<Scheduler> scheduler_with_true_heights()
 {
     static auto ortho_tile = test_helpers::white_jpeg_tile(256);

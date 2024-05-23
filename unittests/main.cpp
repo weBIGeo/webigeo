@@ -19,11 +19,20 @@
  *****************************************************************************/
 
 #include <QCoreApplication>
+#ifdef QT_GUI_LIB
+#include <QGuiApplication>
+#endif
 #include <catch2/catch_session.hpp>
 
 int main( int argc, char* argv[] ) {
     int argc_qt = 1;
-    QCoreApplication app = {argc_qt, argv};
+#ifdef QT_GUI_LIB
+    QGuiApplication app(argc_qt, argv);
+    qDebug("Created QGuiApplication...");
+#else
+    QCoreApplication app(argc_qt, argv);
+    qDebug("Created QCoreApplication...");
+#endif
     QCoreApplication::setOrganizationName("AlpineMaps.org");
 #ifdef __ANDROID__
     std::vector<char*> argv_2;

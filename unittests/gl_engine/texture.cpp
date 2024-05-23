@@ -292,14 +292,12 @@ TEST_CASE("gl texture")
                 opengl_texture.upload(compressed, 0);
             }
             {
-                QImage test_texture(256, 256, QImage::Format_ARGB32);
-                test_texture.fill(qRgba(42, 142, 242, 255));
+                auto test_raster = nucleus::Raster<glm::u8vec4>(glm::uvec2(256), glm::u8vec4(42,142,242,255));
                 const auto compressed = ColourTexture(test_raster, texture_type);
                 opengl_texture.upload(compressed, 1);
             }
             {
-                QImage test_texture(256, 256, QImage::Format_ARGB32);
-                test_texture.fill(qRgba(222, 111, 0, 255));
+                auto test_raster = nucleus::Raster<glm::u8vec4>(glm::uvec2(256), glm::u8vec4(222,111,0,255));
                 const auto compressed = ColourTexture(test_raster, texture_type);
                 opengl_texture.upload(compressed, 2);
             }
