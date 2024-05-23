@@ -21,6 +21,8 @@ project(alpine-renderer-webgpu LANGUAGES C CXX)
 # NOTE: The idea behind this target is to accumulate all the webgpu related things that are platform
 # dependent such that we only have the webgpu cmake target for the other projects to link against.
 
+set(ALP_DAWN_DIR "${CMAKE_SOURCE_DIR}/../dawn" CACHE PATH "path to the dawn repo with debug and release builds. (only necessary for native build)")
+
 # set INCLUDE_DIR based on EMSCRIPTEN
 if (EMSCRIPTEN)
     set(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/emscripten/include)
@@ -44,6 +46,19 @@ else()
     # add glfw to webgpu library
     alp_add_git_repository(glfw URL https://github.com/AlpineMapsOrgDependencies/glfw_slim.git COMMITISH 1c340247f42f8dc9ed3f971eb292ce76be6077e5)
     target_link_libraries(webgpu PUBLIC glfw)
+
+    # If tint_lang_hlsl_writer.lib within ${ALP_DAWN_DIR}/build/debug/src exists DAWN was compiled with DX-Backends.
+    file(GLOB_RECURSE TINT_LIB_PATH "${ALP_DAWN_DIR}/build/debug/src/tint_lang_hlsl_writer.lib")
+    if (TINT_LIB_PATH)
+        # NOTE: With Direct3D Backends we additionally need to link against dx.
+        message(STATUS "Found tint_lang_hlsl_writer.lib, DAWN seems to be compiled with DX-Backends. Will link against dxguid.lib.")
+        find_library(DXGUID_LIB dxguid.lib)
+        if (DXGUID_LIB)
+            target_link_libraries(webgpu PUBLIC ${DXGUID_LIB})
+        else()
+            message(FATAL_ERROR "dxguid.lib not found.")
+        endif()
+    endif()
 endif()
 
 target_include_directories(webgpu PUBLIC ${INCLUDE_DIR})

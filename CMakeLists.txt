@@ -37,8 +37,6 @@ option(ALP_ENABLE_LTO "Enable link time optimisation." OFF)
 
 set(ALP_EXTERN_DIR "extern" CACHE STRING "name of the directory to store external libraries, fonts etc..")
 
-set(ALP_DAWN_DIR "${CMAKE_SOURCE_DIR}/../dawn" CACHE PATH "path to the dawn repo with debug and release builds. (only necessary for native build)")
-
 if(ALP_ENABLE_TRACK_OBJECT_LIFECYCLE)
     add_definitions(-DALP_ENABLE_TRACK_OBJECT_LIFECYCLE)
 endif()
