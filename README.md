@@ -200,7 +200,7 @@ Dawn is the webgpu-implementation used in chromium, which is the open-source-eng
 ### About DAWN Backends
 Per default we opt for an only Vulkan-Backend Build for two reasons:
 - Vulkan is probably the most supported Backend running on most devices
-- We have more previous knowledge about DirectX which makes GPU debugging easier
+- We have more knowledge about Vulkan which comes to play when we use GPU debugers
 
 That being said it is possible to compile DAWN with all Backends by using the following commands *instead of step 6 and 7*:
 ```
