@@ -44,8 +44,7 @@ set_target_properties(webgpu_app PROPERTIES
     MACOSX_BUNDLE TRUE
 )
 
-# TODO: Get rid of Qt::GUI (no QImage)
-target_link_libraries(webgpu_app PUBLIC webgpu webgpu_engine Qt::Core Qt::Gui)
+target_link_libraries(webgpu_app PUBLIC webgpu webgpu_engine Qt::Core)
 target_include_directories(webgpu_app PRIVATE .)
 
 if (EMSCRIPTEN)

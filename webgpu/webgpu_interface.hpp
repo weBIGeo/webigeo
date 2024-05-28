@@ -69,6 +69,23 @@ WGPUSurface glfwGetWGPUSurface(WGPUInstance instance, GLFWwindow* window);
  */
 void webgpuPlatformInit();
 
+/**
+ * A sleep function which works with webassembly by using asyncify and native by utilizing
+ * thread::sleep_for. Use with caution! It blocks the main thread and asyncify imposes a great overhead.
+ * In the best case, this function should only be used for test purposes.
+ * @param milliseconds The number of milliseconds to sleep.
+ */
+void webgpuSleep(const WGPUDevice& device, int milliseconds);
+
+/**
+ * Uses webgpuSleep to wait for a flag to be set to true. USE WITH CAUTION!
+ * @param device The webgpu device for polling
+ * @param flag Pointer to the boolean flag
+ * @param sleepInterval The interval in milliseconds between each poll
+ * @param timeout The maximum time to wait for the flag to be set
+ */
+void webgpuSleepAndWaitForFlag(const WGPUDevice& device, bool* flag, int sleepInterval = 1, int timeout = 1000);
+
 WGPUAdapter requestAdapterSync(WGPUInstance instance, const WGPURequestAdapterOptions& options);
 WGPUDevice requestDeviceSync(WGPUAdapter adapter, const WGPUDeviceDescriptor& descriptor);
 }

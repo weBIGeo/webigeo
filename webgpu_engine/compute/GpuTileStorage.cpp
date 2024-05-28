@@ -21,6 +21,7 @@
 #include "nucleus/utils/tile_conversion.h"
 
 namespace webgpu_engine {
+    
 TextureArrayComputeTileStorage::TextureArrayComputeTileStorage(
     WGPUDevice device, const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format, WGPUTextureUsageFlags usage)
     : m_device { device }
@@ -79,8 +80,9 @@ void TextureArrayComputeTileStorage::store(const tile::Id& id, std::shared_ptr<Q
     const size_t found_index = found - m_layer_index_to_tile_id.begin();
 
     // convert to raster and store in texture array
-    const auto raster = nucleus::utils::tile_conversion::qImage2uint16Raster(nucleus::utils::tile_conversion::toQImage(*data));
-    m_texture_array->texture().write(m_queue, raster, uint32_t(found_index));
+    const nucleus::Raster<glm::u8vec4> height_image = nucleus::stb::load_8bit_rgba_image_from_memory(*data);
+    const auto heightraster = nucleus::utils::tile_conversion::u8vec4raster_to_u16raster(height_image);
+    m_texture_array->texture().write(m_queue, heightraster, uint32_t(found_index));
 
     GpuTileId gpu_tile_id = { .x = id.coords.x, .y = id.coords.y, .zoomlevel = id.zoom_level };
     m_tile_ids->write(m_queue, &gpu_tile_id, 1, found_index);

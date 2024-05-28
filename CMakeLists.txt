@@ -21,7 +21,7 @@
 cmake_minimum_required(VERSION 3.25)
 project(alpine-renderer LANGUAGES CXX)
 
-option(ALP_UNITTESTS "include unit test targets in the buildsystem" OFF)
+option(ALP_UNITTESTS "include unit test targets in the buildsystem" ON)
 option(ALP_GL_ENGINE "include the gl engine in the buildsystem" OFF)
 option(ALP_WEBGPU_ENGINE "include the webgpu engine in the buildsystem" ON)
 option(ALP_WEBGPU_APP "include the webgpu app in the buildsystem" ON)
@@ -36,8 +36,6 @@ option(ALP_ENABLE_APP_SHUTDOWN_AFTER_60S "Shuts down the app after 60S, used for
 option(ALP_ENABLE_LTO "Enable link time optimisation." OFF)
 
 set(ALP_EXTERN_DIR "extern" CACHE STRING "name of the directory to store external libraries, fonts etc..")
-
-set(ALP_DAWN_DIR "${CMAKE_SOURCE_DIR}/../dawn" CACHE PATH "path to the dawn repo with debug and release builds. (only necessary for native build)")
 
 if(ALP_ENABLE_TRACK_OBJECT_LIFECYCLE)
     add_definitions(-DALP_ENABLE_TRACK_OBJECT_LIFECYCLE)

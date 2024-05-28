@@ -23,6 +23,7 @@ project(alpine-renderer-unittests_webgpu_engine LANGUAGES CXX)
 alp_add_unittest(unittests_webgpu_engine
     UnittestWebgpuContext.h UnittestWebgpuContext.cpp
     test_GpuHashMap.cpp
+    test_GpuShaderFunctions.cpp
 )
 
 target_link_libraries(unittests_webgpu_engine PUBLIC webgpu_engine)

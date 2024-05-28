@@ -1,6 +1,7 @@
 /*****************************************************************************
  * Alpine Renderer
  * Copyright (C) 2024 Patrick Komon
+ * Copyright (C) 2024 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -62,4 +63,7 @@ UnittestWebgpuContext::UnittestWebgpuContext(WGPURequiredLimits required_limits)
 
     queue = wgpuDeviceGetQueue(device);
     assert(queue);
+
+    shader_module_manager = std::make_unique<ShaderModuleManager>(device);
+    assert(shader_module_manager);
 }

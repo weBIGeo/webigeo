@@ -18,6 +18,8 @@
 
 #include "compute.h"
 
+#include "nucleus/stb/stb_image_loader.h"
+
 namespace webgpu_engine {
 
 std::vector<tile::Id> RectangularTileRegion::get_tiles() const
@@ -33,7 +35,6 @@ std::vector<tile::Id> RectangularTileRegion::get_tiles() const
     }
     return tiles;
 }
-
 
 ComputeController::ComputeController(WGPUDevice device, const PipelineManager& pipeline_manager)
     : m_pipeline_manager(&pipeline_manager)
@@ -120,11 +121,11 @@ void ComputeController::write_output_tiles(const std::filesystem::path& dir) con
 {
     std::filesystem::create_directories(dir);
 
-    auto read_back_callback = [this, dir](size_t layer_index, std::shared_ptr<QByteArray> data) {
-        QImage img((const uchar*)data->constData(), m_output_tile_resolution.x, m_output_tile_resolution.y, QImage::Format_RGBA8888);
+    auto read_back_callback = [dir](size_t layer_index, [[maybe_unused]]std::shared_ptr<QByteArray> data) {
+        //QImage img((const uchar*)data->constData(), m_output_tile_resolution.x, m_output_tile_resolution.y, QImage::Format_RGBA8888);
         std::filesystem::path file_path = dir / std::format("tile_{}.png", layer_index);
-        std::cout << "write to file " << file_path << std::endl;
-        img.save(file_path.generic_string().c_str(), "PNG");
+        std::cout << "write to file NOT IMPLEMENTED " << file_path << std::endl;
+        //img.save(file_path.generic_string().c_str(), "PNG");
     };
 
     std::cout << "write to files" << std::endl;

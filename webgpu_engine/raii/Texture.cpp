@@ -21,36 +21,12 @@
 
 namespace webgpu_engine::raii {
 
-// TODO
-const std::map<QImage::Format, WGPUTextureFormat> Texture::qimage_to_webgpu_format { { QImage::Format::Format_RGBA8888,
-    WGPUTextureFormat::WGPUTextureFormat_RGBA8Unorm } };
+const std::map<WGPUTextureFormat, size_t> Texture::bytes_per_element {
+    { WGPUTextureFormat_RGBA8Unorm, 4 }
+};
 
-const std::map<WGPUTextureFormat, size_t> Texture::bytes_per_element { { WGPUTextureFormat_RGBA8Unorm, 4 } };
-
-void Texture::write(WGPUQueue queue, QImage image, uint32_t layer)
-{
-    // assert dimensions and format match up
-    assert(static_cast<uint32_t>(image.width()) == m_descriptor.size.width);
-    assert(static_cast<uint32_t>(image.height()) == m_descriptor.size.height);
-    assert(m_descriptor.format == qimage_to_webgpu_format.at(image.format())); // TODO could also just convert to other format
-
-    WGPUImageCopyTexture image_copy_texture {};
-    image_copy_texture.texture = m_handle;
-    image_copy_texture.aspect = WGPUTextureAspect::WGPUTextureAspect_All;
-    image_copy_texture.mipLevel = 0;
-    image_copy_texture.origin = { 0, 0, layer };
-    image_copy_texture.nextInChain = nullptr;
-
-    WGPUTextureDataLayout texture_data_layout {};
-    texture_data_layout.bytesPerRow = image.bytesPerLine();
-    texture_data_layout.rowsPerImage = image.height();
-    texture_data_layout.offset = 0;
-    texture_data_layout.nextInChain = nullptr;
-
-    WGPUExtent3D copy_extent { m_descriptor.size.width, m_descriptor.size.height, 1 };
-    wgpuQueueWriteTexture(queue, &image_copy_texture, image.bits(), image.sizeInBytes(), &texture_data_layout, &copy_extent);
-}
-
+// TODO: This should be a template function if possible which takes raster images
+// that fit the current texture format.
 void Texture::write(WGPUQueue queue, const nucleus::Raster<uint16_t>& data, uint32_t layer)
 {
     assert(static_cast<uint32_t>(data.width()) == m_descriptor.size.width);
@@ -69,8 +45,7 @@ void Texture::write(WGPUQueue queue, const nucleus::Raster<uint16_t>& data, uint
     texture_data_layout.offset = 0;
     texture_data_layout.nextInChain = nullptr;
     WGPUExtent3D copy_extent { m_descriptor.size.width, m_descriptor.size.height, 1 };
-    // TODO maybe add buffer_length_in_bytes() to Raster
-    wgpuQueueWriteTexture(queue, &image_copy_texture, data.bytes(), uint32_t(sizeof(uint16_t) * data.buffer_length()), &texture_data_layout, &copy_extent);
+    wgpuQueueWriteTexture(queue, &image_copy_texture, data.bytes(), uint32_t(data.size_in_bytes()), &texture_data_layout, &copy_extent);
 }
 
 void Texture::write(WGPUQueue queue, const nucleus::utils::ColourTexture& data, uint32_t layer)

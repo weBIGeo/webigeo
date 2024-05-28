@@ -180,6 +180,7 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         overlay_color.a *= conf.overlay_strength;
         out_Color = vec4(mix(out_Color.rgb, overlay_color.rgb, overlay_color.a), out_Color.a);
     }
+
 /*
     // OVERLAY SHADOW MAPS
     if (bool(conf.overlay_shadowmaps_enabled)) {
