@@ -18,6 +18,7 @@
 
 #include "GpuTileStorage.h"
 
+#include "nucleus/stb/stb_image_loader.h"
 #include "nucleus/utils/tile_conversion.h"
 
 namespace webgpu_engine {
