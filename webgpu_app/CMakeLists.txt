@@ -27,6 +27,7 @@ option(ALP_WEBGPU_APP_ENABLE_IMGUI "Enable imgui" ON)
 set(SOURCES
     main.cpp
     TerrainRenderer.h TerrainRenderer.cpp
+    InputMapper.h InputMapper.cpp
     dps/PropertyManager.h dps/PropertyManager.cpp
     dps/PropertyGroup.h dps/PropertyGroup.cpp
     dps/Property.h dps/Property.cpp

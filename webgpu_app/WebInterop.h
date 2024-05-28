@@ -15,11 +15,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
-
+#pragma once
 
 #include <emscripten/bind.h>
 #include <QObject>
 
+#define JS_MAX_TOUCHES 3 // also needs changes in WebInterop.cpp and the shell!
 
 // The WebInterop class acts as bridge between the C++ code and the JavaScript code.
 // It maps the exposed Javascript functions to signals on the singleton which can be used in our QObjects.
@@ -27,6 +28,28 @@ class WebInterop : public QObject {
     Q_OBJECT
 
 public:
+
+    enum JsTouchType {
+        JS_TOUCH_START = 0,
+        JS_TOUCH_MOVE = 1,
+        JS_TOUCH_END = 2,
+        JS_TOUCH_CANCEL = 3
+    };
+
+    struct JsTouch {
+        int clientX;
+        int clientY;
+        int identifier;
+        inline bool is_valid() const { return identifier >= 0; }
+    };
+
+    struct JsTouchEvent {
+        JsTouch changedTouches[JS_MAX_TOUCHES];
+        JsTouch touches[JS_MAX_TOUCHES];
+        int typeint; // int easier to handle with emscripten
+        inline JsTouchType type() const { return static_cast<JsTouchType>(typeint); }
+    };
+
     // Deleted copy constructor and copy assignment operator
     WebInterop(const WebInterop&) = delete;
     WebInterop& operator=(const WebInterop&) = delete;
@@ -38,9 +61,11 @@ public:
     }
 
     static void _canvas_size_changed(int width, int height);
+    static void _touch_event(const JsTouchEvent& event);
 
 signals:
     void canvas_size_changed(int width, int height);
+    void touch_event(const JsTouchEvent& event);
 
 private:
     // Private constructor

@@ -19,7 +19,6 @@
 
 #include "TerrainRenderer.h"
 
-#include <map>
 #include <QFile>
 #include <webgpu/webgpu_interface.hpp>
 #include <iostream>
@@ -29,12 +28,13 @@
 #include "backends/imgui_impl_glfw.h"
 #endif
 
-#include "nucleus/stb/stb_image_loader.h"
 #include "webgpu_engine/Window.h"
 
 #ifdef __EMSCRIPTEN__
 #include "WebInterop.h"
 #include <emscripten/emscripten.h>
+#else
+#include "nucleus/stb/stb_image_loader.h"
 #endif
 
 static void windowResizeCallback(GLFWwindow* window, int width, int height) {
@@ -44,23 +44,25 @@ static void windowResizeCallback(GLFWwindow* window, int width, int height) {
 
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     auto renderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
-    renderer->on_key_callback(key, scancode, action, mods);
+    renderer->get_input_mapper()->on_key_callback(key, scancode, action, mods);
 }
 
 static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
     auto renderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
-    renderer->on_cursor_position_callback(xpos, ypos);
+    renderer->get_input_mapper()->on_cursor_position_callback(xpos, ypos);
 }
 
 static void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
     auto renderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
-    renderer->on_mouse_button_callback(button, action, mods);
+    double xpos, ypos;
+    glfwGetCursorPos(window, &xpos, &ypos);
+    renderer->get_input_mapper()->on_mouse_button_callback(button, action, mods, xpos, ypos);
 }
 
 static void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
     auto renderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
-    renderer->on_scroll_callback(xoffset, yoffset);
+    renderer->get_input_mapper()->on_scroll_callback(xoffset, yoffset);
 }
 
 TerrainRenderer::TerrainRenderer() {
@@ -94,18 +96,9 @@ void TerrainRenderer::init_window() {
 
 #ifndef __EMSCRIPTEN__
     // Load Icon for Window
-    QFile file(":/icons/logo32.png");
-    if (file.open(QIODevice::ReadOnly)) {
-        QByteArray byteArray = file.readAll();
-        auto icon = nucleus::stb::load_8bit_rgba_image_from_memory(byteArray);
-        GLFWimage images[1];
-        images[0].width = int(icon.width());
-        images[0].height = int(icon.height());
-        images[0].pixels = icon.bytes();
-        glfwSetWindowIcon(m_window, 1, images);
-    } else {
-        std::cerr << "Could not load icon image!" << std::endl;
-    }
+    auto icon = nucleus::stb::load_8bit_rgba_image_from_file(":/icons/logo32.png");
+    GLFWimage image = { int(icon.width()), int(icon.height()), icon.bytes() };
+    glfwSetWindowIcon(m_window, 1, &image);
 #endif
 }
 
@@ -131,14 +124,13 @@ void TerrainRenderer::start() {
     m_webgpu_window = std::make_unique<webgpu_engine::Window>(glfwGetWGPUSurfaceFunctor);
 #endif
 
+    // TODO: THIS TAKES FOREVER ON FIRST LOAD. LETS CHECK OUT WHY!
     m_controller = std::make_unique<nucleus::Controller>(m_webgpu_window.get());
 
     nucleus::camera::Controller* camera_controller = m_controller->camera_controller();
-    connect(this, &TerrainRenderer::key_pressed, camera_controller, &nucleus::camera::Controller::key_press);
-    connect(this, &TerrainRenderer::key_released, camera_controller, &nucleus::camera::Controller::key_release);
-    connect(this, &TerrainRenderer::mouse_moved, camera_controller, &nucleus::camera::Controller::mouse_move);
-    connect(this, &TerrainRenderer::mouse_pressed, camera_controller, &nucleus::camera::Controller::mouse_press);
-    connect(this, &TerrainRenderer::wheel_turned, camera_controller, &nucleus::camera::Controller::wheel_turn);
+    m_inputMapper = std::make_unique<InputMapper>(this, camera_controller);
+
+
     connect(this, &TerrainRenderer::update_camera_requested, camera_controller, &nucleus::camera::Controller::update_camera_request);
 
     m_webgpu_window->initialise_gpu();
@@ -179,57 +171,6 @@ void TerrainRenderer::start() {
 #endif
 }
 
-void TerrainRenderer::on_window_resize(int width, int height) {
-    m_width = width;
-    m_height = height;
-    m_webgpu_window->resize_framebuffer(static_cast<uint32_t>(width), static_cast<uint32_t>(height));
-    m_controller->camera_controller()->set_viewport({ width, height });
-    m_controller->camera_controller()->update();
-}
-
-void TerrainRenderer::on_key_callback(int key, [[maybe_unused]]int scancode, int action, [[maybe_unused]]int mods)
-{
-    //TODO modifiers; more keys if needed
-    const std::map<int, Qt::Key> key_map = {
-        {GLFW_KEY_W, Qt::Key_W},
-        {GLFW_KEY_S, Qt::Key_S},
-        {GLFW_KEY_A, Qt::Key_A},
-        {GLFW_KEY_D, Qt::Key_D},
-        {GLFW_KEY_Q, Qt::Key_Q},
-        {GLFW_KEY_E, Qt::Key_E},
-        {GLFW_KEY_1, Qt::Key_1},
-        {GLFW_KEY_2, Qt::Key_2},
-        {GLFW_KEY_3, Qt::Key_3},
-        {GLFW_KEY_LEFT_CONTROL, Qt::Key_Control},
-        {GLFW_KEY_LEFT_SHIFT, Qt::Key_Shift},
-        {GLFW_KEY_LEFT_ALT, Qt::Key_Alt},
-
-    };
-
-    const auto found_it = key_map.find(key);
-    if (found_it == key_map.end()) {
-        std::cout << "key not mapped" << std::endl;
-        return;
-    }
-
-    QKeyCombination combination(found_it->second);
-    if (action == GLFW_PRESS) {
-        std::cout << "pressed " << found_it->second << std::endl;
-        emit key_pressed(combination);
-    } else if (action == GLFW_RELEASE) {
-        std::cout << "released " << found_it->second << std::endl;
-        emit key_released(combination);
-    }
-}
-
-void TerrainRenderer::on_cursor_position_callback(double x_pos, double y_pos)
-{
-    m_mouse.point.last_position = m_mouse.point.position;
-    m_mouse.point.position = { x_pos, y_pos };
-    //std::cout << "mouse moved, x=" << x_pos << ", y=" << y_pos << std::endl;
-    emit mouse_moved(m_mouse);
-}
-
 void TerrainRenderer::set_glfw_window_size(int width, int height) {
     m_width = width;
     m_height = height;
@@ -238,44 +179,10 @@ void TerrainRenderer::set_glfw_window_size(int width, int height) {
     }
 }
 
-void TerrainRenderer::on_mouse_button_callback(int button, int action, [[maybe_unused]]int mods)
-{
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-    ImGuiIO& io = ImGui::GetIO();
-    if (io.WantCaptureMouse) {
-        return;
-    }
-#endif
-
-    //TODO modifiers if needed
-    const std::map<int, Qt::MouseButton> button_map = {
-        {GLFW_MOUSE_BUTTON_LEFT, Qt::LeftButton},
-        {GLFW_MOUSE_BUTTON_RIGHT, Qt::RightButton},
-        {GLFW_MOUSE_BUTTON_MIDDLE, Qt::MiddleButton}
-    };
-
-    const auto found_it = button_map.find(button);
-    if (found_it == button_map.end()) {
-        std::cout << "mouse button not mapped" << std::endl;
-        return;
-    }
-
-    if (action == GLFW_RELEASE) {
-        m_mouse.buttons &= ~found_it->second;
-        //std::cout << "mouse button released" << std::endl;
-    } else if (action == GLFW_PRESS) {
-        m_mouse.buttons |= found_it->second;
-        //std::cout << "mouse button pressed " << found_it->second << std::endl;
-    }
-
-    emit mouse_pressed(m_mouse);
-}
-
-void TerrainRenderer::on_scroll_callback(double x_offset, double y_offset)
-{
-    nucleus::event_parameter::Wheel wheel {};
-    wheel.angle_delta = QPoint(static_cast<int>(x_offset), static_cast<int>(y_offset) * 50.0f);
-    wheel.point.position = m_mouse.point.position;
-    //std::cout << "wheel  turned, delta x=" << x_offset << ", y=" << y_offset << std::endl;
-    emit wheel_turned(wheel);
+void TerrainRenderer::on_window_resize(int width, int height) {
+    m_width = width;
+    m_height = height;
+    m_webgpu_window->resize_framebuffer(static_cast<uint32_t>(width), static_cast<uint32_t>(height));
+    m_controller->camera_controller()->set_viewport({ width, height });
+    m_controller->camera_controller()->update();
 }

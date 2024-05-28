@@ -29,7 +29,10 @@
     <div id="screen"></div>
     <canvas width="800" height="600" class="emscripten" id="webgpucanvas"></canvas>
 
+    <script src="touch-emulator.js"></script>
     <script type="text/javascript">
+      //TouchEmulator();
+      const JS_MAX_TOUCHES = 3;
       eminstance = null;
         async function init()
         {
@@ -84,6 +87,33 @@
                 window.addEventListener('resize', () => {
                   eminstance.canvas_size_changed(window.innerWidth, window.innerHeight);
                 });
+
+                function handleTouchEvent(e) {
+                  const disabledJsTouch = { clientX: -1, clientY: -1, screenX: -1, screenY: -1, identifier: -1 };
+
+                  var changedJsTouches = Array(JS_MAX_TOUCHES).fill(disabledJsTouch);
+                  for (let i = 0; i < Math.min(e.changedTouches.length, JS_MAX_TOUCHES); i++) {
+                    const touch = e.changedTouches[i];
+                    changedJsTouches[i] = { clientX: touch.clientX, clientY: touch.clientY, identifier: touch.identifier };
+                  }
+
+                  var activeJsTouches = Array(JS_MAX_TOUCHES).fill(disabledJsTouch);
+                  for (let i = 0; i < Math.min(e.touches.length, JS_MAX_TOUCHES); i++) {
+                    const touch = e.touches[i];
+                    activeJsTouches[i] = { clientX: touch.clientX, clientY: touch.clientY, identifier: touch.identifier };
+                  }
+                  
+                  eminstance.touch_event({
+                      changedTouches: changedJsTouches,
+                      touches: activeJsTouches,
+                      type: e.type === 'touchstart' ? 0 : e.type === 'touchmove' ? 1 : e.type === "touchend" ? 2 : 3,
+                  });
+                }
+
+                window.addEventListener('touchstart', handleTouchEvent, false);
+                window.addEventListener('touchmove', handleTouchEvent, false);
+                window.addEventListener('touchend', handleTouchEvent, false);
+
             } catch (e) {
                 console.error(e);
                 console.error(e.stack);
