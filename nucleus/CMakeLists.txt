@@ -104,6 +104,8 @@ qt_add_library(nucleus STATIC
 
     stb/stb_image.cpp
     stb/stb_image_loader.h stb/stb_image_loader.cpp
+    stb/stb_image_write.cpp
+    stb/stb_image_writer.h stb/stb_image_writer.cpp
 )
 
 target_include_directories(nucleus PUBLIC ${CMAKE_SOURCE_DIR})
