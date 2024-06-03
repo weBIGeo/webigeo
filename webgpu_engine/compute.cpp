@@ -17,8 +17,7 @@
  *****************************************************************************/
 
 #include "compute.h"
-
-#include "nucleus/stb/stb_image_loader.h"
+#include "nucleus/stb/stb_image_writer.h"
 
 namespace webgpu_engine {
 
@@ -121,11 +120,11 @@ void ComputeController::write_output_tiles(const std::filesystem::path& dir) con
 {
     std::filesystem::create_directories(dir);
 
-    auto read_back_callback = [dir](size_t layer_index, [[maybe_unused]]std::shared_ptr<QByteArray> data) {
-        //QImage img((const uchar*)data->constData(), m_output_tile_resolution.x, m_output_tile_resolution.y, QImage::Format_RGBA8888);
-        std::filesystem::path file_path = dir / std::format("tile_{}.png", layer_index);
-        std::cout << "write to file NOT IMPLEMENTED " << file_path << std::endl;
-        //img.save(file_path.generic_string().c_str(), "PNG");
+    auto read_back_callback = [this, dir](size_t layer_index, [[maybe_unused]] std::shared_ptr<QByteArray> data) {
+        std::filesystem::path file_path = dir / std::format("tile_{}.bmp", layer_index);
+        std::cout << "write to file " << file_path << std::endl;
+        nucleus::stb::write_8bit_rgba_image_to_file_bmp(
+            *data, m_output_tile_resolution.x, m_output_tile_resolution.y, QString::fromStdString(file_path.string()));
     };
 
     std::cout << "write to files" << std::endl;
