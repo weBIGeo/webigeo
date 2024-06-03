@@ -22,13 +22,13 @@
 #include "nucleus/utils/tile_conversion.h"
 
 namespace webgpu_engine {
-    
-TextureArrayComputeTileStorage::TextureArrayComputeTileStorage(
-    WGPUDevice device, const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format, WGPUTextureUsageFlags usage)
+
+TileStorageTexture::TileStorageTexture(WGPUDevice device, const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format, WGPUTextureUsageFlags usage)
     : m_device { device }
     , m_queue { wgpuDeviceGetQueue(device) }
     , m_resolution { resolution }
     , m_capacity { capacity }
+    , m_layers_used(m_capacity, false)
 {
     WGPUTextureDescriptor height_texture_desc {};
     height_texture_desc.label = "compute storage texture";
@@ -53,6 +53,67 @@ TextureArrayComputeTileStorage::TextureArrayComputeTileStorage(
     height_sampler_desc.maxAnisotropy = 1;
 
     m_texture_array = std::make_unique<raii::TextureWithSampler>(m_device, height_texture_desc, height_sampler_desc);
+}
+
+void TileStorageTexture::store(size_t layer, std::shared_ptr<QByteArray> data)
+{
+    assert(layer < m_capacity);
+
+    // convert to raster and store in texture array
+    const nucleus::Raster<glm::u8vec4> height_image = nucleus::stb::load_8bit_rgba_image_from_memory(*data);
+    const auto heightraster = nucleus::utils::tile_conversion::u8vec4raster_to_u16raster(height_image);
+    m_texture_array->texture().write(m_queue, heightraster, uint32_t(layer));
+
+    // update used layers
+    if (!m_layers_used.at(layer)) {
+        m_num_stored++;
+        m_layers_used[layer] = true;
+    }
+}
+
+size_t TileStorageTexture::store(std::shared_ptr<QByteArray> data)
+{
+    size_t layer_index = find_unused_layer_index();
+    store(layer_index, data);
+    return layer_index;
+}
+
+void TileStorageTexture::clear()
+{
+    m_num_stored = 0;
+    m_layers_used.clear();
+    m_layers_used.resize(m_capacity, false);
+}
+
+void TileStorageTexture::clear(size_t layer)
+{
+    assert(layer < m_capacity);
+
+    // update used layers
+    if (m_layers_used.at(layer)) {
+        m_num_stored--;
+        m_layers_used[layer] = false;
+    }
+}
+
+raii::TextureWithSampler& TileStorageTexture::texture() { return *m_texture_array; }
+
+size_t TileStorageTexture::find_unused_layer_index()
+{
+    assert(m_num_stored < m_capacity);
+
+    auto found_at = std::find(m_layers_used.begin(), m_layers_used.end(), false);
+    return found_at - m_layers_used.begin();
+}
+
+TextureArrayComputeTileStorage::TextureArrayComputeTileStorage(
+    WGPUDevice device, const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format, WGPUTextureUsageFlags usage)
+    : m_device { device }
+    , m_queue { wgpuDeviceGetQueue(device) }
+    , m_resolution { resolution }
+    , m_capacity { capacity }
+{
+    m_tile_storage_texture = std::make_unique<TileStorageTexture>(m_device, m_resolution, m_capacity, format, usage);
 
     m_tile_ids = std::make_unique<raii::RawBuffer<GpuTileId>>(
         m_device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst, uint32_t(m_capacity), "compute tile storage tile id buffer");
@@ -65,28 +126,16 @@ void TextureArrayComputeTileStorage::init() { }
 
 void TextureArrayComputeTileStorage::store(const tile::Id& id, std::shared_ptr<QByteArray> data)
 {
-    // TODO maybe rather use hash map than list
-
     // already contained, return
     if (std::find(m_layer_index_to_tile_id.begin(), m_layer_index_to_tile_id.end(), id) != m_layer_index_to_tile_id.end()) {
         return;
     }
 
-    // find free spot
-    const auto found = std::find(m_layer_index_to_tile_id.begin(), m_layer_index_to_tile_id.end(), tile::Id { unsigned(-1), {} });
-    if (found == m_layer_index_to_tile_id.end()) {
-        // TODO capacity is reached! do something (but what?)
-    }
-    *found = id;
-    const size_t found_index = found - m_layer_index_to_tile_id.begin();
+    size_t layer_index = m_tile_storage_texture->store(data);
 
-    // convert to raster and store in texture array
-    const nucleus::Raster<glm::u8vec4> height_image = nucleus::stb::load_8bit_rgba_image_from_memory(*data);
-    const auto heightraster = nucleus::utils::tile_conversion::u8vec4raster_to_u16raster(height_image);
-    m_texture_array->texture().write(m_queue, heightraster, uint32_t(found_index));
-
+    m_layer_index_to_tile_id[layer_index] = id;
     GpuTileId gpu_tile_id = { .x = id.coords.x, .y = id.coords.y, .zoomlevel = id.zoom_level };
-    m_tile_ids->write(m_queue, &gpu_tile_id, 1, found_index);
+    m_tile_ids->write(m_queue, &gpu_tile_id, 1, layer_index);
 }
 
 void TextureArrayComputeTileStorage::clear(const tile::Id& id)
@@ -94,48 +143,22 @@ void TextureArrayComputeTileStorage::clear(const tile::Id& id)
     auto found = std::find(m_layer_index_to_tile_id.begin(), m_layer_index_to_tile_id.end(), id);
     if (found != m_layer_index_to_tile_id.end()) {
         *found = tile::Id { unsigned(-1), {} };
+        m_tile_storage_texture->clear(found - m_layer_index_to_tile_id.begin());
     }
 }
 
-void TextureArrayComputeTileStorage::read_back_async(size_t layer_index, ReadBackCallback callback)
+void TextureArrayComputeTileStorage::read_back_async(size_t layer_index, raii::Texture::ReadBackCallback callback)
 {
-    size_t buffer_size_bytes = 4 * m_resolution.x * m_resolution.y; // RGBA8 -> hardcoded, depends actual on format used!
-
-    // create buffer and add buffer and callback to back of queue
-    m_read_back_states.emplace(std::make_unique<raii::RawBuffer<char>>(
-                                   m_device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead, uint32_t(buffer_size_bytes), "tile storage read back buffer"),
-        callback, layer_index);
-
-    m_texture_array->texture().copy_to_buffer(m_device, *m_read_back_states.back().buffer, uint32_t(layer_index));
-
-    auto on_buffer_mapped = [](WGPUBufferMapAsyncStatus status, void* user_data) {
-        TextureArrayComputeTileStorage* _this = reinterpret_cast<TextureArrayComputeTileStorage*>(user_data);
-
-        if (status != WGPUBufferMapAsyncStatus_Success) {
-            std::cout << "error: failed mapping buffer for ComputeTileStorage read back" << std::endl;
-            _this->m_read_back_states.pop();
-            return;
-        }
-
-        const ReadBackState& current_state = _this->m_read_back_states.front();
-        size_t buffer_size_bytes = 4 * _this->m_resolution.x * _this->m_resolution.y; // RGBA8 -> hardcoded, depends actual on format used!
-        const char* buffer_data = (const char*)wgpuBufferGetConstMappedRange(current_state.buffer->handle(), 0, buffer_size_bytes);
-        current_state.callback(current_state.layer_index, std::make_shared<QByteArray>(buffer_data, buffer_size_bytes));
-        wgpuBufferUnmap(current_state.buffer->handle());
-
-        _this->m_read_back_states.pop();
-    };
-
-    wgpuBufferMapAsync(m_read_back_states.back().buffer->handle(), WGPUMapMode_Read, 0, uint32_t(buffer_size_bytes), on_buffer_mapped, this);
+    m_tile_storage_texture->texture().texture().read_back_async(m_device, layer_index, callback);
 }
 
 std::vector<WGPUBindGroupEntry> TextureArrayComputeTileStorage::create_bind_group_entries(const std::vector<uint32_t>& bindings) const
 {
     assert(bindings.size() == 1 || bindings.size() == 2);
     if (bindings.size() == 1) {
-        return { m_texture_array->texture_view().create_bind_group_entry(bindings.at(0)) };
+        return { m_tile_storage_texture->texture().texture_view().create_bind_group_entry(bindings.at(0)) };
     }
-    return { m_texture_array->texture_view().create_bind_group_entry(bindings.at(0)), m_tile_ids->create_bind_group_entry(bindings.at(1)) };
+    return { m_tile_storage_texture->texture().texture_view().create_bind_group_entry(bindings.at(0)), m_tile_ids->create_bind_group_entry(bindings.at(1)) };
 }
 
 } // namespace webgpu_engine

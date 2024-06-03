@@ -30,6 +30,33 @@ struct GpuTileId {
     uint32_t zoomlevel;
 };
 
+/// Minimal wrapper over texture array for more convenient usage (intended for storing tile textures).
+class TileStorageTexture {
+
+public:
+    TileStorageTexture(WGPUDevice device, const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format,
+        WGPUTextureUsageFlags usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst);
+
+    void store(size_t layer, std::shared_ptr<QByteArray> data);
+    size_t store(std::shared_ptr<QByteArray> data); // store at next free spot
+    void clear(); // clear all
+    void clear(size_t layer);
+
+    raii::TextureWithSampler& texture();
+
+private:
+    size_t find_unused_layer_index();
+
+private:
+    WGPUDevice m_device;
+    WGPUQueue m_queue;
+    glm::uvec2 m_resolution;
+    size_t m_capacity;
+    size_t m_num_stored = 0; // number of stored textures
+    std::vector<bool> m_layers_used; // CPU buffer for tracking which layers are currently used
+    std::unique_ptr<raii::TextureWithSampler> m_texture_array;
+};
+
 /// Manages a set of tiles in GPU memory
 /// Supports adding and removing tiles, reading back tiles into host memory
 class ComputeTileStorage {
@@ -68,7 +95,8 @@ public:
 private:
     WGPUDevice m_device;
     WGPUQueue m_queue;
-    std::unique_ptr<raii::TextureWithSampler> m_texture_array;
+    std::unique_ptr<TileStorageTexture> m_tile_storage_texture;
+
     std::unique_ptr<raii::RawBuffer<GpuTileId>> m_tile_ids;
     glm::uvec2 m_resolution;
     size_t m_capacity;
