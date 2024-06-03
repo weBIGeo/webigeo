@@ -21,9 +21,67 @@
 
 namespace webgpu_engine::raii {
 
-const std::map<WGPUTextureFormat, size_t> Texture::bytes_per_element {
-    { WGPUTextureFormat_RGBA8Unorm, 4 }
-};
+uint8_t Texture::get_bytes_per_element(WGPUTextureFormat format)
+{
+    switch (format) {
+        // 8-bit formats
+    case WGPUTextureFormat_R8Unorm:
+    case WGPUTextureFormat_R8Snorm:
+    case WGPUTextureFormat_R8Uint:
+    case WGPUTextureFormat_R8Sint:
+        return 1;
+
+        // 16-bit formats
+    case WGPUTextureFormat_R16Uint:
+    case WGPUTextureFormat_R16Sint:
+    case WGPUTextureFormat_R16Float:
+    case WGPUTextureFormat_RG8Unorm:
+    case WGPUTextureFormat_RG8Snorm:
+    case WGPUTextureFormat_RG8Uint:
+    case WGPUTextureFormat_RG8Sint:
+        return 2;
+
+        // 32-bit formats
+    case WGPUTextureFormat_R32Uint:
+    case WGPUTextureFormat_R32Sint:
+    case WGPUTextureFormat_R32Float:
+    case WGPUTextureFormat_RG16Uint:
+    case WGPUTextureFormat_RG16Sint:
+    case WGPUTextureFormat_RG16Float:
+    case WGPUTextureFormat_RGBA8Unorm:
+    case WGPUTextureFormat_RGBA8UnormSrgb:
+    case WGPUTextureFormat_RGBA8Snorm:
+    case WGPUTextureFormat_RGBA8Uint:
+    case WGPUTextureFormat_RGBA8Sint:
+    case WGPUTextureFormat_BGRA8Unorm:
+    case WGPUTextureFormat_BGRA8UnormSrgb:
+        // Packed 32-bit formats
+    case WGPUTextureFormat_RGB9E5Ufloat:
+    case WGPUTextureFormat_RGB10A2Uint:
+    case WGPUTextureFormat_RGB10A2Unorm:
+    case WGPUTextureFormat_RG11B10Ufloat:
+        return 4;
+
+        // 64-bit formats
+    case WGPUTextureFormat_RG32Uint:
+    case WGPUTextureFormat_RG32Sint:
+    case WGPUTextureFormat_RG32Float:
+    case WGPUTextureFormat_RGBA16Uint:
+    case WGPUTextureFormat_RGBA16Sint:
+    case WGPUTextureFormat_RGBA16Float:
+        return 8;
+
+        // 128-bit formats
+    case WGPUTextureFormat_RGBA32Uint:
+    case WGPUTextureFormat_RGBA32Sint:
+    case WGPUTextureFormat_RGBA32Float:
+        return 16;
+
+    default:
+        std::cout << "tried to get texture size for format " << format << std::endl;
+        std::exit(-1);
+    }
+}
 
 // TODO: This should be a template function if possible which takes raster images
 // that fit the current texture format.
@@ -70,6 +128,37 @@ void Texture::write(WGPUQueue queue, const nucleus::utils::ColourTexture& data, 
     wgpuQueueWriteTexture(queue, &image_copy_texture, data.data(), data.n_bytes(), &texture_data_layout, &copy_extent);
 }
 
+void Texture::read_back_async(WGPUDevice device, size_t layer_index, ReadBackCallback callback)
+{
+    // create buffer and add buffer and callback to back of queue
+    m_read_back_states.emplace(std::make_unique<raii::RawBuffer<char>>(
+                                   device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead, single_layer_size_in_bytes(), "tile storage read back buffer"),
+        callback, layer_index);
+
+    copy_to_buffer(device, *m_read_back_states.back().buffer, uint32_t(layer_index));
+
+    auto on_buffer_mapped = [](WGPUBufferMapAsyncStatus status, void* user_data) {
+        Texture* _this = reinterpret_cast<Texture*>(user_data);
+
+        if (status != WGPUBufferMapAsyncStatus_Success) {
+            std::cout << "error: failed mapping buffer for ComputeTileStorage read back" << std::endl;
+            _this->m_read_back_states.pop();
+            return;
+        }
+
+        const ReadBackState& current_state = _this->m_read_back_states.front();
+
+        const char* buffer_data = (const char*)wgpuBufferGetConstMappedRange(current_state.buffer->handle(), 0, current_state.buffer->size_in_byte());
+        current_state.callback(current_state.layer_index, std::make_shared<QByteArray>(buffer_data, current_state.buffer->size_in_byte()));
+        wgpuBufferUnmap(current_state.buffer->handle());
+
+        _this->m_read_back_states.pop();
+    };
+
+    wgpuBufferMapAsync(
+        m_read_back_states.back().buffer->handle(), WGPUMapMode_Read, 0, uint32_t(m_read_back_states.back().buffer->size_in_byte()), on_buffer_mapped, this);
+}
+
 WGPUTextureViewDescriptor Texture::default_texture_view_descriptor() const
 {
     // TODO make utility function
@@ -100,5 +189,9 @@ WGPUTextureViewDescriptor Texture::default_texture_view_descriptor() const
 std::unique_ptr<TextureView> Texture::create_view() const { return create_view(default_texture_view_descriptor()); }
 
 std::unique_ptr<TextureView> Texture::create_view(const WGPUTextureViewDescriptor& desc) const { return std::make_unique<TextureView>(m_handle, desc); }
+
+size_t Texture::size_in_bytes() { return single_layer_size_in_bytes() * m_descriptor.size.depthOrArrayLayers; }
+
+size_t Texture::single_layer_size_in_bytes() { return get_bytes_per_element(m_descriptor.format) * m_descriptor.size.width * m_descriptor.size.height; }
 
 } // namespace webgpu_engine::raii

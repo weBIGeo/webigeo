@@ -24,7 +24,6 @@
 #include "base_types.h"
 #include "nucleus/Raster.h"
 #include "nucleus/utils/ColourTexture.h"
-#include <map>
 #include <webgpu/webgpu.h>
 
 namespace webgpu_engine::raii {
@@ -34,7 +33,15 @@ namespace webgpu_engine::raii {
 /// Preferably to be used with std::unique_ptr or std::shared_ptr.
 class Texture : public GpuResource<WGPUTexture, WGPUTextureDescriptor, WGPUDevice> {
 public:
-    static const std::map<WGPUTextureFormat, size_t> bytes_per_element;
+    using ReadBackCallback = std::function<void(size_t layer_index, std::shared_ptr<QByteArray>)>;
+
+    struct ReadBackState {
+        std::unique_ptr<raii::RawBuffer<char>> buffer;
+        ReadBackCallback callback;
+        size_t layer_index;
+    };
+
+    static uint8_t get_bytes_per_element(WGPUTextureFormat format);
 
 public:
     using GpuResource::GpuResource;
@@ -44,15 +51,24 @@ public:
 
     void write(WGPUQueue queue, const nucleus::utils::ColourTexture& data, uint32_t layer = 0);
 
-    // submits to default queue
+    // submits to default queue of device
     template <typename T> void copy_to_buffer(WGPUDevice device, const raii::RawBuffer<T>& buffer, uint32_t layer = 0) const;
 
     template <typename T> void copy_to_buffer(WGPUCommandEncoder encoder, const raii::RawBuffer<T>& buffer, uint32_t layer = 0) const;
+
+    /// read back single texture layer of this texture
+    void read_back_async(WGPUDevice device, size_t layer_index, ReadBackCallback callback);
 
     WGPUTextureViewDescriptor default_texture_view_descriptor() const;
 
     std::unique_ptr<TextureView> create_view() const;
     std::unique_ptr<TextureView> create_view(const WGPUTextureViewDescriptor& desc) const;
+
+    size_t size_in_bytes();
+    size_t single_layer_size_in_bytes();
+
+private:
+    std::queue<ReadBackState> m_read_back_states;
 };
 
 template <typename T> void Texture::copy_to_buffer(WGPUDevice device, const raii::RawBuffer<T>& buffer, uint32_t layer) const
@@ -79,7 +95,7 @@ template <typename T> void Texture::copy_to_buffer(WGPUCommandEncoder encoder, c
     WGPUImageCopyBuffer destination {};
     destination.buffer = buffer.handle();
     destination.layout.offset = 0;
-    destination.layout.bytesPerRow = m_descriptor.size.width * bytes_per_element.at(m_descriptor.format);
+    destination.layout.bytesPerRow = m_descriptor.size.width * get_bytes_per_element(m_descriptor.format);
     destination.layout.rowsPerImage = m_descriptor.size.height;
 
     const WGPUExtent3D extent { .width = m_descriptor.size.width, .height = m_descriptor.size.height, .depthOrArrayLayers = 1 };
