@@ -28,6 +28,9 @@ set(SOURCES
     main.cpp
     TerrainRenderer.h TerrainRenderer.cpp
     InputMapper.h InputMapper.cpp
+
+    util/error_logging.h util/error_logging.cpp
+
     dps/PropertyManager.h dps/PropertyManager.cpp
     dps/PropertyGroup.h dps/PropertyGroup.cpp
     dps/Property.h dps/Property.cpp
