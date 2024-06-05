@@ -37,12 +37,13 @@ public:
     TileStorageTexture(WGPUDevice device, const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format,
         WGPUTextureUsageFlags usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst);
 
-    void store(size_t layer, std::shared_ptr<QByteArray> data);
-    size_t store(std::shared_ptr<QByteArray> data); // store at next free spot
+    void store(size_t layer, const QByteArray& data);
+    size_t store(const QByteArray& data); // store at next free spot
     void clear(); // clear all
     void clear(size_t layer);
 
     raii::TextureWithSampler& texture();
+    const raii::TextureWithSampler& texture() const;
 
 private:
     size_t find_unused_layer_index();

@@ -55,12 +55,12 @@ TileStorageTexture::TileStorageTexture(WGPUDevice device, const glm::uvec2& reso
     m_texture_array = std::make_unique<raii::TextureWithSampler>(m_device, height_texture_desc, height_sampler_desc);
 }
 
-void TileStorageTexture::store(size_t layer, std::shared_ptr<QByteArray> data)
+void TileStorageTexture::store(size_t layer, const QByteArray& data)
 {
     assert(layer < m_capacity);
 
     // convert to raster and store in texture array
-    const nucleus::Raster<glm::u8vec4> height_image = nucleus::stb::load_8bit_rgba_image_from_memory(*data);
+    const nucleus::Raster<glm::u8vec4> height_image = nucleus::stb::load_8bit_rgba_image_from_memory(data);
     const auto heightraster = nucleus::utils::tile_conversion::u8vec4raster_to_u16raster(height_image);
     m_texture_array->texture().write(m_queue, heightraster, uint32_t(layer));
 
@@ -71,7 +71,7 @@ void TileStorageTexture::store(size_t layer, std::shared_ptr<QByteArray> data)
     }
 }
 
-size_t TileStorageTexture::store(std::shared_ptr<QByteArray> data)
+size_t TileStorageTexture::store(const QByteArray& data)
 {
     size_t layer_index = find_unused_layer_index();
     store(layer_index, data);
@@ -97,6 +97,8 @@ void TileStorageTexture::clear(size_t layer)
 }
 
 raii::TextureWithSampler& TileStorageTexture::texture() { return *m_texture_array; }
+
+const raii::TextureWithSampler& TileStorageTexture::texture() const { return *m_texture_array; }
 
 size_t TileStorageTexture::find_unused_layer_index()
 {
@@ -131,7 +133,7 @@ void TextureArrayComputeTileStorage::store(const tile::Id& id, std::shared_ptr<Q
         return;
     }
 
-    size_t layer_index = m_tile_storage_texture->store(data);
+    size_t layer_index = m_tile_storage_texture->store(*data);
 
     m_layer_index_to_tile_id[layer_index] = id;
     GpuTileId gpu_tile_id = { .x = id.coords.x, .y = id.coords.y, .zoomlevel = id.zoom_level };

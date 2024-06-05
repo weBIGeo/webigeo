@@ -102,6 +102,9 @@ public:
     raii::RawBuffer<GpuKeyType>& key_buffer() { return *m_id_map; }
     raii::RawBuffer<GpuValueType>& value_buffer() { return *m_value_map; }
 
+    const raii::RawBuffer<GpuKeyType>& key_buffer() const { return *m_id_map; }
+    const raii::RawBuffer<GpuValueType>& value_buffer() const { return *m_value_map; }
+
 private:
     WGPUDevice m_device;
     WGPUQueue m_queue;
