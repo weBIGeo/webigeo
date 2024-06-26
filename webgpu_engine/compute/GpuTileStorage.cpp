@@ -23,6 +23,19 @@
 
 namespace webgpu_engine {
 
+GpuTileId::GpuTileId(uint32_t x, uint32_t y, uint32_t zoomlevel)
+    : x { x }
+    , y { y }
+    , zoomlevel { zoomlevel }
+{
+}
+
+GpuTileId::GpuTileId(const tile::Id& tile_id)
+    : x { tile_id.coords.x }
+    , y { tile_id.coords.y }
+    , zoomlevel { tile_id.zoom_level }
+{
+}
 TileStorageTexture::TileStorageTexture(WGPUDevice device, const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format, WGPUTextureUsageFlags usage)
     : m_device { device }
     , m_queue { wgpuDeviceGetQueue(device) }
@@ -136,7 +149,7 @@ void TextureArrayComputeTileStorage::store(const tile::Id& id, std::shared_ptr<Q
     size_t layer_index = m_tile_storage_texture->store(*data);
 
     m_layer_index_to_tile_id[layer_index] = id;
-    GpuTileId gpu_tile_id = { .x = id.coords.x, .y = id.coords.y, .zoomlevel = id.zoom_level };
+    GpuTileId gpu_tile_id = { id.coords.x, id.coords.y, id.zoom_level };
     m_tile_ids->write(m_queue, &gpu_tile_id, 1, layer_index);
 }
 

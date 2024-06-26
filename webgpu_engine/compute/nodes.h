@@ -20,8 +20,9 @@
 
 #include "GpuHashMap.h"
 #include "GpuTileStorage.h"
-#include "compute.h"
+#include "nucleus/tile_scheduler/TileLoadService.h"
 #include "radix/tile.h"
+#include "webgpu_engine/PipelineManager.h"
 #include <QByteArray>
 #include <QObject>
 #include <glm/vec2.hpp>
@@ -34,9 +35,11 @@ class Node;
 
 using DataType = size_t;
 
-/// Data is used for type erasure in node graphs.
-/// All datatypes that can be used with nodes have to be declared here.
-using Data = std::variant<const std::vector<tile::Id>*, const std::vector<QByteArray>*, const TileStorageTexture*, const GpuHashMap<tile::Id, uint32_t>*>;
+/// datatypes that can be used with nodes have to be declared here.
+using Data
+    = std::variant<const std::vector<tile::Id>*, const std::vector<QByteArray>*, const TileStorageTexture*, const GpuHashMap<tile::Id, uint32_t, GpuTileId>*>;
+
+using SocketIndex = size_t;
 
 // Get data type (DataType value) for specific C++ type
 // adapted from https://stackoverflow.com/a/52303671
@@ -55,6 +58,7 @@ template <typename T, std::size_t index = 0> static constexpr DataType data_type
 /// Abstract base class for nodes.
 ///
 /// Subclasses usually need to override methods run and get_output_data_impl.
+///  - in run, subclass should
 ///     - get input data from connected nodes via get_input_data(size_t input_socket_index)
 ///     - do some calculations
 ///     - save results somewhere (e.g. class member)
@@ -69,26 +73,30 @@ public:
 
     /// Connects an input socket of this node to an output socket of another node
     /// TODO should set both directions?
-    void connect_input_socket(size_t input_index, Node* connected_node, size_t connected_output_index);
+    void connect_input_socket(SocketIndex input_index, Node* connected_node, SocketIndex connected_output_index);
 
     /// Connects an output socket of this node to an input socket of another node (unidirectional)
     /// TODO should set both directions?
-    void connect_output_socket(size_t output_index, Node* connected_node, size_t connected_input_index);
+    void connect_output_socket(SocketIndex output_index, Node* connected_node, SocketIndex connected_input_index);
 
+public slots:
     /// Override to implement node behavior.
     /// Postcondition:
     ///   - get_output_data(output-index) returns result
     /// TODO maybe async with signals/slots
     virtual void run() = 0;
 
+signals:
+    void run_finished();
+
 protected:
     /// Override to return pointer to output data for respective output slot
-    virtual Data get_output_data_impl(size_t output_index) const = 0;
+    virtual Data get_output_data_impl(SocketIndex output_index) const = 0;
 
 protected:
     struct ConnectedSocket {
         Node* connected_node = nullptr;
-        size_t connected_socket_index = std::numeric_limits<size_t>::max(); // is input/output index depending on connection
+        SocketIndex connected_socket_index = std::numeric_limits<SocketIndex>::max(); // is input/output index depending on connection
     };
 
     std::vector<DataType> input_socket_types;
@@ -97,22 +105,29 @@ protected:
     std::vector<ConnectedSocket> connected_input_sockets;
     std::vector<ConnectedSocket> connected_output_sockets;
 
-    DataType get_input_socket_type(size_t input_socket_index) const;
+    DataType get_input_socket_type(SocketIndex input_socket_index) const;
 
-    DataType get_output_socket_type(size_t output_socket_index) const;
+    DataType get_output_socket_type(SocketIndex output_socket_index) const;
 
-    Data get_output_data(size_t output_index) const;
+    Data get_output_data(SocketIndex output_index) const;
 
-    Data get_input_data(size_t input_index) const;
+    Data get_input_data(SocketIndex input_index) const;
 };
 
 class TileSelectNode : public Node {
     Q_OBJECT
+
 public:
+    enum Input {};
+    enum Output { TILE_ID_LIST = 0 };
+
     TileSelectNode();
 
+public slots:
     void run() override;
-    Data get_output_data_impl(size_t output_index) const override;
+
+protected:
+    Data get_output_data_impl(SocketIndex output_index) const override;
 
 private:
     std::vector<tile::Id> m_output_tile_ids;
@@ -120,16 +135,20 @@ private:
 
 class HeightRequestNode : public Node {
     Q_OBJECT
-public:
-    HeightRequestNode();
 
-    void run() override;
-    Data get_output_data_impl([[maybe_unused]] size_t output_index) const override;
+public:
+    enum Input : SocketIndex { TILE_ID_LIST = 0 };
+    enum Output : SocketIndex { TILE_TEXTURE_LIST = 0 };
+
+    HeightRequestNode();
 
     void on_single_tile_received(const nucleus::tile_scheduler::tile_types::TileLayer& tile);
 
-signals:
-    void all_tiles_received();
+public slots:
+    void run() override;
+
+protected:
+    Data get_output_data_impl(SocketIndex output_index) const override;
 
 private:
     std::unique_ptr<nucleus::tile_scheduler::TileLoadService> m_tile_loader;
@@ -140,35 +159,43 @@ private:
 };
 
 class ConvertTilesToHashMapNode : public Node {
+    Q_OBJECT
+
 public:
+    enum Input : SocketIndex { TILE_ID_LIST = 0, TILE_TEXTURE_LIST = 1 };
+    enum Output : SocketIndex { TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP = 0, TEXTURE_ARRAY = 1 };
+
     ConvertTilesToHashMapNode(WGPUDevice device, const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format);
 
+public slots:
     void run() override;
-    Data get_output_data_impl(size_t output_index) const override;
+
+protected:
+    Data get_output_data_impl(SocketIndex output_index) const override;
 
 private:
-    GpuHashMap<tile::Id, uint32_t> m_output_tile_id_to_index; // for looking up index for tile id
+    WGPUDevice m_device;
+    WGPUQueue m_queue;
+    GpuHashMap<tile::Id, uint32_t, GpuTileId> m_output_tile_id_to_index; // for looking up index for tile id
     TileStorageTexture m_output_tile_textures; // height texture per tile
 };
 
 /// GPU compute node, calling run executes code on the GPU
 class NormalComputeNode : public Node {
     Q_OBJECT
+
 public:
-    // for representing tile ids on the GPU side
-    struct GpuTileId {
-        uint32_t x;
-        uint32_t y;
-        uint32_t zoomlevel;
-    };
+    enum Input : SocketIndex { TILE_ID_LIST_TO_PROCESS = 0, TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP = 1, TEXTURE_ARRAY = 2 };
+    enum Output : SocketIndex { OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP = 0, OUTPUT_TEXTURE_ARRAY = 1 };
 
     NormalComputeNode(
         const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity, WGPUTextureFormat output_format);
 
+public slots:
     void run() override;
-    Data get_output_data_impl(size_t output_index) const override;
 
-    void recreate_bind_groups();
+protected:
+    Data get_output_data_impl(SocketIndex output_index) const override;
 
 private:
     const PipelineManager* m_pipeline_manager;
@@ -183,45 +210,27 @@ private:
     raii::RawBuffer<GpuTileId> m_input_tile_ids; // tile ids for which to calculate normals
 
     // output
-    GpuHashMap<tile::Id, uint32_t> m_output_tile_map; // hash map
+    GpuHashMap<tile::Id, uint32_t, GpuTileId> m_output_tile_map; // hash map
     TileStorageTexture m_output_texture; // texture per tile
 };
 
 // TODO use this instead of compute controller (compute.h)
 // TODO define interface - or maybe for now, just use hardcoded graph for complete normals setup
-class NodeGraph {
+class NodeGraph : public QObject {
+    Q_OBJECT
+
 public:
     void add_node(std::unique_ptr<Node> node) { m_nodes.emplace_back(std::move(node)); }
 
-    void connect_sockets(Node* from_node, int output_socket, Node* to_node, int input_socket)
-    {
-        from_node->connect_output_socket(output_socket, to_node, input_socket);
-        to_node->connect_input_socket(input_socket, to_node, output_socket);
-    }
+    void connect_sockets(Node* from_node, SocketIndex output_socket, Node* to_node, SocketIndex input_socket);
 
-    void init_test_node_graph(const PipelineManager& manager, WGPUDevice device)
-    {
-        size_t capacity = 256;
-        glm::uvec2 input_resolution = { 65, 65 };
-        glm::uvec2 output_resolution = { 256, 256 };
-        add_node(std::make_unique<TileSelectNode>());
-        add_node(std::make_unique<HeightRequestNode>());
-        add_node(std::make_unique<ConvertTilesToHashMapNode>(device, input_resolution, capacity, WGPUTextureFormat_R16Uint));
-        add_node(std::make_unique<NormalComputeNode>(manager, device, output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm));
+    void init_test_node_graph(const PipelineManager& manager, WGPUDevice device);
 
-        Node* tile_select_node = m_nodes[0].get();
-        Node* hash_map_node = m_nodes[1].get();
-        Node* height_request_node = m_nodes[2].get();
-        Node* normal_compute_node = m_nodes[3].get();
+public slots:
+    void run();
 
-        connect_sockets(tile_select_node, 0, height_request_node, 0); // tile ids from select node to request node
-
-        connect_sockets(height_request_node, 0, hash_map_node, 0);
-
-        connect_sockets(tile_select_node, 0, normal_compute_node, 0); // tile ids to process
-        connect_sockets(hash_map_node, 0, normal_compute_node, 1); // hash map for texture lookup
-        connect_sockets(hash_map_node, 1, normal_compute_node, 2); // texture array containing textures
-    }
+signals:
+    void run_finished();
 
 private:
     std::vector<std::unique_ptr<Node>> m_nodes;

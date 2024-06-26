@@ -154,27 +154,46 @@ void PipelineManager::create_bind_group_layouts()
         },
         "compose bind group layout");
 
-    WGPUBindGroupLayoutEntry compute_input_tiles_entry {};
-    compute_input_tiles_entry.binding = 0;
-    compute_input_tiles_entry.visibility = WGPUShaderStage_Compute;
-    compute_input_tiles_entry.texture.sampleType = WGPUTextureSampleType_Uint;
-    compute_input_tiles_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
-
     WGPUBindGroupLayoutEntry compute_input_tile_ids_entry {};
-    compute_input_tile_ids_entry.binding = 1;
+    compute_input_tile_ids_entry.binding = 0;
     compute_input_tile_ids_entry.visibility = WGPUShaderStage_Compute;
     compute_input_tile_ids_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
     compute_input_tile_ids_entry.buffer.minBindingSize = 0;
 
+    WGPUBindGroupLayoutEntry compute_input_bounds_entry {};
+    compute_input_bounds_entry.binding = 1;
+    compute_input_bounds_entry.visibility = WGPUShaderStage_Compute;
+    compute_input_bounds_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    compute_input_bounds_entry.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry compute_key_buffer_entry {};
+    compute_key_buffer_entry.binding = 2;
+    compute_key_buffer_entry.visibility = WGPUShaderStage_Compute;
+    compute_key_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    compute_key_buffer_entry.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry compute_value_buffer_entry {};
+    compute_value_buffer_entry.binding = 3;
+    compute_value_buffer_entry.visibility = WGPUShaderStage_Compute;
+    compute_value_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    compute_value_buffer_entry.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry compute_input_height_textures_entry {};
+    compute_input_height_textures_entry.binding = 4;
+    compute_input_height_textures_entry.visibility = WGPUShaderStage_Compute;
+    compute_input_height_textures_entry.texture.sampleType = WGPUTextureSampleType_Uint;
+    compute_input_height_textures_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
+
     WGPUBindGroupLayoutEntry compute_output_tiles_entry {};
-    compute_output_tiles_entry.binding = 2;
+    compute_output_tiles_entry.binding = 5;
     compute_output_tiles_entry.visibility = WGPUShaderStage_Compute;
     compute_output_tiles_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2DArray;
     compute_output_tiles_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
     compute_output_tiles_entry.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
 
     m_compute_bind_group_layout = std::make_unique<raii::BindGroupLayout>(m_device,
-        std::vector<WGPUBindGroupLayoutEntry> { compute_input_tiles_entry, compute_input_tile_ids_entry, compute_output_tiles_entry },
+        std::vector<WGPUBindGroupLayoutEntry> { compute_input_tile_ids_entry, compute_input_bounds_entry, compute_key_buffer_entry, compute_value_buffer_entry,
+            compute_input_height_textures_entry, compute_output_tiles_entry },
         "dummy compute bind group layout");
 }
 

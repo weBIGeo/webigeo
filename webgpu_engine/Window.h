@@ -23,6 +23,7 @@
 #include "TileManager.h"
 #include "UniformBufferObjects.h"
 #include "compute.h"
+#include "compute/nodes.h"
 #include "nucleus/AbstractRenderWindow.h"
 #include "nucleus/camera/AbstractDepthTester.h"
 #include "nucleus/camera/Controller.h"
@@ -145,7 +146,7 @@ private:
     glm::vec2 m_swapchain_size = glm::vec2(0.0f);
     WGPUPresentMode m_swapchain_presentmode = WGPUPresentMode::WGPUPresentMode_Fifo;
 
-    std::unique_ptr<ComputeController> m_compute_controller;
+    std::unique_ptr<NodeGraph> m_compute_graph;
 };
 
 } // namespace webgpu_engine

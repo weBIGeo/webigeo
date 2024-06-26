@@ -28,6 +28,13 @@ struct GpuTileId {
     uint32_t x;
     uint32_t y;
     uint32_t zoomlevel;
+    uint32_t alignment = std::numeric_limits<uint32_t>::max();
+
+    GpuTileId() = default;
+    GpuTileId(uint32_t x, uint32_t y, uint32_t zoomlevel);
+    GpuTileId(const tile::Id& tile_id);
+
+    bool operator==(const GpuTileId& other) const { return x == other.x && y == other.y && zoomlevel == other.zoomlevel; }
 };
 
 /// Minimal wrapper over texture array for more convenient usage (intended for storing tile textures).

@@ -27,6 +27,7 @@ struct TileId {
     x: u32,
     y: u32,
     zoomlevel: u32,
+    alignment: u32,
 }
 
 struct Bounds {
