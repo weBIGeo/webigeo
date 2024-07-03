@@ -44,7 +44,7 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     let tile_id_vec = vec3<u32>(tile_id.x, tile_id.y, tile_id.zoomlevel);
     var hash = hash_tile_id(tile_id_vec);
 
-    while(any(map_key_buffer[hash].xyz != tile_id_vec)) {
+    while(any(map_key_buffer[hash].xyz != tile_id_vec) && all(map_key_buffer[hash].xyz != EMPTY_TILE_ID_VEC)) {
         hash++;
     }
 
