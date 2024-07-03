@@ -30,6 +30,8 @@ struct TileId {
     alignment: u32,
 }
 
+const EMPTY_TILE_ID_VEC = vec3<u32>(0, 0, 4294967295);
+
 struct Bounds {
     min: vec2f,
     max: vec2f,

@@ -109,9 +109,10 @@ void Window::initialise_gpu()
     m_pipeline_manager->create_pipelines();
     create_bind_groups();
 
-    m_tile_manager->init(m_device, m_queue, *m_pipeline_manager);
     m_compute_graph = std::make_unique<NodeGraph>();
     m_compute_graph->init_test_node_graph(*m_pipeline_manager, m_device);
+
+    m_tile_manager->init(m_device, m_queue, *m_pipeline_manager, *m_compute_graph);
 
     std::cout << "webgpu_engine::Window emitting: gpu_ready_changed" << std::endl;
     emit gpu_ready_changed(true);
@@ -527,6 +528,7 @@ void Window::update_gui(WGPURenderPassEncoder render_pass)
             {"Zoomlevel", 3},
             {"Vertex-ID", 4},
             {"Vertex Height-Sample", 5},
+            {"Compute Output", 99},
             {"Decoded Normals", 100},
             {"Steepness", 101},
             {"SSAO Buffer", 102},

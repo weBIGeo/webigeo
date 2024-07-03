@@ -191,6 +191,9 @@ public:
     NormalComputeNode(
         const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity, WGPUTextureFormat output_format);
 
+    const GpuHashMap<tile::Id, uint32_t, GpuTileId>& hash_map() const { return m_output_tile_map; }
+    const TileStorageTexture& texture_storage() const { return m_output_texture; }
+
 public slots:
     void run() override;
 
@@ -221,6 +224,9 @@ class NodeGraph : public QObject {
 
 public:
     void add_node(std::unique_ptr<Node> node) { m_nodes.emplace_back(std::move(node)); }
+
+    Node& get_node(size_t node_index) { return *m_nodes.at(node_index); }
+    const Node& get_node(size_t node_index) const { return *m_nodes.at(node_index); }
 
     void connect_sockets(Node* from_node, SocketIndex output_socket, Node* to_node, SocketIndex input_socket);
 

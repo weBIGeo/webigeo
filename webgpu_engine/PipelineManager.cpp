@@ -49,6 +49,8 @@ const raii::BindGroupLayout& PipelineManager::compose_bind_group_layout() const 
 
 const raii::BindGroupLayout& PipelineManager::compute_bind_group_layout() const { return *m_compute_bind_group_layout; }
 
+const raii::BindGroupLayout& PipelineManager::overlay_bind_group_layout() const { return *m_overlay_bind_group_layout; }
+
 void PipelineManager::create_pipelines()
 {
     create_bind_group_layouts();
@@ -195,6 +197,28 @@ void PipelineManager::create_bind_group_layouts()
         std::vector<WGPUBindGroupLayoutEntry> { compute_input_tile_ids_entry, compute_input_bounds_entry, compute_key_buffer_entry, compute_value_buffer_entry,
             compute_input_height_textures_entry, compute_output_tiles_entry },
         "dummy compute bind group layout");
+
+    WGPUBindGroupLayoutEntry overlay_key_buffer_entry {};
+    overlay_key_buffer_entry.binding = 0;
+    overlay_key_buffer_entry.visibility = WGPUShaderStage_Fragment;
+    overlay_key_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    overlay_key_buffer_entry.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry overlay_value_buffer_entry {};
+    overlay_value_buffer_entry.binding = 1;
+    overlay_value_buffer_entry.visibility = WGPUShaderStage_Fragment;
+    overlay_value_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    overlay_value_buffer_entry.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry overlay_input_overlay_textures_entry {};
+    overlay_input_overlay_textures_entry.binding = 2;
+    overlay_input_overlay_textures_entry.visibility = WGPUShaderStage_Fragment;
+    overlay_input_overlay_textures_entry.texture.sampleType = WGPUTextureSampleType_Float;
+    overlay_input_overlay_textures_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
+
+    m_overlay_bind_group_layout = std::make_unique<raii::BindGroupLayout>(m_device,
+        std::vector<WGPUBindGroupLayoutEntry> { overlay_key_buffer_entry, overlay_value_buffer_entry, overlay_input_overlay_textures_entry },
+        "overlay bind group layout");
 }
 
 void PipelineManager::release_pipelines()
@@ -218,6 +242,8 @@ void PipelineManager::create_tile_pipeline()
     tileset_id_buffer_info.add_attribute<int32_t, 1>(2);
     util::SingleVertexBufferInfo zoomlevel_buffer_info(WGPUVertexStepMode_Instance);
     zoomlevel_buffer_info.add_attribute<int32_t, 1>(3);
+    util::SingleVertexBufferInfo tile_id_buffer_info(WGPUVertexStepMode_Instance);
+    tile_id_buffer_info.add_attribute<uint32_t, 4>(4);
 
     FramebufferFormat format {};
     format.depth_format = WGPUTextureFormat_Depth24Plus;
@@ -226,9 +252,11 @@ void PipelineManager::create_tile_pipeline()
     format.color_formats.emplace_back(WGPUTextureFormat_RG16Uint);
 
     m_tile_pipeline = std::make_unique<raii::GenericRenderPipeline>(m_device, m_shader_manager->tile(), m_shader_manager->tile(),
-        std::vector<util::SingleVertexBufferInfo> { bounds_buffer_info, texture_layer_buffer_info, tileset_id_buffer_info, zoomlevel_buffer_info }, format,
+        std::vector<util::SingleVertexBufferInfo> {
+            bounds_buffer_info, texture_layer_buffer_info, tileset_id_buffer_info, zoomlevel_buffer_info, tile_id_buffer_info },
+        format,
         std::vector<const raii::BindGroupLayout*> {
-            m_shared_config_bind_group_layout.get(), m_camera_bind_group_layout.get(), m_tile_bind_group_layout.get() });
+            m_shared_config_bind_group_layout.get(), m_camera_bind_group_layout.get(), m_tile_bind_group_layout.get(), m_overlay_bind_group_layout.get() });
 }
 
 void PipelineManager::create_compose_pipeline()

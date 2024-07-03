@@ -41,6 +41,7 @@ public:
     const raii::BindGroupLayout& tile_bind_group_layout() const;
     const raii::BindGroupLayout& compose_bind_group_layout() const;
     const raii::BindGroupLayout& compute_bind_group_layout() const;
+    const raii::BindGroupLayout& overlay_bind_group_layout() const;
 
     void create_pipelines();
     void create_bind_group_layouts();
@@ -69,6 +70,7 @@ private:
     std::unique_ptr<raii::BindGroupLayout> m_tile_bind_group_layout;
     std::unique_ptr<raii::BindGroupLayout> m_compose_bind_group_layout;
     std::unique_ptr<raii::BindGroupLayout> m_compute_bind_group_layout;
+    std::unique_ptr<raii::BindGroupLayout> m_overlay_bind_group_layout;
 
     bool m_pipelines_created = false;
 };
