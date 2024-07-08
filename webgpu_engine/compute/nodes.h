@@ -106,8 +106,10 @@ protected:
     std::vector<ConnectedSocket> connected_output_sockets;
 
     DataType get_input_socket_type(SocketIndex input_socket_index) const;
+    size_t get_num_input_sockets() const;
 
     DataType get_output_socket_type(SocketIndex output_socket_index) const;
+    size_t get_num_output_sockets() const;
 
     Data get_output_data(SocketIndex output_index) const;
 

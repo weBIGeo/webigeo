@@ -57,11 +57,15 @@ DataType Node::get_input_socket_type(size_t input_socket_index) const
     return input_socket_types[input_socket_index];
 }
 
+size_t Node::get_num_input_sockets() const { return input_socket_types.size(); }
+
 DataType Node::get_output_socket_type(size_t output_socket_index) const
 {
     assert(output_socket_index < output_socket_types.size());
     return output_socket_types[output_socket_index];
 }
+
+size_t Node::get_num_output_sockets() const { return output_socket_types.size(); }
 
 Data Node::get_output_data(size_t output_index) const
 {
@@ -93,7 +97,7 @@ TileSelectNode::TileSelectNode()
 
 void TileSelectNode::run()
 {
-    std::cout << "running TileSelectNode ..." << std::endl;
+    qDebug() << "running TileSelectNode ..." << Qt::endl;
 
     webgpu_engine::RectangularTileRegion region { .min = { 1096, 1328 },
         .max = { 1096 + 14, 1328 + 14 }, // inclusive, so this region has 15x15 tiles
@@ -115,7 +119,7 @@ HeightRequestNode::HeightRequestNode()
 
 void HeightRequestNode::run()
 {
-    std::cout << "running HeightRequestNode ... " << std::endl;
+    qDebug() << "running HeightRequestNode ..." << Qt::endl;
 
     // get tile ids to request
     // TODO maybe make get_input_data a template (so usage would become get_input_data<type>(socket_index))
@@ -163,7 +167,7 @@ ConvertTilesToHashMapNode::ConvertTilesToHashMapNode(WGPUDevice device, const gl
 
 void ConvertTilesToHashMapNode::run()
 {
-    std::cout << "running ConvertToHashMapNode ...";
+    qDebug() << "running ConvertToHashMapNode ..." << Qt::endl;
 
     // get input data
     // TODO maybe make get_input_data a template (so usage would become get_input_data<type>(socket_index))
@@ -219,13 +223,12 @@ NormalComputeNode::NormalComputeNode(
     , m_output_tile_map(device, tile::Id { unsigned(-1), {} }, -1)
     , m_output_texture(device, output_resolution, capacity, output_format)
 {
+    m_output_tile_map.update_gpu_data();
 }
 
 void NormalComputeNode::run()
 {
-    std::cout << "running NormalComputeNode ... " << std::endl;
-
-    // return; // TODO skip for debugging, remove later
+    qDebug() << "running NormalComputeNode ..." << Qt::endl;
 
     // get tile ids to process
     const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(get_input_data(0)); // list of tile ids to process
