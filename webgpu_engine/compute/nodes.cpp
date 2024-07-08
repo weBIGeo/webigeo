@@ -169,6 +169,10 @@ void ConvertTilesToHashMapNode::run()
 {
     qDebug() << "running ConvertToHashMapNode ..." << Qt::endl;
 
+    // clear hash map and storage texture
+    m_output_tile_id_to_index.clear();
+    m_output_tile_textures.clear();
+
     // get input data
     // TODO maybe make get_input_data a template (so usage would become get_input_data<type>(socket_index))
     const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(get_input_data(0)); // input 1, list of tile ids

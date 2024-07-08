@@ -77,6 +77,10 @@ public:
     /// Need to call update_gpu_data for effects to be visible on GPU side.
     void clear(const KeyType& id) { m_stored_map.erase(id); }
 
+    /// Clears all values.
+    /// Need to call update_gpu_data for effects to be visible on GPU side.
+    void clear() { m_stored_map.clear(); }
+
     /// Update GPU buffers.
     void update_gpu_data()
     {
