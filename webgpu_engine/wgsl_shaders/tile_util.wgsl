@@ -30,7 +30,10 @@ struct TileId {
     alignment: u32,
 }
 
-const EMPTY_TILE_ID_VEC = vec3<u32>(0, 0, 4294967295);
+const EMPTY_TILE_ZOOMLEVEL: u32 = 4294967295u;
+
+fn tile_ids_equal(a: TileId, b: TileId) -> bool { return a.x == b.x && a.y == b.y && a.zoomlevel == b.zoomlevel; }
+fn tile_id_empty(id: TileId) -> bool { return id.zoomlevel == EMPTY_TILE_ZOOMLEVEL; }
 
 struct Bounds {
     min: vec2f,

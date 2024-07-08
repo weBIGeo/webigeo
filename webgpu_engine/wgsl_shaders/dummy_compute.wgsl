@@ -23,7 +23,7 @@
 // input
 @group(0) @binding(0) var<storage> input_tile_ids: array<TileId>;
 @group(0) @binding(1) var<storage> input_tile_bounds: array<vec4<f32>>;
-@group(0) @binding(2) var<storage> map_key_buffer: array<vec4<u32>>; // hash map key buffer
+@group(0) @binding(2) var<storage> map_key_buffer: array<TileId>; // hash map key buffer
 @group(0) @binding(3) var<storage> map_value_buffer: array<u32>; // hash map value buffer, contains texture array indices
 @group(0) @binding(4) var input_tiles: texture_2d_array<u32>; // height tiles
 
@@ -41,10 +41,8 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     let quad_height: f32 = (bounds.w - bounds.y) / f32(n_quads_per_direction);
 
     // find correct hash for tile id
-    let tile_id_vec = vec3<u32>(tile_id.x, tile_id.y, tile_id.zoomlevel);
-    var hash = hash_tile_id(tile_id_vec);
-
-    while(any(map_key_buffer[hash].xyz != tile_id_vec) && all(map_key_buffer[hash].xyz != EMPTY_TILE_ID_VEC)) {
+    var hash = hash_tile_id(tile_id);
+    while(!tile_ids_equal(map_key_buffer[hash], tile_id) && !tile_id_empty(map_key_buffer[hash])) {
         hash++;
     }
 

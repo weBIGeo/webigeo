@@ -35,7 +35,7 @@
 @group(2) @binding(3) var ortho_texture: texture_2d_array<f32>;
 @group(2) @binding(4) var ortho_sampler: sampler;
 
-@group(3) @binding(0) var<storage> map_key_buffer: array<vec4<u32>>; // hash map key buffer
+@group(3) @binding(0) var<storage> map_key_buffer: array<TileId>; // hash map key buffer
 @group(3) @binding(1) var<storage> map_value_buffer: array<u32>; // hash map value buffer, contains texture array indices
 @group(3) @binding(2) var overlay_texture: texture_2d_array<f32>; // overlay tiles
 
@@ -197,14 +197,15 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
             //TODO we should probably write overlay color into a separate gbuffer texture and do blending in compose shader (?) 
             
             // find correct hash for tile id
-            let tile_id_vec = vertex_out.tile_id.xyz;
-            var hash = hash_tile_id(tile_id_vec);
-            while(any(map_key_buffer[hash].xyz != tile_id_vec) && all(map_key_buffer[hash].xyz != EMPTY_TILE_ID_VEC)) {
+            var tile_id = TileId(vertex_out.tile_id.x, vertex_out.tile_id.y, vertex_out.tile_id.z, 4294967295u);
+            var hash = hash_tile_id(tile_id);
+            while(!tile_ids_equal(map_key_buffer[hash], tile_id) && !tile_id_empty(map_key_buffer[hash])) {
                 hash++;
             }
-            
-            // textureSample needs to happen in uniform control flow, so either sample correct index
-            let was_found = all(map_key_buffer[hash].xyz != EMPTY_TILE_ID_VEC);
+            let was_found = !tile_id_empty(map_key_buffer[hash]);
+
+            // textureSample needs to happen in uniform control flow
+            // therefore: if texture was found, sample correct texture array index, otherwise sample from texture 0
             let overlay_texture_index = select(0, map_value_buffer[hash], was_found);
             let sampled_overlay_color = textureSample(overlay_texture, ortho_sampler, vertex_out.uv, overlay_texture_index).rgb;
             
