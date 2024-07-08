@@ -345,21 +345,18 @@ void NodeGraph::init_test_node_graph(const PipelineManager& manager, WGPUDevice 
     connect_sockets(hash_map_node, ConvertTilesToHashMapNode::Output::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP, normal_compute_node,
         NormalComputeNode::Input::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP);
     connect_sockets(hash_map_node, ConvertTilesToHashMapNode::Output::TEXTURE_ARRAY, normal_compute_node, NormalComputeNode::Input::TEXTURE_ARRAY);
-}
 
-void NodeGraph::run()
-{
-    // TODO for now, just hardcoded for normals!
-    Node* tile_select_node = m_nodes[0].get();
-    Node* height_request_node = m_nodes[1].get();
-    Node* hash_map_node = m_nodes[2].get();
-    Node* normal_compute_node = m_nodes[3].get();
-
+    // connect signals
+    // TODO do dynamically based on graph
     connect(tile_select_node, &Node::run_finished, height_request_node, &Node::run);
     connect(height_request_node, &Node::run_finished, hash_map_node, &Node::run);
     connect(hash_map_node, &Node::run_finished, normal_compute_node, &Node::run);
     connect(normal_compute_node, &Node::run_finished, this, &NodeGraph::run_finished); // emits run finished signal in NodeGraph
+}
 
+void NodeGraph::run()
+{
+    Node* tile_select_node = m_nodes[0].get();
     tile_select_node->run();
 }
 
