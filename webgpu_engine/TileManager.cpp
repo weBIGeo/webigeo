@@ -448,7 +448,7 @@ void TileRendererInstancedSingleArrayMultiCall::draw(
     m_tileset_id_buffer->write(m_queue, tileset_id.data(), tileset_id.size());
     m_zoom_level_buffer->write(m_queue, zoom_level.data(), zoom_level.size());
     m_texture_layer_buffer->write(m_queue, texture_layer.data(), texture_layer.size());
-    m_tile_id_buffer->write(m_queue, tile_ids.data(), tileset_id.size());
+    m_tile_id_buffer->write(m_queue, tile_ids.data(), tile_ids.size());
 
     // set pipeline
     wgpuRenderPassEncoderSetPipeline(render_pass, m_pipeline_manager->tile_pipeline().pipeline().handle());
