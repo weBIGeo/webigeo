@@ -77,17 +77,27 @@ void TileStorageTexture::store(size_t layer, const QByteArray& data)
     const auto heightraster = nucleus::utils::tile_conversion::u8vec4raster_to_u16raster(height_image);
     m_texture_array->texture().write(m_queue, heightraster, uint32_t(layer));
 
-    // update used layers
-    if (!m_layers_used.at(layer)) {
-        m_num_stored++;
-        m_layers_used[layer] = true;
-    }
+    set_layer_used(layer);
 }
 
 size_t TileStorageTexture::store(const QByteArray& data)
 {
     size_t layer_index = find_unused_layer_index();
     store(layer_index, data);
+    return layer_index;
+}
+
+void TileStorageTexture::reserve(size_t layer)
+{
+    assert(!m_layers_used[layer]);
+
+    set_layer_used(layer);
+}
+
+size_t TileStorageTexture::reserve()
+{
+    size_t layer_index = find_unused_layer_index();
+    set_layer_used(layer_index);
     return layer_index;
 }
 
@@ -113,12 +123,21 @@ raii::TextureWithSampler& TileStorageTexture::texture() { return *m_texture_arra
 
 const raii::TextureWithSampler& TileStorageTexture::texture() const { return *m_texture_array; }
 
-size_t TileStorageTexture::find_unused_layer_index()
+size_t TileStorageTexture::find_unused_layer_index() const
 {
     assert(m_num_stored < m_capacity);
 
     auto found_at = std::find(m_layers_used.begin(), m_layers_used.end(), false);
     return found_at - m_layers_used.begin();
+}
+
+void TileStorageTexture::set_layer_used(size_t layer)
+{
+    // update used layers
+    if (!m_layers_used.at(layer)) {
+        m_num_stored++;
+        m_layers_used[layer] = true;
+    }
 }
 
 TextureArrayComputeTileStorage::TextureArrayComputeTileStorage(

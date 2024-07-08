@@ -36,8 +36,7 @@ class Node;
 using DataType = size_t;
 
 /// datatypes that can be used with nodes have to be declared here.
-using Data
-    = std::variant<const std::vector<tile::Id>*, const std::vector<QByteArray>*, const TileStorageTexture*, const GpuHashMap<tile::Id, uint32_t, GpuTileId>*>;
+using Data = std::variant<const std::vector<tile::Id>*, const std::vector<QByteArray>*, TileStorageTexture*, GpuHashMap<tile::Id, uint32_t, GpuTileId>*>;
 
 using SocketIndex = size_t;
 
@@ -91,7 +90,7 @@ signals:
 
 protected:
     /// Override to return pointer to output data for respective output slot
-    virtual Data get_output_data_impl(SocketIndex output_index) const = 0;
+    virtual Data get_output_data_impl(SocketIndex output_index) = 0;
 
 protected:
     struct ConnectedSocket {
@@ -111,9 +110,9 @@ protected:
     DataType get_output_socket_type(SocketIndex output_socket_index) const;
     size_t get_num_output_sockets() const;
 
-    Data get_output_data(SocketIndex output_index) const;
+    Data get_output_data(SocketIndex output_index);
 
-    Data get_input_data(SocketIndex input_index) const;
+    Data get_input_data(SocketIndex input_index);
 };
 
 class TileSelectNode : public Node {
@@ -129,7 +128,7 @@ public slots:
     void run() override;
 
 protected:
-    Data get_output_data_impl(SocketIndex output_index) const override;
+    Data get_output_data_impl(SocketIndex output_index) override;
 
 private:
     std::vector<tile::Id> m_output_tile_ids;
@@ -150,7 +149,7 @@ public slots:
     void run() override;
 
 protected:
-    Data get_output_data_impl(SocketIndex output_index) const override;
+    Data get_output_data_impl(SocketIndex output_index) override;
 
 private:
     std::unique_ptr<nucleus::tile_scheduler::TileLoadService> m_tile_loader;
@@ -173,7 +172,7 @@ public slots:
     void run() override;
 
 protected:
-    Data get_output_data_impl(SocketIndex output_index) const override;
+    Data get_output_data_impl(SocketIndex output_index) override;
 
 private:
     WGPUDevice m_device;
@@ -200,7 +199,7 @@ public slots:
     void run() override;
 
 protected:
-    Data get_output_data_impl(SocketIndex output_index) const override;
+    Data get_output_data_impl(SocketIndex output_index) override;
 
 private:
     const PipelineManager* m_pipeline_manager;
@@ -217,6 +216,32 @@ private:
     // output
     GpuHashMap<tile::Id, uint32_t, GpuTileId> m_output_tile_map; // hash map
     TileStorageTexture m_output_texture; // texture per tile
+};
+
+class DownsampleTilesNode : public Node {
+    Q_OBJECT
+
+public:
+    enum Input : SocketIndex { TILE_ID_LIST_TO_PROCESS = 0, TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP = 1, TEXTURE_ARRAY = 2 };
+    enum Output : SocketIndex { OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP = 0, OUTPUT_TEXTURE_ARRAY = 1 };
+
+public:
+    DownsampleTilesNode(const PipelineManager& pipeline_manager, WGPUDevice device, size_t capacity);
+
+public slots:
+    void run() override;
+
+protected:
+    Data get_output_data_impl(SocketIndex output_index) override;
+
+private:
+    const PipelineManager* m_pipeline_manager;
+    WGPUDevice m_device;
+    WGPUQueue m_queue;
+
+    size_t m_downsample_levels; // how many zoomlevels should be downsampled
+    raii::RawBuffer<GpuTileId> m_input_tile_ids; // tile ids of (to be calculated) downsampled tiles
+    raii::RawBuffer<uint32_t> m_input_array_layers; // texture array to write downsampled tiles to
 };
 
 // TODO use this instead of compute controller (compute.h)

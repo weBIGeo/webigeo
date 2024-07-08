@@ -20,6 +20,7 @@
 #include "nucleus/srs.h"
 #include "webgpu_engine/compute.h"
 #include <QEventLoop>
+#include <unordered_set>
 
 namespace webgpu_engine {
 
@@ -67,7 +68,7 @@ DataType Node::get_output_socket_type(size_t output_socket_index) const
 
 size_t Node::get_num_output_sockets() const { return output_socket_types.size(); }
 
-Data Node::get_output_data(size_t output_index) const
+Data Node::get_output_data(size_t output_index)
 {
     assert(output_index < output_socket_types.size());
 
@@ -78,7 +79,7 @@ Data Node::get_output_data(size_t output_index) const
     return data;
 }
 
-Data Node::get_input_data(size_t input_index) const
+Data Node::get_input_data(size_t input_index)
 {
     assert(input_index < input_socket_types.size());
     assert(connected_input_sockets[input_index].connected_node != nullptr);
@@ -99,15 +100,15 @@ void TileSelectNode::run()
 {
     qDebug() << "running TileSelectNode ..." << Qt::endl;
 
-    webgpu_engine::RectangularTileRegion region { .min = { 1096, 1328 },
-        .max = { 1096 + 14, 1328 + 14 }, // inclusive, so this region has 15x15 tiles
-        .zoom_level = 11,
+    webgpu_engine::RectangularTileRegion region { .min = { 8768, 10624 },
+        .max = { 8768 + 11, 10624 + 11 }, // inclusive, so this region has 12x12 tiles
+        .zoom_level = 14,
         .scheme = tile::Scheme::Tms };
     m_output_tile_ids = region.get_tiles();
     emit run_finished();
 }
 
-Data TileSelectNode::get_output_data_impl([[maybe_unused]] SocketIndex output_index) const { return { &m_output_tile_ids }; }
+Data TileSelectNode::get_output_data_impl([[maybe_unused]] SocketIndex output_index) { return { &m_output_tile_ids }; }
 
 HeightRequestNode::HeightRequestNode()
     : Node({ data_type<const std::vector<tile::Id>*>() }, { data_type<const std::vector<QByteArray>*>() })
@@ -136,7 +137,7 @@ void HeightRequestNode::run()
     }
 }
 
-Data HeightRequestNode::get_output_data_impl([[maybe_unused]] SocketIndex output_index) const { return { &m_received_tile_textures }; }
+Data HeightRequestNode::get_output_data_impl([[maybe_unused]] SocketIndex output_index) { return { &m_received_tile_textures }; }
 
 void HeightRequestNode::on_single_tile_received(const nucleus::tile_scheduler::tile_types::TileLayer& tile)
 {
@@ -156,7 +157,7 @@ void HeightRequestNode::on_single_tile_received(const nucleus::tile_scheduler::t
 
 ConvertTilesToHashMapNode::ConvertTilesToHashMapNode(WGPUDevice device, const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format)
     : Node({ data_type<const std::vector<tile::Id>*>(), data_type<const std::vector<QByteArray>*>() },
-        { data_type<const GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<const TileStorageTexture*>() })
+        { data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>() })
     , m_device { device }
     , m_queue { wgpuDeviceGetQueue(device) }
     , m_output_tile_id_to_index(device, tile::Id { unsigned(-1), {} }, -1)
@@ -202,7 +203,7 @@ void ConvertTilesToHashMapNode::run()
         this);
 }
 
-Data ConvertTilesToHashMapNode::get_output_data_impl(SocketIndex output_index) const
+Data ConvertTilesToHashMapNode::get_output_data_impl(SocketIndex output_index)
 {
     // return pointers to hash map and texture array respectively
     switch (output_index) {
@@ -216,8 +217,8 @@ Data ConvertTilesToHashMapNode::get_output_data_impl(SocketIndex output_index) c
 
 NormalComputeNode::NormalComputeNode(
     const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, SocketIndex capacity, WGPUTextureFormat output_format)
-    : Node({ data_type<const std::vector<tile::Id>*>(), data_type<const GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<const TileStorageTexture*>() },
-        { data_type<const GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<const TileStorageTexture*>() })
+    : Node({ data_type<const std::vector<tile::Id>*>(), data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>() },
+        { data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>() })
     , m_pipeline_manager { &pipeline_manager }
     , m_device { device }
     , m_queue(wgpuDeviceGetQueue(m_device))
@@ -236,8 +237,8 @@ void NormalComputeNode::run()
 
     // get tile ids to process
     const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(get_input_data(0)); // list of tile ids to process
-    const auto& hash_map = *std::get<data_type<const GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(get_input_data(1)); // hash map for height lookup
-    const auto& height_textures = *std::get<data_type<const TileStorageTexture*>()>(get_input_data(2)); // hash map for lookup
+    const auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(get_input_data(1)); // hash map for height lookup
+    const auto& height_textures = *std::get<data_type<TileStorageTexture*>()>(get_input_data(2)); // hash map for lookup
 
     assert(tile_ids.size() <= m_capacity);
 
@@ -295,6 +296,7 @@ void NormalComputeNode::run()
     // write hashmap
     // since the compute pass stores textures at indices [0, num_tile_ids), we can just write those indices into the hashmap
     for (uint16_t i = 0; i < tile_ids.size(); i++) {
+        m_output_texture.reserve(i);
         m_output_tile_map.store(tile_ids[i], i);
     }
     m_output_tile_map.update_gpu_data();
@@ -308,13 +310,81 @@ void NormalComputeNode::run()
         this);
 }
 
-Data NormalComputeNode::get_output_data_impl(SocketIndex output_index) const
+Data NormalComputeNode::get_output_data_impl(SocketIndex output_index)
 {
     switch (output_index) {
     case 0:
         return { &m_output_tile_map };
     case 1:
         return { &m_output_texture };
+    }
+    exit(-1);
+}
+
+DownsampleTilesNode::DownsampleTilesNode(const PipelineManager& pipeline_manager, WGPUDevice device, size_t capacity)
+    : Node({ data_type<const std::vector<tile::Id>*>(), data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>() },
+        { data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>() })
+    , m_pipeline_manager { &pipeline_manager }
+    , m_device { device }
+    , m_queue { wgpuDeviceGetQueue(m_device) }
+    , m_downsample_levels { 1 } // TODO support downsampling by multiple levels (by consecutive compute pipeline calls)
+    , m_input_tile_ids(device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc, capacity, "compute: downsampling, tile id buffer")
+    , m_input_array_layers(
+          device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc, capacity, "compute: downsampling, tile id buffer")
+{
+}
+
+void DownsampleTilesNode::run()
+{
+    qDebug() << "running DownsampleTilesNode ..." << Qt::endl;
+
+    const auto& original_tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(get_input_data(Input::TILE_ID_LIST_TO_PROCESS)); // hash map for lookup
+    auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(
+        get_input_data(Input::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP)); // hash map for height lookup
+    auto& textures = *std::get<data_type<TileStorageTexture*>()>(get_input_data(Input::TEXTURE_ARRAY)); // hash map for lookup
+
+    // determine downsampled tile ids
+    assert(m_downsample_levels > 0);
+
+    std::unordered_set<tile::Id, tile::Id::Hasher> downsampled_tile_ids;
+    std::for_each(std::begin(original_tile_ids), std::end(original_tile_ids),
+        [&downsampled_tile_ids](const tile::Id& tile_id) { downsampled_tile_ids.insert(tile_id.parent()); });
+
+    std::vector<tile::Id> tile_ids;
+    tile_ids.reserve(original_tile_ids.size() / 4);
+    std::vector<GpuTileId> gpu_tile_ids;
+    gpu_tile_ids.reserve(tile_ids.size());
+    std::for_each(std::begin(downsampled_tile_ids), std::end(downsampled_tile_ids), [&](const tile::Id& tile_id) {
+        tile_ids.emplace_back(tile_id);
+        gpu_tile_ids.emplace_back(tile_id.coords.x, tile_id.coords.y, tile_id.zoom_level);
+    });
+
+    qDebug() << "need to calculate " << gpu_tile_ids.size() << " downsampled tiles" << Qt::endl;
+    assert(gpu_tile_ids.size() <= m_input_tile_ids.size());
+    m_input_tile_ids.write(m_queue, gpu_tile_ids.data(), gpu_tile_ids.size());
+
+    // determine which texture array indices to write to for each tile id
+    std::vector<uint32_t> texture_array_indices(tile_ids.size());
+    for (uint16_t i = 0; i < tile_ids.size(); i++) {
+        size_t layer_index = textures.reserve();
+        hash_map.store(tile_ids[i], layer_index);
+        texture_array_indices[i] = layer_index;
+    }
+    m_input_array_layers.write(m_queue, texture_array_indices.data(), texture_array_indices.size());
+
+    // TODO invoke compute shader
+
+    // write texture array indices only after downsampling so we dont accidentally access not-yet-written tiles
+    hash_map.update_gpu_data();
+}
+
+Data DownsampleTilesNode::get_output_data_impl(SocketIndex output_index)
+{
+    switch (output_index) {
+    case Output::OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP:
+        return get_input_data(Input::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP);
+    case Output::OUTPUT_TEXTURE_ARRAY:
+        return get_input_data(Input::TEXTURE_ARRAY);
     }
     exit(-1);
 }
@@ -334,11 +404,13 @@ void NodeGraph::init_test_node_graph(const PipelineManager& manager, WGPUDevice 
     add_node(std::make_unique<HeightRequestNode>());
     add_node(std::make_unique<ConvertTilesToHashMapNode>(device, input_resolution, capacity, WGPUTextureFormat_R16Uint));
     add_node(std::make_unique<NormalComputeNode>(manager, device, output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm));
+    add_node(std::make_unique<DownsampleTilesNode>(manager, device, capacity));
 
     Node* tile_select_node = m_nodes[0].get();
     Node* height_request_node = m_nodes[1].get();
     Node* hash_map_node = m_nodes[2].get();
     Node* normal_compute_node = m_nodes[3].get();
+    Node* downsample_tiles_node = m_nodes[4].get();
 
     connect_sockets(tile_select_node, TileSelectNode::Output::TILE_ID_LIST, height_request_node, HeightRequestNode::Input::TILE_ID_LIST);
 
@@ -350,12 +422,18 @@ void NodeGraph::init_test_node_graph(const PipelineManager& manager, WGPUDevice 
         NormalComputeNode::Input::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP);
     connect_sockets(hash_map_node, ConvertTilesToHashMapNode::Output::TEXTURE_ARRAY, normal_compute_node, NormalComputeNode::Input::TEXTURE_ARRAY);
 
+    connect_sockets(tile_select_node, TileSelectNode::Output::TILE_ID_LIST, downsample_tiles_node, DownsampleTilesNode::Input::TILE_ID_LIST_TO_PROCESS);
+    connect_sockets(normal_compute_node, NormalComputeNode::Output::OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP, downsample_tiles_node,
+        DownsampleTilesNode::Input::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP);
+    connect_sockets(normal_compute_node, NormalComputeNode::Output::OUTPUT_TEXTURE_ARRAY, downsample_tiles_node, DownsampleTilesNode::Input::TEXTURE_ARRAY);
+
     // connect signals
     // TODO do dynamically based on graph
     connect(tile_select_node, &Node::run_finished, height_request_node, &Node::run);
     connect(height_request_node, &Node::run_finished, hash_map_node, &Node::run);
     connect(hash_map_node, &Node::run_finished, normal_compute_node, &Node::run);
-    connect(normal_compute_node, &Node::run_finished, this, &NodeGraph::run_finished); // emits run finished signal in NodeGraph
+    connect(normal_compute_node, &Node::run_finished, downsample_tiles_node, &Node::run);
+    connect(downsample_tiles_node, &Node::run_finished, this, &NodeGraph::run_finished); // emits run finished signal in NodeGraph
 }
 
 void NodeGraph::run()

@@ -46,6 +46,8 @@ public:
 
     void store(size_t layer, const QByteArray& data);
     size_t store(const QByteArray& data); // store at next free spot
+    void reserve(size_t layer); // acts like store, but doesnt write anything (useful for reservering on CPU side and writing to indices from shader)
+    size_t reserve(); // reserve next free spot
     void clear(); // clear all
     void clear(size_t layer);
 
@@ -53,7 +55,8 @@ public:
     const raii::TextureWithSampler& texture() const;
 
 private:
-    size_t find_unused_layer_index();
+    size_t find_unused_layer_index() const;
+    void set_layer_used(size_t layer);
 
 private:
     WGPUDevice m_device;
