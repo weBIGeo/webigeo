@@ -61,6 +61,7 @@ public:
     bool needs_redraw() { return m_needs_redraw; }
 
     void update_required_gpu_limits(WGPULimits& limits);
+    void paint_gui();
 
     // Not happy with the following three in public, but we need to have access inside the lambdas.
     std::unique_ptr<raii::RawBuffer<glm::vec4>> m_position_readback_buffer;

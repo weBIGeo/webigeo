@@ -19,11 +19,20 @@
 #pragma once
 
 #include <GLFW/glfw3.h>
-#include <vector>
 #include <webgpu/webgpu.h>
 
+namespace webgpu_engine {
+class Window;
+}
+
 class GuiManager {
+
 public:
+    GuiManager(webgpu_engine::Window* webgpu_window)
+        : m_webgpu_window(webgpu_window)
+    {
+    }
+
     void init(GLFWwindow* window, WGPUDevice device, WGPUTextureFormat swapchainFormat, WGPUTextureFormat depthTextureFormat);
     void render(WGPURenderPassEncoder renderPass);
     void shutdown();
@@ -33,12 +42,8 @@ public:
 private:
     GLFWwindow* m_window;
     WGPUDevice m_device;
+    webgpu_engine::Window* m_webgpu_window = nullptr;
     bool m_showNodeEditor = false;
-    bool m_forceRepaint = false;
-    long m_repaintCount = 0;
-    bool m_firstFrame = true;
-    float m_frameTime = 0.0f;
-    std::vector<std::pair<int, int>> m_links;
 
     void updateUI();
 };

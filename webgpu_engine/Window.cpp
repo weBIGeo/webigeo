@@ -28,6 +28,8 @@
 
 #include <glm/gtx/string_cast.hpp>
 
+#include <imgui.h>
+
 namespace webgpu_engine {
 
 Window::Window()
@@ -143,6 +145,57 @@ void Window::paint(WGPUTextureView target_color_texture, WGPUTextureView target_
     }
 
     m_needs_redraw = false;
+}
+
+void Window::paint_gui()
+{
+    ImGui::Combo("Normal Mode", (int*)&m_shared_config_ubo->data.m_normal_mode, "None\0Flat\0Smooth\0\0");
+    {
+        static int currentItem = m_shared_config_ubo->data.m_overlay_mode;
+        static const std::vector<std::pair<std::string, int>> overlays
+            = { { "None", 0 }, { "Normals", 1 }, { "Tiles", 2 }, { "Zoomlevel", 3 }, { "Vertex-ID", 4 }, { "Vertex Height-Sample", 5 },
+                  { "Decoded Normals", 100 }, { "Steepness", 101 }, { "SSAO Buffer", 102 }, { "Shadow Cascades", 103 } };
+        const char* currentItemLabel = overlays[currentItem].first.c_str();
+        if (ImGui::BeginCombo("Overlay", currentItemLabel)) {
+            for (size_t i = 0; i < overlays.size(); i++) {
+                bool isSelected = ((size_t)currentItem == i);
+                if (ImGui::Selectable(overlays[i].first.c_str(), isSelected))
+                    currentItem = i;
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        m_shared_config_ubo->data.m_overlay_mode = overlays[currentItem].second;
+        if (m_shared_config_ubo->data.m_overlay_mode > 0) {
+            ImGui::SliderFloat("Overlay Strength", &m_shared_config_ubo->data.m_overlay_strength, 0.0f, 1.0f);
+        }
+        if (m_shared_config_ubo->data.m_overlay_mode >= 100) {
+            ImGui::Checkbox("Overlay Post Shading", (bool*)&m_shared_config_ubo->data.m_overlay_postshading_enabled);
+        }
+    }
+
+    ImGui::Checkbox("Phong Shading", (bool*)&m_shared_config_ubo->data.m_phong_enabled);
+
+    if (ImGui::CollapsingHeader("Compute pipeline")) {
+        if (ImGui::Button("Request tiles", ImVec2(280, 20))) {
+            // hardcoded test region
+            RectangularTileRegion region;
+            region.min = { 1096, 1328 };
+            region.max = { 1096 + 14, 1328 + 14 }; // inclusive, so this region has 15x15 tiles
+            region.scheme = tile::Scheme::Tms;
+            region.zoom_level = 11;
+            m_compute_controller->request_tiles(region);
+        }
+
+        if (ImGui::Button("Run pipeline", ImVec2(280, 20))) {
+            m_compute_controller->run_pipeline();
+        }
+
+        if (ImGui::Button("Write per-tile output to files", ImVec2(280, 20))) {
+            m_compute_controller->write_output_tiles("output_tiles"); // writes dir output_tiles next to app.exe
+        }
+    }
 }
 
 glm::vec4 Window::synchronous_position_readback(const glm::dvec2& ndc) {

@@ -250,7 +250,7 @@ void TerrainRenderer::start() {
     glfwSetWindowSize(m_window, m_viewport_size.x, m_viewport_size.y);
 
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-    m_gui_manager = std::make_unique<GuiManager>();
+    m_gui_manager = std::make_unique<GuiManager>(m_webgpu_window.get());
     m_gui_manager->init(m_window, m_device, m_swapchain_format, m_depth_texture_format);
 #endif
 

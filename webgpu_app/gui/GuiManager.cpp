@@ -19,6 +19,7 @@
 #include "GuiManager.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_wgpu.h"
+#include "webgpu_engine/Window.h"
 #include <QDebug>
 #include <imgui.h>
 #include <imnodes.h>
@@ -76,22 +77,19 @@ bool GuiManager::wantCaptureMouse() { return ImGui::GetIO().WantCaptureMouse; }
 
 void GuiManager::updateUI()
 {
-    ImGuiIO& io = ImGui::GetIO();
-
     static float frame_time = 0.0f;
     static std::vector<std::pair<int, int>> links;
-    static bool show_node_editor = false;
     static bool first_frame = true;
+    static float fpsValues[90] = {}; // Array to store FPS values for the graph, adjust size as needed for the time window
+    static int fpsIndex = 0; // Current index in FPS values array
+    static float lastTime = 0.0f; // Last time FPS was updated
+
+    ImGuiIO& io = ImGui::GetIO();
 
     ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - 300, 0)); // Set position to top-left corner
     ImGui::SetNextWindowSize(ImVec2(300, ImGui::GetIO().DisplaySize.y)); // Set height to full screen height, width as desired
 
     ImGui::Begin("weBIGeo", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar);
-
-    // FPS counter variables
-    static float fpsValues[90] = {}; // Array to store FPS values for the graph, adjust size as needed for the time window
-    static int fpsIndex = 0; // Current index in FPS values array
-    static float lastTime = 0.0f; // Last time FPS was updated
 
     // Calculate delta time and FPS
     float currentTime = ImGui::GetTime();
@@ -116,71 +114,13 @@ void GuiManager::updateUI()
     ImGui::PlotLines("", fpsValues, IM_ARRAYSIZE(fpsValues), fpsIndex, nullptr, 0.0f, 80.0f, ImVec2(280, 100));
 
     ImGui::Separator();
-    /*
-    ImGui::Combo("Normal Mode", (int*)&m_shared_config_ubo->data.m_normal_mode, "None\0Flat\0Smooth\0\0");
 
-    {
-        static int currentItem = m_shared_config_ubo->data.m_overlay_mode;
-        static const std::vector<std::pair<std::string, int>> overlays = {
-            {"None", 0},
-            {"Normals", 1},
-            {"Tiles", 2},
-            {"Zoomlevel", 3},
-            {"Vertex-ID", 4},
-            {"Vertex Height-Sample", 5},
-            {"Decoded Normals", 100},
-            {"Steepness", 101},
-            {"SSAO Buffer", 102},
-            {"Shadow Cascades", 103}
-        };
-        const char* currentItemLabel = overlays[currentItem].first.c_str();
-        if (ImGui::BeginCombo("Overlay", currentItemLabel))
-        {
-            for (size_t i = 0; i < overlays.size(); i++)
-            {
-                bool isSelected = ((size_t)currentItem == i);
-                if (ImGui::Selectable(overlays[i].first.c_str(), isSelected)) currentItem = i;
-                if (isSelected) ImGui::SetItemDefaultFocus();
-            }
-            ImGui::EndCombo();
-        }
-        m_shared_config_ubo->data.m_overlay_mode = overlays[currentItem].second;
-        if (m_shared_config_ubo->data.m_overlay_mode > 0) {
-            ImGui::SliderFloat("Overlay Strength", &m_shared_config_ubo->data.m_overlay_strength, 0.0f, 1.0f);
-        }
-        if (m_shared_config_ubo->data.m_overlay_mode >= 100) {
-            ImGui::Checkbox("Overlay Post Shading", (bool*)&m_shared_config_ubo->data.m_overlay_postshading_enabled);
-        }
+    if (m_webgpu_window) {
+        m_webgpu_window->paint_gui();
     }
 
-    ImGui::Checkbox("Phong Shading", (bool*)&m_shared_config_ubo->data.m_phong_enabled);
-
-
-
-
-    if (ImGui::CollapsingHeader("Compute pipeline")) {
-        if (ImGui::Button("Request tiles", ImVec2(280, 20))) {
-            // hardcoded test region
-            RectangularTileRegion region;
-            region.min = { 1096, 1328 };
-            region.max = { 1096 + 14, 1328 + 14 }; // inclusive, so this region has 15x15 tiles
-            region.scheme = tile::Scheme::Tms;
-            region.zoom_level = 11;
-            m_compute_controller->request_tiles(region);
-        }
-
-        if (ImGui::Button("Run pipeline", ImVec2(280, 20))) {
-            m_compute_controller->run_pipeline();
-        }
-
-        if (ImGui::Button("Write per-tile output to files", ImVec2(280, 20))) {
-            m_compute_controller->write_output_tiles("output_tiles"); // writes dir output_tiles next to app.exe
-        }
-    }
-*/
-
-    if (ImGui::Button(!show_node_editor ? "Show Node Editor" : "Hide Node Editor", ImVec2(280, 20))) {
-        show_node_editor = !show_node_editor;
+    if (ImGui::Button(!m_showNodeEditor ? "Show Node Editor" : "Hide Node Editor", ImVec2(280, 20))) {
+        m_showNodeEditor = !m_showNodeEditor;
     }
     ImGui::End();
 
@@ -189,7 +129,7 @@ void GuiManager::updateUI()
         ImNodes::SetNodeScreenSpacePos(2, ImVec2(400, 50));
     }
 
-    if (show_node_editor) {
+    if (m_showNodeEditor) {
         // ========== BEGIN NODE WINDOW ===========
         ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(ImGui::GetIO().DisplaySize.x - 300, ImGui::GetIO().DisplaySize.y), ImGuiCond_Always);
