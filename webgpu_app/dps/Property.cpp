@@ -2,24 +2,22 @@
 
 namespace dps {
 
-Property::Property(const std::string& propertyName) : name(propertyName) {}
-
-std::string Property::get_name() const {
-    return name;
+Property::Property(const std::string& propertyName)
+    : name(propertyName)
+{
 }
 
-std::shared_ptr<Property> Property::get_parent() const {
-    return parent.lock();
-}
+std::string Property::get_name() const { return name; }
 
-void Property::add_child(const std::shared_ptr<Property>& child) {
+std::shared_ptr<Property> Property::get_parent() const { return parent.lock(); }
+
+void Property::add_child(const std::shared_ptr<Property>& child)
+{
     std::lock_guard<std::mutex> lock(mtx);
-    child->parent = shared_from_this();
     children.push_back(child);
+    child->parent = shared_from_this();
 }
 
-const std::vector<std::shared_ptr<Property>>& Property::get_children() const {
-    return children;
-}
+const std::vector<std::shared_ptr<Property>>& Property::get_children() const { return children; }
 
 } // namespace dps

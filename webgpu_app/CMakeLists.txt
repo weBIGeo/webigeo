@@ -35,6 +35,8 @@ set(SOURCES
     dps/PropertyGroup.h dps/PropertyGroup.cpp
     dps/Property.h dps/Property.cpp
     dps/TypedProperty.h
+
+    gui/GuiManager.h gui/GuiManager.cpp
 )
 
 if (EMSCRIPTEN)

@@ -1,21 +1,20 @@
 #pragma once
 
-#include <string>
-#include <vector>
+#include <QObject>
 #include <memory>
 #include <mutex>
+#include <string>
+#include <vector>
 
 namespace dps {
 
 // Enumeration for property types
-enum class PropertyType {
-    UINT32,
-    F32VEC4,
-    GROUP
-};
+enum class PropertyType { UINT32, F32VEC4, GROUP };
 
 // Abstract base class for properties
-class Property : public std::enable_shared_from_this<Property> {
+class Property : public QObject, public std::enable_shared_from_this<Property> {
+    Q_OBJECT
+
 public:
     virtual ~Property() = default;
 
@@ -28,6 +27,9 @@ public:
     void add_child(const std::shared_ptr<Property>& child);
     const std::vector<std::shared_ptr<Property>>& get_children() const;
 
+signals:
+    void valueChanged();
+
 protected:
     explicit Property(const std::string& propertyName);
 
@@ -38,4 +40,3 @@ protected:
 };
 
 } // namespace dps
-

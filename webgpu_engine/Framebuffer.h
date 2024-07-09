@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include "raii/RenderPassEncoder.h"
 #include "raii/Texture.h"
 #include <memory>
 

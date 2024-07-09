@@ -17,8 +17,9 @@
  *****************************************************************************/
 #pragma once
 
-#include <emscripten/bind.h>
 #include <QObject>
+#include <emscripten/bind.h>
+#include <webgpu/webgpu.h>
 
 #define JS_MAX_TOUCHES 3 // also needs changes in WebInterop.cpp and the shell!
 

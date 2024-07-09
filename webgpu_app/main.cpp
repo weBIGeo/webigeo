@@ -49,7 +49,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
 #ifndef __EMSCRIPTEN__
     print_logo();
 #endif
-    // Init QCoreApplication seems to be necessary as it declares the current thread
+    // Init QCoreApplication is necessary as it declares the current thread
     // as a Qt-Thread. Otherwise functionalities like QTimers wouldnt work.
     // It basically initializes the Qt environment
     QCoreApplication app(argc, argv);
@@ -60,6 +60,6 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
     TerrainRenderer renderer;
     renderer.start();
     // NOTE: Please be aware that for WEB-Deployment renderer.start() is non-blocking!!
-    // So Code at this point will run after initialization and the first frame.
+    // So Code at this point will run after initialization
     return 0;
 }

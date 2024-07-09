@@ -17,7 +17,6 @@
  *****************************************************************************/
 
 #include "InputMapper.h"
-#include <iostream>
 #include <GLFW/glfw3.h>
 #include "nucleus/camera/Controller.h"
 #include <QDebug>
@@ -62,7 +61,7 @@ void InputMapper::on_key_callback(int key, [[maybe_unused]]int scancode, int act
 
     const auto qtKey = m_keymap[key];
     if (qtKey == Qt::Key_unknown) {
-        std::cout << "Key not mapped " << key << std::endl;
+        qWarning() << "Key not mapped " << key;
         return;
     }
 
