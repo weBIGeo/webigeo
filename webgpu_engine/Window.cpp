@@ -149,7 +149,9 @@ void Window::paint(WGPUTextureView target_color_texture, WGPUTextureView target_
 
 void Window::paint_gui()
 {
-    ImGui::Combo("Normal Mode", (int*)&m_shared_config_ubo->data.m_normal_mode, "None\0Flat\0Smooth\0\0");
+    if (ImGui::Combo("Normal Mode", (int*)&m_shared_config_ubo->data.m_normal_mode, "None\0Flat\0Smooth\0\0")) {
+        m_needs_redraw = true;
+    }
     {
         static int currentItem = m_shared_config_ubo->data.m_overlay_mode;
         static const std::vector<std::pair<std::string, int>> overlays
@@ -159,8 +161,10 @@ void Window::paint_gui()
         if (ImGui::BeginCombo("Overlay", currentItemLabel)) {
             for (size_t i = 0; i < overlays.size(); i++) {
                 bool isSelected = ((size_t)currentItem == i);
-                if (ImGui::Selectable(overlays[i].first.c_str(), isSelected))
+                if (ImGui::Selectable(overlays[i].first.c_str(), isSelected)) {
                     currentItem = i;
+                    m_needs_redraw = true;
+                }
                 if (isSelected)
                     ImGui::SetItemDefaultFocus();
             }
@@ -168,14 +172,20 @@ void Window::paint_gui()
         }
         m_shared_config_ubo->data.m_overlay_mode = overlays[currentItem].second;
         if (m_shared_config_ubo->data.m_overlay_mode > 0) {
-            ImGui::SliderFloat("Overlay Strength", &m_shared_config_ubo->data.m_overlay_strength, 0.0f, 1.0f);
+            if (ImGui::SliderFloat("Overlay Strength", &m_shared_config_ubo->data.m_overlay_strength, 0.0f, 1.0f)) {
+                m_needs_redraw = true;
+            }
         }
         if (m_shared_config_ubo->data.m_overlay_mode >= 100) {
-            ImGui::Checkbox("Overlay Post Shading", (bool*)&m_shared_config_ubo->data.m_overlay_postshading_enabled);
+            if (ImGui::Checkbox("Overlay Post Shading", (bool*)&m_shared_config_ubo->data.m_overlay_postshading_enabled)) {
+                m_needs_redraw = true;
+            }
         }
     }
 
-    ImGui::Checkbox("Phong Shading", (bool*)&m_shared_config_ubo->data.m_phong_enabled);
+    if (ImGui::Checkbox("Phong Shading", (bool*)&m_shared_config_ubo->data.m_phong_enabled)) {
+        m_needs_redraw = true;
+    }
 
     if (ImGui::CollapsingHeader("Compute pipeline")) {
         if (ImGui::Button("Request tiles", ImVec2(280, 20))) {
@@ -376,10 +386,10 @@ void Window::update_required_gpu_limits(WGPULimits& limits, const WGPULimits& su
         qFatal("Minimum supported maxColorAttachmentBytesPerSample needs to be >=32");
     }
     if (supported_limits.maxTextureArrayLayers < 1024u) {
-        qFatal("Minimum supported maxTextureArrayLayers needs to be >=1024");
+        qWarning() << "Minimum supported maxTextureArrayLayers is " << supported_limits.maxTextureArrayLayers << " (1024 recommended)!";
     }
     limits.maxColorAttachmentBytesPerSample = std::max(limits.maxColorAttachmentBytesPerSample, 32u);
-    limits.maxTextureArrayLayers = std::max(limits.maxTextureArrayLayers, 1024u);
+    limits.maxTextureArrayLayers = std::min(std::max(limits.maxTextureArrayLayers, 1024u), supported_limits.maxTextureArrayLayers);
 }
 
 } // namespace webgpu_engine
