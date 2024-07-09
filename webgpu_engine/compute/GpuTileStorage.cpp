@@ -119,6 +119,12 @@ void TileStorageTexture::clear(size_t layer)
     }
 }
 
+size_t TileStorageTexture::width() const { return m_texture_array->texture().descriptor().size.width; }
+
+size_t TileStorageTexture::height() const { return m_texture_array->texture().descriptor().size.height; }
+
+size_t TileStorageTexture::capacity() const { return m_capacity; }
+
 raii::TextureWithSampler& TileStorageTexture::texture() { return *m_texture_array; }
 
 const raii::TextureWithSampler& TileStorageTexture::texture() const { return *m_texture_array; }

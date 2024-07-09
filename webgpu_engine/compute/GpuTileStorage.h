@@ -51,6 +51,10 @@ public:
     void clear(); // clear all
     void clear(size_t layer);
 
+    size_t width() const;
+    size_t height() const;
+    size_t capacity() const;
+
     raii::TextureWithSampler& texture();
     const raii::TextureWithSampler& texture() const;
 

@@ -56,6 +56,8 @@ public:
 
     template <typename T> void copy_to_buffer(WGPUCommandEncoder encoder, const raii::RawBuffer<T>& buffer, uint32_t layer = 0) const;
 
+    void copy_to_texture(WGPUCommandEncoder encoder, uint32_t source_layer, const raii::Texture& target_texture, uint32_t target_layer = 0) const;
+
     /// read back single texture layer of this texture
     void read_back_async(WGPUDevice device, size_t layer_index, ReadBackCallback callback);
 

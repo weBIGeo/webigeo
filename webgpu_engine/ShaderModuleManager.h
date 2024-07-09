@@ -42,6 +42,7 @@ public:
     const raii::ShaderModule& compose_frag() const;
     const raii::ShaderModule& atmosphere_frag() const;
     const raii::ShaderModule& dummy_compute() const;
+    const raii::ShaderModule& downsample_compute() const;
 
     std::unique_ptr<raii::ShaderModule> create_shader_module(const std::string& name, const std::string& code);
 
@@ -62,6 +63,7 @@ private:
     std::unique_ptr<raii::ShaderModule> m_compose_frag_shader_module;
     std::unique_ptr<raii::ShaderModule> m_atmosphere_frag_shader_module;
     std::unique_ptr<raii::ShaderModule> m_dummy_compute_module;
+    std::unique_ptr<raii::ShaderModule> m_downsample_compute_module;
 };
 
 } // namespace webgpu_engine

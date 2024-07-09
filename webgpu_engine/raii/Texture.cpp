@@ -128,6 +128,24 @@ void Texture::write(WGPUQueue queue, const nucleus::utils::ColourTexture& data, 
     wgpuQueueWriteTexture(queue, &image_copy_texture, data.data(), data.n_bytes(), &texture_data_layout, &copy_extent);
 }
 
+void Texture::copy_to_texture(WGPUCommandEncoder encoder, uint32_t source_layer, const Texture& target_texture, uint32_t target_layer) const
+{
+    WGPUImageCopyTexture source {};
+    source.texture = m_handle;
+    source.mipLevel = 0;
+    source.origin = { .x = 0, .y = 0, .z = source_layer };
+    source.aspect = WGPUTextureAspect_All;
+
+    WGPUImageCopyTexture destination {};
+    destination.texture = target_texture.handle();
+    destination.mipLevel = 0;
+    destination.origin = { .x = 0, .y = 0, .z = target_layer };
+    destination.aspect = WGPUTextureAspect_All;
+
+    const WGPUExtent3D extent { .width = m_descriptor.size.width, .height = m_descriptor.size.height, .depthOrArrayLayers = 1 };
+    wgpuCommandEncoderCopyTextureToTexture(encoder, &source, &destination, &extent);
+}
+
 void Texture::read_back_async(WGPUDevice device, size_t layer_index, ReadBackCallback callback)
 {
     // create buffer and add buffer and callback to back of queue

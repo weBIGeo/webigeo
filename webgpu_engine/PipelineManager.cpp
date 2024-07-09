@@ -39,6 +39,8 @@ const raii::GenericRenderPipeline& PipelineManager::atmosphere_pipeline() const 
 
 const raii::CombinedComputePipeline& PipelineManager::dummy_compute_pipeline() const { return *m_dummy_compute_pipeline; }
 
+const raii::CombinedComputePipeline& PipelineManager::downsample_compute_pipeline() const { return *m_downsample_compute_pipeline; }
+
 const raii::BindGroupLayout& PipelineManager::shared_config_bind_group_layout() const { return *m_shared_config_bind_group_layout; }
 
 const raii::BindGroupLayout& PipelineManager::camera_bind_group_layout() const { return *m_camera_bind_group_layout; }
@@ -51,6 +53,8 @@ const raii::BindGroupLayout& PipelineManager::compute_bind_group_layout() const 
 
 const raii::BindGroupLayout& PipelineManager::overlay_bind_group_layout() const { return *m_overlay_bind_group_layout; }
 
+const raii::BindGroupLayout& PipelineManager::downsample_compute_bind_group_layout() const { return *m_downsample_compute_bind_group_layout; }
+
 void PipelineManager::create_pipelines()
 {
     create_bind_group_layouts();
@@ -58,6 +62,7 @@ void PipelineManager::create_pipelines()
     create_compose_pipeline();
     create_atmosphere_pipeline();
     create_dummy_compute_pipeline();
+    create_downsample_compute_pipeline();
     m_pipelines_created = true;
 }
 
@@ -219,6 +224,42 @@ void PipelineManager::create_bind_group_layouts()
     m_overlay_bind_group_layout = std::make_unique<raii::BindGroupLayout>(m_device,
         std::vector<WGPUBindGroupLayoutEntry> { overlay_key_buffer_entry, overlay_value_buffer_entry, overlay_input_overlay_textures_entry },
         "overlay bind group layout");
+
+    WGPUBindGroupLayoutEntry downsample_compute_input_tile_ids_entry {};
+    downsample_compute_input_tile_ids_entry.binding = 0;
+    downsample_compute_input_tile_ids_entry.visibility = WGPUShaderStage_Compute;
+    downsample_compute_input_tile_ids_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    downsample_compute_input_tile_ids_entry.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry downsample_compute_key_buffer_entry {};
+    downsample_compute_key_buffer_entry.binding = 1;
+    downsample_compute_key_buffer_entry.visibility = WGPUShaderStage_Compute;
+    downsample_compute_key_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    downsample_compute_key_buffer_entry.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry downsample_compute_value_buffer_entry {};
+    downsample_compute_value_buffer_entry.binding = 2;
+    downsample_compute_value_buffer_entry.visibility = WGPUShaderStage_Compute;
+    downsample_compute_value_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    downsample_compute_value_buffer_entry.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry downsample_compute_input_textures_entry {};
+    downsample_compute_input_textures_entry.binding = 3;
+    downsample_compute_input_textures_entry.visibility = WGPUShaderStage_Compute;
+    downsample_compute_input_textures_entry.texture.sampleType = WGPUTextureSampleType_Float;
+    downsample_compute_input_textures_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
+
+    WGPUBindGroupLayoutEntry downsample_compute_output_textures_entry {};
+    downsample_compute_output_textures_entry.binding = 4;
+    downsample_compute_output_textures_entry.visibility = WGPUShaderStage_Compute;
+    downsample_compute_output_textures_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2DArray;
+    downsample_compute_output_textures_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
+    downsample_compute_output_textures_entry.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
+
+    m_downsample_compute_bind_group_layout = std::make_unique<raii::BindGroupLayout>(m_device,
+        std::vector<WGPUBindGroupLayoutEntry> { downsample_compute_input_tile_ids_entry, downsample_compute_key_buffer_entry,
+            downsample_compute_value_buffer_entry, downsample_compute_input_textures_entry, downsample_compute_output_textures_entry },
+        "compute: downsample bind group layout");
 }
 
 void PipelineManager::release_pipelines()
@@ -227,6 +268,7 @@ void PipelineManager::release_pipelines()
     m_compose_pipeline.release();
     m_atmosphere_pipeline.release();
     m_dummy_compute_pipeline.release();
+    m_downsample_compute_pipeline.release();
     m_pipelines_created = false;
 }
 
@@ -289,5 +331,11 @@ void PipelineManager::create_dummy_compute_pipeline()
 {
     m_dummy_compute_pipeline = std::make_unique<raii::CombinedComputePipeline>(
         m_device, m_shader_manager->dummy_compute(), std::vector<const raii::BindGroupLayout*> { m_compute_bind_group_layout.get() });
+}
+
+void PipelineManager::create_downsample_compute_pipeline()
+{
+    m_downsample_compute_pipeline = std::make_unique<raii::CombinedComputePipeline>(
+        m_device, m_shader_manager->downsample_compute(), std::vector<const raii::BindGroupLayout*> { m_downsample_compute_bind_group_layout.get() });
 }
 }

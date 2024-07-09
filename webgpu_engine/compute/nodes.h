@@ -241,7 +241,7 @@ private:
 
     size_t m_downsample_levels; // how many zoomlevels should be downsampled
     raii::RawBuffer<GpuTileId> m_input_tile_ids; // tile ids of (to be calculated) downsampled tiles
-    raii::RawBuffer<uint32_t> m_input_array_layers; // texture array to write downsampled tiles to
+    std::unique_ptr<TileStorageTexture> m_internal_storage_texture; // stores output of downsampling before it is copied back to input hashmap
 };
 
 // TODO use this instead of compute controller (compute.h)
