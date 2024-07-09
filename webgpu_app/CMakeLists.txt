@@ -31,11 +31,6 @@ set(SOURCES
 
     util/error_logging.h util/error_logging.cpp
 
-    dps/PropertyManager.h dps/PropertyManager.cpp
-    dps/PropertyGroup.h dps/PropertyGroup.cpp
-    dps/Property.h dps/Property.cpp
-    dps/TypedProperty.h
-
     gui/GuiManager.h gui/GuiManager.cpp
 )
 

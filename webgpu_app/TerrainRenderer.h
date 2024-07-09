@@ -20,7 +20,6 @@
 #pragma once
 
 #include "InputMapper.h"
-#include "dps/PropertyManager.h"
 #include "gui/GuiManager.h"
 #include "nucleus/AbstractRenderWindow.h"
 #include "nucleus/Controller.h"
@@ -62,7 +61,6 @@ private:
     std::unique_ptr<nucleus::Controller> m_controller;
     std::unique_ptr<InputMapper> m_inputMapper;
     std::unique_ptr<GuiManager> m_gui_manager;
-    std::shared_ptr<dps::PropertyManager> m_property_manager;
 
     WGPUInstance m_instance = nullptr;
     WGPUSurface m_surface = nullptr;

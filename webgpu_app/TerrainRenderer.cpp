@@ -30,8 +30,6 @@
 #include "nucleus/stb/stb_image_loader.h"
 #endif
 
-#include "dps/PropertyManager.h"
-#include "dps/TypedProperty.h"
 #include "util/error_logging.h"
 
 static void windowResizeCallback(GLFWwindow* window, int width, int height) {
@@ -71,7 +69,6 @@ static void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 }
 
 TerrainRenderer::TerrainRenderer() {
-    m_property_manager = std::make_shared<dps::PropertyManager>();
 #ifdef __EMSCRIPTEN__
     // execute on window resize when canvas size changes
     QObject::connect(&WebInterop::instance(), &WebInterop::canvas_size_changed, this, &TerrainRenderer::set_glfw_window_size);
@@ -233,24 +230,6 @@ void TerrainRenderer::start() {
         return backbuffer_color;
     }
     )";
-
-    auto root = m_property_manager->get_root();
-    auto group1 = std::make_shared<dps::PropertyGroup>("Group1");
-    auto group2 = std::make_shared<dps::PropertyGroup>("Group2");
-
-    root->add_child(group1);
-    root->add_child(group2);
-
-    auto prop1 = std::make_shared<dps::TypedProperty<dps::u32>>("Prop1", 586);
-    auto prop2 = std::make_shared<dps::TypedProperty<dps::f32vec4>>("Prop2", glm::vec4(1.0f, 2.0f, 7.0f, 4.0f));
-
-    group1->add_child(prop1);
-    group2->add_child(prop2);
-
-    auto prop3 = std::make_shared<dps::TypedProperty<dps::u32>>("Prop3", 123);
-    prop1->add_child(prop3);
-
-    std::cout << m_property_manager->to_string();
 
     WGPUShaderModuleDescriptor shader_module_desc {};
     WGPUShaderModuleWGSLDescriptor wgsl_desc {};
