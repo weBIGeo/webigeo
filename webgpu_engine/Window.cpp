@@ -370,10 +370,16 @@ void Window::create_bind_groups()
         std::initializer_list<WGPUBindGroupEntry> { m_camera_config_ubo->raw_buffer().create_bind_group_entry(0) });
 }
 
-void Window::update_required_gpu_limits(WGPULimits& limits)
+void Window::update_required_gpu_limits(WGPULimits& limits, const WGPULimits& supported_limits)
 {
+    if (supported_limits.maxColorAttachmentBytesPerSample < 32u) {
+        qFatal("Minimum supported maxColorAttachmentBytesPerSample needs to be >=32");
+    }
+    if (supported_limits.maxTextureArrayLayers < 1024u) {
+        qFatal("Minimum supported maxTextureArrayLayers needs to be >=1024");
+    }
     limits.maxColorAttachmentBytesPerSample = std::max(limits.maxColorAttachmentBytesPerSample, 32u);
-    limits.maxTextureArrayLayers = std::numeric_limits<uint32_t>::max(); // will be replaced by maximum supported value
+    limits.maxTextureArrayLayers = std::max(limits.maxTextureArrayLayers, 1024u);
 }
 
 } // namespace webgpu_engine

@@ -60,7 +60,7 @@ public:
     void set_permissible_screen_space_error(float new_error) override;
     bool needs_redraw() { return m_needs_redraw; }
 
-    void update_required_gpu_limits(WGPULimits& limits);
+    void update_required_gpu_limits(WGPULimits& limits, const WGPULimits& supported_limits);
     void paint_gui();
 
     // Not happy with the following three in public, but we need to have access inside the lambdas.

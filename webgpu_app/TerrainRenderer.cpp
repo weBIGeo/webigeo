@@ -150,17 +150,6 @@ void TerrainRenderer::render() {
 #endif
 }
 
-void update_limits(WGPULimits& required, const WGPULimits& supported)
-{
-    uint32_t* required_ptr = reinterpret_cast<uint32_t*>(&required);
-    const uint32_t* supported_ptr = reinterpret_cast<const uint32_t*>(&supported);
-    for (size_t i = 0; i < sizeof(WGPULimits) / sizeof(uint32_t); i++) {
-        if (required_ptr[i] == std::numeric_limits<uint32_t>::max()) {
-            required_ptr[i] = supported_ptr[i];
-        }
-    }
-}
-
 void TerrainRenderer::start() {
     init_window();
 
@@ -483,14 +472,11 @@ void TerrainRenderer::webgpu_create_context()
 #endif
 
     // irrelevant for us, but needs to be set
-    required_limits.limits.minStorageBufferOffsetAlignment = std::numeric_limits<uint32_t>::max();
-    required_limits.limits.minUniformBufferOffsetAlignment = std::numeric_limits<uint32_t>::max();
+    required_limits.limits.minStorageBufferOffsetAlignment = supported_limits.limits.minStorageBufferOffsetAlignment;
+    required_limits.limits.minUniformBufferOffsetAlignment = supported_limits.limits.minUniformBufferOffsetAlignment;
 
     // Let the engine change the required limits
-    m_webgpu_window->update_required_gpu_limits(required_limits.limits);
-
-    // Replace all UINT32MAX with the supported values
-    update_limits(required_limits.limits, supported_limits.limits);
+    m_webgpu_window->update_required_gpu_limits(required_limits.limits, supported_limits.limits);
 
     WGPUDeviceDescriptor device_desc {};
     device_desc.label = "webigeo device";
