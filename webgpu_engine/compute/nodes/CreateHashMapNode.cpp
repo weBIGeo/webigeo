@@ -74,9 +74,9 @@ Data CreateHashMapNode::get_output_data_impl(SocketIndex output_index)
 {
     // return pointers to hash map and texture array respectively
     switch (output_index) {
-    case 0:
+    case Output::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP:
         return { &m_output_tile_id_to_index };
-    case 1:
+    case Output::TEXTURE_ARRAY:
         return { &m_output_tile_textures };
     }
     exit(-1);

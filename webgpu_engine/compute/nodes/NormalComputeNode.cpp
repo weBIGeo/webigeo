@@ -121,9 +121,9 @@ void NormalComputeNode::run()
 Data NormalComputeNode::get_output_data_impl(SocketIndex output_index)
 {
     switch (output_index) {
-    case 0:
+    case Output::OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP:
         return { &m_output_tile_map };
-    case 1:
+    case Output::OUTPUT_TEXTURE_ARRAY:
         return { &m_output_texture };
     }
     exit(-1);
