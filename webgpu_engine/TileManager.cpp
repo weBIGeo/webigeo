@@ -309,7 +309,7 @@ TileRendererInstancedSingleArrayMultiCall::TileRendererInstancedSingleArrayMulti
 
 void TileRendererInstancedSingleArrayMultiCall::init(glm::uvec2 height_resolution, glm::uvec2 ortho_resolution, size_t num_layers, size_t n_edge_vertices)
 {
-    qDebug() << "using" << m_num_layers_per_texture << "texture array layers" << Qt::endl;
+    qDebug() << "using" << m_num_layers_per_texture << "texture array layers";
 
     using nucleus::utils::terrain_mesh_index_generator::surface_quads_with_curtains;
 

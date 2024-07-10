@@ -134,17 +134,6 @@ void PipelineManager::create_bind_group_layouts()
     atmosphere_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
     atmosphere_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
-    /*
-    WGPUBindGroupLayoutEntry compose_sampler_entry {};
-    compose_sampler_entry.binding = 4;
-    compose_sampler_entry.visibility = WGPUShaderStage_Fragment;
-    compose_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
-
-    WGPUBindGroupLayoutEntry compose_nonfiltering_sampler_entry {};
-    compose_nonfiltering_sampler_entry.binding = 5;
-    compose_nonfiltering_sampler_entry.visibility = WGPUShaderStage_Fragment;
-    compose_nonfiltering_sampler_entry.sampler.type = WGPUSamplerBindingType_NonFiltering;*/
-
     m_compose_bind_group_layout = std::make_unique<raii::BindGroupLayout>(m_device,
         std::vector<WGPUBindGroupLayoutEntry> {
             albedo_texture_entry,

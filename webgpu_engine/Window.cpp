@@ -18,6 +18,7 @@
  *****************************************************************************/
 
 #include "Window.h"
+#include "raii/RenderPassEncoder.h"
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
@@ -25,83 +26,36 @@
 #include <webgpu/webgpu.h>
 #include <webgpu/webgpu_interface.hpp>
 
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-#include "backends/imgui_impl_wgpu.h"
-#include <imgui.h>
-#include <imnodes.h>
-#endif
-
-#include "raii/Sampler.h"
-#include <thread>
-
 #include <glm/gtx/string_cast.hpp>
+
+#include <imgui.h>
 
 namespace webgpu_engine {
 
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-Window::Window(ObtainWebGpuSurfaceFunc obtain_webgpu_surface_func, ImGuiWindowImplInitFunc imgui_window_init_func,
-    ImGuiWindowImplNewFrameFunc imgui_window_new_frame_func, ImGuiWindowImplShutdownFunc imgui_window_shutdown_func)
-    : m_obtain_webgpu_surface_func { obtain_webgpu_surface_func }
-    , m_imgui_window_init_func { imgui_window_init_func }
-    , m_imgui_window_new_frame_func { imgui_window_new_frame_func }
-    , m_imgui_window_shutdown_func { imgui_window_shutdown_func }
-    , m_tile_manager { std::make_unique<TileManager>() }
-
-{
-  // Constructor initialization logic here
-}
-#else
-Window::Window(ObtainWebGpuSurfaceFunc obtain_webgpu_surface_func)
-    : m_obtain_webgpu_surface_func { obtain_webgpu_surface_func }
-    , m_tile_manager { std::make_unique<TileManager>() }
+Window::Window()
+    : m_tile_manager { std::make_unique<TileManager>() }
 {
 }
-#endif
 
 Window::~Window()
 {
   // Destructor cleanup logic here
 }
 
+void Window::set_wgpu_context(WGPUInstance instance, WGPUDevice device, WGPUAdapter adapter, WGPUSurface surface, WGPUQueue queue)
+{
+    m_instance = instance;
+    m_device = device;
+    m_adapter = adapter;
+    m_surface = surface;
+    m_queue = queue;
+}
+
 void Window::initialise_gpu()
 {
-    // GPU initialization logic here
-    webgpuPlatformInit(); // platform dependent initialization code
-    create_instance();
-    init_surface();
-    request_adapter();
-    request_device();
-    init_queue();
+    assert(m_device != nullptr); // just make sure that wgpu context is set
 
     create_buffers();
-
-    WGPUSamplerDescriptor compose_sampler_filtering_desc {};
-    compose_sampler_filtering_desc.label = "compose sampler filtering";
-    compose_sampler_filtering_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    compose_sampler_filtering_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    compose_sampler_filtering_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    compose_sampler_filtering_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Linear;
-    compose_sampler_filtering_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Linear;
-    compose_sampler_filtering_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Linear;
-    compose_sampler_filtering_desc.lodMinClamp = 0.0f;
-    compose_sampler_filtering_desc.lodMaxClamp = 1.0f;
-    compose_sampler_filtering_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
-    compose_sampler_filtering_desc.maxAnisotropy = 1;
-    m_compose_sampler_filtering = std::make_unique<raii::Sampler>(m_device, compose_sampler_filtering_desc);
-
-    WGPUSamplerDescriptor compose_sampler_nonfiltering_desc {};
-    compose_sampler_nonfiltering_desc.label = "compose sampler";
-    compose_sampler_nonfiltering_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    compose_sampler_nonfiltering_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    compose_sampler_nonfiltering_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    compose_sampler_nonfiltering_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Undefined;
-    compose_sampler_nonfiltering_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Undefined;
-    compose_sampler_nonfiltering_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Undefined;
-    compose_sampler_nonfiltering_desc.lodMinClamp = 0.0f;
-    compose_sampler_nonfiltering_desc.lodMaxClamp = 1.0f;
-    compose_sampler_nonfiltering_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
-    compose_sampler_nonfiltering_desc.maxAnisotropy = 1;
-    m_compose_sampler_nonfiltering = std::make_unique<raii::Sampler>(m_device, compose_sampler_nonfiltering_desc);
 
     m_shader_manager = std::make_unique<ShaderModuleManager>(m_device);
     m_shader_manager->create_shader_modules();
@@ -117,20 +71,13 @@ void Window::initialise_gpu()
     connect(m_compute_controller.get(), &ComputeController::pipeline_done, this,
         [this]() { std::cout << "pipeline run done in " << m_compute_controller->get_last_pipeline_run_timing() << "ms" << std::endl; });
 
-    std::cout << "webgpu_engine::Window emitting: gpu_ready_changed" << std::endl;
+    qInfo() << "gpu_ready_changed";
     emit gpu_ready_changed(true);
 }
 
 void Window::resize_framebuffer(int w, int h)
 {
-    // TODO check we can do it without completely recreating swapchain
-    if (m_swapchain != nullptr) {
-        wgpuSwapChainRelease(m_swapchain);
-    }
-
-    create_depth_texture(w, h);
-
-    create_swapchain(w, h);
+    m_swapchain_size = glm::vec2(w, h);
 
     m_gbuffer_format = FramebufferFormat(m_pipeline_manager->tile_pipeline().framebuffer_format());
     m_gbuffer_format.size = glm::uvec2 { w, h };
@@ -147,81 +94,29 @@ void Window::resize_framebuffer(int w, int h)
             m_gbuffer->color_texture_view(2).create_bind_group_entry(2), // normal texture
             m_atmosphere_framebuffer->color_texture_view(0).create_bind_group_entry(3), // atmosphere texture
         });
-
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-    if (ImGui::GetCurrentContext() != nullptr) {
-        // already initialized
-        return;
-    }
-
-    if (!init_gui()) {
-        std::cerr << "Could not initialize GUI!" << std::endl;
-        throw std::runtime_error("could not initialize GUI");
-    }
-#endif
 }
 
 std::unique_ptr<raii::RenderPassEncoder> begin_render_pass(WGPUCommandEncoder encoder, WGPUTextureView color_attachment, WGPUTextureView depth_attachment)
 {
-    WGPURenderPassColorAttachment render_pass_color_attachment {};
-    render_pass_color_attachment.view = color_attachment;
-    render_pass_color_attachment.resolveTarget = nullptr;
-    render_pass_color_attachment.loadOp = WGPULoadOp::WGPULoadOp_Clear;
-    render_pass_color_attachment.storeOp = WGPUStoreOp::WGPUStoreOp_Store;
-    render_pass_color_attachment.clearValue = WGPUColor { 0.0, 0.0, 0.0, 0.0 };
-
-           // depthSlice field for RenderPassColorAttachment (https://github.com/gpuweb/gpuweb/issues/4251)
-           // this field specifies the slice to render to when rendering to a 3d texture (view)
-           // passing a valid index but referencing a non-3d texture leads to an error
-           // TODO use some constant that represents "undefined" for this value (I couldn't find a constant for this?)
-           //     (I just guessed -1 (max unsigned int value) and it worked)
-    render_pass_color_attachment.depthSlice = -1;
-
-    WGPURenderPassDepthStencilAttachment depth_stencil_attachment {};
-    depth_stencil_attachment.view = depth_attachment;
-    depth_stencil_attachment.depthClearValue = 1.0f;
-    depth_stencil_attachment.depthLoadOp = WGPULoadOp::WGPULoadOp_Clear;
-    depth_stencil_attachment.depthStoreOp = WGPUStoreOp::WGPUStoreOp_Store;
-    depth_stencil_attachment.depthReadOnly = false;
-    depth_stencil_attachment.stencilClearValue = 0;
-    depth_stencil_attachment.stencilLoadOp = WGPULoadOp::WGPULoadOp_Undefined;
-    depth_stencil_attachment.stencilStoreOp = WGPUStoreOp::WGPUStoreOp_Undefined;
-    depth_stencil_attachment.stencilReadOnly = true;
-
-    WGPURenderPassDescriptor render_pass_desc {};
-    render_pass_desc.colorAttachmentCount = 1;
-    render_pass_desc.colorAttachments = &render_pass_color_attachment;
-    render_pass_desc.depthStencilAttachment = &depth_stencil_attachment;
-    render_pass_desc.timestampWrites = nullptr;
-    return std::make_unique<raii::RenderPassEncoder>(encoder, render_pass_desc);
+    return std::make_unique<raii::RenderPassEncoder>(encoder, color_attachment, depth_attachment);
 }
 
-void Window::paint([[maybe_unused]] QOpenGLFramebufferObject* framebuffer)
+void Window::paint(Framebuffer* framebuffer, WGPUCommandEncoder encoder)
 {
     // Painting logic here, using the optional framebuffer parameter which is currently unused
 
-    WGPUTextureView next_texture = wgpuSwapChainGetCurrentTextureView(m_swapchain);
-    if (!next_texture) {
-        std::cerr << "Cannot acquire next swap chain texture" << std::endl;
-        throw std::runtime_error("Cannot acquire next swap chain texture");
-    }
-
     // ONLY ON CAMERA CHANGE!
     // update_camera(m_camera);
-    //emit update_camera_requested();
+    // emit update_camera_requested();
 
-           // TODO remove, debugging
-           // uboSharedConfig* sc = &m_shared_config_ubo->data;
-           // sc->m_sun_light = QVector4D(0.0f, 1.0f, 1.0f, 1.0f);
-           // sc->m_sun_light_dir = QVector4D(elapsed, 1.0f, 1.0f, 1.0f);
+    // TODO remove, debugging
+    // uboSharedConfig* sc = &m_shared_config_ubo->data;
+    // sc->m_sun_light = QVector4D(0.0f, 1.0f, 1.0f, 1.0f);
+    // sc->m_sun_light_dir = QVector4D(elapsed, 1.0f, 1.0f, 1.0f);
     // ToDo only update on change?
     m_shared_config_ubo->update_gpu_data(m_queue);
 
-    WGPUCommandEncoderDescriptor command_encoder_desc {};
-    command_encoder_desc.label = "Command Encoder";
-    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(m_device, &command_encoder_desc);
-
-           // render atmosphere to color buffer
+    // render atmosphere to color buffer
     {
         std::unique_ptr<raii::RenderPassEncoder> render_pass = m_atmosphere_framebuffer->begin_render_pass(encoder);
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 0, m_camera_bind_group->handle(), 0, nullptr);
@@ -229,7 +124,7 @@ void Window::paint([[maybe_unused]] QOpenGLFramebufferObject* framebuffer)
         wgpuRenderPassEncoderDraw(render_pass->handle(), 3, 1, 0, 0);
     }
 
-           // render tiles to geometry buffers
+    // render tiles to geometry buffers
     {
         std::unique_ptr<raii::RenderPassEncoder> render_pass = m_gbuffer->begin_render_pass(encoder);
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 0, m_shared_config_bind_group->handle(), 0, nullptr);
@@ -239,38 +134,79 @@ void Window::paint([[maybe_unused]] QOpenGLFramebufferObject* framebuffer)
         m_tile_manager->draw(render_pass->handle(), m_camera, tile_set, true, m_camera.position());
     }
 
-           // render geometry buffers to color buffer (the texture view obtained from the swapchain)
+    // render geometry buffers to target framebuffer
     {
-        std::unique_ptr<raii::RenderPassEncoder> render_pass = begin_render_pass(encoder, next_texture, m_depth_texture_view->handle());
+        std::unique_ptr<raii::RenderPassEncoder> render_pass = framebuffer->begin_render_pass(encoder);
         wgpuRenderPassEncoderSetPipeline(render_pass->handle(), m_pipeline_manager->compose_pipeline().pipeline().handle());
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 0, m_shared_config_bind_group->handle(), 0, nullptr);
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 1, m_camera_bind_group->handle(), 0, nullptr);
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 2, m_compose_bind_group->handle(), 0, nullptr);
         wgpuRenderPassEncoderDraw(render_pass->handle(), 3, 1, 0, 0);
-
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-        // We add the GUI drawing commands to the render pass
-        update_gui(render_pass->handle());
-#endif
     }
 
-    wgpuTextureViewRelease(next_texture);
-
-    WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
-    cmd_buffer_descriptor.label = "Command buffer";
-    WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &cmd_buffer_descriptor);
-    wgpuCommandEncoderRelease(encoder);
-    wgpuQueueSubmit(m_queue, 1, &command);
-    wgpuCommandBufferRelease(command);
-
-#ifndef __EMSCRIPTEN__
-    // Swapchain in the WEB is handled by the browser!
-    wgpuSwapChainPresent(m_swapchain);
-    wgpuInstanceProcessEvents(m_instance);
-    wgpuDeviceTick(m_device);
-#endif
+    m_needs_redraw = false;
 }
 
+void Window::paint_gui()
+{
+    if (ImGui::Combo("Normal Mode", (int*)&m_shared_config_ubo->data.m_normal_mode, "None\0Flat\0Smooth\0\0")) {
+        m_needs_redraw = true;
+    }
+    {
+        static int currentItem = m_shared_config_ubo->data.m_overlay_mode;
+        static const std::vector<std::pair<std::string, int>> overlays
+            = { { "None", 0 }, { "Normals", 1 }, { "Tiles", 2 }, { "Zoomlevel", 3 }, { "Vertex-ID", 4 }, { "Vertex Height-Sample", 5 },
+                  { "Decoded Normals", 100 }, { "Steepness", 101 }, { "SSAO Buffer", 102 }, { "Shadow Cascades", 103 } };
+        const char* currentItemLabel = overlays[currentItem].first.c_str();
+        if (ImGui::BeginCombo("Overlay", currentItemLabel)) {
+            for (size_t i = 0; i < overlays.size(); i++) {
+                bool isSelected = ((size_t)currentItem == i);
+                if (ImGui::Selectable(overlays[i].first.c_str(), isSelected)) {
+                    currentItem = i;
+                    m_needs_redraw = true;
+                }
+                if (isSelected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+        m_shared_config_ubo->data.m_overlay_mode = overlays[currentItem].second;
+        if (m_shared_config_ubo->data.m_overlay_mode > 0) {
+            if (ImGui::SliderFloat("Overlay Strength", &m_shared_config_ubo->data.m_overlay_strength, 0.0f, 1.0f)) {
+                m_needs_redraw = true;
+            }
+        }
+        if (m_shared_config_ubo->data.m_overlay_mode >= 100) {
+            if (ImGui::Checkbox("Overlay Post Shading", (bool*)&m_shared_config_ubo->data.m_overlay_postshading_enabled)) {
+                m_needs_redraw = true;
+            }
+        }
+    }
+
+    if (ImGui::Checkbox("Phong Shading", (bool*)&m_shared_config_ubo->data.m_phong_enabled)) {
+        m_needs_redraw = true;
+    }
+
+    if (ImGui::CollapsingHeader("Compute pipeline")) {
+        if (ImGui::Button("Request tiles", ImVec2(280, 20))) {
+            // hardcoded test region
+            RectangularTileRegion region;
+            region.min = { 1096, 1328 };
+            region.max = { 1096 + 14, 1328 + 14 }; // inclusive, so this region has 15x15 tiles
+            region.scheme = tile::Scheme::Tms;
+            region.zoom_level = 11;
+            m_compute_controller->request_tiles(region);
+        }
+
+        if (ImGui::Button("Run pipeline", ImVec2(280, 20))) {
+            m_compute_controller->run_pipeline();
+        }
+
+        if (ImGui::Button("Write per-tile output to files", ImVec2(280, 20))) {
+            m_compute_controller->write_output_tiles("output_tiles"); // writes dir output_tiles next to app.exe
+        }
+    }
+}
 
 glm::vec4 Window::synchronous_position_readback(const glm::dvec2& ndc) {
     if (!m_position_readback_done) return {};
@@ -325,7 +261,7 @@ glm::vec4 Window::synchronous_position_readback(const glm::dvec2& ndc) {
                 Window* _this = reinterpret_cast<Window*>(pUserData);
 
                 if (status != WGPUBufferMapAsyncStatus_Success) {
-                    std::cout << "Error in buffer mapping" << std::endl;
+                    qWarning() << "Error in buffer mapping";
                     _this->m_position_readback_done = true;
                     return;
                 };
@@ -337,7 +273,7 @@ glm::vec4 Window::synchronous_position_readback(const glm::dvec2& ndc) {
             };
             Window* _this = reinterpret_cast<Window*>(pUserData);
             if (status != WGPUQueueWorkDoneStatus_Success) {
-                std::cout << "Error in queue work" << std::endl;
+                qWarning() << "Error in queue work";
                 _this->m_position_readback_done = true;
                 return;
             }
@@ -367,20 +303,8 @@ glm::dvec3 Window::position([[maybe_unused]] const glm::dvec2& normalised_device
 
 void Window::deinit_gpu()
 {
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-    terminate_gui();
-#endif
-
     m_pipeline_manager->release_pipelines();
     m_shader_manager->release_shader_modules();
-    wgpuSwapChainRelease(m_swapchain);
-    wgpuQueueRelease(m_queue);
-    wgpuSurfaceRelease(m_surface);
-    // TODO triggers warning No Dawn device lost callback was set, but this is actually expected behavior
-    wgpuDeviceRelease(m_device);
-    wgpuAdapterRelease(m_adapter);
-    wgpuInstanceRelease(m_instance);
-
     emit gpu_ready_changed(false);
 }
 
@@ -420,6 +344,8 @@ void Window::update_camera([[maybe_unused]] const nucleus::camera::Definition& n
     cc->distance_scaling_factor = new_definition.distance_scale_factor();
     m_camera_config_ubo->update_gpu_data(m_queue);
     m_camera = new_definition;
+
+    m_needs_redraw = true;
 }
 
 void Window::update_debug_scheduler_stats([[maybe_unused]] const QString& stats)
@@ -432,277 +358,8 @@ void Window::update_gpu_quads([[maybe_unused]] const std::vector<nucleus::tile_s
 {
     // std::cout << "received " << new_quads.size() << " new quads, should delete " << deleted_quads.size() << " quads" << std::endl;
     m_tile_manager->update_gpu_quads(new_quads, deleted_quads);
+    m_needs_redraw = true;
 }
-
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-bool Window::init_gui()
-{
-    // Setup Dear ImGui context
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-
-           // Setup ImNodes
-    ImNodes::CreateContext();
-
-           // ImGui::GetIO();
-
-           // Setup Platform/Renderer backends
-    m_imgui_window_init_func();
-    ImGui_ImplWGPU_InitInfo init_info = {};
-    init_info.Device = m_device;
-    init_info.RenderTargetFormat = (WGPUTextureFormat)m_swapchain_format;
-    init_info.DepthStencilFormat = m_depth_texture_format;
-    // WebGPU may do frame buffering implicitly. (https://groups.google.com/g/dawn-graphics/c/OuEzF3SUo6Y)
-    // I'm not sure wether it actually uses 3 frames in flight, but I guess better to have this value set to more than less?
-    init_info.NumFramesInFlight = 3;
-    ImGui_ImplWGPU_Init(&init_info);
-
-    ImGui::StyleColorsLight();
-    // set background of windows to 90% transparent
-    ImGui::GetStyle().Colors[ImGuiCol_WindowBg] = ImVec4(0.9f, 0.9f, 0.9f, 0.9f);
-    ImNodes::StyleColorsLight();
-
-    return true;
-}
-
-void Window::terminate_gui()
-{
-    ImGui_ImplWGPU_Shutdown();
-    m_imgui_window_shutdown_func();
-    ImNodes::DestroyContext();
-    ImGui::DestroyContext();
-}
-
-void Window::update_gui(WGPURenderPassEncoder render_pass)
-{
-    ImGui_ImplWGPU_NewFrame();
-    m_imgui_window_new_frame_func();
-    ImGui::NewFrame();
-
-    ImGuiIO& io = ImGui::GetIO();
-
-    static float frame_time = 0.0f;
-    static std::vector<std::pair<int, int>> links;
-    static bool show_node_editor = false;
-    static bool first_frame = true;
-
-    ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - 300, 0)); // Set position to top-left corner
-    ImGui::SetNextWindowSize(ImVec2(300, ImGui::GetIO().DisplaySize.y)); // Set height to full screen height, width as desired
-
-    ImGui::Begin("weBIGeo", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar);
-
-           // FPS counter variables
-    static float fpsValues[90] = {}; // Array to store FPS values for the graph, adjust size as needed for the time window
-    static int fpsIndex = 0; // Current index in FPS values array
-    static float lastTime = 0.0f; // Last time FPS was updated
-
-           // Calculate delta time and FPS
-    float currentTime = ImGui::GetTime();
-    float deltaTime = currentTime - lastTime;
-    lastTime = currentTime;
-    float fps = 1.0f / deltaTime;
-
-           // Store the current FPS value in the array
-    fpsValues[fpsIndex] = fps;
-    fpsIndex = (fpsIndex + 1) % IM_ARRAYSIZE(fpsValues); // Loop around the array
-
-    frame_time = frame_time * 0.95f + (1000.0f / io.Framerate) * 0.05f;
-    static bool vsync_enabled = (m_swapchain_presentmode == WGPUPresentMode::WGPUPresentMode_Fifo);
-    if (ImGui::Checkbox("VSync", &vsync_enabled)) {
-        m_swapchain_presentmode = vsync_enabled ? WGPUPresentMode::WGPUPresentMode_Fifo : WGPUPresentMode::WGPUPresentMode_Immediate;
-        // Recreate swapchain
-        resize_framebuffer(m_swapchain_size.x, m_swapchain_size.y);
-    }
-    ImGui::Text("Average: %.3f ms/frame (%.1f FPS)", frame_time, io.Framerate);
-
-    ImGui::PlotLines("", fpsValues, IM_ARRAYSIZE(fpsValues), fpsIndex, nullptr, 0.0f, 80.0f, ImVec2(280, 100));
-
-
-    ImGui::Separator();
-
-    ImGui::Combo("Normal Mode", (int*)&m_shared_config_ubo->data.m_normal_mode, "None\0Flat\0Smooth\0\0");
-
-    {
-        static int currentItem = m_shared_config_ubo->data.m_overlay_mode;
-        static const std::vector<std::pair<std::string, int>> overlays = {
-            {"None", 0},
-            {"Normals", 1},
-            {"Tiles", 2},
-            {"Zoomlevel", 3},
-            {"Vertex-ID", 4},
-            {"Vertex Height-Sample", 5},
-            {"Decoded Normals", 100},
-            {"Steepness", 101},
-            {"SSAO Buffer", 102},
-            {"Shadow Cascades", 103}
-        };
-        const char* currentItemLabel = overlays[currentItem].first.c_str();
-        if (ImGui::BeginCombo("Overlay", currentItemLabel))
-        {
-            for (size_t i = 0; i < overlays.size(); i++)
-            {
-                bool isSelected = ((size_t)currentItem == i);
-                if (ImGui::Selectable(overlays[i].first.c_str(), isSelected)) currentItem = i;
-                if (isSelected) ImGui::SetItemDefaultFocus();
-            }
-            ImGui::EndCombo();
-        }
-        m_shared_config_ubo->data.m_overlay_mode = overlays[currentItem].second;
-        if (m_shared_config_ubo->data.m_overlay_mode > 0) {
-            ImGui::SliderFloat("Overlay Strength", &m_shared_config_ubo->data.m_overlay_strength, 0.0f, 1.0f);
-        }
-        if (m_shared_config_ubo->data.m_overlay_mode >= 100) {
-            ImGui::Checkbox("Overlay Post Shading", (bool*)&m_shared_config_ubo->data.m_overlay_postshading_enabled);
-        }
-    }
-
-    ImGui::Checkbox("Phong Shading", (bool*)&m_shared_config_ubo->data.m_phong_enabled);
-
-
-    if (ImGui::Button(!show_node_editor ? "Show Node Editor" : "Hide Node Editor", ImVec2(280, 20))) {
-        show_node_editor = !show_node_editor;
-    }
-
-    if (ImGui::CollapsingHeader("Compute pipeline")) {
-        if (ImGui::Button("Request tiles", ImVec2(280, 20))) {
-            // hardcoded test region
-            RectangularTileRegion region;
-            region.min = { 1096, 1328 };
-            region.max = { 1096 + 14, 1328 + 14 }; // inclusive, so this region has 15x15 tiles
-            region.scheme = tile::Scheme::Tms;
-            region.zoom_level = 11;
-            m_compute_controller->request_tiles(region);
-        }
-
-        if (ImGui::Button("Run pipeline", ImVec2(280, 20))) {
-            m_compute_controller->run_pipeline();
-        }
-
-        if (ImGui::Button("Write per-tile output to files", ImVec2(280, 20))) {
-            m_compute_controller->write_output_tiles("output_tiles"); // writes dir output_tiles next to app.exe
-        }
-    }
-
-    ImGui::End();
-
-    if (first_frame) {
-        ImNodes::SetNodeScreenSpacePos(1, ImVec2(50, 50));
-        ImNodes::SetNodeScreenSpacePos(2, ImVec2(400, 50));
-    }
-
-    if (show_node_editor) {
-        // ========== BEGIN NODE WINDOW ===========
-        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(ImGui::GetIO().DisplaySize.x - 300, ImGui::GetIO().DisplaySize.y), ImGuiCond_Always);
-        ImGui::Begin("Node Editor", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar);
-
-               // BEGINN NODE EDITOR
-        ImNodes::BeginNodeEditor();
-
-               // DRAW NODE 1
-        ImNodes::BeginNode(1);
-
-        ImNodes::BeginNodeTitleBar();
-        ImGui::TextUnformatted("input node");
-        ImNodes::EndNodeTitleBar();
-
-        ImNodes::BeginOutputAttribute(2);
-        ImGui::Text("data");
-        ImNodes::EndOutputAttribute();
-
-        ImNodes::EndNode();
-
-               // DRAW NODE 2
-        ImNodes::BeginNode(2);
-
-        ImNodes::BeginNodeTitleBar();
-        ImGui::TextUnformatted("output node");
-        ImNodes::EndNodeTitleBar();
-
-        ImNodes::BeginInputAttribute(3);
-        ImGui::Text("data");
-        ImNodes::EndInputAttribute();
-
-        ImNodes::BeginInputAttribute(4, ImNodesPinShape_Triangle);
-        ImGui::Text("overlay");
-        ImNodes::EndInputAttribute();
-
-        ImNodes::EndNode();
-
-               // IMNODES - DRAW LINKS
-        int id = 0;
-        for (const auto& p : links) {
-            ImNodes::Link(id++, p.first, p.second);
-        }
-
-               // IMNODES - MINIMAP
-        ImNodes::MiniMap(0.1f, ImNodesMiniMapLocation_BottomRight);
-
-        ImNodes::EndNodeEditor();
-
-        int start_attr, end_attr;
-        if (ImNodes::IsLinkCreated(&start_attr, &end_attr)) {
-            links.push_back(std::make_pair(start_attr, end_attr));
-        }
-
-        ImGui::End();
-    }
-
-    ImGui::EndFrame();
-    ImGui::Render();
-    ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), render_pass);
-    first_frame = false;
-}
-
-#endif
-
-void Window::create_instance()
-{
-    std::cout << "Creating WebGPU instance..." << std::endl;
-    m_instance = wgpuCreateInstance(nullptr);
-    if (!m_instance) {
-        std::cerr << "Could not initialize WebGPU!" << std::endl;
-        throw std::runtime_error("Could not initialize WebGPU");
-    }
-    std::cout << "Got instance: " << m_instance << std::endl;
-}
-
-void Window::init_surface() { m_surface = m_obtain_webgpu_surface_func(m_instance); }
-
-void Window::request_adapter()
-{
-    std::cout << "Requesting adapter..." << std::endl;
-    WGPURequestAdapterOptions adapter_opts {};
-    adapter_opts.powerPreference = WGPUPowerPreference_HighPerformance;
-    adapter_opts.compatibleSurface = m_surface;
-    m_adapter = requestAdapterSync(m_instance, adapter_opts);
-    std::cout << "Got adapter: " << m_adapter << std::endl;
-}
-
-void Window::request_device()
-{
-    std::cout << "Requesting device..." << std::endl;
-
-    const WGPURequiredLimits required_limits = required_gpu_limits();
-
-    WGPUDeviceDescriptor device_desc {};
-    device_desc.label = "My Device";
-    device_desc.requiredFeatureCount = 0;
-    device_desc.requiredLimits = &required_limits;
-    device_desc.defaultQueue.label = "The default queue";
-    m_device = requestDeviceSync(m_adapter, device_desc);
-    std::cout << "Got device: " << m_device << std::endl;
-
-    auto onDeviceError = [](WGPUErrorType type, char const* message, void* /* pUserData */) {
-        std::cout << "Uncaptured device error: type " << type;
-        if (message)
-            std::cout << " (" << message << ")";
-        std::cout << std::endl;
-    };
-    wgpuDeviceSetUncapturedErrorCallback(m_device, onDeviceError, nullptr /* pUserData */);
-}
-
-void Window::init_queue() { m_queue = wgpuDeviceGetQueue(m_device); }
 
 void Window::create_buffers()
 {
@@ -714,53 +371,6 @@ void Window::create_buffers()
         = std::make_unique<raii::RawBuffer<glm::vec4>>(m_device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead, 256 / sizeof(glm::vec4), "position readback buffer");
 }
 
-void Window::create_depth_texture(uint32_t width, uint32_t height)
-{
-    std::cout << "creating depth texture width=" << width << ", height=" << height << std::endl;
-    WGPUTextureFormat format = m_depth_texture_format;
-    WGPUTextureDescriptor texture_desc {};
-    texture_desc.label = "depth texture";
-    texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
-    texture_desc.format = m_depth_texture_format;
-    texture_desc.mipLevelCount = 1;
-    texture_desc.sampleCount = 1;
-    texture_desc.size = { width, height, 1 };
-    texture_desc.usage = WGPUTextureUsage::WGPUTextureUsage_RenderAttachment;
-    texture_desc.viewFormatCount = 1;
-    texture_desc.viewFormats = &format;
-    m_depth_texture = std::make_unique<raii::Texture>(m_device, texture_desc);
-
-    WGPUTextureViewDescriptor view_desc {};
-    view_desc.aspect = WGPUTextureAspect::WGPUTextureAspect_DepthOnly;
-    view_desc.arrayLayerCount = 1;
-    view_desc.baseArrayLayer = 0;
-    view_desc.mipLevelCount = 1;
-    view_desc.baseMipLevel = 0;
-    view_desc.dimension = WGPUTextureViewDimension::WGPUTextureViewDimension_2D;
-    view_desc.format = texture_desc.format;
-    m_depth_texture_view = m_depth_texture->create_view(view_desc);
-}
-
-void Window::create_swapchain(uint32_t width, uint32_t height)
-{
-    std::cout << "Creating swapchain device..." << std::endl;
-    // from Learn WebGPU C++ tutorial
-#ifdef WEBGPU_BACKEND_WGPU
-    m_swapchain_format = surface.getPreferredFormat(m_adapter);
-#else
-    m_swapchain_format = WGPUTextureFormat::WGPUTextureFormat_BGRA8Unorm;
-#endif
-    WGPUSwapChainDescriptor swapchain_desc = {};
-    swapchain_desc.width = width;
-    swapchain_desc.height = height;
-    swapchain_desc.usage = WGPUTextureUsage::WGPUTextureUsage_RenderAttachment;
-    swapchain_desc.format = m_swapchain_format;
-    swapchain_desc.presentMode = m_swapchain_presentmode;
-    m_swapchain = wgpuDeviceCreateSwapChain(m_device, m_surface, &swapchain_desc);
-    m_swapchain_size = glm::vec2(width, height);
-    std::cout << "Swapchain: " << m_swapchain << std::endl;
-}
-
 void Window::create_bind_groups()
 {
     m_shared_config_bind_group = std::make_unique<raii::BindGroup>(m_device, m_pipeline_manager->shared_config_bind_group_layout(),
@@ -770,28 +380,16 @@ void Window::create_bind_groups()
         std::initializer_list<WGPUBindGroupEntry> { m_camera_config_ubo->raw_buffer().create_bind_group_entry(0) });
 }
 
-WGPURequiredLimits Window::required_gpu_limits() const
+void Window::update_required_gpu_limits(WGPULimits& limits, const WGPULimits& supported_limits)
 {
-    WGPURequiredLimits required_limits {};
-
-           // irrelevant for us, but needs to be set
-    required_limits.limits.minStorageBufferOffsetAlignment = std::numeric_limits<uint32_t>::max();
-    required_limits.limits.minUniformBufferOffsetAlignment = std::numeric_limits<uint32_t>::max();
-
-       // wgpuAdapterGetLimits is not supported in Chrome yet
-#ifndef __EMSCRIPTEN__
-    WGPUSupportedLimits supported_limits {};
-    wgpuAdapterGetLimits(m_adapter, &supported_limits);
-    required_limits.limits.maxTextureArrayLayers = supported_limits.limits.maxTextureArrayLayers;
-#else
-    // use 256 as it is supported on all devices according to https://web3dsurvey.com/webgpu/limits/maxTextureArrayLayers
-    required_limits.limits.maxTextureArrayLayers = 256;
-#endif
-
-    required_limits.limits.maxColorAttachmentBytesPerSample
-        = 32; // 64 is supported on 71% of devices (https://web3dsurvey.com/webgpu/limits/maxColorAttachmentBytesPerSample)
-
-    return required_limits;
+    if (supported_limits.maxColorAttachmentBytesPerSample < 32u) {
+        qFatal("Minimum supported maxColorAttachmentBytesPerSample needs to be >=32");
+    }
+    if (supported_limits.maxTextureArrayLayers < 1024u) {
+        qWarning() << "Minimum supported maxTextureArrayLayers is " << supported_limits.maxTextureArrayLayers << " (1024 recommended)!";
+    }
+    limits.maxColorAttachmentBytesPerSample = std::max(limits.maxColorAttachmentBytesPerSample, 32u);
+    limits.maxTextureArrayLayers = std::min(std::max(limits.maxTextureArrayLayers, 1024u), supported_limits.maxTextureArrayLayers);
 }
 
 } // namespace webgpu_engine

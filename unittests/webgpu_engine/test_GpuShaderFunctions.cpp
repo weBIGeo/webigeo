@@ -109,10 +109,10 @@ TEST_CASE("encoder functions")
 
         std::vector<WGPUBindGroupEntry> bindgroup_entries = {
             WGPUBindGroupEntry {
-                .nextInChain =  nullptr, .binding = 0, .buffer = input_buffer->handle(), .offset = 0, .size = input_buffer->size_in_byte()
+                .nextInChain =  nullptr, .binding = 0, .buffer = input_buffer->handle(), .offset = 0, .size = input_buffer->size_in_byte(), .sampler = nullptr, .textureView = nullptr
             },
             WGPUBindGroupEntry {
-                .nextInChain =  nullptr, .binding = 1, .buffer = output_buffer->handle(), .offset = 0, .size = output_buffer->size_in_byte()
+                .nextInChain =  nullptr, .binding = 1, .buffer = output_buffer->handle(), .offset = 0, .size = output_buffer->size_in_byte(), .sampler = nullptr, .textureView = nullptr
             }
         };
 

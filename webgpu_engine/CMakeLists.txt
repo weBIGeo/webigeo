@@ -40,6 +40,7 @@ set(SOURCES
     raii/Pipeline.h raii/Pipeline.cpp
     raii/PipelineLayout.h raii/PipelineLayout.cpp
     raii/CombinedComputePipeline.h raii/CombinedComputePipeline.cpp
+    raii/RenderPassEncoder.h raii/RenderPassEncoder.cpp
     util/VertexBufferInfo.h util/VertexBufferInfo.cpp
     util/VertexFormat.h
     compute/GpuHashMap.h compute/GpuHashMap.cpp

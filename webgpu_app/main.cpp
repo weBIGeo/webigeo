@@ -24,20 +24,42 @@
 #else
 #endif
 
+#include "TerrainRenderer.h"
+#include "util/error_logging.h"
 #include <GLFW/glfw3.h>
 #include <QCoreApplication>
-#include "TerrainRenderer.h"
+
+void print_logo()
+{
+    const char* logo = R"(
+%4        _    .  ,   .           .    *                             *         .
+%4    *  / \_ *  / \_     %1   .        ___ %2___%3 ___    .    %4       /\'__       
+%4      /    \  /    \,   %1__ __ _____| _ )%2_ _%3/ __|___ ___ %4 .   _/  /  \  *'.
+%4 .   /\/\  /\/ :' __ \_ %1\ V  V / -_) _ \%2| |%3 (_ / -_) _ \%4  _^/  ^/    `--.
+%4    /    \/  \  _/  \-'\%1 \_/\_/\___|___/%2___%3\___\___\___/%4 /.' ^_   \_   .'\ 
+==============================================================================
+)";
+    QString formatted_logo = QString(logo).remove(0, 1);
+    formatted_logo = formatted_logo.arg("\033[36m").arg("\033[38;5;245m").arg("\033[0m").arg("\033[38;5;245m");
+    std::cout << formatted_logo.toStdString();
+}
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
 {
-    // Init QCoreApplication seems to be necessary as it declares the current thread
+#ifndef __EMSCRIPTEN__
+    print_logo();
+#endif
+    // Init QCoreApplication is necessary as it declares the current thread
     // as a Qt-Thread. Otherwise functionalities like QTimers wouldnt work.
     // It basically initializes the Qt environment
     QCoreApplication app(argc, argv);
 
+    // Set custom logging handler for Qt
+    qInstallMessageHandler(qt_logging_callback);
+
     TerrainRenderer renderer;
     renderer.start();
     // NOTE: Please be aware that for WEB-Deployment renderer.start() is non-blocking!!
-    // So Code at this point will run after initialization and the first frame.
+    // So Code at this point will run after initialization
     return 0;
 }

@@ -27,6 +27,11 @@ option(ALP_WEBGPU_APP_ENABLE_IMGUI "Enable imgui" ON)
 set(SOURCES
     main.cpp
     TerrainRenderer.h TerrainRenderer.cpp
+    InputMapper.h InputMapper.cpp
+
+    util/error_logging.h util/error_logging.cpp
+
+    gui/GuiManager.h gui/GuiManager.cpp
 )
 
 if (EMSCRIPTEN)

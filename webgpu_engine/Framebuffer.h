@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include "raii/RenderPassEncoder.h"
 #include "raii/Texture.h"
 #include <memory>
 
@@ -42,8 +43,10 @@ public:
     glm::uvec2 size() const;
 
     const raii::TextureView& color_texture_view(size_t index);
-
     const raii::Texture& color_texture(size_t index);
+
+    const raii::TextureView& depth_texture_view();
+    const raii::Texture& depth_texture();
 
     std::unique_ptr<raii::RenderPassEncoder> begin_render_pass(WGPUCommandEncoder encoder);
 

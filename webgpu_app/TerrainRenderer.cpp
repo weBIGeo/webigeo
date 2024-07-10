@@ -19,23 +19,19 @@
 
 #include "TerrainRenderer.h"
 
-#include <map>
 #include <QFile>
 #include <webgpu/webgpu_interface.hpp>
-#include <iostream>
-
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-#include <imgui.h>
-#include "backends/imgui_impl_glfw.h"
-#endif
-
-#include "nucleus/stb/stb_image_loader.h"
 #include "webgpu_engine/Window.h"
 
 #ifdef __EMSCRIPTEN__
 #include "WebInterop.h"
 #include <emscripten/emscripten.h>
+#else
+#include "nucleus/stb/stb_image_loader.h"
 #endif
+
+#include "imgui.h"
+#include "util/error_logging.h"
 
 static void windowResizeCallback(GLFWwindow* window, int width, int height) {
     auto terrainRenderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
@@ -44,23 +40,33 @@ static void windowResizeCallback(GLFWwindow* window, int width, int height) {
 
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     auto renderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
-    renderer->on_key_callback(key, scancode, action, mods);
+    if (renderer->get_gui_manager()->want_capture_keyboard())
+        return;
+    renderer->get_input_mapper()->on_key_callback(key, scancode, action, mods);
 }
 
 static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
     auto renderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
-    renderer->on_cursor_position_callback(xpos, ypos);
+    if (renderer->get_gui_manager()->want_capture_mouse())
+        return;
+    renderer->get_input_mapper()->on_cursor_position_callback(xpos, ypos);
 }
 
 static void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
     auto renderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
-    renderer->on_mouse_button_callback(button, action, mods);
+    if (renderer->get_gui_manager()->want_capture_mouse())
+        return;
+    double xpos, ypos;
+    glfwGetCursorPos(window, &xpos, &ypos);
+    renderer->get_input_mapper()->on_mouse_button_callback(button, action, mods, xpos, ypos);
 }
 
 static void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
     auto renderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
-    renderer->on_scroll_callback(xoffset, yoffset);
+    if (renderer->get_gui_manager()->want_capture_mouse())
+        return;
+    renderer->get_input_mapper()->on_scroll_callback(xoffset, yoffset);
 }
 
 TerrainRenderer::TerrainRenderer() {
@@ -71,19 +77,15 @@ TerrainRenderer::TerrainRenderer() {
 }
 
 void TerrainRenderer::init_window() {
-
-    if (!glfwInit()) {
-        std::cerr << "Could not initialize GLFW!" << std::endl;
-        //throw std::runtime_error("Could not initialize GLFW");
-    }
+    if (!glfwInit())
+        qFatal("Could not initialize GLFW!");
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     //glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-    m_window = glfwCreateWindow(m_width, m_height, "weBIGeo - Geospatial Visualization Tool", NULL, NULL);
+    m_window = glfwCreateWindow(m_viewport_size.x, m_viewport_size.y, "weBIGeo - Geospatial Visualization Tool", NULL, NULL);
     if (!m_window) {
-        std::cerr << "Could not open window!" << std::endl;
         glfwTerminate();
-        throw std::runtime_error("Could not open window");
+        qFatal("Could not open GLFW window");
     }
     glfwSetWindowUserPointer(m_window, this);
     glfwSetWindowSizeCallback(m_window, windowResizeCallback);
@@ -94,62 +96,167 @@ void TerrainRenderer::init_window() {
 
 #ifndef __EMSCRIPTEN__
     // Load Icon for Window
-    QFile file(":/icons/logo32.png");
-    if (file.open(QIODevice::ReadOnly)) {
-        QByteArray byteArray = file.readAll();
-        auto icon = nucleus::stb::load_8bit_rgba_image_from_memory(byteArray);
-        GLFWimage images[1];
-        images[0].width = int(icon.width());
-        images[0].height = int(icon.height());
-        images[0].pixels = icon.bytes();
-        glfwSetWindowIcon(m_window, 1, images);
-    } else {
-        std::cerr << "Could not load icon image!" << std::endl;
-    }
+    auto icon = nucleus::stb::load_8bit_rgba_image_from_file(":/icons/logo32.png");
+    GLFWimage image = { int(icon.width()), int(icon.height()), icon.bytes() };
+    glfwSetWindowIcon(m_window, 1, &image);
 #endif
+}
+
+void TerrainRenderer::render_gui()
+{
+    static bool vsync_enabled = (prop_swapchain_presentmode == WGPUPresentMode::WGPUPresentMode_Fifo);
+    if (ImGui::Checkbox("VSync", &vsync_enabled)) {
+        prop_swapchain_presentmode = vsync_enabled ? WGPUPresentMode::WGPUPresentMode_Fifo : WGPUPresentMode::WGPUPresentMode_Immediate;
+        // Recreate swapchain
+        prop_force_repaint_once = true;
+        this->on_window_resize(m_viewport_size.x, m_viewport_size.y);
+    }
+    ImGui::Checkbox("Repaint each frame", &prop_force_repaint);
+    ImGui::Text("Repaint-Counter: %d", prop_repaint_count);
 }
 
 void TerrainRenderer::render() {
+    // Do nothing, this checks for ongoing asynchronous operations and call their callbacks
     glfwPollEvents();
-    m_webgpu_window->paint(nullptr);
+
+    WGPUTextureView swapchain_texture = wgpuSwapChainGetCurrentTextureView(m_swapchain);
+    if (!swapchain_texture) {
+        qFatal("Cannot acquire next swap chain texture");
+    }
+
+    WGPUCommandEncoderDescriptor command_encoder_desc {};
+    command_encoder_desc.label = "Command Encoder";
+    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(m_device, &command_encoder_desc);
+
+    prop_frame_count++;
+    if (m_webgpu_window->needs_redraw() || prop_force_repaint || prop_force_repaint_once) {
+        m_webgpu_window->paint(m_framebuffer.get(), encoder);
+        prop_repaint_count++;
+        prop_force_repaint_once = false;
+    }
+
+    {
+        webgpu_engine::raii::RenderPassEncoder render_pass(encoder, swapchain_texture, nullptr);
+        wgpuRenderPassEncoderSetPipeline(render_pass.handle(), m_gui_pipeline.get()->pipeline().handle());
+        wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 0, m_gui_bind_group->handle(), 0, nullptr);
+        wgpuRenderPassEncoderDraw(render_pass.handle(), 3, 1, 0, 0);
+
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
+        // We add the GUI drawing commands to the render pass
+        m_gui_manager->render(render_pass.handle());
+#endif
+    }
+
+    wgpuTextureViewRelease(swapchain_texture);
+
+    WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
+    cmd_buffer_descriptor.label = "Command buffer";
+    WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &cmd_buffer_descriptor);
+    wgpuCommandEncoderRelease(encoder);
+    wgpuQueueSubmit(m_queue, 1, &command);
+    wgpuCommandBufferRelease(command);
+
+#ifndef __EMSCRIPTEN__
+    // Swapchain in the WEB is handled by the browser!
+    wgpuSwapChainPresent(m_swapchain);
+    wgpuInstanceProcessEvents(m_instance);
+    wgpuDeviceTick(m_device);
+#endif
 }
 
 void TerrainRenderer::start() {
-    std::cout << "before initWindow()" << std::endl;
     init_window();
 
-    std::cout << "before initWebGPU()" << std::endl;
-    auto glfwGetWGPUSurfaceFunctor = [this](WGPUInstance instance) { return glfwGetWGPUSurface(instance, m_window); };
+    webgpuPlatformInit();
 
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-    m_webgpu_window = std::make_unique<webgpu_engine::Window>(glfwGetWGPUSurfaceFunctor,
-        [this] () { ImGui_ImplGlfw_InitForOther(m_window, true); },
-        ImGui_ImplGlfw_NewFrame,
-        ImGui_ImplGlfw_Shutdown
-    );
-#else
-    m_webgpu_window = std::make_unique<webgpu_engine::Window>(glfwGetWGPUSurfaceFunctor);
-#endif
+    webgpu_create_context();
 
+    // TODO: THIS TAKES FOREVER ON FIRST LOAD. LETS CHECK OUT WHY!
     m_controller = std::make_unique<nucleus::Controller>(m_webgpu_window.get());
 
     nucleus::camera::Controller* camera_controller = m_controller->camera_controller();
-    connect(this, &TerrainRenderer::key_pressed, camera_controller, &nucleus::camera::Controller::key_press);
-    connect(this, &TerrainRenderer::key_released, camera_controller, &nucleus::camera::Controller::key_release);
-    connect(this, &TerrainRenderer::mouse_moved, camera_controller, &nucleus::camera::Controller::mouse_move);
-    connect(this, &TerrainRenderer::mouse_pressed, camera_controller, &nucleus::camera::Controller::mouse_press);
-    connect(this, &TerrainRenderer::wheel_turned, camera_controller, &nucleus::camera::Controller::wheel_turn);
+    m_inputMapper = std::make_unique<InputMapper>(this, camera_controller);
+
     connect(this, &TerrainRenderer::update_camera_requested, camera_controller, &nucleus::camera::Controller::update_camera_request);
 
+    m_webgpu_window->set_wgpu_context(m_instance, m_device, m_adapter, m_surface, m_queue);
     m_webgpu_window->initialise_gpu();
-    m_webgpu_window->resize_framebuffer(m_width, m_height);
+    // Creates the swapchain
+    this->on_window_resize(m_viewport_size.x, m_viewport_size.y);
 
-    camera_controller->set_viewport({ m_width, m_height });
-    camera_controller->update();
+    qDebug() << "Create GUI Pipeline...";
+    m_gui_ubo = std::make_unique<webgpu_engine::raii::RawBuffer<TerrainRenderer::GuiPipelineUBO>>(
+        m_device, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst, 1, "gui ubo");
+    m_gui_ubo->write(m_queue, &m_gui_ubo_data);
 
-    glfwSetWindowSize(m_window, m_width, m_height);
+    webgpu_engine::FramebufferFormat format {};
+    format.color_formats.emplace_back(m_swapchain_format);
+
+    WGPUBindGroupLayoutEntry backbuffer_texture_entry {};
+    backbuffer_texture_entry.binding = 0;
+    backbuffer_texture_entry.visibility = WGPUShaderStage_Fragment;
+    backbuffer_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
+    backbuffer_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+    WGPUBindGroupLayoutEntry gui_ubo_entry = {};
+    gui_ubo_entry.binding = 1;
+    gui_ubo_entry.visibility = WGPUShaderStage_Fragment;
+    gui_ubo_entry.buffer.type = WGPUBufferBindingType_Uniform;
+    gui_ubo_entry.buffer.minBindingSize = sizeof(TerrainRenderer::GuiPipelineUBO);
+
+    m_gui_bind_group_layout = std::make_unique<webgpu_engine::raii::BindGroupLayout>(
+        m_device, std::vector<WGPUBindGroupLayoutEntry> { backbuffer_texture_entry, gui_ubo_entry }, "gui bind group layout");
+
+    const std::string preprocessed_code = R"(
+    @group(0) @binding(0) var backbuffer_texture : texture_2d<f32>;
+    @group(0) @binding(1) var<uniform> gui_ubo : vec2f;
+
+    struct VertexOut {
+        @builtin(position) position : vec4f,
+        @location(0) texcoords : vec2f
+    }
+
+    @vertex
+    fn vertexMain(@builtin(vertex_index) vertex_index : u32) -> VertexOut {
+        const VERTICES = array(vec2f(-1.0, -1.0), vec2f(3.0, -1.0), vec2f(-1.0, 3.0));
+        var vertex_out : VertexOut;
+        vertex_out.position = vec4(VERTICES[vertex_index], 0.0, 1.0);
+        vertex_out.texcoords = vec2(0.5, -0.5) * vertex_out.position.xy + vec2(0.5);
+        return vertex_out;
+    }
+
+    @fragment
+    fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
+        let tci : vec2<u32> = vec2u(vertex_out.texcoords * gui_ubo);
+        var backbuffer_color = textureLoad(backbuffer_texture, tci, 0);
+        return backbuffer_color;
+    }
+    )";
+
+    WGPUShaderModuleDescriptor shader_module_desc {};
+    WGPUShaderModuleWGSLDescriptor wgsl_desc {};
+    wgsl_desc.chain.next = nullptr;
+    wgsl_desc.chain.sType = WGPUSType::WGPUSType_ShaderModuleWGSLDescriptor;
+    wgsl_desc.code = preprocessed_code.data();
+    shader_module_desc.label = "Gui Shader Module";
+    shader_module_desc.nextInChain = &wgsl_desc.chain;
+    auto shader_module = std::make_unique<webgpu_engine::raii::ShaderModule>(m_device, shader_module_desc);
+
+    m_gui_pipeline = std::make_unique<webgpu_engine::raii::GenericRenderPipeline>(m_device, *shader_module, *shader_module,
+        std::vector<webgpu_engine::util::SingleVertexBufferInfo> {}, format,
+        std::vector<const webgpu_engine::raii::BindGroupLayout*> { m_gui_bind_group_layout.get() });
+
+    m_gui_bind_group = std::make_unique<webgpu_engine::raii::BindGroup>(m_device, *m_gui_bind_group_layout.get(),
+        std::initializer_list<WGPUBindGroupEntry> { m_framebuffer->color_texture_view(0).create_bind_group_entry(0), m_gui_ubo->create_bind_group_entry(1) });
+
+    glfwSetWindowSize(m_window, m_viewport_size.x, m_viewport_size.y);
+
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
+    m_gui_manager = std::make_unique<GuiManager>(m_webgpu_window.get(), this);
+    m_gui_manager->init(m_window, m_device, m_swapchain_format, WGPUTextureFormat_Undefined);
+#endif
+
     m_initialized = true;
-
 
 #if defined(__EMSCRIPTEN__)
     emscripten_set_main_loop_arg(
@@ -162,120 +269,194 @@ void TerrainRenderer::start() {
     );
 #else
     while (!glfwWindowShouldClose(m_window)) {
-        // Do nothing, this checks for ongoing asynchronous operations and call their callbacks
-
-        glfwPollEvents();
-        m_webgpu_window->paint(nullptr);
+        render();
     }
 #endif
 
     // NOTE: Ressources are freed by the browser when the page is closed. Also keep in mind
     // that this part of code will be executed immediately since the main loop is not blocking.
 #ifndef __EMSCRIPTEN__
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
+    m_gui_manager->shutdown();
+#endif
+    webgpu_release_context();
     m_webgpu_window->deinit_gpu();
 
     glfwDestroyWindow(m_window);
     glfwTerminate();
+    m_initialized = false;
 #endif
 }
 
-void TerrainRenderer::on_window_resize(int width, int height) {
-    m_width = width;
-    m_height = height;
-    m_webgpu_window->resize_framebuffer(static_cast<uint32_t>(width), static_cast<uint32_t>(height));
-    m_controller->camera_controller()->set_viewport({ width, height });
-    m_controller->camera_controller()->update();
-}
-
-void TerrainRenderer::on_key_callback(int key, [[maybe_unused]]int scancode, int action, [[maybe_unused]]int mods)
-{
-    //TODO modifiers; more keys if needed
-    const std::map<int, Qt::Key> key_map = {
-        {GLFW_KEY_W, Qt::Key_W},
-        {GLFW_KEY_S, Qt::Key_S},
-        {GLFW_KEY_A, Qt::Key_A},
-        {GLFW_KEY_D, Qt::Key_D},
-        {GLFW_KEY_Q, Qt::Key_Q},
-        {GLFW_KEY_E, Qt::Key_E},
-        {GLFW_KEY_1, Qt::Key_1},
-        {GLFW_KEY_2, Qt::Key_2},
-        {GLFW_KEY_3, Qt::Key_3},
-        {GLFW_KEY_LEFT_CONTROL, Qt::Key_Control},
-        {GLFW_KEY_LEFT_SHIFT, Qt::Key_Shift},
-        {GLFW_KEY_LEFT_ALT, Qt::Key_Alt},
-
-    };
-
-    const auto found_it = key_map.find(key);
-    if (found_it == key_map.end()) {
-        std::cout << "key not mapped" << std::endl;
-        return;
-    }
-
-    QKeyCombination combination(found_it->second);
-    if (action == GLFW_PRESS) {
-        std::cout << "pressed " << found_it->second << std::endl;
-        emit key_pressed(combination);
-    } else if (action == GLFW_RELEASE) {
-        std::cout << "released " << found_it->second << std::endl;
-        emit key_released(combination);
-    }
-}
-
-void TerrainRenderer::on_cursor_position_callback(double x_pos, double y_pos)
-{
-    m_mouse.point.last_position = m_mouse.point.position;
-    m_mouse.point.position = { x_pos, y_pos };
-    //std::cout << "mouse moved, x=" << x_pos << ", y=" << y_pos << std::endl;
-    emit mouse_moved(m_mouse);
-}
-
 void TerrainRenderer::set_glfw_window_size(int width, int height) {
-    m_width = width;
-    m_height = height;
+    m_viewport_size = { width, height };
     if (m_initialized) {
         glfwSetWindowSize(m_window, width, height);
     }
 }
 
-void TerrainRenderer::on_mouse_button_callback(int button, int action, [[maybe_unused]]int mods)
+void TerrainRenderer::create_framebuffer(uint32_t width, uint32_t height)
 {
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-    ImGuiIO& io = ImGui::GetIO();
-    if (io.WantCaptureMouse) {
-        return;
-    }
-#endif
+    qDebug() << "creating framebuffer textures for size " << width << "x" << height;
 
-    //TODO modifiers if needed
-    const std::map<int, Qt::MouseButton> button_map = {
-        {GLFW_MOUSE_BUTTON_LEFT, Qt::LeftButton},
-        {GLFW_MOUSE_BUTTON_RIGHT, Qt::RightButton},
-        {GLFW_MOUSE_BUTTON_MIDDLE, Qt::MiddleButton}
-    };
+    webgpu_engine::FramebufferFormat format { .size = { width, height }, .depth_format = m_depth_texture_format, .color_formats = { m_swapchain_format } };
+    m_framebuffer = std::make_unique<webgpu_engine::Framebuffer>(m_device, format);
 
-    const auto found_it = button_map.find(button);
-    if (found_it == button_map.end()) {
-        std::cout << "mouse button not mapped" << std::endl;
-        return;
+    if (m_gui_bind_group) {
+        m_gui_bind_group = std::make_unique<webgpu_engine::raii::BindGroup>(m_device, *m_gui_bind_group_layout.get(),
+            std::initializer_list<WGPUBindGroupEntry> {
+                m_framebuffer->color_texture_view(0).create_bind_group_entry(0), m_gui_ubo->create_bind_group_entry(1) });
     }
 
-    if (action == GLFW_RELEASE) {
-        m_mouse.buttons &= ~found_it->second;
-        //std::cout << "mouse button released" << std::endl;
-    } else if (action == GLFW_PRESS) {
-        m_mouse.buttons |= found_it->second;
-        //std::cout << "mouse button pressed " << found_it->second << std::endl;
+    if (m_gui_ubo) {
+        m_gui_ubo_data.resolution = glm::vec2(m_viewport_size);
+        m_gui_ubo->write(m_queue, &m_gui_ubo_data);
     }
-
-    emit mouse_pressed(m_mouse);
 }
 
-void TerrainRenderer::on_scroll_callback(double x_offset, double y_offset)
+void TerrainRenderer::create_swapchain(uint32_t width, uint32_t height)
 {
-    nucleus::event_parameter::Wheel wheel {};
-    wheel.angle_delta = QPoint(static_cast<int>(x_offset), static_cast<int>(y_offset) * 50.0f);
-    wheel.point.position = m_mouse.point.position;
-    //std::cout << "wheel  turned, delta x=" << x_offset << ", y=" << y_offset << std::endl;
-    emit wheel_turned(wheel);
+    qDebug() << "creating swapchain device...";
+
+    // from Learn WebGPU C++ tutorial
+#ifdef WEBGPU_BACKEND_WGPU
+    m_swapchain_format = surface.getPreferredFormat(m_adapter);
+#else
+    m_swapchain_format = WGPUTextureFormat::WGPUTextureFormat_BGRA8Unorm;
+#endif
+    WGPUSwapChainDescriptor swapchain_desc = {};
+    swapchain_desc.width = width;
+    swapchain_desc.height = height;
+    swapchain_desc.usage = WGPUTextureUsage::WGPUTextureUsage_RenderAttachment;
+    swapchain_desc.format = m_swapchain_format;
+    swapchain_desc.presentMode = prop_swapchain_presentmode;
+    m_swapchain = wgpuDeviceCreateSwapChain(m_device, m_surface, &swapchain_desc);
+    qInfo() << "Got swapchain: " << m_swapchain;
+}
+
+void TerrainRenderer::on_window_resize(int width, int height) {
+    m_viewport_size = { width, height };
+    // TODO check if we can do it without completely recreating swapchain
+    if (m_swapchain != nullptr) {
+        wgpuSwapChainRelease(m_swapchain);
+    }
+
+    create_swapchain(width, height);
+    create_framebuffer(width, height);
+
+    m_webgpu_window->resize_framebuffer(m_viewport_size.x, m_viewport_size.y);
+    m_controller->camera_controller()->set_viewport(m_viewport_size);
+}
+
+void TerrainRenderer::webgpu_create_context()
+{
+    qDebug() << "Creating WebGPU instance...";
+    m_instance = wgpuCreateInstance(nullptr);
+    if (!m_instance) {
+        qFatal("Could not initialize WebGPU!");
+    }
+    qInfo() << "Got instance: " << m_instance;
+
+    qDebug() << "Requesting surface...";
+    m_surface = glfwGetWGPUSurface(m_instance, m_window);
+    if (!m_surface) {
+        qFatal("Could not create surface!");
+    }
+    qInfo() << "Got surface: " << m_surface;
+
+    qDebug() << "Requesting adapter...";
+    WGPURequestAdapterOptions adapter_opts {};
+    adapter_opts.powerPreference = WGPUPowerPreference_HighPerformance;
+    adapter_opts.compatibleSurface = m_surface;
+    m_adapter = requestAdapterSync(m_instance, adapter_opts);
+    if (!m_adapter) {
+        qFatal("Could not get adapter!");
+    }
+    qInfo() << "Got adapter: " << m_adapter;
+
+    m_webgpu_window = std::make_unique<webgpu_engine::Window>();
+
+    qDebug() << "Requesting device...";
+    WGPURequiredLimits required_limits {};
+    WGPUSupportedLimits supported_limits {};
+#ifndef __EMSCRIPTEN__
+    wgpuAdapterGetLimits(m_adapter, &supported_limits);
+#else
+    // TODO: Update emscripten and hope wgpuAdapterGetLimits is supported
+    // or alternatively setup some custom js interop (https://developer.mozilla.org/en-US/docs/Web/API/GPUSupportedLimits)
+    supported_limits.limits.maxTextureDimension1D = 8192;
+    supported_limits.limits.maxTextureDimension2D = 8192;
+    supported_limits.limits.maxTextureDimension3D = 2048;
+    supported_limits.limits.maxTextureArrayLayers = 256;
+    supported_limits.limits.maxBindGroups = 4;
+    supported_limits.limits.maxBindingsPerBindGroup = 640;
+    supported_limits.limits.maxDynamicUniformBuffersPerPipelineLayout = 8;
+    supported_limits.limits.maxDynamicStorageBuffersPerPipelineLayout = 4;
+    supported_limits.limits.maxSampledTexturesPerShaderStage = 16;
+    supported_limits.limits.maxSamplersPerShaderStage = 16;
+    supported_limits.limits.maxStorageBuffersPerShaderStage = 8;
+    supported_limits.limits.maxStorageTexturesPerShaderStage = 4;
+    supported_limits.limits.maxUniformBuffersPerShaderStage = 12;
+    supported_limits.limits.maxUniformBufferBindingSize = 65536; // 64 KB
+    supported_limits.limits.maxStorageBufferBindingSize = 134217728; // 128 MB
+    supported_limits.limits.minUniformBufferOffsetAlignment = 256;
+    supported_limits.limits.minStorageBufferOffsetAlignment = 256;
+    supported_limits.limits.maxVertexBuffers = 8;
+    supported_limits.limits.maxBufferSize = 268435456; // 256 MB
+    supported_limits.limits.maxVertexAttributes = 16;
+    supported_limits.limits.maxVertexBufferArrayStride = 2048;
+    supported_limits.limits.maxInterStageShaderComponents = 60;
+    supported_limits.limits.maxInterStageShaderVariables = 16;
+    supported_limits.limits.maxColorAttachments = 8;
+    supported_limits.limits.maxColorAttachmentBytesPerSample = 32;
+    supported_limits.limits.maxComputeWorkgroupStorageSize = 16384; // 16 KB
+    supported_limits.limits.maxComputeInvocationsPerWorkgroup = 256;
+    supported_limits.limits.maxComputeWorkgroupSizeX = 256;
+    supported_limits.limits.maxComputeWorkgroupSizeY = 256;
+    supported_limits.limits.maxComputeWorkgroupSizeZ = 64;
+    supported_limits.limits.maxComputeWorkgroupsPerDimension = 65535;
+#endif
+
+    // irrelevant for us, but needs to be set
+    required_limits.limits.minStorageBufferOffsetAlignment = supported_limits.limits.minStorageBufferOffsetAlignment;
+    required_limits.limits.minUniformBufferOffsetAlignment = supported_limits.limits.minUniformBufferOffsetAlignment;
+
+    // Let the engine change the required limits
+    m_webgpu_window->update_required_gpu_limits(required_limits.limits, supported_limits.limits);
+
+    WGPUDeviceDescriptor device_desc {};
+    device_desc.label = "webigeo device";
+    device_desc.requiredFeatureCount = 0;
+    device_desc.requiredLimits = &required_limits;
+    device_desc.defaultQueue.label = "webigeo queue";
+    m_device = requestDeviceSync(m_adapter, device_desc);
+    if (!m_device) {
+        qFatal("Could not get device!");
+    }
+    qInfo() << "Got device: " << m_device;
+
+    // Set error callback
+    wgpuDeviceSetUncapturedErrorCallback(m_device, webgpu_device_error_callback, nullptr /* pUserData */);
+
+    qDebug() << "Requesting queue...";
+    m_queue = wgpuDeviceGetQueue(m_device);
+    if (!m_queue) {
+        qFatal("Could not get queue!");
+    }
+    qInfo() << "Got queue: " << m_queue;
+}
+
+void TerrainRenderer::webgpu_release_context()
+{
+    qDebug() << "Releasing WebGPU context...";
+    // Set the device lost callback to null otherwise we'll get a warning
+#ifndef __EMSCRIPTEN__
+    wgpuDeviceSetDeviceLostCallback(m_device, nullptr, nullptr);
+#endif
+    wgpuSwapChainRelease(m_swapchain);
+    wgpuQueueRelease(m_queue);
+    wgpuSurfaceRelease(m_surface);
+    wgpuDeviceRelease(m_device);
+    wgpuAdapterRelease(m_adapter);
+    wgpuInstanceRelease(m_instance);
 }
