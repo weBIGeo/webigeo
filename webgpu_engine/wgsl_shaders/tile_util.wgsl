@@ -27,7 +27,13 @@ struct TileId {
     x: u32,
     y: u32,
     zoomlevel: u32,
+    alignment: u32,
 }
+
+const EMPTY_TILE_ZOOMLEVEL: u32 = 4294967295u;
+
+fn tile_ids_equal(a: TileId, b: TileId) -> bool { return a.x == b.x && a.y == b.y && a.zoomlevel == b.zoomlevel; }
+fn tile_id_empty(id: TileId) -> bool { return id.zoomlevel == EMPTY_TILE_ZOOMLEVEL; }
 
 struct Bounds {
     min: vec2f,

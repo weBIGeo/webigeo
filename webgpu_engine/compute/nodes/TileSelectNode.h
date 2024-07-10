@@ -16,13 +16,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "GpuHashMap.h"
+#pragma once
 
-#include "nucleus/srs.h"
+#include "Node.h"
 
-namespace webgpu_engine::compute {
+namespace webgpu_engine::compute::nodes {
 
-// explicit template specialization for hashing tile::Id and returning uint16_t hashes
-template <> uint16_t gpu_hash<tile::Id, uint16_t>(const tile::Id& id) { return nucleus::srs::hash_uint16(id); }
+class TileSelectNode : public Node {
+    Q_OBJECT
 
-} // namespace webgpu_engine::compute
+public:
+    enum Input {};
+    enum Output { TILE_ID_LIST = 0 };
+
+    TileSelectNode();
+
+public slots:
+    void run() override;
+
+protected:
+    Data get_output_data_impl(SocketIndex output_index) override;
+
+private:
+    std::vector<tile::Id> m_output_tile_ids;
+};
+} // namespace webgpu_engine::compute::nodes

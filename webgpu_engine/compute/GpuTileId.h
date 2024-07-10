@@ -16,13 +16,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "GpuHashMap.h"
+#pragma once
 
-#include "nucleus/srs.h"
+#include "radix/tile.h"
+#include <cstdint>
+#include <limits>
 
 namespace webgpu_engine::compute {
 
-// explicit template specialization for hashing tile::Id and returning uint16_t hashes
-template <> uint16_t gpu_hash<tile::Id, uint16_t>(const tile::Id& id) { return nucleus::srs::hash_uint16(id); }
+struct GpuTileId {
+    uint32_t x;
+    uint32_t y;
+    uint32_t zoomlevel;
+    uint32_t alignment = std::numeric_limits<uint32_t>::max();
+
+    GpuTileId() = default;
+    GpuTileId(uint32_t x, uint32_t y, uint32_t zoomlevel);
+    GpuTileId(const tile::Id& tile_id);
+
+    bool operator==(const GpuTileId& other) const { return x == other.x && y == other.y && zoomlevel == other.zoomlevel; }
+};
 
 } // namespace webgpu_engine::compute

@@ -21,7 +21,7 @@
 #include "nucleus/stb/stb_image_loader.h"
 #include "nucleus/utils/tile_conversion.h"
 
-namespace webgpu_engine {
+namespace webgpu_engine::compute {
 
 TileStorageTexture::TileStorageTexture(WGPUDevice device, const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format, WGPUTextureUsageFlags usage)
     : m_device { device }
@@ -64,17 +64,27 @@ void TileStorageTexture::store(size_t layer, const QByteArray& data)
     const auto heightraster = nucleus::utils::tile_conversion::u8vec4raster_to_u16raster(height_image);
     m_texture_array->texture().write(m_queue, heightraster, uint32_t(layer));
 
-    // update used layers
-    if (!m_layers_used.at(layer)) {
-        m_num_stored++;
-        m_layers_used[layer] = true;
-    }
+    set_layer_used(layer);
 }
 
 size_t TileStorageTexture::store(const QByteArray& data)
 {
     size_t layer_index = find_unused_layer_index();
     store(layer_index, data);
+    return layer_index;
+}
+
+void TileStorageTexture::reserve(size_t layer)
+{
+    assert(!m_layers_used[layer]);
+
+    set_layer_used(layer);
+}
+
+size_t TileStorageTexture::reserve()
+{
+    size_t layer_index = find_unused_layer_index();
+    set_layer_used(layer_index);
     return layer_index;
 }
 
@@ -96,11 +106,17 @@ void TileStorageTexture::clear(size_t layer)
     }
 }
 
+size_t TileStorageTexture::width() const { return m_texture_array->texture().descriptor().size.width; }
+
+size_t TileStorageTexture::height() const { return m_texture_array->texture().descriptor().size.height; }
+
+size_t TileStorageTexture::capacity() const { return m_capacity; }
+
 raii::TextureWithSampler& TileStorageTexture::texture() { return *m_texture_array; }
 
 const raii::TextureWithSampler& TileStorageTexture::texture() const { return *m_texture_array; }
 
-size_t TileStorageTexture::find_unused_layer_index()
+size_t TileStorageTexture::find_unused_layer_index() const
 {
     assert(m_num_stored < m_capacity);
 
@@ -108,59 +124,13 @@ size_t TileStorageTexture::find_unused_layer_index()
     return found_at - m_layers_used.begin();
 }
 
-TextureArrayComputeTileStorage::TextureArrayComputeTileStorage(
-    WGPUDevice device, const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format, WGPUTextureUsageFlags usage)
-    : m_device { device }
-    , m_queue { wgpuDeviceGetQueue(device) }
-    , m_resolution { resolution }
-    , m_capacity { capacity }
+void TileStorageTexture::set_layer_used(size_t layer)
 {
-    m_tile_storage_texture = std::make_unique<TileStorageTexture>(m_device, m_resolution, m_capacity, format, usage);
-
-    m_tile_ids = std::make_unique<raii::RawBuffer<GpuTileId>>(
-        m_device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst, uint32_t(m_capacity), "compute tile storage tile id buffer");
-
-    m_layer_index_to_tile_id.clear();
-    m_layer_index_to_tile_id.resize(m_capacity, tile::Id { unsigned(-1), {} });
-}
-
-void TextureArrayComputeTileStorage::init() { }
-
-void TextureArrayComputeTileStorage::store(const tile::Id& id, std::shared_ptr<QByteArray> data)
-{
-    // already contained, return
-    if (std::find(m_layer_index_to_tile_id.begin(), m_layer_index_to_tile_id.end(), id) != m_layer_index_to_tile_id.end()) {
-        return;
-    }
-
-    size_t layer_index = m_tile_storage_texture->store(*data);
-
-    m_layer_index_to_tile_id[layer_index] = id;
-    GpuTileId gpu_tile_id = { .x = id.coords.x, .y = id.coords.y, .zoomlevel = id.zoom_level };
-    m_tile_ids->write(m_queue, &gpu_tile_id, 1, layer_index);
-}
-
-void TextureArrayComputeTileStorage::clear(const tile::Id& id)
-{
-    auto found = std::find(m_layer_index_to_tile_id.begin(), m_layer_index_to_tile_id.end(), id);
-    if (found != m_layer_index_to_tile_id.end()) {
-        *found = tile::Id { unsigned(-1), {} };
-        m_tile_storage_texture->clear(found - m_layer_index_to_tile_id.begin());
+    // update used layers
+    if (!m_layers_used.at(layer)) {
+        m_num_stored++;
+        m_layers_used[layer] = true;
     }
 }
 
-void TextureArrayComputeTileStorage::read_back_async(size_t layer_index, raii::Texture::ReadBackCallback callback)
-{
-    m_tile_storage_texture->texture().texture().read_back_async(m_device, layer_index, callback);
-}
-
-std::vector<WGPUBindGroupEntry> TextureArrayComputeTileStorage::create_bind_group_entries(const std::vector<uint32_t>& bindings) const
-{
-    assert(bindings.size() == 1 || bindings.size() == 2);
-    if (bindings.size() == 1) {
-        return { m_tile_storage_texture->texture().texture_view().create_bind_group_entry(bindings.at(0)) };
-    }
-    return { m_tile_storage_texture->texture().texture_view().create_bind_group_entry(bindings.at(0)), m_tile_ids->create_bind_group_entry(bindings.at(1)) };
-}
-
-} // namespace webgpu_engine
+} // namespace webgpu_engine::compute

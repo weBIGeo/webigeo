@@ -16,13 +16,30 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "GpuHashMap.h"
+#include "TileSelectNode.h"
 
-#include "nucleus/srs.h"
+#include "../RectangularTileRegion.h"
+#include <QDebug>
 
-namespace webgpu_engine::compute {
+namespace webgpu_engine::compute::nodes {
 
-// explicit template specialization for hashing tile::Id and returning uint16_t hashes
-template <> uint16_t gpu_hash<tile::Id, uint16_t>(const tile::Id& id) { return nucleus::srs::hash_uint16(id); }
+TileSelectNode::TileSelectNode()
+    : Node({}, { data_type<const std::vector<tile::Id>*>() })
+{
+}
 
-} // namespace webgpu_engine::compute
+void TileSelectNode::run()
+{
+    qDebug() << "running TileSelectNode ..." << Qt::endl;
+
+    RectangularTileRegion region { .min = { 8768, 10624 },
+        .max = { 8768 + 11, 10624 + 11 }, // inclusive, so this region has 12x12 tiles
+        .zoom_level = 14,
+        .scheme = tile::Scheme::Tms };
+    m_output_tile_ids = region.get_tiles();
+    emit run_finished();
+}
+
+Data TileSelectNode::get_output_data_impl([[maybe_unused]] SocketIndex output_index) { return { &m_output_tile_ids }; }
+
+} // namespace webgpu_engine::compute::nodes

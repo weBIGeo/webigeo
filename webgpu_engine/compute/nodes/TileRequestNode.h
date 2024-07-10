@@ -16,13 +16,36 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "GpuHashMap.h"
+#pragma once
 
-#include "nucleus/srs.h"
+#include "Node.h"
+#include "nucleus/tile_scheduler/TileLoadService.h"
 
-namespace webgpu_engine::compute {
+namespace webgpu_engine::compute::nodes {
 
-// explicit template specialization for hashing tile::Id and returning uint16_t hashes
-template <> uint16_t gpu_hash<tile::Id, uint16_t>(const tile::Id& id) { return nucleus::srs::hash_uint16(id); }
+class TileRequestNode : public Node {
+    Q_OBJECT
 
-} // namespace webgpu_engine::compute
+public:
+    enum Input : SocketIndex { TILE_ID_LIST = 0 };
+    enum Output : SocketIndex { TILE_TEXTURE_LIST = 0 };
+
+    TileRequestNode();
+
+    void on_single_tile_received(const nucleus::tile_scheduler::tile_types::TileLayer& tile);
+
+public slots:
+    void run() override;
+
+protected:
+    Data get_output_data_impl(SocketIndex output_index) override;
+
+private:
+    std::unique_ptr<nucleus::tile_scheduler::TileLoadService> m_tile_loader;
+    size_t m_num_tiles_received = 0;
+    size_t m_num_tiles_requested = 0;
+    std::vector<QByteArray> m_received_tile_textures;
+    std::vector<tile::Id> m_requested_tile_ids;
+};
+
+} // namespace webgpu_engine::compute::nodes

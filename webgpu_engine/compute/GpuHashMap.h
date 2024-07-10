@@ -23,7 +23,7 @@
 #include <memory>
 #include <webgpu/webgpu.h>
 
-namespace webgpu_engine {
+namespace webgpu_engine::compute {
 
 template <typename T, std::unsigned_integral HashType = uint16_t> HashType gpu_hash(const T&)
 {
@@ -41,11 +41,11 @@ concept GpuHashable = std::unsigned_integral<HashType> && requires(T a) {
 
 /// Hashmap storing values on the GPU.
 ///
-/// Keys are hashed using static template class member function
+/// Keys are hashed using free template function
 ///
-///     GpuHashFunc::hash(const KeyType&) -> HashType
+///     webgpu_engine::compute::gpu_hash<KeyType, HashType>(const KeyType&) -> HashType
 ///
-/// To add a new type usable as KeyType, you need to add a template specialization for GpuHashFunc::hash.
+/// To add a new type usable as KeyType, you need to add a template specialization for webgpu_engine::compute::gpu_hash.
 ///
 /// KeyType needs to be convertible to GpuKeyType (either through conversion function or converting constructor).
 /// ValueType needs to be convertible to GpuValueType (either through conversion function or converting constructor).
@@ -76,6 +76,10 @@ public:
     /// Clears value at id.
     /// Need to call update_gpu_data for effects to be visible on GPU side.
     void clear(const KeyType& id) { m_stored_map.erase(id); }
+
+    /// Clears all values.
+    /// Need to call update_gpu_data for effects to be visible on GPU side.
+    void clear() { m_stored_map.clear(); }
 
     /// Update GPU buffers.
     void update_gpu_data()
@@ -121,4 +125,4 @@ private:
     std::unique_ptr<raii::RawBuffer<GpuValueType>> m_value_map;
 };
 
-} // namespace webgpu_engine
+} // namespace webgpu_engine::compute

@@ -23,6 +23,7 @@
 #include "camera_config.wgsl"
 #include "encoder.wgsl"
 #include "tile_util.wgsl"
+#include "tile_id.wgsl"
 
 @group(0) @binding(0) var<uniform> config: shared_config;
 
@@ -34,11 +35,16 @@
 @group(2) @binding(3) var ortho_texture: texture_2d_array<f32>;
 @group(2) @binding(4) var ortho_sampler: sampler;
 
+@group(3) @binding(0) var<storage> map_key_buffer: array<TileId>; // hash map key buffer
+@group(3) @binding(1) var<storage> map_value_buffer: array<u32>; // hash map value buffer, contains texture array indices
+@group(3) @binding(2) var overlay_texture: texture_2d_array<f32>; // overlay tiles
+
 struct VertexIn {
     @location(0) bounds: vec4f,
     @location(1) texture_layer: i32,
     @location(2) tileset_id: i32,
     @location(3) tileset_zoomlevel: i32,
+    @location(4) tile_id: vec4<u32>,
 }
 
 struct VertexOut {
@@ -48,6 +54,7 @@ struct VertexOut {
     @location(2) normal: vec3f,
     @location(3) @interpolate(flat) texture_layer: i32,
     @location(4) color: vec3f,
+    @location(5) @interpolate(flat) tile_id: vec3<u32>,
 }
 
 struct FragOut {
@@ -160,7 +167,7 @@ fn vertexMain(@builtin(vertex_index) vertex_index: u32, vertex_in: VertexIn) -> 
         vertex_color = color_from_id_hash(u32(vertex_index));
     }
     vertex_out.color = vertex_color;
-
+    vertex_out.tile_id = vertex_in.tile_id.xyz;
     return vertex_out;
 }
 
@@ -186,6 +193,27 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
         var overlay_color = vec3f(0.0);
         if (config.overlay_mode == 1) {
             overlay_color = normal * 0.5 + 0.5;
+        } else if (config.overlay_mode == 99) { // compute overlay
+            //TODO we should probably write overlay color into a separate gbuffer texture and do blending in compose shader (?) 
+            
+            // find correct hash for tile id
+            var tile_id = TileId(vertex_out.tile_id.x, vertex_out.tile_id.y, vertex_out.tile_id.z, 4294967295u);
+            var hash = hash_tile_id(tile_id);
+            while(!tile_ids_equal(map_key_buffer[hash], tile_id) && !tile_id_empty(map_key_buffer[hash])) {
+                hash++;
+            }
+            let was_found = !tile_id_empty(map_key_buffer[hash]);
+
+            // textureSample needs to happen in uniform control flow
+            // therefore: if texture was found, sample correct texture array index, otherwise sample from texture 0
+            let overlay_texture_index = select(0, map_value_buffer[hash], was_found);
+            let sampled_overlay_color = textureSample(overlay_texture, ortho_sampler, vertex_out.uv, overlay_texture_index).rgb;
+            
+            if (was_found) {
+                overlay_color = sampled_overlay_color;
+            } else {
+                overlay_color = albedo; //kind of ugly
+            }
         } else {
             overlay_color = vertex_out.color;
         }
