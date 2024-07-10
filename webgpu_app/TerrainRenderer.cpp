@@ -116,7 +116,8 @@ void TerrainRenderer::render() {
 
     // ToDo: Check if repaint is necessary
     if (m_webgpu_window->needs_redraw() || m_force_repaint) {
-        m_webgpu_window->paint(m_backbuffer_color_texture_view->handle(), m_backbuffer_depth_texture_view->handle(), encoder);
+        m_webgpu_window->paint(m_framebuffer->color_texture_view(0).handle(), m_framebuffer->depth_texture_view().handle(), encoder);
+        // m_webgpu_window->paint(m_backbuffer_color_texture_view->handle(), m_backbuffer_depth_texture_view->handle(), encoder);
         m_repaint_count++;
     }
 
@@ -232,7 +233,7 @@ void TerrainRenderer::start() {
         std::vector<const webgpu_engine::raii::BindGroupLayout*> { m_gui_bind_group_layout.get() });
 
     m_gui_bind_group = std::make_unique<webgpu_engine::raii::BindGroup>(m_device, *m_gui_bind_group_layout.get(),
-        std::initializer_list<WGPUBindGroupEntry> { m_backbuffer_color_texture_view->create_bind_group_entry(0), m_gui_ubo->create_bind_group_entry(1) });
+        std::initializer_list<WGPUBindGroupEntry> { m_framebuffer->color_texture_view(0).create_bind_group_entry(0), m_gui_ubo->create_bind_group_entry(1) });
 
     glfwSetWindowSize(m_window, m_viewport_size.x, m_viewport_size.y);
 
@@ -284,57 +285,14 @@ void TerrainRenderer::create_framebuffer(uint32_t width, uint32_t height)
 {
     qDebug() << "creating framebuffer textures for size " << width << "x" << height;
 
-    // Create the color texture for the backbuffer
-    WGPUTextureDescriptor color_texture_desc {};
-    color_texture_desc.label = "backbuffer color texture";
-    color_texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
-    color_texture_desc.format = m_swapchain_format;
-    color_texture_desc.mipLevelCount = 1;
-    color_texture_desc.sampleCount = 1;
-    color_texture_desc.size = { width, height, 1 };
-    color_texture_desc.usage = WGPUTextureUsage::WGPUTextureUsage_RenderAttachment | WGPUTextureUsage::WGPUTextureUsage_TextureBinding;
-    color_texture_desc.viewFormatCount = 1;
-    color_texture_desc.viewFormats = &m_swapchain_format;
-    m_backbuffer_color_texture = std::make_unique<webgpu_engine::raii::Texture>(m_device, color_texture_desc);
-
-    WGPUTextureViewDescriptor color_view_desc {};
-    color_view_desc.aspect = WGPUTextureAspect::WGPUTextureAspect_All;
-    color_view_desc.arrayLayerCount = 1;
-    color_view_desc.baseArrayLayer = 0;
-    color_view_desc.mipLevelCount = 1;
-    color_view_desc.baseMipLevel = 0;
-    color_view_desc.dimension = WGPUTextureViewDimension::WGPUTextureViewDimension_2D;
-    color_view_desc.format = color_texture_desc.format;
-    m_backbuffer_color_texture_view = m_backbuffer_color_texture->create_view(color_view_desc);
+    webgpu_engine::FramebufferFormat format { .size = { width, height }, .depth_format = m_depth_texture_format, .color_formats = { m_swapchain_format } };
+    m_framebuffer = std::make_unique<webgpu_engine::Framebuffer>(m_device, format);
 
     if (m_gui_bind_group) {
         m_gui_bind_group = std::make_unique<webgpu_engine::raii::BindGroup>(m_device, *m_gui_bind_group_layout.get(),
-            std::initializer_list<WGPUBindGroupEntry> { m_backbuffer_color_texture_view->create_bind_group_entry(0), m_gui_ubo->create_bind_group_entry(1) });
+            std::initializer_list<WGPUBindGroupEntry> {
+                m_framebuffer->color_texture_view(0).create_bind_group_entry(0), m_gui_ubo->create_bind_group_entry(1) });
     }
-
-    // Create the depth texture for the backbuffer
-    WGPUTextureFormat depth_format = m_depth_texture_format;
-    WGPUTextureDescriptor depth_texture_desc {};
-    depth_texture_desc.label = "backbuffer depth texture";
-    depth_texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
-    depth_texture_desc.format = depth_format;
-    depth_texture_desc.mipLevelCount = 1;
-    depth_texture_desc.sampleCount = 1;
-    depth_texture_desc.size = { width, height, 1 };
-    depth_texture_desc.usage = WGPUTextureUsage::WGPUTextureUsage_RenderAttachment;
-    depth_texture_desc.viewFormatCount = 1;
-    depth_texture_desc.viewFormats = &depth_format;
-    m_backbuffer_depth_texture = std::make_unique<webgpu_engine::raii::Texture>(m_device, depth_texture_desc);
-
-    WGPUTextureViewDescriptor depth_view_desc {};
-    depth_view_desc.aspect = WGPUTextureAspect::WGPUTextureAspect_DepthOnly;
-    depth_view_desc.arrayLayerCount = 1;
-    depth_view_desc.baseArrayLayer = 0;
-    depth_view_desc.mipLevelCount = 1;
-    depth_view_desc.baseMipLevel = 0;
-    depth_view_desc.dimension = WGPUTextureViewDimension::WGPUTextureViewDimension_2D;
-    depth_view_desc.format = depth_texture_desc.format;
-    m_backbuffer_depth_texture_view = m_backbuffer_depth_texture->create_view(depth_view_desc);
 
     if (m_gui_ubo) {
         m_gui_ubo_data.resolution = glm::vec2(m_viewport_size);

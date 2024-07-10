@@ -74,12 +74,7 @@ private:
     bool m_initialized = false;
     GuiPipelineUBO m_gui_ubo_data = { glm::vec2(1280.0, 1024.0) };
 
-    // ToDo: Use framebuffer object instead of individual textures
-    // std::unique_ptr<webgpu_engine::Framebuffer> m_framebuffer;
-    std::unique_ptr<webgpu_engine::raii::Texture> m_backbuffer_color_texture;
-    std::unique_ptr<webgpu_engine::raii::TextureView> m_backbuffer_color_texture_view;
-    std::unique_ptr<webgpu_engine::raii::Texture> m_backbuffer_depth_texture;
-    std::unique_ptr<webgpu_engine::raii::TextureView> m_backbuffer_depth_texture_view;
+    std::unique_ptr<webgpu_engine::Framebuffer> m_framebuffer;
     void create_framebuffer(uint32_t width, uint32_t height);
     void create_swapchain(uint32_t width, uint32_t height);
 

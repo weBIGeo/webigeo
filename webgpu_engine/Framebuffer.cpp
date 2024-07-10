@@ -105,6 +105,18 @@ const raii::Texture& Framebuffer::color_texture(size_t index)
     return *m_color_textures.at(index);
 }
 
+const raii::TextureView& Framebuffer::depth_texture_view()
+{
+    assert(m_depth_texture_view);
+    return *m_depth_texture_view.get();
+}
+
+const raii::Texture& Framebuffer::depth_texture()
+{
+    assert(m_depth_texture);
+    return *m_depth_texture.get();
+}
+
 std::unique_ptr<raii::RenderPassEncoder> Framebuffer::begin_render_pass(WGPUCommandEncoder encoder)
 {
     std::vector<WGPURenderPassColorAttachment> render_pass_color_attachments;

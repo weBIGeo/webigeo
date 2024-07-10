@@ -26,6 +26,7 @@
 
 void GuiManager::init(GLFWwindow* window, WGPUDevice device, WGPUTextureFormat swapchainFormat, WGPUTextureFormat depthTextureFormat)
 {
+    qDebug() << "Setup GuiManager...";
     m_window = window;
     m_device = device;
 
