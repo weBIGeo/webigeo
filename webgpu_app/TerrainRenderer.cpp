@@ -116,7 +116,7 @@ void TerrainRenderer::render() {
 
     // ToDo: Check if repaint is necessary
     if (m_webgpu_window->needs_redraw() || m_force_repaint) {
-        m_webgpu_window->paint(m_framebuffer->color_texture_view(0).handle(), m_framebuffer->depth_texture_view().handle(), encoder);
+        m_webgpu_window->paint(m_framebuffer.get(), encoder);
         // m_webgpu_window->paint(m_backbuffer_color_texture_view->handle(), m_backbuffer_depth_texture_view->handle(), encoder);
         m_repaint_count++;
     }

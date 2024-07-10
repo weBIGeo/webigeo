@@ -28,9 +28,6 @@
 #include "nucleus/camera/Controller.h"
 #include "nucleus/utils/ColourTexture.h"
 #include "raii/BindGroup.h"
-#include "raii/Sampler.h"
-#include "raii/Texture.h"
-#include "raii/TextureView.h"
 #include <webgpu/webgpu.h>
 
 class QOpenGLFramebufferObject;
@@ -47,7 +44,8 @@ public:
     void set_wgpu_context(WGPUInstance instance, WGPUDevice device, WGPUAdapter adapter, WGPUSurface surface, WGPUQueue queue);
     void initialise_gpu() override;
     void resize_framebuffer(int w, int h) override;
-    void paint(WGPUTextureView target_color_texture, WGPUTextureView target_depth_texture, WGPUCommandEncoder encoder);
+    void paint(Framebuffer* framebuffer, WGPUCommandEncoder encoder);
+    // void paint(WGPUTextureView target_color_texture, WGPUTextureView target_depth_texture, WGPUCommandEncoder encoder);
     void paint([[maybe_unused]] QOpenGLFramebufferObject* framebuffer = nullptr) override { throw std::runtime_error("Not implemented"); }
 
     [[nodiscard]] float depth(const glm::dvec2& normalised_device_coordinates) override;

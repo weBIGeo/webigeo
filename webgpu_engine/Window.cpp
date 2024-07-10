@@ -101,7 +101,7 @@ std::unique_ptr<raii::RenderPassEncoder> begin_render_pass(WGPUCommandEncoder en
     return std::make_unique<raii::RenderPassEncoder>(encoder, color_attachment, depth_attachment);
 }
 
-void Window::paint(WGPUTextureView target_color_texture, WGPUTextureView target_depth_texture, WGPUCommandEncoder encoder)
+void Window::paint(Framebuffer* framebuffer, WGPUCommandEncoder encoder)
 {
     // Painting logic here, using the optional framebuffer parameter which is currently unused
 
@@ -134,14 +134,14 @@ void Window::paint(WGPUTextureView target_color_texture, WGPUTextureView target_
         m_tile_manager->draw(render_pass->handle(), m_camera, tile_set, true, m_camera.position());
     }
 
-    // render geometry buffers to target textures
+    // render geometry buffers to target framebuffer
     {
-        raii::RenderPassEncoder render_pass(encoder, target_color_texture, target_depth_texture);
-        wgpuRenderPassEncoderSetPipeline(render_pass.handle(), m_pipeline_manager->compose_pipeline().pipeline().handle());
-        wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 0, m_shared_config_bind_group->handle(), 0, nullptr);
-        wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 1, m_camera_bind_group->handle(), 0, nullptr);
-        wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 2, m_compose_bind_group->handle(), 0, nullptr);
-        wgpuRenderPassEncoderDraw(render_pass.handle(), 3, 1, 0, 0);
+        std::unique_ptr<raii::RenderPassEncoder> render_pass = framebuffer->begin_render_pass(encoder);
+        wgpuRenderPassEncoderSetPipeline(render_pass->handle(), m_pipeline_manager->compose_pipeline().pipeline().handle());
+        wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 0, m_shared_config_bind_group->handle(), 0, nullptr);
+        wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 1, m_camera_bind_group->handle(), 0, nullptr);
+        wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 2, m_compose_bind_group->handle(), 0, nullptr);
+        wgpuRenderPassEncoderDraw(render_pass->handle(), 3, 1, 0, 0);
     }
 
     m_needs_redraw = false;
