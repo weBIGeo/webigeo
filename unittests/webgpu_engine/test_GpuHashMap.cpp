@@ -18,7 +18,7 @@
 
 #include "UnittestWebgpuContext.h"
 #include "webgpu_engine/compute/GpuHashMap.h"
-#include "webgpu_engine/compute/GpuTileStorage.h"
+#include "webgpu_engine/compute/GpuTileId.h"
 #include <catch2/catch_test_macros.hpp>
 
 TEST_CASE("webgpu hash map")

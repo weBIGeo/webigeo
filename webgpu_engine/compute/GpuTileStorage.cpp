@@ -23,19 +23,6 @@
 
 namespace webgpu_engine {
 
-GpuTileId::GpuTileId(uint32_t x, uint32_t y, uint32_t zoomlevel)
-    : x { x }
-    , y { y }
-    , zoomlevel { zoomlevel }
-{
-}
-
-GpuTileId::GpuTileId(const tile::Id& tile_id)
-    : x { tile_id.coords.x }
-    , y { tile_id.coords.y }
-    , zoomlevel { tile_id.zoom_level }
-{
-}
 TileStorageTexture::TileStorageTexture(WGPUDevice device, const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format, WGPUTextureUsageFlags usage)
     : m_device { device }
     , m_queue { wgpuDeviceGetQueue(device) }
@@ -144,61 +131,6 @@ void TileStorageTexture::set_layer_used(size_t layer)
         m_num_stored++;
         m_layers_used[layer] = true;
     }
-}
-
-TextureArrayComputeTileStorage::TextureArrayComputeTileStorage(
-    WGPUDevice device, const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format, WGPUTextureUsageFlags usage)
-    : m_device { device }
-    , m_queue { wgpuDeviceGetQueue(device) }
-    , m_resolution { resolution }
-    , m_capacity { capacity }
-{
-    m_tile_storage_texture = std::make_unique<TileStorageTexture>(m_device, m_resolution, m_capacity, format, usage);
-
-    m_tile_ids = std::make_unique<raii::RawBuffer<GpuTileId>>(
-        m_device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst, uint32_t(m_capacity), "compute tile storage tile id buffer");
-
-    m_layer_index_to_tile_id.clear();
-    m_layer_index_to_tile_id.resize(m_capacity, tile::Id { unsigned(-1), {} });
-}
-
-void TextureArrayComputeTileStorage::init() { }
-
-void TextureArrayComputeTileStorage::store(const tile::Id& id, std::shared_ptr<QByteArray> data)
-{
-    // already contained, return
-    if (std::find(m_layer_index_to_tile_id.begin(), m_layer_index_to_tile_id.end(), id) != m_layer_index_to_tile_id.end()) {
-        return;
-    }
-
-    size_t layer_index = m_tile_storage_texture->store(*data);
-
-    m_layer_index_to_tile_id[layer_index] = id;
-    GpuTileId gpu_tile_id = { id.coords.x, id.coords.y, id.zoom_level };
-    m_tile_ids->write(m_queue, &gpu_tile_id, 1, layer_index);
-}
-
-void TextureArrayComputeTileStorage::clear(const tile::Id& id)
-{
-    auto found = std::find(m_layer_index_to_tile_id.begin(), m_layer_index_to_tile_id.end(), id);
-    if (found != m_layer_index_to_tile_id.end()) {
-        *found = tile::Id { unsigned(-1), {} };
-        m_tile_storage_texture->clear(found - m_layer_index_to_tile_id.begin());
-    }
-}
-
-void TextureArrayComputeTileStorage::read_back_async(size_t layer_index, raii::Texture::ReadBackCallback callback)
-{
-    m_tile_storage_texture->texture().texture().read_back_async(m_device, layer_index, callback);
-}
-
-std::vector<WGPUBindGroupEntry> TextureArrayComputeTileStorage::create_bind_group_entries(const std::vector<uint32_t>& bindings) const
-{
-    assert(bindings.size() == 1 || bindings.size() == 2);
-    if (bindings.size() == 1) {
-        return { m_tile_storage_texture->texture().texture_view().create_bind_group_entry(bindings.at(0)) };
-    }
-    return { m_tile_storage_texture->texture().texture_view().create_bind_group_entry(bindings.at(0)), m_tile_ids->create_bind_group_entry(bindings.at(1)) };
 }
 
 } // namespace webgpu_engine

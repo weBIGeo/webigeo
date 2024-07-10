@@ -19,6 +19,7 @@
 #pragma once
 
 #include "GpuHashMap.h"
+#include "GpuTileId.h"
 #include "GpuTileStorage.h"
 #include "nucleus/tile_scheduler/TileLoadService.h"
 #include "radix/tile.h"

@@ -18,7 +18,8 @@
 
 #include "nodes.h"
 #include "nucleus/srs.h"
-#include "webgpu_engine/compute.h"
+#include "webgpu_engine/compute/RectangularTileRegion.h"
+#include <QDebug>
 #include <QEventLoop>
 #include <unordered_set>
 

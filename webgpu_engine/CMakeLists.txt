@@ -44,8 +44,9 @@ set(SOURCES
     util/VertexFormat.h
     compute/GpuHashMap.h compute/GpuHashMap.cpp
     compute/GpuTileStorage.h compute/GpuTileStorage.cpp
-    compute.h compute.cpp
     compute/nodes.h compute/nodes.cpp
+    compute/GpuTileId.h compute/GpuTileId.cpp
+    compute/RectangularTileRegion.h compute/RectangularTileRegion.cpp
 )
 
 qt_add_library(webgpu_engine STATIC ${SOURCES})

@@ -22,7 +22,6 @@
 #include "ShaderModuleManager.h"
 #include "TileManager.h"
 #include "UniformBufferObjects.h"
-#include "compute.h"
 #include "compute/nodes.h"
 #include "nucleus/AbstractRenderWindow.h"
 #include "nucleus/camera/AbstractDepthTester.h"
