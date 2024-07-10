@@ -120,9 +120,8 @@ void TerrainRenderer::render() {
         m_repaint_count++;
     }
 
-    // ToDo: Draw the backbuffer to the swapchain texture and draw GUI
     {
-        webgpu_engine::raii::RenderPassEncoder render_pass(encoder, swapchain_texture, m_depth_texture_view->handle());
+        webgpu_engine::raii::RenderPassEncoder render_pass(encoder, swapchain_texture, nullptr);
         wgpuRenderPassEncoderSetPipeline(render_pass.handle(), m_gui_pipeline.get()->pipeline().handle());
         wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 0, m_gui_bind_group->handle(), 0, nullptr);
         wgpuRenderPassEncoderDraw(render_pass.handle(), 3, 1, 0, 0);
@@ -176,7 +175,6 @@ void TerrainRenderer::start() {
     m_gui_ubo->write(m_queue, &m_gui_ubo_data);
 
     webgpu_engine::FramebufferFormat format {};
-    format.depth_format = WGPUTextureFormat_Depth24Plus; // ImGUI needs attached depth buffer
     format.color_formats.emplace_back(m_swapchain_format);
 
     WGPUBindGroupLayoutEntry backbuffer_texture_entry {};
@@ -240,7 +238,7 @@ void TerrainRenderer::start() {
 
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     m_gui_manager = std::make_unique<GuiManager>(m_webgpu_window.get());
-    m_gui_manager->init(m_window, m_device, m_swapchain_format, m_depth_texture_format);
+    m_gui_manager->init(m_window, m_device, m_swapchain_format, WGPUTextureFormat_Undefined);
 #endif
 
     m_initialized = true;
@@ -337,30 +335,6 @@ void TerrainRenderer::create_framebuffer(uint32_t width, uint32_t height)
     depth_view_desc.dimension = WGPUTextureViewDimension::WGPUTextureViewDimension_2D;
     depth_view_desc.format = depth_texture_desc.format;
     m_backbuffer_depth_texture_view = m_backbuffer_depth_texture->create_view(depth_view_desc);
-
-    // ToDo: Depth Texture for swapchain should not be necessary
-    WGPUTextureFormat format = m_depth_texture_format;
-    WGPUTextureDescriptor texture_desc {};
-    texture_desc.label = "depth texture";
-    texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
-    texture_desc.format = m_depth_texture_format;
-    texture_desc.mipLevelCount = 1;
-    texture_desc.sampleCount = 1;
-    texture_desc.size = { width, height, 1 };
-    texture_desc.usage = WGPUTextureUsage::WGPUTextureUsage_RenderAttachment;
-    texture_desc.viewFormatCount = 1;
-    texture_desc.viewFormats = &format;
-    m_depth_texture = std::make_unique<webgpu_engine::raii::Texture>(m_device, texture_desc);
-
-    WGPUTextureViewDescriptor view_desc {};
-    view_desc.aspect = WGPUTextureAspect::WGPUTextureAspect_DepthOnly;
-    view_desc.arrayLayerCount = 1;
-    view_desc.baseArrayLayer = 0;
-    view_desc.mipLevelCount = 1;
-    view_desc.baseMipLevel = 0;
-    view_desc.dimension = WGPUTextureViewDimension::WGPUTextureViewDimension_2D;
-    view_desc.format = texture_desc.format;
-    m_depth_texture_view = m_depth_texture->create_view(view_desc);
 
     if (m_gui_ubo) {
         m_gui_ubo_data.resolution = glm::vec2(m_viewport_size);

@@ -31,21 +31,24 @@ WGPURenderPassDescriptor RenderPassEncoder::create_render_pass_descriptor(WGPUTe
     m_color_attachment.clearValue = WGPUColor { 0.0, 0.0, 0.0, 0.0 };
     m_color_attachment.depthSlice = -1;
 
-    m_depth_stencil_attachment = {};
-    m_depth_stencil_attachment.view = depth_attachment;
-    m_depth_stencil_attachment.depthClearValue = 1.0f;
-    m_depth_stencil_attachment.depthLoadOp = WGPULoadOp::WGPULoadOp_Clear;
-    m_depth_stencil_attachment.depthStoreOp = WGPUStoreOp::WGPUStoreOp_Store;
-    m_depth_stencil_attachment.depthReadOnly = false;
-    m_depth_stencil_attachment.stencilClearValue = 0;
-    m_depth_stencil_attachment.stencilLoadOp = WGPULoadOp::WGPULoadOp_Undefined;
-    m_depth_stencil_attachment.stencilStoreOp = WGPUStoreOp::WGPUStoreOp_Undefined;
-    m_depth_stencil_attachment.stencilReadOnly = true;
-
     WGPURenderPassDescriptor render_pass_desc {};
     render_pass_desc.colorAttachmentCount = 1;
     render_pass_desc.colorAttachments = &m_color_attachment;
-    render_pass_desc.depthStencilAttachment = &m_depth_stencil_attachment;
+
+    if (depth_attachment != nullptr) {
+        m_depth_stencil_attachment = {};
+        m_depth_stencil_attachment.view = depth_attachment;
+        m_depth_stencil_attachment.depthClearValue = 1.0f;
+        m_depth_stencil_attachment.depthLoadOp = WGPULoadOp::WGPULoadOp_Clear;
+        m_depth_stencil_attachment.depthStoreOp = WGPUStoreOp::WGPUStoreOp_Store;
+        m_depth_stencil_attachment.depthReadOnly = false;
+        m_depth_stencil_attachment.stencilClearValue = 0;
+        m_depth_stencil_attachment.stencilLoadOp = WGPULoadOp::WGPULoadOp_Undefined;
+        m_depth_stencil_attachment.stencilStoreOp = WGPUStoreOp::WGPUStoreOp_Undefined;
+        m_depth_stencil_attachment.stencilReadOnly = true;
+        render_pass_desc.depthStencilAttachment = &m_depth_stencil_attachment;
+    }
+
     render_pass_desc.timestampWrites = nullptr;
 
     return render_pass_desc;
