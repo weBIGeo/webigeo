@@ -22,7 +22,7 @@
 
 #include "nucleus/camera/Definition.h"
 #include "nucleus/utils/terrain_mesh_index_generator.h"
-
+#include "webgpu_engine/compute/nodes/NormalComputeNode.h"
 #include <QDebug>
 
 using webgpu_engine::TileManager;
@@ -39,7 +39,7 @@ TileManager::TileManager(QObject* parent)
 {
 }
 
-void TileManager::init(WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager, const compute::NodeGraph& compute_graph)
+void TileManager::init(WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager, const compute::nodes::NodeGraph& compute_graph)
 {
     m_renderer = std::make_unique<TileRendererInstancedSingleArrayMultiCall>(device, queue, pipeline_manager, compute_graph);
     // m_renderer = std::make_unique<TileRendererInstancedSingleArray>(device, queue, pipeline_manager);
@@ -287,7 +287,7 @@ void TileRendererInstancedSingleArray::draw(
 }
 
 TileRendererInstancedSingleArrayMultiCall::TileRendererInstancedSingleArrayMultiCall(
-    WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager, const compute::NodeGraph& compute_graph)
+    WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager, const compute::nodes::NodeGraph& compute_graph)
     : m_device { device }
     , m_queue { queue }
     , m_pipeline_manager { &pipeline_manager }
@@ -299,7 +299,7 @@ TileRendererInstancedSingleArrayMultiCall::TileRendererInstancedSingleArrayMulti
 }
 
 TileRendererInstancedSingleArrayMultiCall::TileRendererInstancedSingleArrayMultiCall(
-    WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager, const compute::NodeGraph& compute_graph, size_t num_layers_per_texture)
+    WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager, const compute::nodes::NodeGraph& compute_graph, size_t num_layers_per_texture)
     : m_device { device }
     , m_queue { queue }
     , m_pipeline_manager { &pipeline_manager }
@@ -388,7 +388,7 @@ void TileRendererInstancedSingleArrayMultiCall::init(glm::uvec2 height_resolutio
             "tile bind group"));
     }
 
-    const compute::NormalComputeNode& normal_compute_node = static_cast<const compute::NormalComputeNode&>(m_compute_graph->get_node(3));
+    const compute::nodes::NormalComputeNode& normal_compute_node = static_cast<const compute::nodes::NormalComputeNode&>(m_compute_graph->get_node(3));
 
     WGPUBindGroupEntry input_hash_map_key_buffer_entry = normal_compute_node.hash_map().key_buffer().create_bind_group_entry(0);
     WGPUBindGroupEntry input_hash_map_value_buffer_entry = normal_compute_node.hash_map().value_buffer().create_bind_group_entry(1);

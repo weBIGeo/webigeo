@@ -44,9 +44,15 @@ set(SOURCES
     util/VertexFormat.h
     compute/GpuHashMap.h compute/GpuHashMap.cpp
     compute/GpuTileStorage.h compute/GpuTileStorage.cpp
-    compute/nodes.h compute/nodes.cpp
     compute/GpuTileId.h compute/GpuTileId.cpp
     compute/RectangularTileRegion.h compute/RectangularTileRegion.cpp
+    compute/nodes/Node.h compute/nodes/Node.cpp
+    compute/nodes/TileSelectNode.h compute/nodes/TileSelectNode.cpp
+    compute/nodes/TileRequestNode.h compute/nodes/TileRequestNode.cpp
+    compute/nodes/CreateHashMapNode.h compute/nodes/CreateHashMapNode.cpp
+    compute/nodes/NormalComputeNode.h compute/nodes/NormalComputeNode.cpp
+    compute/nodes/DownsampleComputeNode.h compute/nodes/DownsampleComputeNode.cpp
+    compute/nodes/NodeGraph.h compute/nodes/NodeGraph.cpp
 )
 
 qt_add_library(webgpu_engine STATIC ${SOURCES})
