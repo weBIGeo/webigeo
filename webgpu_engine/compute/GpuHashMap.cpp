@@ -20,9 +20,9 @@
 
 #include "nucleus/srs.h"
 
-namespace webgpu_engine {
+namespace webgpu_engine::compute {
 
 // explicit template specialization for hashing tile::Id and returning uint16_t hashes
 template <> uint16_t gpu_hash<tile::Id, uint16_t>(const tile::Id& id) { return nucleus::srs::hash_uint16(id); }
 
-} // namespace webgpu_engine
+} // namespace webgpu_engine::compute

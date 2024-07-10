@@ -109,7 +109,7 @@ void Window::initialise_gpu()
     m_pipeline_manager->create_pipelines();
     create_bind_groups();
 
-    m_compute_graph = std::make_unique<NodeGraph>();
+    m_compute_graph = std::make_unique<compute::NodeGraph>();
     m_compute_graph->init_test_node_graph(*m_pipeline_manager, m_device);
 
     m_tile_manager->init(m_device, m_queue, *m_pipeline_manager, *m_compute_graph);

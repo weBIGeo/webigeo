@@ -22,7 +22,7 @@
 #include <cstdint>
 #include <limits>
 
-namespace webgpu_engine {
+namespace webgpu_engine::compute {
 
 struct GpuTileId {
     uint32_t x;
@@ -37,4 +37,4 @@ struct GpuTileId {
     bool operator==(const GpuTileId& other) const { return x == other.x && y == other.y && zoomlevel == other.zoomlevel; }
 };
 
-} // namespace webgpu_engine
+} // namespace webgpu_engine::compute

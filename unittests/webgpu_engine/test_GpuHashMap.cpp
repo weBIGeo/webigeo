@@ -41,30 +41,30 @@ TEST_CASE("webgpu hash map")
         tile::Id key2 { 1, { 2, 3 } };
         const HashMapValue value1 { 1 };
         const HashMapValue value2 { 2 };
-        const uint16_t hash1 = webgpu_engine::gpu_hash(key1);
-        const uint16_t hash2 = webgpu_engine::gpu_hash(key2);
+        const uint16_t hash1 = webgpu_engine::compute::gpu_hash(key1);
+        const uint16_t hash2 = webgpu_engine::compute::gpu_hash(key2);
         assert(hash1 != hash2);
 
         // store values in gpu hash map
-        webgpu_engine::GpuHashMap<tile::Id, HashMapValue, GpuTileId> gpu_hash_map(context.device, default_key, default_value);
+        webgpu_engine::compute::GpuHashMap<tile::Id, HashMapValue, compute::GpuTileId> gpu_hash_map(context.device, default_key, default_value);
         gpu_hash_map.store(key1, value1);
         gpu_hash_map.store(key2, value2);
         gpu_hash_map.update_gpu_data();
 
-        std::vector<GpuTileId> ids = gpu_hash_map.key_buffer().read_back_sync(context.device, 1000);
+        std::vector<compute::GpuTileId> ids = gpu_hash_map.key_buffer().read_back_sync(context.device, 1000);
         std::vector<HashMapValue> values = gpu_hash_map.value_buffer().read_back_sync(context.device, 1000);
 
         CHECK(ids.size() == values.size());
         CHECK(ids.size() == std::numeric_limits<uint16_t>::max() + 1);
         for (uint16_t i = 0; i < static_cast<uint16_t>(ids.size()); i++) {
             if (i == hash1) {
-                CHECK(ids[i] == GpuTileId(key1));
+                CHECK(ids[i] == compute::GpuTileId(key1));
                 CHECK(values[i] == value1);
             } else if (i == hash2) {
-                CHECK(ids[i] == GpuTileId(key2));
+                CHECK(ids[i] == compute::GpuTileId(key2));
                 CHECK(values[i] == value2);
             } else {
-                CHECK(ids[i] == GpuTileId(default_key));
+                CHECK(ids[i] == compute::GpuTileId(default_key));
                 CHECK(values[i] == default_value);
             }
         }
@@ -97,11 +97,11 @@ TEST_CASE("webgpu hash map")
         tile::Id key2 { 5, { 20012, 35075 } };
         const HashMapValue value1 { 1 };
         const HashMapValue value2 { 2 };
-        const uint16_t hash1 = webgpu_engine::gpu_hash(key1);
-        assert(hash1 == webgpu_engine::gpu_hash(key2));
+        const uint16_t hash1 = webgpu_engine::compute::gpu_hash(key1);
+        assert(hash1 == webgpu_engine::compute::gpu_hash(key2));
 
         // store values in gpu hash map
-        webgpu_engine::GpuHashMap<tile::Id, HashMapValue> gpu_hash_map(context.device, default_key, default_value);
+        webgpu_engine::compute::GpuHashMap<tile::Id, HashMapValue> gpu_hash_map(context.device, default_key, default_value);
         gpu_hash_map.store(key1, value1);
         gpu_hash_map.store(key2, value2);
         gpu_hash_map.update_gpu_data();

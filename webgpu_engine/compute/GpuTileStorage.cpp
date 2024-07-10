@@ -21,7 +21,7 @@
 #include "nucleus/stb/stb_image_loader.h"
 #include "nucleus/utils/tile_conversion.h"
 
-namespace webgpu_engine {
+namespace webgpu_engine::compute {
 
 TileStorageTexture::TileStorageTexture(WGPUDevice device, const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format, WGPUTextureUsageFlags usage)
     : m_device { device }
@@ -133,4 +133,4 @@ void TileStorageTexture::set_layer_used(size_t layer)
     }
 }
 
-} // namespace webgpu_engine
+} // namespace webgpu_engine::compute

@@ -18,7 +18,7 @@
 
 #include "GpuTileId.h"
 
-namespace webgpu_engine {
+namespace webgpu_engine::compute {
 
 GpuTileId::GpuTileId(uint32_t x, uint32_t y, uint32_t zoomlevel)
     : x { x }
@@ -34,4 +34,4 @@ GpuTileId::GpuTileId(const tile::Id& tile_id)
 {
 }
 
-} // namespace webgpu_engine
+} // namespace webgpu_engine::compute

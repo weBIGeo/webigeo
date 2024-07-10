@@ -23,7 +23,7 @@
 #include <QEventLoop>
 #include <unordered_set>
 
-namespace webgpu_engine {
+namespace webgpu_engine::compute {
 
 Node::Node(const std::vector<DataType>& input_types, const std::vector<DataType>& output_types)
     : input_socket_types(input_types)
@@ -101,7 +101,7 @@ void TileSelectNode::run()
 {
     qDebug() << "running TileSelectNode ..." << Qt::endl;
 
-    webgpu_engine::RectangularTileRegion region { .min = { 8768, 10624 },
+    RectangularTileRegion region { .min = { 8768, 10624 },
         .max = { 8768 + 11, 10624 + 11 }, // inclusive, so this region has 12x12 tiles
         .zoom_level = 14,
         .scheme = tile::Scheme::Tms };
@@ -478,4 +478,4 @@ void NodeGraph::run()
     tile_select_node->run();
 }
 
-} // namespace webgpu_engine
+} // namespace webgpu_engine::compute

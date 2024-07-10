@@ -24,8 +24,6 @@
 
 #include "PipelineManager.h"
 #include "TileSet.h"
-#include "compute/GpuHashMap.h"
-#include "compute/GpuTileStorage.h"
 #include "compute/nodes.h"
 #include "raii/BindGroup.h"
 #include "raii/Buffer.h"
@@ -87,9 +85,10 @@ private:
 class TileRendererInstancedSingleArrayMultiCall : public TileRenderer {
 public:
     // uses device limit for number of array layers
-    TileRendererInstancedSingleArrayMultiCall(WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager, const NodeGraph& compute_graph);
     TileRendererInstancedSingleArrayMultiCall(
-        WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager, const NodeGraph& compute_graph, size_t num_layers_per_texture);
+        WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager, const compute::NodeGraph& compute_graph);
+    TileRendererInstancedSingleArrayMultiCall(
+        WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager, const compute::NodeGraph& compute_graph, size_t num_layers_per_texture);
 
     void init(glm::uvec2 height_resolution, glm::uvec2 ortho_resolution, size_t num_layers, size_t n_edge_vertices) override;
     void write_tile(const nucleus::utils::ColourTexture& ortho_texture, const nucleus::Raster<uint16_t>& height_map, size_t layer) override;
@@ -102,7 +101,7 @@ private:
     std::unique_ptr<raii::RawBuffer<int32_t>> m_tileset_id_buffer;
     std::unique_ptr<raii::RawBuffer<int32_t>> m_zoom_level_buffer;
     std::unique_ptr<raii::RawBuffer<int32_t>> m_texture_layer_buffer;
-    std::unique_ptr<raii::RawBuffer<GpuTileId>> m_tile_id_buffer;
+    std::unique_ptr<raii::RawBuffer<compute::GpuTileId>> m_tile_id_buffer;
     std::unique_ptr<raii::Buffer<int32_t>> m_n_edge_vertices_buffer;
 
     std::vector<std::unique_ptr<raii::TextureWithSampler>> m_ortho_textures;
@@ -114,7 +113,7 @@ private:
     WGPUDevice m_device = 0;
     WGPUQueue m_queue = 0;
     const PipelineManager* m_pipeline_manager;
-    const NodeGraph* m_compute_graph;
+    const compute::NodeGraph* m_compute_graph;
 
     size_t m_num_layers_per_texture;
 };
@@ -123,7 +122,7 @@ class TileManager : public QObject {
     Q_OBJECT
 public:
     explicit TileManager(QObject* parent = nullptr);
-    void init(WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager, const NodeGraph& compute_graph); // needs OpenGL context
+    void init(WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager, const compute::NodeGraph& compute_graph); // needs OpenGL context
     [[nodiscard]] const std::vector<TileSet>& tiles() const;
     void draw(WGPURenderPassEncoder render_pass, const nucleus::camera::Definition& camera,
         const nucleus::tile_scheduler::DrawListGenerator::TileSet& draw_tiles, bool sort_tiles, glm::dvec3 sort_position) const;

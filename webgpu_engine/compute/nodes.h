@@ -30,7 +30,7 @@
 #include <variant>
 #include <vector>
 
-namespace webgpu_engine {
+namespace webgpu_engine::compute {
 
 class Node;
 
@@ -270,4 +270,4 @@ private:
     std::vector<std::unique_ptr<Node>> m_nodes;
 };
 
-} // namespace webgpu_engine
+} // namespace webgpu_engine::compute

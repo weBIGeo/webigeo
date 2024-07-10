@@ -20,7 +20,7 @@
 
 #include "webgpu_engine/raii/TextureWithSampler.h"
 
-namespace webgpu_engine {
+namespace webgpu_engine::compute {
 
 /// Minimal wrapper over texture array for more convenient usage (intended for storing tile textures).
 class TileStorageTexture {
@@ -57,4 +57,4 @@ private:
     std::unique_ptr<raii::TextureWithSampler> m_texture_array;
 };
 
-} // namespace webgpu_engine
+} // namespace webgpu_engine::compute

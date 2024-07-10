@@ -39,7 +39,7 @@ TileManager::TileManager(QObject* parent)
 {
 }
 
-void TileManager::init(WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager, const NodeGraph& compute_graph)
+void TileManager::init(WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager, const compute::NodeGraph& compute_graph)
 {
     m_renderer = std::make_unique<TileRendererInstancedSingleArrayMultiCall>(device, queue, pipeline_manager, compute_graph);
     // m_renderer = std::make_unique<TileRendererInstancedSingleArray>(device, queue, pipeline_manager);
@@ -287,7 +287,7 @@ void TileRendererInstancedSingleArray::draw(
 }
 
 TileRendererInstancedSingleArrayMultiCall::TileRendererInstancedSingleArrayMultiCall(
-    WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager, const NodeGraph& compute_graph)
+    WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager, const compute::NodeGraph& compute_graph)
     : m_device { device }
     , m_queue { queue }
     , m_pipeline_manager { &pipeline_manager }
@@ -299,7 +299,7 @@ TileRendererInstancedSingleArrayMultiCall::TileRendererInstancedSingleArrayMulti
 }
 
 TileRendererInstancedSingleArrayMultiCall::TileRendererInstancedSingleArrayMultiCall(
-    WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager, const NodeGraph& compute_graph, size_t num_layers_per_texture)
+    WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager, const compute::NodeGraph& compute_graph, size_t num_layers_per_texture)
     : m_device { device }
     , m_queue { queue }
     , m_pipeline_manager { &pipeline_manager }
@@ -323,7 +323,7 @@ void TileRendererInstancedSingleArrayMultiCall::init(glm::uvec2 height_resolutio
     m_tileset_id_buffer = std::make_unique<raii::RawBuffer<int32_t>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
     m_zoom_level_buffer = std::make_unique<raii::RawBuffer<int32_t>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
     m_texture_layer_buffer = std::make_unique<raii::RawBuffer<int32_t>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
-    m_tile_id_buffer = std::make_unique<raii::RawBuffer<GpuTileId>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
+    m_tile_id_buffer = std::make_unique<raii::RawBuffer<compute::GpuTileId>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
     m_n_edge_vertices_buffer = std::make_unique<raii::Buffer<int32_t>>(m_device, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst);
     m_n_edge_vertices_buffer->data = int(n_edge_vertices);
     m_n_edge_vertices_buffer->update_gpu_data(m_queue);
@@ -388,7 +388,7 @@ void TileRendererInstancedSingleArrayMultiCall::init(glm::uvec2 height_resolutio
             "tile bind group"));
     }
 
-    const NormalComputeNode& normal_compute_node = static_cast<const NormalComputeNode&>(m_compute_graph->get_node(3));
+    const compute::NormalComputeNode& normal_compute_node = static_cast<const compute::NormalComputeNode&>(m_compute_graph->get_node(3));
 
     WGPUBindGroupEntry input_hash_map_key_buffer_entry = normal_compute_node.hash_map().key_buffer().create_bind_group_entry(0);
     WGPUBindGroupEntry input_hash_map_value_buffer_entry = normal_compute_node.hash_map().value_buffer().create_bind_group_entry(1);
@@ -431,7 +431,7 @@ void TileRendererInstancedSingleArrayMultiCall::draw(
     std::vector<int32_t> texture_layer;
     texture_layer.reserve(ordered_tile_set_pairs.size());
 
-    std::vector<GpuTileId> tile_ids;
+    std::vector<compute::GpuTileId> tile_ids;
     tile_ids.reserve(ordered_tile_set_pairs.size());
 
     for (const auto& tileset : ordered_tile_set_pairs) {
@@ -440,7 +440,7 @@ void TileRendererInstancedSingleArrayMultiCall::draw(
         tileset_id.emplace_back(tileset.second->tile_id.coords[0] + tileset.second->tile_id.coords[1]);
         zoom_level.emplace_back(tileset.second->tile_id.zoom_level);
         texture_layer.emplace_back(tileset.second->texture_layer % m_num_layers_per_texture);
-        tile_ids.emplace_back(GpuTileId(tileset.second->tile_id));
+        tile_ids.emplace_back(compute::GpuTileId(tileset.second->tile_id));
     }
 
     // write updated vertex buffers

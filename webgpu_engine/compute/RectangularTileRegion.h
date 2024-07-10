@@ -21,7 +21,7 @@
 #include "radix/tile.h"
 #include <vector>
 
-namespace webgpu_engine {
+namespace webgpu_engine::compute {
 
 struct RectangularTileRegion {
     glm::uvec2 min;
@@ -32,4 +32,4 @@ struct RectangularTileRegion {
     std::vector<tile::Id> get_tiles() const;
 };
 
-} // namespace webgpu_engine
+} // namespace webgpu_engine::compute

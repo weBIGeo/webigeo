@@ -18,7 +18,7 @@
 
 #include "RectangularTileRegion.h"
 
-namespace webgpu_engine {
+namespace webgpu_engine::compute {
 
 std::vector<tile::Id> RectangularTileRegion::get_tiles() const
 {
@@ -34,4 +34,4 @@ std::vector<tile::Id> RectangularTileRegion::get_tiles() const
     return tiles;
 }
 
-} // namespace webgpu_engine
+} // namespace webgpu_engine::compute

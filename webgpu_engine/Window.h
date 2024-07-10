@@ -145,7 +145,7 @@ private:
     glm::vec2 m_swapchain_size = glm::vec2(0.0f);
     WGPUPresentMode m_swapchain_presentmode = WGPUPresentMode::WGPUPresentMode_Fifo;
 
-    std::unique_ptr<NodeGraph> m_compute_graph;
+    std::unique_ptr<compute::NodeGraph> m_compute_graph;
 };
 
 } // namespace webgpu_engine
