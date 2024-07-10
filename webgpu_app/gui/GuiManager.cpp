@@ -17,6 +17,7 @@
  *****************************************************************************/
 
 #include "GuiManager.h"
+#include "TerrainRenderer.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_wgpu.h"
 #include "webgpu_engine/Window.h"
@@ -57,7 +58,7 @@ void GuiManager::render(WGPURenderPassEncoder renderPass)
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    updateUI();
+    draw();
 
     ImGui::Render();
     ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), renderPass);
@@ -72,16 +73,17 @@ void GuiManager::shutdown()
     ImGui::DestroyContext();
 }
 
-bool GuiManager::wantCaptureKeyboard() { return ImGui::GetIO().WantCaptureKeyboard; }
+bool GuiManager::want_capture_keyboard() { return ImGui::GetIO().WantCaptureKeyboard; }
 
-bool GuiManager::wantCaptureMouse() { return ImGui::GetIO().WantCaptureMouse; }
+bool GuiManager::want_capture_mouse() { return ImGui::GetIO().WantCaptureMouse; }
 
-void GuiManager::updateUI()
+void GuiManager::draw()
 {
     static float frame_time = 0.0f;
     static std::vector<std::pair<int, int>> links;
     static bool first_frame = true;
     static float fpsValues[90] = {}; // Array to store FPS values for the graph, adjust size as needed for the time window
+    static float fpsRepaint[90] = {};
     static int fpsIndex = 0; // Current index in FPS values array
     static float lastTime = 0.0f; // Last time FPS was updated
 
@@ -100,19 +102,16 @@ void GuiManager::updateUI()
 
     // Store the current FPS value in the array
     fpsValues[fpsIndex] = fps;
+    fpsRepaint[fpsIndex] = m_terrain_renderer->prop_repaint_count;
     fpsIndex = (fpsIndex + 1) % IM_ARRAYSIZE(fpsValues); // Loop around the array
 
     frame_time = frame_time * 0.95f + (1000.0f / io.Framerate) * 0.05f;
-    /*
-    static bool vsync_enabled = (m_swapchain_presentmode == WGPUPresentMode::WGPUPresentMode_Fifo);
-    if (ImGui::Checkbox("VSync", &vsync_enabled)) {
-        m_swapchain_presentmode = vsync_enabled ? WGPUPresentMode::WGPUPresentMode_Fifo : WGPUPresentMode::WGPUPresentMode_Immediate;
-        // Recreate swapchain
-        resize_framebuffer(m_swapchain_size.x, m_swapchain_size.y);
-    }*/
+
     ImGui::Text("Average: %.3f ms/frame (%.1f FPS)", frame_time, io.Framerate);
 
-    ImGui::PlotLines("", fpsValues, IM_ARRAYSIZE(fpsValues), fpsIndex, nullptr, 0.0f, 80.0f, ImVec2(280, 100));
+    ImGui::PlotLines("", fpsValues, IM_ARRAYSIZE(fpsValues), fpsIndex, nullptr, 0.0f, 70.0f, ImVec2(280, 80));
+
+    m_terrain_renderer->render_gui();
 
     ImGui::Separator();
 

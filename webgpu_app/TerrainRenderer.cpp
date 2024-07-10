@@ -30,6 +30,7 @@
 #include "nucleus/stb/stb_image_loader.h"
 #endif
 
+#include "imgui.h"
 #include "util/error_logging.h"
 
 static void windowResizeCallback(GLFWwindow* window, int width, int height) {
@@ -39,21 +40,21 @@ static void windowResizeCallback(GLFWwindow* window, int width, int height) {
 
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     auto renderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
-    if (renderer->get_gui_manager()->wantCaptureKeyboard())
+    if (renderer->get_gui_manager()->want_capture_keyboard())
         return;
     renderer->get_input_mapper()->on_key_callback(key, scancode, action, mods);
 }
 
 static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
     auto renderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
-    if (renderer->get_gui_manager()->wantCaptureMouse())
+    if (renderer->get_gui_manager()->want_capture_mouse())
         return;
     renderer->get_input_mapper()->on_cursor_position_callback(xpos, ypos);
 }
 
 static void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
     auto renderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
-    if (renderer->get_gui_manager()->wantCaptureMouse())
+    if (renderer->get_gui_manager()->want_capture_mouse())
         return;
     double xpos, ypos;
     glfwGetCursorPos(window, &xpos, &ypos);
@@ -63,7 +64,7 @@ static void mouse_button_callback(GLFWwindow* window, int button, int action, in
 static void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
     auto renderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
-    if (renderer->get_gui_manager()->wantCaptureMouse())
+    if (renderer->get_gui_manager()->want_capture_mouse())
         return;
     renderer->get_input_mapper()->on_scroll_callback(xoffset, yoffset);
 }
@@ -101,6 +102,19 @@ void TerrainRenderer::init_window() {
 #endif
 }
 
+void TerrainRenderer::render_gui()
+{
+    static bool vsync_enabled = (prop_swapchain_presentmode == WGPUPresentMode::WGPUPresentMode_Fifo);
+    if (ImGui::Checkbox("VSync", &vsync_enabled)) {
+        prop_swapchain_presentmode = vsync_enabled ? WGPUPresentMode::WGPUPresentMode_Fifo : WGPUPresentMode::WGPUPresentMode_Immediate;
+        // Recreate swapchain
+        prop_force_repaint_once = true;
+        this->on_window_resize(m_viewport_size.x, m_viewport_size.y);
+    }
+    ImGui::Checkbox("Repaint each frame", &prop_force_repaint);
+    ImGui::Text("Repaint-Counter: %d", prop_repaint_count);
+}
+
 void TerrainRenderer::render() {
     // Do nothing, this checks for ongoing asynchronous operations and call their callbacks
     glfwPollEvents();
@@ -114,11 +128,11 @@ void TerrainRenderer::render() {
     command_encoder_desc.label = "Command Encoder";
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(m_device, &command_encoder_desc);
 
-    // ToDo: Check if repaint is necessary
-    if (m_webgpu_window->needs_redraw() || m_force_repaint) {
+    prop_frame_count++;
+    if (m_webgpu_window->needs_redraw() || prop_force_repaint || prop_force_repaint_once) {
         m_webgpu_window->paint(m_framebuffer.get(), encoder);
-        // m_webgpu_window->paint(m_backbuffer_color_texture_view->handle(), m_backbuffer_depth_texture_view->handle(), encoder);
-        m_repaint_count++;
+        prop_repaint_count++;
+        prop_force_repaint_once = false;
     }
 
     {
@@ -238,7 +252,7 @@ void TerrainRenderer::start() {
     glfwSetWindowSize(m_window, m_viewport_size.x, m_viewport_size.y);
 
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-    m_gui_manager = std::make_unique<GuiManager>(m_webgpu_window.get());
+    m_gui_manager = std::make_unique<GuiManager>(m_webgpu_window.get(), this);
     m_gui_manager->init(m_window, m_device, m_swapchain_format, WGPUTextureFormat_Undefined);
 #endif
 
@@ -315,7 +329,7 @@ void TerrainRenderer::create_swapchain(uint32_t width, uint32_t height)
     swapchain_desc.height = height;
     swapchain_desc.usage = WGPUTextureUsage::WGPUTextureUsage_RenderAttachment;
     swapchain_desc.format = m_swapchain_format;
-    swapchain_desc.presentMode = m_swapchain_presentmode;
+    swapchain_desc.presentMode = prop_swapchain_presentmode;
     m_swapchain = wgpuDeviceCreateSwapChain(m_device, m_surface, &swapchain_desc);
     qInfo() << "Got swapchain: " << m_swapchain;
 }

@@ -21,6 +21,8 @@
 #include <GLFW/glfw3.h>
 #include <webgpu/webgpu.h>
 
+class TerrainRenderer;
+
 namespace webgpu_engine {
 class Window;
 }
@@ -28,22 +30,24 @@ class Window;
 class GuiManager {
 
 public:
-    GuiManager(webgpu_engine::Window* webgpu_window)
+    GuiManager(webgpu_engine::Window* webgpu_window, TerrainRenderer* terrain_renderer)
         : m_webgpu_window(webgpu_window)
+        , m_terrain_renderer(terrain_renderer)
     {
     }
 
     void init(GLFWwindow* window, WGPUDevice device, WGPUTextureFormat swapchainFormat, WGPUTextureFormat depthTextureFormat);
     void render(WGPURenderPassEncoder renderPass);
     void shutdown();
-    bool wantCaptureKeyboard();
-    bool wantCaptureMouse();
+    bool want_capture_keyboard();
+    bool want_capture_mouse();
 
 private:
     GLFWwindow* m_window;
     WGPUDevice m_device;
     webgpu_engine::Window* m_webgpu_window = nullptr;
+    TerrainRenderer* m_terrain_renderer = nullptr;
     bool m_showNodeEditor = false;
 
-    void updateUI();
+    void draw();
 };
