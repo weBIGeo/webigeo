@@ -113,6 +113,14 @@ void DownsampleComputeNode::run()
 
     // write texture array indices only after downsampling so we dont accidentally access not-yet-written tiles
     hash_map.update_gpu_data();
+
+    wgpuQueueOnSubmittedWorkDone(
+        m_queue,
+        []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
+            DownsampleComputeNode* _this = reinterpret_cast<DownsampleComputeNode*>(user_data);
+            _this->run_finished(); // emits signal run_finished()
+        },
+        this);
 }
 
 Data DownsampleComputeNode::get_output_data_impl(SocketIndex output_index)
