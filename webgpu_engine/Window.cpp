@@ -65,6 +65,7 @@ void Window::initialise_gpu()
 
     m_compute_graph = std::make_unique<compute::nodes::NodeGraph>();
     m_compute_graph->init_test_node_graph(*m_pipeline_manager, m_device);
+    connect(m_compute_graph.get(), &compute::nodes::NodeGraph::run_finished, this, &Window::request_redraw);
 
     m_tile_manager->init(m_device, m_queue, *m_pipeline_manager, *m_compute_graph);
 
@@ -343,6 +344,8 @@ void Window::update_gpu_quads([[maybe_unused]] const std::vector<nucleus::tile_s
     m_tile_manager->update_gpu_quads(new_quads, deleted_quads);
     m_needs_redraw = true;
 }
+
+void Window::request_redraw() { m_needs_redraw = true; }
 
 void Window::create_buffers()
 {
