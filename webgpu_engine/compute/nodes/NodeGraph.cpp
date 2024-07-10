@@ -23,6 +23,7 @@
 #include "NormalComputeNode.h"
 #include "TileRequestNode.h"
 #include "TileSelectNode.h"
+#include <QDebug>
 
 namespace webgpu_engine::compute::nodes {
 
@@ -75,6 +76,7 @@ void NodeGraph::init_test_node_graph(const PipelineManager& manager, WGPUDevice 
 
 void NodeGraph::run()
 {
+    qDebug() << "running node graph ...";
     Node* tile_select_node = m_nodes[0].get();
     tile_select_node->run();
 }

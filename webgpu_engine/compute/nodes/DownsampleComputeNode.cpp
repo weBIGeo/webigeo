@@ -37,7 +37,7 @@ DownsampleComputeNode::DownsampleComputeNode(const PipelineManager& pipeline_man
 
 void DownsampleComputeNode::run()
 {
-    qDebug() << "running DownsampleTilesNode ..." << Qt::endl;
+    qDebug() << "running DownsampleTilesNode ...";
 
     const auto& original_tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(get_input_data(Input::TILE_ID_LIST_TO_PROCESS)); // hash map for lookup
     auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(
@@ -60,7 +60,7 @@ void DownsampleComputeNode::run()
         gpu_tile_ids.emplace_back(tile_id.coords.x, tile_id.coords.y, tile_id.zoom_level);
     });
 
-    qDebug() << "need to calculate " << gpu_tile_ids.size() << " downsampled tiles" << Qt::endl;
+    qDebug() << "need to calculate " << gpu_tile_ids.size() << " downsampled tiles";
     assert(gpu_tile_ids.size() <= m_input_tile_ids.size());
     m_input_tile_ids.write(m_queue, gpu_tile_ids.data(), gpu_tile_ids.size());
 

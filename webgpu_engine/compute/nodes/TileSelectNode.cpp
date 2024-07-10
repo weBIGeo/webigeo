@@ -30,7 +30,7 @@ TileSelectNode::TileSelectNode()
 
 void TileSelectNode::run()
 {
-    qDebug() << "running TileSelectNode ..." << Qt::endl;
+    qDebug() << "running TileSelectNode ...";
 
     RectangularTileRegion region { .min = { 8768, 10624 },
         .max = { 8768 + 11, 10624 + 11 }, // inclusive, so this region has 12x12 tiles

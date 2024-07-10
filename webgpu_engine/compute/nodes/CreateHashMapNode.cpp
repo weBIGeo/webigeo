@@ -35,7 +35,7 @@ CreateHashMapNode::CreateHashMapNode(WGPUDevice device, const glm::uvec2& resolu
 
 void CreateHashMapNode::run()
 {
-    qDebug() << "running ConvertToHashMapNode ..." << Qt::endl;
+    qDebug() << "running ConvertToHashMapNode ...";
 
     // clear hash map and storage texture
     m_output_tile_id_to_index.clear();

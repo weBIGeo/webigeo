@@ -41,7 +41,7 @@ NormalComputeNode::NormalComputeNode(
 
 void NormalComputeNode::run()
 {
-    qDebug() << "running NormalComputeNode ..." << Qt::endl;
+    qDebug() << "running NormalComputeNode ...";
 
     // get tile ids to process
     const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(get_input_data(0)); // list of tile ids to process

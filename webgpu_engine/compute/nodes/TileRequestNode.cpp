@@ -32,7 +32,7 @@ TileRequestNode::TileRequestNode()
 
 void TileRequestNode::run()
 {
-    qDebug() << "running HeightRequestNode ..." << Qt::endl;
+    qDebug() << "running HeightRequestNode ...";
 
     // get tile ids to request
     // TODO maybe make get_input_data a template (so usage would become get_input_data<type>(socket_index))
@@ -43,7 +43,7 @@ void TileRequestNode::run()
     m_requested_tile_ids = tile_ids;
     m_num_tiles_requested = m_received_tile_textures.size();
     m_num_tiles_received = 0;
-    std::cout << "requested " << m_num_tiles_requested << " tiles" << std::endl;
+    qDebug() << "requesting " << m_num_tiles_requested << " tiles ...";
     for (const auto& tile_id : tile_ids) {
         m_tile_loader->load(tile_id);
     }
