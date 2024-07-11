@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "webgpu_engine/raii/TextureWithSampler.h"
+#include <webgpu/raii/TextureWithSampler.h>
 
 namespace webgpu_engine::compute {
 
@@ -40,8 +40,8 @@ public:
     size_t height() const;
     size_t capacity() const;
 
-    raii::TextureWithSampler& texture();
-    const raii::TextureWithSampler& texture() const;
+    webgpu::raii::TextureWithSampler& texture();
+    const webgpu::raii::TextureWithSampler& texture() const;
 
 private:
     size_t find_unused_layer_index() const;
@@ -54,7 +54,7 @@ private:
     size_t m_capacity;
     size_t m_num_stored = 0; // number of stored textures
     std::vector<bool> m_layers_used; // CPU buffer for tracking which layers are currently used
-    std::unique_ptr<raii::TextureWithSampler> m_texture_array;
+    std::unique_ptr<webgpu::raii::TextureWithSampler> m_texture_array;
 };
 
 } // namespace webgpu_engine::compute

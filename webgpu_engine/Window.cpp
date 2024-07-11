@@ -18,7 +18,7 @@
  *****************************************************************************/
 
 #include "Window.h"
-#include "raii/RenderPassEncoder.h"
+#include <webgpu/raii/RenderPassEncoder.h>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
@@ -77,15 +77,15 @@ void Window::resize_framebuffer(int w, int h)
 {
     m_swapchain_size = glm::vec2(w, h);
 
-    m_gbuffer_format = FramebufferFormat(m_pipeline_manager->tile_pipeline().framebuffer_format());
+    m_gbuffer_format = webgpu::FramebufferFormat(m_pipeline_manager->tile_pipeline().framebuffer_format());
     m_gbuffer_format.size = glm::uvec2 { w, h };
-    m_gbuffer = std::make_unique<Framebuffer>(m_device, m_gbuffer_format);
+    m_gbuffer = std::make_unique<webgpu::Framebuffer>(m_device, m_gbuffer_format);
 
-    FramebufferFormat atmosphere_framebuffer_format(m_pipeline_manager->atmosphere_pipeline().framebuffer_format());
+    webgpu::FramebufferFormat atmosphere_framebuffer_format(m_pipeline_manager->atmosphere_pipeline().framebuffer_format());
     atmosphere_framebuffer_format.size = glm::uvec2(1, h);
-    m_atmosphere_framebuffer = std::make_unique<Framebuffer>(m_device, atmosphere_framebuffer_format);
+    m_atmosphere_framebuffer = std::make_unique<webgpu::Framebuffer>(m_device, atmosphere_framebuffer_format);
 
-    m_compose_bind_group = std::make_unique<raii::BindGroup>(m_device, m_pipeline_manager->compose_bind_group_layout(),
+    m_compose_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->compose_bind_group_layout(),
         std::initializer_list<WGPUBindGroupEntry> {
             m_gbuffer->color_texture_view(0).create_bind_group_entry(0), // albedo texture
             m_gbuffer->color_texture_view(1).create_bind_group_entry(1), // position texture
@@ -94,12 +94,13 @@ void Window::resize_framebuffer(int w, int h)
         });
 }
 
-std::unique_ptr<raii::RenderPassEncoder> begin_render_pass(WGPUCommandEncoder encoder, WGPUTextureView color_attachment, WGPUTextureView depth_attachment)
+std::unique_ptr<webgpu::raii::RenderPassEncoder> begin_render_pass(
+    WGPUCommandEncoder encoder, WGPUTextureView color_attachment, WGPUTextureView depth_attachment)
 {
-    return std::make_unique<raii::RenderPassEncoder>(encoder, color_attachment, depth_attachment);
+    return std::make_unique<webgpu::raii::RenderPassEncoder>(encoder, color_attachment, depth_attachment);
 }
 
-void Window::paint(Framebuffer* framebuffer, WGPUCommandEncoder encoder)
+void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder encoder)
 {
     // Painting logic here, using the optional framebuffer parameter which is currently unused
 
@@ -116,7 +117,7 @@ void Window::paint(Framebuffer* framebuffer, WGPUCommandEncoder encoder)
 
     // render atmosphere to color buffer
     {
-        std::unique_ptr<raii::RenderPassEncoder> render_pass = m_atmosphere_framebuffer->begin_render_pass(encoder);
+        std::unique_ptr<webgpu::raii::RenderPassEncoder> render_pass = m_atmosphere_framebuffer->begin_render_pass(encoder);
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 0, m_camera_bind_group->handle(), 0, nullptr);
         wgpuRenderPassEncoderSetPipeline(render_pass->handle(), m_pipeline_manager->atmosphere_pipeline().pipeline().handle());
         wgpuRenderPassEncoderDraw(render_pass->handle(), 3, 1, 0, 0);
@@ -124,7 +125,7 @@ void Window::paint(Framebuffer* framebuffer, WGPUCommandEncoder encoder)
 
     // render tiles to geometry buffers
     {
-        std::unique_ptr<raii::RenderPassEncoder> render_pass = m_gbuffer->begin_render_pass(encoder);
+        std::unique_ptr<webgpu::raii::RenderPassEncoder> render_pass = m_gbuffer->begin_render_pass(encoder);
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 0, m_shared_config_bind_group->handle(), 0, nullptr);
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 1, m_camera_bind_group->handle(), 0, nullptr);
 
@@ -134,7 +135,7 @@ void Window::paint(Framebuffer* framebuffer, WGPUCommandEncoder encoder)
 
     // render geometry buffers to target framebuffer
     {
-        std::unique_ptr<raii::RenderPassEncoder> render_pass = framebuffer->begin_render_pass(encoder);
+        std::unique_ptr<webgpu::raii::RenderPassEncoder> render_pass = framebuffer->begin_render_pass(encoder);
         wgpuRenderPassEncoderSetPipeline(render_pass->handle(), m_pipeline_manager->compose_pipeline().pipeline().handle());
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 0, m_shared_config_bind_group->handle(), 0, nullptr);
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 1, m_camera_bind_group->handle(), 0, nullptr);
@@ -350,19 +351,19 @@ void Window::request_redraw() { m_needs_redraw = true; }
 void Window::create_buffers()
 {
     m_shared_config_ubo
-        = std::make_unique<raii::Buffer<uboSharedConfig>>(m_device, WGPUBufferUsage::WGPUBufferUsage_CopyDst | WGPUBufferUsage::WGPUBufferUsage_Uniform);
+        = std::make_unique<Buffer<uboSharedConfig>>(m_device, WGPUBufferUsage::WGPUBufferUsage_CopyDst | WGPUBufferUsage::WGPUBufferUsage_Uniform);
     m_camera_config_ubo
-        = std::make_unique<raii::Buffer<uboCameraConfig>>(m_device, WGPUBufferUsage::WGPUBufferUsage_CopyDst | WGPUBufferUsage::WGPUBufferUsage_Uniform);
-    m_position_readback_buffer
-        = std::make_unique<raii::RawBuffer<glm::vec4>>(m_device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead, 256 / sizeof(glm::vec4), "position readback buffer");
+        = std::make_unique<Buffer<uboCameraConfig>>(m_device, WGPUBufferUsage::WGPUBufferUsage_CopyDst | WGPUBufferUsage::WGPUBufferUsage_Uniform);
+    m_position_readback_buffer = std::make_unique<webgpu::raii::RawBuffer<glm::vec4>>(
+        m_device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead, 256 / sizeof(glm::vec4), "position readback buffer");
 }
 
 void Window::create_bind_groups()
 {
-    m_shared_config_bind_group = std::make_unique<raii::BindGroup>(m_device, m_pipeline_manager->shared_config_bind_group_layout(),
+    m_shared_config_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->shared_config_bind_group_layout(),
         std::initializer_list<WGPUBindGroupEntry> { m_shared_config_ubo->raw_buffer().create_bind_group_entry(0) });
 
-    m_camera_bind_group = std::make_unique<raii::BindGroup>(m_device, m_pipeline_manager->camera_bind_group_layout(),
+    m_camera_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->camera_bind_group_layout(),
         std::initializer_list<WGPUBindGroupEntry> { m_camera_config_ubo->raw_buffer().create_bind_group_entry(0) });
 }
 

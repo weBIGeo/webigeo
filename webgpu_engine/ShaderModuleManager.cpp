@@ -18,11 +18,11 @@
  *****************************************************************************/
 #include "ShaderModuleManager.h"
 
-#include "raii/base_types.h"
 #include <QFile>
 #include <iostream>
 #include <memory>
 #include <regex>
+#include <webgpu/raii/base_types.h>
 
 namespace webgpu_engine {
 
@@ -51,17 +51,17 @@ void ShaderModuleManager::release_shader_modules()
     m_downsample_compute_module.release();
 }
 
-const raii::ShaderModule& ShaderModuleManager::tile() const { return *m_tile_shader_module; }
+const webgpu::raii::ShaderModule& ShaderModuleManager::tile() const { return *m_tile_shader_module; }
 
-const raii::ShaderModule& ShaderModuleManager::screen_pass_vert() const { return *m_screen_pass_vert_shader_module; }
+const webgpu::raii::ShaderModule& ShaderModuleManager::screen_pass_vert() const { return *m_screen_pass_vert_shader_module; }
 
-const raii::ShaderModule& ShaderModuleManager::compose_frag() const { return *m_compose_frag_shader_module; }
+const webgpu::raii::ShaderModule& ShaderModuleManager::compose_frag() const { return *m_compose_frag_shader_module; }
 
-const raii::ShaderModule& ShaderModuleManager::atmosphere_frag() const { return *m_atmosphere_frag_shader_module; }
+const webgpu::raii::ShaderModule& ShaderModuleManager::atmosphere_frag() const { return *m_atmosphere_frag_shader_module; }
 
-const raii::ShaderModule& ShaderModuleManager::dummy_compute() const { return *m_dummy_compute_module; }
+const webgpu::raii::ShaderModule& ShaderModuleManager::dummy_compute() const { return *m_dummy_compute_module; }
 
-const raii::ShaderModule& ShaderModuleManager::downsample_compute() const { return *m_downsample_compute_module; }
+const webgpu::raii::ShaderModule& ShaderModuleManager::downsample_compute() const { return *m_downsample_compute_module; }
 
 std::string ShaderModuleManager::read_file_contents(const std::string& name) const {
     const auto path = m_prefix / name; // operator/ concats paths
@@ -84,7 +84,7 @@ std::string ShaderModuleManager::get_contents(const std::string& name) {
     return preprocessed_contents;
 }
 
-std::unique_ptr<raii::ShaderModule> ShaderModuleManager::create_shader_module(const std::string& filename)
+std::unique_ptr<webgpu::raii::ShaderModule> ShaderModuleManager::create_shader_module(const std::string& filename)
 {
     const std::string code = get_contents(filename);
     WGPUShaderModuleDescriptor shader_module_desc {};
@@ -94,10 +94,10 @@ std::unique_ptr<raii::ShaderModule> ShaderModuleManager::create_shader_module(co
     wgsl_desc.code = code.data();
     shader_module_desc.label = filename.data();
     shader_module_desc.nextInChain = &wgsl_desc.chain;
-    return std::make_unique<raii::ShaderModule>(m_device, shader_module_desc);
+    return std::make_unique<webgpu::raii::ShaderModule>(m_device, shader_module_desc);
 }
 
-std::unique_ptr<raii::ShaderModule> ShaderModuleManager::create_shader_module(const std::string& name, const std::string& code)
+std::unique_ptr<webgpu::raii::ShaderModule> ShaderModuleManager::create_shader_module(const std::string& name, const std::string& code)
 {
     const std::string preprocessed_code = preprocess(code);
     WGPUShaderModuleDescriptor shader_module_desc {};
@@ -107,7 +107,7 @@ std::unique_ptr<raii::ShaderModule> ShaderModuleManager::create_shader_module(co
     wgsl_desc.code = preprocessed_code.data();
     shader_module_desc.label = name.data();
     shader_module_desc.nextInChain = &wgsl_desc.chain;
-    return std::make_unique<raii::ShaderModule>(m_device, shader_module_desc);
+    return std::make_unique<webgpu::raii::ShaderModule>(m_device, shader_module_desc);
 }
 
 std::string ShaderModuleManager::preprocess(const std::string& code)

@@ -81,14 +81,14 @@ private:
     bool m_initialized = false;
     GuiPipelineUBO m_gui_ubo_data = { glm::vec2(1280.0, 1024.0) };
 
-    std::unique_ptr<webgpu_engine::Framebuffer> m_framebuffer;
+    std::unique_ptr<webgpu::Framebuffer> m_framebuffer;
     void create_framebuffer(uint32_t width, uint32_t height);
     void create_swapchain(uint32_t width, uint32_t height);
 
-    std::unique_ptr<webgpu_engine::raii::GenericRenderPipeline> m_gui_pipeline;
-    std::unique_ptr<webgpu_engine::raii::BindGroupLayout> m_gui_bind_group_layout;
-    std::unique_ptr<webgpu_engine::raii::BindGroup> m_gui_bind_group;
-    std::unique_ptr<webgpu_engine::raii::RawBuffer<GuiPipelineUBO>> m_gui_ubo;
+    std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_gui_pipeline;
+    std::unique_ptr<webgpu::raii::BindGroupLayout> m_gui_bind_group_layout;
+    std::unique_ptr<webgpu::raii::BindGroup> m_gui_bind_group;
+    std::unique_ptr<webgpu::raii::RawBuffer<GuiPipelineUBO>> m_gui_ubo;
 
     void webgpu_create_context();
     void webgpu_release_context();

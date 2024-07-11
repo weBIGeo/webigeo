@@ -18,10 +18,10 @@
  *****************************************************************************/
 #pragma once
 
-#include "raii/base_types.h"
 #include <filesystem>
 #include <map>
 #include <string>
+#include <webgpu/raii/base_types.h>
 #include <webgpu/webgpu.h>
 
 namespace webgpu_engine {
@@ -37,20 +37,20 @@ public:
     void create_shader_modules();
     void release_shader_modules();
 
-    const raii::ShaderModule& tile() const;
-    const raii::ShaderModule& screen_pass_vert() const;
-    const raii::ShaderModule& compose_frag() const;
-    const raii::ShaderModule& atmosphere_frag() const;
-    const raii::ShaderModule& dummy_compute() const;
-    const raii::ShaderModule& downsample_compute() const;
+    const webgpu::raii::ShaderModule& tile() const;
+    const webgpu::raii::ShaderModule& screen_pass_vert() const;
+    const webgpu::raii::ShaderModule& compose_frag() const;
+    const webgpu::raii::ShaderModule& atmosphere_frag() const;
+    const webgpu::raii::ShaderModule& dummy_compute() const;
+    const webgpu::raii::ShaderModule& downsample_compute() const;
 
-    std::unique_ptr<raii::ShaderModule> create_shader_module(const std::string& name, const std::string& code);
+    std::unique_ptr<webgpu::raii::ShaderModule> create_shader_module(const std::string& name, const std::string& code);
 
 private:
     std::string read_file_contents(const std::string& name) const;
     std::string get_contents(const std::string& name);
     std::string preprocess(const std::string& code);
-    std::unique_ptr<raii::ShaderModule> create_shader_module(const std::string& filename);
+    std::unique_ptr<webgpu::raii::ShaderModule> create_shader_module(const std::string& filename);
 
 private:
     WGPUDevice m_device;
@@ -58,12 +58,12 @@ private:
 
     std::map<std::string, std::string> m_shader_name_to_code;
 
-    std::unique_ptr<raii::ShaderModule> m_tile_shader_module;
-    std::unique_ptr<raii::ShaderModule> m_screen_pass_vert_shader_module;
-    std::unique_ptr<raii::ShaderModule> m_compose_frag_shader_module;
-    std::unique_ptr<raii::ShaderModule> m_atmosphere_frag_shader_module;
-    std::unique_ptr<raii::ShaderModule> m_dummy_compute_module;
-    std::unique_ptr<raii::ShaderModule> m_downsample_compute_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_tile_shader_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_screen_pass_vert_shader_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_compose_frag_shader_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_atmosphere_frag_shader_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_dummy_compute_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_downsample_compute_module;
 };
 
 } // namespace webgpu_engine

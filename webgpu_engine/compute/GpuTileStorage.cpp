@@ -52,7 +52,7 @@ TileStorageTexture::TileStorageTexture(WGPUDevice device, const glm::uvec2& reso
     height_sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
     height_sampler_desc.maxAnisotropy = 1;
 
-    m_texture_array = std::make_unique<raii::TextureWithSampler>(m_device, height_texture_desc, height_sampler_desc);
+    m_texture_array = std::make_unique<webgpu::raii::TextureWithSampler>(m_device, height_texture_desc, height_sampler_desc);
 }
 
 void TileStorageTexture::store(size_t layer, const QByteArray& data)
@@ -112,9 +112,9 @@ size_t TileStorageTexture::height() const { return m_texture_array->texture().de
 
 size_t TileStorageTexture::capacity() const { return m_capacity; }
 
-raii::TextureWithSampler& TileStorageTexture::texture() { return *m_texture_array; }
+webgpu::raii::TextureWithSampler& TileStorageTexture::texture() { return *m_texture_array; }
 
-const raii::TextureWithSampler& TileStorageTexture::texture() const { return *m_texture_array; }
+const webgpu::raii::TextureWithSampler& TileStorageTexture::texture() const { return *m_texture_array; }
 
 size_t TileStorageTexture::find_unused_layer_index() const
 {

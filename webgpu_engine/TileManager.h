@@ -22,15 +22,16 @@
 
 #include <memory>
 
+#include "Buffer.h"
 #include "PipelineManager.h"
 #include "TileSet.h"
 #include "compute/nodes/NodeGraph.h"
-#include "raii/BindGroup.h"
-#include "raii/Buffer.h"
-#include "raii/TextureWithSampler.h"
 #include <QObject>
 #include <nucleus/tile_scheduler/DrawListGenerator.h>
 #include <nucleus/tile_scheduler/tile_types.h>
+#include <webgpu/raii/BindGroup.h>
+#include <webgpu/raii/BindGroupLayout.h>
+#include <webgpu/raii/TextureWithSampler.h>
 #include <webgpu/webgpu.h>
 
 namespace camera {
@@ -63,16 +64,16 @@ public:
 
 private:
     size_t m_index_buffer_size;
-    std::unique_ptr<raii::RawBuffer<uint16_t>> m_index_buffer;
-    std::unique_ptr<raii::RawBuffer<glm::vec4>> m_bounds_buffer;
-    std::unique_ptr<raii::RawBuffer<int32_t>> m_tileset_id_buffer;
-    std::unique_ptr<raii::RawBuffer<int32_t>> m_zoom_level_buffer;
-    std::unique_ptr<raii::RawBuffer<int32_t>> m_texture_layer_buffer;
-    std::unique_ptr<raii::Buffer<int32_t>> m_n_edge_vertices_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<uint16_t>> m_index_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<glm::vec4>> m_bounds_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<int32_t>> m_tileset_id_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<int32_t>> m_zoom_level_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<int32_t>> m_texture_layer_buffer;
+    std::unique_ptr<Buffer<int32_t>> m_n_edge_vertices_buffer;
 
-    std::unique_ptr<raii::TextureWithSampler> m_ortho_textures;
-    std::unique_ptr<raii::TextureWithSampler> m_heightmap_textures;
-    std::unique_ptr<raii::BindGroup> m_tile_bind_group;
+    std::unique_ptr<webgpu::raii::TextureWithSampler> m_ortho_textures;
+    std::unique_ptr<webgpu::raii::TextureWithSampler> m_heightmap_textures;
+    std::unique_ptr<webgpu::raii::BindGroup> m_tile_bind_group;
 
     WGPUDevice m_device = 0;
     WGPUQueue m_queue = 0;
@@ -96,19 +97,19 @@ public:
 
 private:
     size_t m_index_buffer_size;
-    std::unique_ptr<raii::RawBuffer<uint16_t>> m_index_buffer;
-    std::unique_ptr<raii::RawBuffer<glm::vec4>> m_bounds_buffer;
-    std::unique_ptr<raii::RawBuffer<int32_t>> m_tileset_id_buffer;
-    std::unique_ptr<raii::RawBuffer<int32_t>> m_zoom_level_buffer;
-    std::unique_ptr<raii::RawBuffer<int32_t>> m_texture_layer_buffer;
-    std::unique_ptr<raii::RawBuffer<compute::GpuTileId>> m_tile_id_buffer;
-    std::unique_ptr<raii::Buffer<int32_t>> m_n_edge_vertices_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<uint16_t>> m_index_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<glm::vec4>> m_bounds_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<int32_t>> m_tileset_id_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<int32_t>> m_zoom_level_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<int32_t>> m_texture_layer_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<compute::GpuTileId>> m_tile_id_buffer;
+    std::unique_ptr<Buffer<int32_t>> m_n_edge_vertices_buffer;
 
-    std::vector<std::unique_ptr<raii::TextureWithSampler>> m_ortho_textures;
-    std::vector<std::unique_ptr<raii::TextureWithSampler>> m_heightmap_textures;
-    std::vector<std::unique_ptr<raii::BindGroup>> m_tile_bind_group;
+    std::vector<std::unique_ptr<webgpu::raii::TextureWithSampler>> m_ortho_textures;
+    std::vector<std::unique_ptr<webgpu::raii::TextureWithSampler>> m_heightmap_textures;
+    std::vector<std::unique_ptr<webgpu::raii::BindGroup>> m_tile_bind_group;
 
-    std::unique_ptr<raii::BindGroup> m_overlay_bind_group;
+    std::unique_ptr<webgpu::raii::BindGroup> m_overlay_bind_group;
 
     WGPUDevice m_device = 0;
     WGPUQueue m_queue = 0;

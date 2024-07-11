@@ -23,15 +23,26 @@ project(alpine-renderer-webgpu LANGUAGES C CXX)
 
 set(ALP_DAWN_DIR "${CMAKE_SOURCE_DIR}/../dawn" CACHE PATH "path to the dawn repo with debug and release builds. (only necessary for native build)")
 
-# set INCLUDE_DIR based on EMSCRIPTEN
-if (EMSCRIPTEN)
-    set(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/emscripten/include)
-else()
-    set(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/dawn/include)
-endif()
-
 set(SOURCES
-    ${INCLUDE_DIR}/webgpu.hpp webgpu.cpp
+
+    raii/base_types.h
+    raii/Texture.h raii/Texture.cpp
+    raii/TextureWithSampler.h raii/TextureWithSampler.cpp
+    raii/RawBuffer.h
+    raii/TextureView.h raii/TextureView.cpp
+    raii/Sampler.h raii/Sampler.cpp
+    raii/BindGroup.h raii/BindGroup.cpp
+    raii/BindGroupLayout.h raii/BindGroupLayout.cpp
+    raii/Pipeline.h raii/Pipeline.cpp
+    raii/PipelineLayout.h raii/PipelineLayout.cpp
+    raii/CombinedComputePipeline.h raii/CombinedComputePipeline.cpp
+    raii/RenderPassEncoder.h raii/RenderPassEncoder.cpp
+
+    util/VertexBufferInfo.h util/VertexBufferInfo.cpp
+    util/VertexFormat.h
+
+    Framebuffer.h Framebuffer.cpp
+
     webgpu_interface.hpp webgpu_interface.cpp)
 
 add_library(webgpu STATIC ${SOURCES})
@@ -61,4 +72,5 @@ else()
     endif()
 endif()
 
-target_include_directories(webgpu PUBLIC ${INCLUDE_DIR})
+target_link_libraries(webgpu PUBLIC Qt::Core nucleus)
+target_include_directories(webgpu PRIVATE .)

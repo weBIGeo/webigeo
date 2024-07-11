@@ -19,9 +19,10 @@
 #pragma once
 
 #include "ShaderModuleManager.h"
-#include "raii/BindGroupLayout.h"
-#include "raii/CombinedComputePipeline.h"
-#include "raii/Pipeline.h"
+
+#include <webgpu/raii/BindGroupLayout.h>
+#include <webgpu/raii/CombinedComputePipeline.h>
+#include <webgpu/raii/Pipeline.h>
 #include <webgpu/webgpu.h>
 
 namespace webgpu_engine {
@@ -30,20 +31,20 @@ class PipelineManager {
 public:
     PipelineManager(WGPUDevice device, ShaderModuleManager& shader_manager);
 
-    const raii::GenericRenderPipeline& tile_pipeline() const;
-    const raii::GenericRenderPipeline& compose_pipeline() const;
-    const raii::GenericRenderPipeline& atmosphere_pipeline() const;
+    const webgpu::raii::GenericRenderPipeline& tile_pipeline() const;
+    const webgpu::raii::GenericRenderPipeline& compose_pipeline() const;
+    const webgpu::raii::GenericRenderPipeline& atmosphere_pipeline() const;
 
-    const raii::CombinedComputePipeline& dummy_compute_pipeline() const;
-    const raii::CombinedComputePipeline& downsample_compute_pipeline() const;
+    const webgpu::raii::CombinedComputePipeline& dummy_compute_pipeline() const;
+    const webgpu::raii::CombinedComputePipeline& downsample_compute_pipeline() const;
 
-    const raii::BindGroupLayout& shared_config_bind_group_layout() const;
-    const raii::BindGroupLayout& camera_bind_group_layout() const;
-    const raii::BindGroupLayout& tile_bind_group_layout() const;
-    const raii::BindGroupLayout& compose_bind_group_layout() const;
-    const raii::BindGroupLayout& compute_bind_group_layout() const;
-    const raii::BindGroupLayout& overlay_bind_group_layout() const;
-    const raii::BindGroupLayout& downsample_compute_bind_group_layout() const;
+    const webgpu::raii::BindGroupLayout& shared_config_bind_group_layout() const;
+    const webgpu::raii::BindGroupLayout& camera_bind_group_layout() const;
+    const webgpu::raii::BindGroupLayout& tile_bind_group_layout() const;
+    const webgpu::raii::BindGroupLayout& compose_bind_group_layout() const;
+    const webgpu::raii::BindGroupLayout& compute_bind_group_layout() const;
+    const webgpu::raii::BindGroupLayout& overlay_bind_group_layout() const;
+    const webgpu::raii::BindGroupLayout& downsample_compute_bind_group_layout() const;
 
     void create_pipelines();
     void create_bind_group_layouts();
@@ -62,20 +63,20 @@ private:
     WGPUDevice m_device;
     ShaderModuleManager* m_shader_manager;
 
-    std::unique_ptr<raii::GenericRenderPipeline> m_tile_pipeline;
-    std::unique_ptr<raii::GenericRenderPipeline> m_compose_pipeline;
-    std::unique_ptr<raii::GenericRenderPipeline> m_atmosphere_pipeline;
+    std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_tile_pipeline;
+    std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_compose_pipeline;
+    std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_atmosphere_pipeline;
 
-    std::unique_ptr<raii::CombinedComputePipeline> m_dummy_compute_pipeline;
-    std::unique_ptr<raii::CombinedComputePipeline> m_downsample_compute_pipeline;
+    std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_dummy_compute_pipeline;
+    std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_downsample_compute_pipeline;
 
-    std::unique_ptr<raii::BindGroupLayout> m_shared_config_bind_group_layout;
-    std::unique_ptr<raii::BindGroupLayout> m_camera_bind_group_layout;
-    std::unique_ptr<raii::BindGroupLayout> m_tile_bind_group_layout;
-    std::unique_ptr<raii::BindGroupLayout> m_compose_bind_group_layout;
-    std::unique_ptr<raii::BindGroupLayout> m_compute_bind_group_layout;
-    std::unique_ptr<raii::BindGroupLayout> m_overlay_bind_group_layout;
-    std::unique_ptr<raii::BindGroupLayout> m_downsample_compute_bind_group_layout;
+    std::unique_ptr<webgpu::raii::BindGroupLayout> m_shared_config_bind_group_layout;
+    std::unique_ptr<webgpu::raii::BindGroupLayout> m_camera_bind_group_layout;
+    std::unique_ptr<webgpu::raii::BindGroupLayout> m_tile_bind_group_layout;
+    std::unique_ptr<webgpu::raii::BindGroupLayout> m_compose_bind_group_layout;
+    std::unique_ptr<webgpu::raii::BindGroupLayout> m_compute_bind_group_layout;
+    std::unique_ptr<webgpu::raii::BindGroupLayout> m_overlay_bind_group_layout;
+    std::unique_ptr<webgpu::raii::BindGroupLayout> m_downsample_compute_bind_group_layout;
 
     bool m_pipelines_created = false;
 };

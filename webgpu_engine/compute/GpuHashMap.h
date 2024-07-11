@@ -19,8 +19,8 @@
 #pragma once
 
 #include "radix/tile.h"
-#include "webgpu_engine/raii/Buffer.h"
 #include <memory>
+#include <webgpu/raii/RawBuffer.h>
 #include <webgpu/webgpu.h>
 
 namespace webgpu_engine::compute {
@@ -62,9 +62,9 @@ public:
         , m_empty_gpu_key { empty_key }
         , m_empty_gpu_value { empty_value }
         , m_stored_map(m_capacity)
-        , m_id_map { std::make_unique<raii::RawBuffer<GpuKeyType>>(
+        , m_id_map { std::make_unique<webgpu::raii::RawBuffer<GpuKeyType>>(
               m_device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc, m_capacity, "hashmap id map buffer") }
-        , m_value_map { std::make_unique<raii::RawBuffer<GpuValueType>>(
+        , m_value_map { std::make_unique<webgpu::raii::RawBuffer<GpuValueType>>(
               m_device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc, m_capacity, "hashmap value map buffer") }
     {
     }
@@ -103,11 +103,11 @@ public:
         m_value_map->write(m_queue, values.data(), values.size());
     }
 
-    raii::RawBuffer<GpuKeyType>& key_buffer() { return *m_id_map; }
-    raii::RawBuffer<GpuValueType>& value_buffer() { return *m_value_map; }
+    webgpu::raii::RawBuffer<GpuKeyType>& key_buffer() { return *m_id_map; }
+    webgpu::raii::RawBuffer<GpuValueType>& value_buffer() { return *m_value_map; }
 
-    const raii::RawBuffer<GpuKeyType>& key_buffer() const { return *m_id_map; }
-    const raii::RawBuffer<GpuValueType>& value_buffer() const { return *m_value_map; }
+    const webgpu::raii::RawBuffer<GpuKeyType>& key_buffer() const { return *m_id_map; }
+    const webgpu::raii::RawBuffer<GpuValueType>& value_buffer() const { return *m_value_map; }
 
 private:
     WGPUDevice m_device;
@@ -121,8 +121,8 @@ private:
     //  or manage using vector of pairs instead of hashmap (tho that would be slower, probably)
     std::unordered_map<KeyType, ValueType, typename KeyType::Hasher> m_stored_map;
 
-    std::unique_ptr<raii::RawBuffer<GpuKeyType>> m_id_map;
-    std::unique_ptr<raii::RawBuffer<GpuValueType>> m_value_map;
+    std::unique_ptr<webgpu::raii::RawBuffer<GpuKeyType>> m_id_map;
+    std::unique_ptr<webgpu::raii::RawBuffer<GpuValueType>> m_value_map;
 };
 
 } // namespace webgpu_engine::compute

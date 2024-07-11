@@ -79,18 +79,18 @@ void DownsampleComputeNode::run()
 
     std::vector<WGPUBindGroupEntry> entries { input_tile_ids_entry, input_hash_map_key_buffer_entry, input_hash_map_value_buffer_entry,
         input_texture_array_entry, output_texture_array_entry };
-    raii::BindGroup compute_bind_group(m_device, m_pipeline_manager->downsample_compute_bind_group_layout(), entries, "compute: downsample bind group");
+    webgpu::raii::BindGroup compute_bind_group(m_device, m_pipeline_manager->downsample_compute_bind_group_layout(), entries, "compute: downsample bind group");
 
     // bind GPU resources and run pipeline
     {
         WGPUCommandEncoderDescriptor descriptor {};
         descriptor.label = "compute: downsample command encoder";
-        raii::CommandEncoder encoder(m_device, descriptor);
+        webgpu::raii::CommandEncoder encoder(m_device, descriptor);
 
         {
             WGPUComputePassDescriptor compute_pass_desc {};
             compute_pass_desc.label = "compute: downsample pass";
-            raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
+            webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
 
             glm::uvec3 workgroup_counts = { tile_ids.size(), 256, 256 }; // TODO
             wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, compute_bind_group.handle(), 0, nullptr);

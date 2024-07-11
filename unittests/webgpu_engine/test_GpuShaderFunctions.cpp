@@ -19,13 +19,13 @@
 #include "UnittestWebgpuContext.h"
 #include "webgpu/webgpu_interface.hpp"
 #include <catch2/catch_test_macros.hpp>
-#include <webgpu_engine/raii/base_types.h>
-#include <webgpu_engine/raii/CombinedComputePipeline.h>
-#include <webgpu_engine/raii/Buffer.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/random.hpp>
 #include <glm/gtx/string_cast.hpp>
 #include <iostream>
+#include <webgpu/raii/CombinedComputePipeline.h>
+#include <webgpu/raii/base_types.h>
+#include <webgpu_engine/Buffer.h>
 
 using namespace webgpu_engine;
 
@@ -81,10 +81,12 @@ TEST_CASE("encoder functions")
             }
         }
 
-        const raii::CommandEncoder encoder(context.device, {});
+        const webgpu::raii::CommandEncoder encoder(context.device, {});
 
-        const auto output_buffer = std::make_unique<raii::RawBuffer<uint32_t>>(context.device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc, test_normals_buffer_data.size(), "output buffer");
-        const auto input_buffer = std::make_unique<raii::RawBuffer<glm::vec4>>(context.device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst, test_normals_buffer_data.size(), "input buffer");
+        const auto output_buffer = std::make_unique<webgpu::raii::RawBuffer<uint32_t>>(
+            context.device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc, test_normals_buffer_data.size(), "output buffer");
+        const auto input_buffer = std::make_unique<webgpu::raii::RawBuffer<glm::vec4>>(
+            context.device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst, test_normals_buffer_data.size(), "input buffer");
 
         // Upload the test data to the input buffer
         input_buffer->write(context.queue, test_normals_buffer_data.data(), test_normals_buffer_data.size(), 0);
@@ -102,10 +104,8 @@ TEST_CASE("encoder functions")
         compute_output_binding.buffer.type = WGPUBufferBindingType_Storage;
         compute_output_binding.buffer.minBindingSize = 0;
 
-        auto compute_bind_group_layout = std::make_unique<raii::BindGroupLayout>(
-            context.device,
-            std::vector<WGPUBindGroupLayoutEntry> { compute_input_binding, compute_output_binding },
-            "octahedron test bind group layout");
+        auto compute_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(
+            context.device, std::vector<WGPUBindGroupLayoutEntry> { compute_input_binding, compute_output_binding }, "octahedron test bind group layout");
 
         std::vector<WGPUBindGroupEntry> bindgroup_entries = {
             WGPUBindGroupEntry {
@@ -116,29 +116,20 @@ TEST_CASE("encoder functions")
             }
         };
 
-        auto compute_bind_group = std::make_unique<raii::BindGroup>(
-            context.device,
-            *compute_bind_group_layout,
-            bindgroup_entries,
-            "octahedron test bindgroup"
-            );
+        auto compute_bind_group
+            = std::make_unique<webgpu::raii::BindGroup>(context.device, *compute_bind_group_layout, bindgroup_entries, "octahedron test bindgroup");
 
         // ==== CREATE SHADER MODULE AND PIPELINE ====
-        std::unique_ptr<raii::ShaderModule> compute_shader_module = context.shader_module_manager->create_shader_module(
-            "octahedron test code",
-            wgsl_single_thread_octahedron_test
-            );
+        std::unique_ptr<webgpu::raii::ShaderModule> compute_shader_module
+            = context.shader_module_manager->create_shader_module("octahedron test code", wgsl_single_thread_octahedron_test);
 
-        auto compute_pipeline = std::make_unique<raii::CombinedComputePipeline>(
-            context.device,
-            *compute_shader_module,
-            std::vector<const raii::BindGroupLayout*> { compute_bind_group_layout.get() }
-            );
+        auto compute_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(
+            context.device, *compute_shader_module, std::vector<const webgpu::raii::BindGroupLayout*> { compute_bind_group_layout.get() });
 
         // ==== RUN THE COMPUTE PIPELINE ====
         // NOTE: Needs to be in a separate scope to ensure the encoder is finished before submitting
         {
-            raii::ComputePassEncoder compute_pass(encoder.handle(), {});
+            webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), {});
             const glm::uvec3& workgroup_counts = { 1, 1, 1 };
             compute_pipeline->set_binding(0, *compute_bind_group.get());
             compute_pipeline->run(compute_pass, workgroup_counts);

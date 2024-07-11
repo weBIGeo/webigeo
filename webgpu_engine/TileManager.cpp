@@ -168,14 +168,14 @@ void TileRendererInstancedSingleArray::init(glm::uvec2 height_resolution, glm::u
 
     // create index buffer, vertex buffers and uniform buffer
     const std::vector<uint16_t> indices = surface_quads_with_curtains<uint16_t>(unsigned(n_edge_vertices));
-    m_index_buffer = std::make_unique<raii::RawBuffer<uint16_t>>(m_device, WGPUBufferUsage_Index | WGPUBufferUsage_CopyDst, indices.size());
+    m_index_buffer = std::make_unique<webgpu::raii::RawBuffer<uint16_t>>(m_device, WGPUBufferUsage_Index | WGPUBufferUsage_CopyDst, indices.size());
     m_index_buffer->write(m_queue, indices.data(), indices.size());
     m_index_buffer_size = indices.size();
-    m_bounds_buffer = std::make_unique<raii::RawBuffer<glm::vec4>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
-    m_tileset_id_buffer = std::make_unique<raii::RawBuffer<int32_t>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
-    m_zoom_level_buffer = std::make_unique<raii::RawBuffer<int32_t>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
-    m_texture_layer_buffer = std::make_unique<raii::RawBuffer<int32_t>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
-    m_n_edge_vertices_buffer = std::make_unique<raii::Buffer<int32_t>>(m_device, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst);
+    m_bounds_buffer = std::make_unique<webgpu::raii::RawBuffer<glm::vec4>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
+    m_tileset_id_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
+    m_zoom_level_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
+    m_texture_layer_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
+    m_n_edge_vertices_buffer = std::make_unique<Buffer<int32_t>>(m_device, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst);
     m_n_edge_vertices_buffer->data = int(n_edge_vertices);
     m_n_edge_vertices_buffer->update_gpu_data(m_queue);
 
@@ -201,7 +201,7 @@ void TileRendererInstancedSingleArray::init(glm::uvec2 height_resolution, glm::u
     height_sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
     height_sampler_desc.maxAnisotropy = 1;
 
-    m_heightmap_textures = std::make_unique<raii::TextureWithSampler>(m_device, height_texture_desc, height_sampler_desc);
+    m_heightmap_textures = std::make_unique<webgpu::raii::TextureWithSampler>(m_device, height_texture_desc, height_sampler_desc);
 
     // TODO mipmaps and compression
     WGPUTextureDescriptor ortho_texture_desc {};
@@ -227,9 +227,9 @@ void TileRendererInstancedSingleArray::init(glm::uvec2 height_resolution, glm::u
     ortho_sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
     ortho_sampler_desc.maxAnisotropy = 1;
 
-    m_ortho_textures = std::make_unique<raii::TextureWithSampler>(m_device, ortho_texture_desc, ortho_sampler_desc);
+    m_ortho_textures = std::make_unique<webgpu::raii::TextureWithSampler>(m_device, ortho_texture_desc, ortho_sampler_desc);
 
-    m_tile_bind_group = std::make_unique<raii::BindGroup>(m_device, m_pipeline_manager->tile_bind_group_layout(),
+    m_tile_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->tile_bind_group_layout(),
         std::initializer_list<WGPUBindGroupEntry> { m_n_edge_vertices_buffer->raw_buffer().create_bind_group_entry(0),
             m_heightmap_textures->texture_view().create_bind_group_entry(1), m_heightmap_textures->sampler().create_bind_group_entry(2),
             m_ortho_textures->texture_view().create_bind_group_entry(3), m_ortho_textures->sampler().create_bind_group_entry(4) },
@@ -316,15 +316,15 @@ void TileRendererInstancedSingleArrayMultiCall::init(glm::uvec2 height_resolutio
 
     // create index buffer, vertex buffers and uniform buffer
     const std::vector<uint16_t> indices = surface_quads_with_curtains<uint16_t>(unsigned(n_edge_vertices));
-    m_index_buffer = std::make_unique<raii::RawBuffer<uint16_t>>(m_device, WGPUBufferUsage_Index | WGPUBufferUsage_CopyDst, indices.size());
+    m_index_buffer = std::make_unique<webgpu::raii::RawBuffer<uint16_t>>(m_device, WGPUBufferUsage_Index | WGPUBufferUsage_CopyDst, indices.size());
     m_index_buffer->write(m_queue, indices.data(), indices.size());
     m_index_buffer_size = indices.size();
-    m_bounds_buffer = std::make_unique<raii::RawBuffer<glm::vec4>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
-    m_tileset_id_buffer = std::make_unique<raii::RawBuffer<int32_t>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
-    m_zoom_level_buffer = std::make_unique<raii::RawBuffer<int32_t>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
-    m_texture_layer_buffer = std::make_unique<raii::RawBuffer<int32_t>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
-    m_tile_id_buffer = std::make_unique<raii::RawBuffer<compute::GpuTileId>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
-    m_n_edge_vertices_buffer = std::make_unique<raii::Buffer<int32_t>>(m_device, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst);
+    m_bounds_buffer = std::make_unique<webgpu::raii::RawBuffer<glm::vec4>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
+    m_tileset_id_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
+    m_zoom_level_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
+    m_texture_layer_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
+    m_tile_id_buffer = std::make_unique<webgpu::raii::RawBuffer<compute::GpuTileId>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
+    m_n_edge_vertices_buffer = std::make_unique<Buffer<int32_t>>(m_device, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst);
     m_n_edge_vertices_buffer->data = int(n_edge_vertices);
     m_n_edge_vertices_buffer->update_gpu_data(m_queue);
 
@@ -353,7 +353,7 @@ void TileRendererInstancedSingleArrayMultiCall::init(glm::uvec2 height_resolutio
         height_sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
         height_sampler_desc.maxAnisotropy = 1;
 
-        m_heightmap_textures.emplace_back(std::make_unique<raii::TextureWithSampler>(m_device, height_texture_desc, height_sampler_desc));
+        m_heightmap_textures.emplace_back(std::make_unique<webgpu::raii::TextureWithSampler>(m_device, height_texture_desc, height_sampler_desc));
 
         // TODO mipmaps and compression
         WGPUTextureDescriptor ortho_texture_desc {};
@@ -379,9 +379,9 @@ void TileRendererInstancedSingleArrayMultiCall::init(glm::uvec2 height_resolutio
         ortho_sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
         ortho_sampler_desc.maxAnisotropy = 1;
 
-        m_ortho_textures.emplace_back(std::make_unique<raii::TextureWithSampler>(m_device, ortho_texture_desc, ortho_sampler_desc));
+        m_ortho_textures.emplace_back(std::make_unique<webgpu::raii::TextureWithSampler>(m_device, ortho_texture_desc, ortho_sampler_desc));
 
-        m_tile_bind_group.emplace_back(std::make_unique<raii::BindGroup>(m_device, m_pipeline_manager->tile_bind_group_layout(),
+        m_tile_bind_group.emplace_back(std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->tile_bind_group_layout(),
             std::initializer_list<WGPUBindGroupEntry> { m_n_edge_vertices_buffer->raw_buffer().create_bind_group_entry(0),
                 m_heightmap_textures.back()->texture_view().create_bind_group_entry(1), m_heightmap_textures.back()->sampler().create_bind_group_entry(2),
                 m_ortho_textures.back()->texture_view().create_bind_group_entry(3), m_ortho_textures.back()->sampler().create_bind_group_entry(4) },
@@ -394,7 +394,7 @@ void TileRendererInstancedSingleArrayMultiCall::init(glm::uvec2 height_resolutio
     WGPUBindGroupEntry input_hash_map_value_buffer_entry = normal_compute_node.hash_map().value_buffer().create_bind_group_entry(1);
     WGPUBindGroupEntry input_texture_array_entry = normal_compute_node.texture_storage().texture().texture_view().create_bind_group_entry(2);
     std::vector<WGPUBindGroupEntry> entries { input_hash_map_key_buffer_entry, input_hash_map_value_buffer_entry, input_texture_array_entry };
-    m_overlay_bind_group = std::make_unique<raii::BindGroup>(m_device, m_pipeline_manager->overlay_bind_group_layout(), entries, "overlay bind group");
+    m_overlay_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->overlay_bind_group_layout(), entries, "overlay bind group");
 }
 
 void TileRendererInstancedSingleArrayMultiCall::write_tile(

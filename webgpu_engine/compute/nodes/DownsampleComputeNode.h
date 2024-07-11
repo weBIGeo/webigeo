@@ -45,7 +45,7 @@ private:
     WGPUQueue m_queue;
 
     size_t m_downsample_levels; // how many zoomlevels should be downsampled
-    raii::RawBuffer<GpuTileId> m_input_tile_ids; // tile ids of (to be calculated) downsampled tiles
+    webgpu::raii::RawBuffer<GpuTileId> m_input_tile_ids; // tile ids of (to be calculated) downsampled tiles
     std::unique_ptr<TileStorageTexture> m_internal_storage_texture; // stores output of downsampling before it is copied back to input hashmap
 };
 

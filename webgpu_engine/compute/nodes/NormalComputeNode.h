@@ -50,10 +50,10 @@ private:
     size_t m_capacity;
 
     // calculated on cpu-side before each invocation
-    raii::RawBuffer<glm::vec4> m_tile_bounds; // aabb per tile
+    webgpu::raii::RawBuffer<glm::vec4> m_tile_bounds; // aabb per tile
 
     // input
-    raii::RawBuffer<GpuTileId> m_input_tile_ids; // tile ids for which to calculate normals
+    webgpu::raii::RawBuffer<GpuTileId> m_input_tile_ids; // tile ids for which to calculate normals
 
     // output
     GpuHashMap<tile::Id, uint32_t, GpuTileId> m_output_tile_map; // hash map

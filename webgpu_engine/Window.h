@@ -27,7 +27,7 @@
 #include "nucleus/camera/AbstractDepthTester.h"
 #include "nucleus/camera/Controller.h"
 #include "nucleus/utils/ColourTexture.h"
-#include "raii/BindGroup.h"
+#include <webgpu/raii/BindGroup.h>
 #include <webgpu/webgpu.h>
 
 class QOpenGLFramebufferObject;
@@ -44,7 +44,7 @@ public:
     void set_wgpu_context(WGPUInstance instance, WGPUDevice device, WGPUAdapter adapter, WGPUSurface surface, WGPUQueue queue);
     void initialise_gpu() override;
     void resize_framebuffer(int w, int h) override;
-    void paint(Framebuffer* framebuffer, WGPUCommandEncoder encoder);
+    void paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder encoder);
     // void paint(WGPUTextureView target_color_texture, WGPUTextureView target_depth_texture, WGPUCommandEncoder encoder);
     void paint([[maybe_unused]] QOpenGLFramebufferObject* framebuffer = nullptr) override { throw std::runtime_error("Not implemented"); }
 
@@ -62,7 +62,7 @@ public:
     void paint_gui();
 
     // Not happy with the following three in public, but we need to have access inside the lambdas.
-    std::unique_ptr<raii::RawBuffer<glm::vec4>> m_position_readback_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<glm::vec4>> m_position_readback_buffer;
     bool m_position_readback_done = true;
     glm::vec4 m_position_readback_result;
 
@@ -93,21 +93,21 @@ private:
     std::unique_ptr<ShaderModuleManager> m_shader_manager;
     std::unique_ptr<PipelineManager> m_pipeline_manager;
 
-    std::unique_ptr<raii::Buffer<uboSharedConfig>> m_shared_config_ubo;
-    std::unique_ptr<raii::Buffer<uboCameraConfig>> m_camera_config_ubo;
+    std::unique_ptr<Buffer<uboSharedConfig>> m_shared_config_ubo;
+    std::unique_ptr<Buffer<uboCameraConfig>> m_camera_config_ubo;
 
-    std::unique_ptr<raii::BindGroup> m_shared_config_bind_group;
-    std::unique_ptr<raii::BindGroup> m_camera_bind_group;
-    std::unique_ptr<raii::BindGroup> m_compose_bind_group;
+    std::unique_ptr<webgpu::raii::BindGroup> m_shared_config_bind_group;
+    std::unique_ptr<webgpu::raii::BindGroup> m_camera_bind_group;
+    std::unique_ptr<webgpu::raii::BindGroup> m_compose_bind_group;
 
     nucleus::camera::Definition m_camera;
 
     std::unique_ptr<TileManager> m_tile_manager;
 
-    FramebufferFormat m_gbuffer_format;
-    std::unique_ptr<Framebuffer> m_gbuffer;
+    webgpu::FramebufferFormat m_gbuffer_format;
+    std::unique_ptr<webgpu::Framebuffer> m_gbuffer;
 
-    std::unique_ptr<Framebuffer> m_atmosphere_framebuffer;
+    std::unique_ptr<webgpu::Framebuffer> m_atmosphere_framebuffer;
 
     // ToDo: Swapchain should get a raii class and the size could be saved in there
     glm::vec2 m_swapchain_size = glm::vec2(0.0f);

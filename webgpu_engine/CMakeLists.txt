@@ -28,21 +28,8 @@ set(SOURCES
     UniformBufferObjects.h UniformBufferObjects.cpp
     TileSet.h
     TileManager.h TileManager.cpp
-    Framebuffer.h Framebuffer.cpp
-    raii/base_types.h
-    raii/Texture.h raii/Texture.cpp
-    raii/TextureWithSampler.h raii/TextureWithSampler.cpp
-    raii/Buffer.h raii/Buffer.cpp
-    raii/TextureView.h raii/TextureView.cpp
-    raii/Sampler.h raii/Sampler.cpp
-    raii/BindGroup.h raii/BindGroup.cpp
-    raii/BindGroupLayout.h raii/BindGroupLayout.cpp
-    raii/Pipeline.h raii/Pipeline.cpp
-    raii/PipelineLayout.h raii/PipelineLayout.cpp
-    raii/CombinedComputePipeline.h raii/CombinedComputePipeline.cpp
-    raii/RenderPassEncoder.h raii/RenderPassEncoder.cpp
-    util/VertexBufferInfo.h util/VertexBufferInfo.cpp
-    util/VertexFormat.h
+    Buffer.h Buffer.cpp
+
     compute/GpuHashMap.h compute/GpuHashMap.cpp
     compute/GpuTileStorage.h compute/GpuTileStorage.cpp
     compute/GpuTileId.h compute/GpuTileId.cpp

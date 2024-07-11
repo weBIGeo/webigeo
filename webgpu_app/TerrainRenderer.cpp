@@ -136,7 +136,7 @@ void TerrainRenderer::render() {
     }
 
     {
-        webgpu_engine::raii::RenderPassEncoder render_pass(encoder, swapchain_texture, nullptr);
+        webgpu::raii::RenderPassEncoder render_pass(encoder, swapchain_texture, nullptr);
         wgpuRenderPassEncoderSetPipeline(render_pass.handle(), m_gui_pipeline.get()->pipeline().handle());
         wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 0, m_gui_bind_group->handle(), 0, nullptr);
         wgpuRenderPassEncoderDraw(render_pass.handle(), 3, 1, 0, 0);
@@ -185,11 +185,11 @@ void TerrainRenderer::start() {
     this->on_window_resize(m_viewport_size.x, m_viewport_size.y);
 
     qDebug() << "Create GUI Pipeline...";
-    m_gui_ubo = std::make_unique<webgpu_engine::raii::RawBuffer<TerrainRenderer::GuiPipelineUBO>>(
-        m_device, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst, 1, "gui ubo");
+    m_gui_ubo
+        = std::make_unique<webgpu::raii::RawBuffer<TerrainRenderer::GuiPipelineUBO>>(m_device, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst, 1, "gui ubo");
     m_gui_ubo->write(m_queue, &m_gui_ubo_data);
 
-    webgpu_engine::FramebufferFormat format {};
+    webgpu::FramebufferFormat format {};
     format.color_formats.emplace_back(m_swapchain_format);
 
     WGPUBindGroupLayoutEntry backbuffer_texture_entry {};
@@ -204,7 +204,7 @@ void TerrainRenderer::start() {
     gui_ubo_entry.buffer.type = WGPUBufferBindingType_Uniform;
     gui_ubo_entry.buffer.minBindingSize = sizeof(TerrainRenderer::GuiPipelineUBO);
 
-    m_gui_bind_group_layout = std::make_unique<webgpu_engine::raii::BindGroupLayout>(
+    m_gui_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(
         m_device, std::vector<WGPUBindGroupLayoutEntry> { backbuffer_texture_entry, gui_ubo_entry }, "gui bind group layout");
 
     const std::string preprocessed_code = R"(
@@ -240,13 +240,12 @@ void TerrainRenderer::start() {
     wgsl_desc.code = preprocessed_code.data();
     shader_module_desc.label = "Gui Shader Module";
     shader_module_desc.nextInChain = &wgsl_desc.chain;
-    auto shader_module = std::make_unique<webgpu_engine::raii::ShaderModule>(m_device, shader_module_desc);
+    auto shader_module = std::make_unique<webgpu::raii::ShaderModule>(m_device, shader_module_desc);
 
-    m_gui_pipeline = std::make_unique<webgpu_engine::raii::GenericRenderPipeline>(m_device, *shader_module, *shader_module,
-        std::vector<webgpu_engine::util::SingleVertexBufferInfo> {}, format,
-        std::vector<const webgpu_engine::raii::BindGroupLayout*> { m_gui_bind_group_layout.get() });
+    m_gui_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(m_device, *shader_module, *shader_module,
+        std::vector<webgpu::util::SingleVertexBufferInfo> {}, format, std::vector<const webgpu::raii::BindGroupLayout*> { m_gui_bind_group_layout.get() });
 
-    m_gui_bind_group = std::make_unique<webgpu_engine::raii::BindGroup>(m_device, *m_gui_bind_group_layout.get(),
+    m_gui_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, *m_gui_bind_group_layout.get(),
         std::initializer_list<WGPUBindGroupEntry> { m_framebuffer->color_texture_view(0).create_bind_group_entry(0), m_gui_ubo->create_bind_group_entry(1) });
 
     glfwSetWindowSize(m_window, m_viewport_size.x, m_viewport_size.y);
@@ -299,11 +298,11 @@ void TerrainRenderer::create_framebuffer(uint32_t width, uint32_t height)
 {
     qDebug() << "creating framebuffer textures for size " << width << "x" << height;
 
-    webgpu_engine::FramebufferFormat format { .size = { width, height }, .depth_format = m_depth_texture_format, .color_formats = { m_swapchain_format } };
-    m_framebuffer = std::make_unique<webgpu_engine::Framebuffer>(m_device, format);
+    webgpu::FramebufferFormat format { .size = { width, height }, .depth_format = m_depth_texture_format, .color_formats = { m_swapchain_format } };
+    m_framebuffer = std::make_unique<webgpu::Framebuffer>(m_device, format);
 
     if (m_gui_bind_group) {
-        m_gui_bind_group = std::make_unique<webgpu_engine::raii::BindGroup>(m_device, *m_gui_bind_group_layout.get(),
+        m_gui_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, *m_gui_bind_group_layout.get(),
             std::initializer_list<WGPUBindGroupEntry> {
                 m_framebuffer->color_texture_view(0).create_bind_group_entry(0), m_gui_ubo->create_bind_group_entry(1) });
     }
