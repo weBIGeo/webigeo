@@ -208,7 +208,8 @@ void webgpuPlatformInit() {
 }
 
 // NOTE: USE WITH CAUTION!
-void webgpuSleep(const WGPUDevice& device, int milliseconds) {
+void webgpuSleep([[maybe_unused]] const WGPUDevice& device, [[maybe_unused]] int milliseconds)
+{
 #ifdef __EMSCRIPTEN__
     emscripten_sleep(1); // using asyncify to return to js event loop
 #else
@@ -237,7 +238,7 @@ WGPUAdapter requestAdapterSync(WGPUInstance instance, const WGPURequestAdapterOp
         bool request_ended = false;
     } request_ended_data;
 
-    auto on_adapter_request_ended = [](WGPURequestAdapterStatus status, WGPUAdapter adapter, char const* message, void* userdata) {
+    auto on_adapter_request_ended = [](WGPURequestAdapterStatus status, WGPUAdapter adapter, [[maybe_unused]] char const* message, void* userdata) {
         AdapterRequestEndedData* request_ended_data = reinterpret_cast<AdapterRequestEndedData*>(userdata);
         if (status == WGPURequestAdapterStatus::WGPURequestAdapterStatus_Success) {
             request_ended_data->adapter = adapter;
@@ -267,7 +268,7 @@ WGPUDevice requestDeviceSync(WGPUAdapter adapter, const WGPUDeviceDescriptor& de
         bool request_ended = false;
     } request_ended_data;
 
-    auto on_device_request_ended = [](WGPURequestDeviceStatus status, WGPUDevice device, char const* message, void* userdata) {
+    auto on_device_request_ended = [](WGPURequestDeviceStatus status, WGPUDevice device, [[maybe_unused]] char const* message, void* userdata) {
         DeviceRequestEndedData* request_ended_data = reinterpret_cast<DeviceRequestEndedData*>(userdata);
 
         if (status == WGPURequestDeviceStatus::WGPURequestDeviceStatus_Success) {

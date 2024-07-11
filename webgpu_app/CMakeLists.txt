@@ -53,6 +53,7 @@ target_link_libraries(webgpu_app PUBLIC webgpu webgpu_engine Qt::Core)
 target_include_directories(webgpu_app PRIVATE .)
 
 if (EMSCRIPTEN)
+
     target_link_options(webgpu_app PRIVATE
             -sUSE_GLFW=3 # Use Emscripten-provided GLFW
             -sUSE_WEBGPU # Handle WebGPU symbols

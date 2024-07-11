@@ -28,7 +28,9 @@
 
 #include <glm/gtx/string_cast.hpp>
 
-#include <imgui.h>
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
+#include "imgui.h"
+#endif
 
 namespace webgpu_engine {
 
@@ -148,6 +150,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder encoder)
 
 void Window::paint_gui()
 {
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     if (ImGui::Combo("Normal Mode", (int*)&m_shared_config_ubo->data.m_normal_mode, "None\0Flat\0Smooth\0\0")) {
         m_needs_redraw = true;
     }
@@ -191,6 +194,7 @@ void Window::paint_gui()
             m_compute_graph->run();
         }
     }
+#endif
 }
 
 glm::vec4 Window::synchronous_position_readback(const glm::dvec2& ndc) {

@@ -30,7 +30,9 @@
 #include "nucleus/stb/stb_image_loader.h"
 #endif
 
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
 #include "imgui.h"
+#endif
 #include "util/error_logging.h"
 
 static void windowResizeCallback(GLFWwindow* window, int width, int height) {
@@ -104,6 +106,7 @@ void TerrainRenderer::init_window() {
 
 void TerrainRenderer::render_gui()
 {
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     static bool vsync_enabled = (prop_swapchain_presentmode == WGPUPresentMode::WGPUPresentMode_Fifo);
     if (ImGui::Checkbox("VSync", &vsync_enabled)) {
         prop_swapchain_presentmode = vsync_enabled ? WGPUPresentMode::WGPUPresentMode_Fifo : WGPUPresentMode::WGPUPresentMode_Immediate;
@@ -113,6 +116,7 @@ void TerrainRenderer::render_gui()
     }
     ImGui::Checkbox("Repaint each frame", &prop_force_repaint);
     ImGui::Text("Repaint-Counter: %d", prop_repaint_count);
+#endif
 }
 
 void TerrainRenderer::render() {

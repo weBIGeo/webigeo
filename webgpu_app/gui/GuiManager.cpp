@@ -18,19 +18,22 @@
 
 #include "GuiManager.h"
 #include "TerrainRenderer.h"
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_wgpu.h"
-#include "webgpu_engine/Window.h"
-#include <QDebug>
 #include <imgui.h>
 #include <imnodes.h>
+#endif
+#include "webgpu_engine/Window.h"
+#include <QDebug>
 
-void GuiManager::init(GLFWwindow* window, WGPUDevice device, WGPUTextureFormat swapchainFormat, WGPUTextureFormat depthTextureFormat)
+void GuiManager::init(
+    GLFWwindow* window, WGPUDevice device, [[maybe_unused]] WGPUTextureFormat swapchainFormat, [[maybe_unused]] WGPUTextureFormat depthTextureFormat)
 {
     qDebug() << "Setup GuiManager...";
     m_window = window;
     m_device = device;
-
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -50,10 +53,12 @@ void GuiManager::init(GLFWwindow* window, WGPUDevice device, WGPUTextureFormat s
     ImGui::StyleColorsLight();
     ImGui::GetStyle().Colors[ImGuiCol_WindowBg] = ImVec4(0.9f, 0.9f, 0.9f, 0.9f);
     ImNodes::StyleColorsLight();
+#endif
 }
 
-void GuiManager::render(WGPURenderPassEncoder renderPass)
+void GuiManager::render([[maybe_unused]] WGPURenderPassEncoder renderPass)
 {
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     ImGui_ImplWGPU_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
@@ -62,23 +67,41 @@ void GuiManager::render(WGPURenderPassEncoder renderPass)
 
     ImGui::Render();
     ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), renderPass);
+#endif
 }
 
 void GuiManager::shutdown()
 {
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     qDebug() << "Releasing GuiManager...";
     ImGui_ImplWGPU_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImNodes::DestroyContext();
     ImGui::DestroyContext();
+#endif
 }
 
-bool GuiManager::want_capture_keyboard() { return ImGui::GetIO().WantCaptureKeyboard; }
+bool GuiManager::want_capture_keyboard()
+{
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
+    return ImGui::GetIO().WantCaptureKeyboard;
+#else
+    return false;
+#endif
+}
 
-bool GuiManager::want_capture_mouse() { return ImGui::GetIO().WantCaptureMouse; }
+bool GuiManager::want_capture_mouse()
+{
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
+    return ImGui::GetIO().WantCaptureMouse;
+#else
+    return false;
+#endif
+}
 
 void GuiManager::draw()
 {
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     static float frame_time = 0.0f;
     static std::vector<std::pair<int, int>> links;
     static bool first_frame = true;
@@ -188,4 +211,5 @@ void GuiManager::draw()
     }
 
     first_frame = false;
+#endif
 }
