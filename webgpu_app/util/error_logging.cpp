@@ -82,6 +82,8 @@ void qt_logging_callback(QtMsgType type, const QMessageLogContext& context, cons
     if (type == QtFatalMsg) {
         abort();
     }
+
+    stream->flush();
 }
 
 std::map<WGPUErrorType, QString> wgpu_error_map = { { WGPUErrorType_NoError, "NoError" }, { WGPUErrorType_Validation, "Validation" },

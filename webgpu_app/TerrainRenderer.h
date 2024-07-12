@@ -49,7 +49,7 @@ public:
     [[nodiscard]] GuiManager* get_gui_manager() { return m_gui_manager.get(); }
 
     // PROPERTIES
-    bool prop_force_repaint = false;
+    bool prop_force_repaint = true;
     bool prop_force_repaint_once = false;
     uint32_t prop_repaint_count = 0;
     uint32_t prop_frame_count = 0;
@@ -89,6 +89,14 @@ private:
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_gui_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroup> m_gui_bind_group;
     std::unique_ptr<webgpu::raii::RawBuffer<GuiPipelineUBO>> m_gui_ubo;
+
+    WGPUQuerySetDescriptor m_timestamp_query_desc;
+    WGPUQuerySet m_timestamp_queries;
+    WGPURenderPassTimestampWrites m_timestamp_writes;
+    std::unique_ptr<webgpu::raii::RawBuffer<uint64_t>> m_timestamp_resolve;
+    std::unique_ptr<webgpu::raii::RawBuffer<uint64_t>> m_timestamp_result;
+
+    long m_frame_index = 0;
 
     void webgpu_create_context();
     void webgpu_release_context();

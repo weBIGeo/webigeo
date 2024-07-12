@@ -21,7 +21,8 @@
 
 namespace webgpu::raii {
 
-WGPURenderPassDescriptor RenderPassEncoder::create_render_pass_descriptor(WGPUTextureView color_attachment, WGPUTextureView depth_attachment)
+WGPURenderPassDescriptor RenderPassEncoder::create_render_pass_descriptor(
+    WGPUTextureView color_attachment, WGPUTextureView depth_attachment, WGPURenderPassTimestampWrites* timestamp_writes)
 {
     m_color_attachment = {};
     m_color_attachment.view = color_attachment;
@@ -49,7 +50,7 @@ WGPURenderPassDescriptor RenderPassEncoder::create_render_pass_descriptor(WGPUTe
         render_pass_desc.depthStencilAttachment = &m_depth_stencil_attachment;
     }
 
-    render_pass_desc.timestampWrites = nullptr;
+    render_pass_desc.timestampWrites = timestamp_writes;
 
     return render_pass_desc;
 }

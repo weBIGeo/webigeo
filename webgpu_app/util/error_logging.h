@@ -18,6 +18,8 @@
 
 #pragma once
 
+#define QT_LOGGING_TO_CONSOLE 1
+
 #include <QDebug>
 #include <webgpu/webgpu.h>
 
