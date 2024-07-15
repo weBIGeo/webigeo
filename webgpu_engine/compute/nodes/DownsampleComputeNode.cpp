@@ -74,6 +74,7 @@ void DownsampleComputeNode::run()
         m_queue,
         []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
             DownsampleComputeNode* _this = reinterpret_cast<DownsampleComputeNode*>(user_data);
+            _this->m_internal_storage_texture.release(); // release texture array when done
             _this->run_finished(); // emits signal run_finished()
         },
         this);
