@@ -31,7 +31,7 @@ public:
     enum Output : SocketIndex { OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP = 0, OUTPUT_TEXTURE_ARRAY = 1 };
 
 public:
-    DownsampleComputeNode(const PipelineManager& pipeline_manager, WGPUDevice device, size_t capacity);
+    DownsampleComputeNode(const PipelineManager& pipeline_manager, WGPUDevice device, size_t capacity, size_t num_downsample_levels = 1);
 
 public slots:
     void run() override;
@@ -40,13 +40,18 @@ protected:
     Data get_output_data_impl(SocketIndex output_index) override;
 
 private:
+    static std::vector<tile::Id> get_tile_ids_for_downsampled_tiles(const std::vector<tile::Id>& original_tile_ids);
+    void compute_downsampled_tiles(const std::vector<tile::Id>& tile_ids);
+
+private:
     const PipelineManager* m_pipeline_manager;
     WGPUDevice m_device;
     WGPUQueue m_queue;
 
-    size_t m_downsample_levels; // how many zoomlevels should be downsampled
+    size_t m_num_downsample_steps; // how many zoomlevels should be downsampled
     webgpu::raii::RawBuffer<GpuTileId> m_input_tile_ids; // tile ids of (to be calculated) downsampled tiles
     std::unique_ptr<TileStorageTexture> m_internal_storage_texture; // stores output of downsampling before it is copied back to input hashmap
+    std::unique_ptr<webgpu::raii::BindGroup> m_compute_bind_group;
 };
 
 } // namespace webgpu_engine::compute::nodes
