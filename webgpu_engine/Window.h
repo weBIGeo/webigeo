@@ -61,11 +61,6 @@ public:
     void update_required_gpu_limits(WGPULimits& limits, const WGPULimits& supported_limits);
     void paint_gui();
 
-    // Not happy with the following three in public, but we need to have access inside the lambdas.
-    std::unique_ptr<webgpu::raii::RawBuffer<glm::vec4>> m_position_readback_buffer;
-    bool m_position_readback_done = true;
-    glm::vec4 m_position_readback_result;
-
 public slots:
     void update_camera(const nucleus::camera::Definition& new_definition) override;
     void update_debug_scheduler_stats(const QString& stats) override;
@@ -73,6 +68,10 @@ public slots:
     void request_redraw();
 
 private:
+    std::unique_ptr<webgpu::raii::RawBuffer<glm::vec4>> m_position_readback_buffer;
+    bool m_position_readback_done = true;
+    glm::vec4 m_position_readback_result;
+
     void create_buffers();
     void create_bind_groups();
 
