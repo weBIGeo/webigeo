@@ -113,6 +113,12 @@ protected:
     Data get_output_data(SocketIndex output_index);
 
     Data get_input_data(SocketIndex input_index);
+
+    float last_run_duration() const;
+
+private:
+    std::chrono::high_resolution_clock::time_point m_last_run_started;
+    std::chrono::high_resolution_clock::time_point m_last_run_finished;
 };
 
 } // namespace webgpu_engine::compute::nodes
