@@ -103,6 +103,8 @@ void NormalComputeNode::run()
 
     // write hashmap
     // since the compute pass stores textures at indices [0, num_tile_ids), we can just write those indices into the hashmap
+    m_output_tile_map.clear();
+    m_output_texture.clear();
     for (uint16_t i = 0; i < tile_ids.size(); i++) {
         m_output_texture.reserve(i);
         m_output_tile_map.store(tile_ids[i], i);
