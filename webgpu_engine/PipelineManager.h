@@ -42,7 +42,7 @@ public:
     const webgpu::raii::BindGroupLayout& camera_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& tile_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& compose_bind_group_layout() const;
-    const webgpu::raii::BindGroupLayout& compute_bind_group_layout() const;
+    const webgpu::raii::BindGroupLayout& normals_compute_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& overlay_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& downsample_compute_bind_group_layout() const;
 
@@ -56,7 +56,7 @@ private:
     void create_compose_pipeline();
     void create_atmosphere_pipeline();
     void create_shadow_pipeline();
-    void create_dummy_compute_pipeline();
+    void create_normals_compute_pipeline();
     void create_downsample_compute_pipeline();
 
 private:
@@ -67,14 +67,14 @@ private:
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_compose_pipeline;
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_atmosphere_pipeline;
 
-    std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_dummy_compute_pipeline;
+    std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_normals_compute_pipeline;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_downsample_compute_pipeline;
 
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_shared_config_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_camera_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_tile_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_compose_bind_group_layout;
-    std::unique_ptr<webgpu::raii::BindGroupLayout> m_compute_bind_group_layout;
+    std::unique_ptr<webgpu::raii::BindGroupLayout> m_normals_compute_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_overlay_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_downsample_compute_bind_group_layout;
 

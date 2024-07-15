@@ -73,7 +73,7 @@ void NormalComputeNode::run_impl()
     WGPUBindGroupEntry output_texture_array_entry = m_output_texture.texture().texture_view().create_bind_group_entry(5);
     std::vector<WGPUBindGroupEntry> entries { input_tile_ids_entry, input_bounds_entry, input_hash_map_key_buffer_entry, input_hash_map_value_buffer_entry,
         input_height_texture_array_entry, output_texture_array_entry };
-    webgpu::raii::BindGroup compute_bind_group(m_device, m_pipeline_manager->compute_bind_group_layout(), entries, "compute controller bind group");
+    webgpu::raii::BindGroup compute_bind_group(m_device, m_pipeline_manager->normals_compute_bind_group_layout(), entries, "compute controller bind group");
 
     // bind GPU resources and run pipeline
     // the result is a texture array with the calculated overlays, and a hashmap that maps id to texture array index
