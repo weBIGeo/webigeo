@@ -48,6 +48,12 @@ void Node::connect_output_socket(size_t output_index, Node* connected_node, size
     connected_output_sockets[output_index].connected_socket_index = connected_input_index;
 }
 
+void Node::run()
+{
+    emit run_started();
+    run_impl();
+}
+
 DataType Node::get_input_socket_type(size_t input_socket_index) const
 {
     assert(input_socket_index < input_socket_types.size());

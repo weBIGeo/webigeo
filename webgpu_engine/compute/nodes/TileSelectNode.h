@@ -32,7 +32,7 @@ public:
     TileSelectNode();
 
 public slots:
-    void run() override;
+    void run_impl() override;
 
 protected:
     Data get_output_data_impl(SocketIndex output_index) override;

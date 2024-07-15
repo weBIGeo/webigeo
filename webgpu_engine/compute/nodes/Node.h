@@ -77,16 +77,18 @@ public:
     void connect_output_socket(SocketIndex output_index, Node* connected_node, SocketIndex connected_input_index);
 
 public slots:
-    /// Override to implement node behavior.
-    /// Postcondition:
-    ///   - get_output_data(output-index) returns result
-    /// TODO maybe async with signals/slots
-    virtual void run() = 0;
+    void run();
 
 signals:
+    void run_started();
     void run_finished();
 
 protected:
+    /// Override to implement node behavior.
+    /// Postcondition:
+    ///   - get_output_data(output-index) returns result
+    virtual void run_impl() = 0;
+
     /// Override to return pointer to output data for respective output slot
     virtual Data get_output_data_impl(SocketIndex output_index) = 0;
 

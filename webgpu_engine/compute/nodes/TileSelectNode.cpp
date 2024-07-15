@@ -28,7 +28,7 @@ TileSelectNode::TileSelectNode()
 {
 }
 
-void TileSelectNode::run()
+void TileSelectNode::run_impl()
 {
     qDebug() << "running TileSelectNode ...";
 

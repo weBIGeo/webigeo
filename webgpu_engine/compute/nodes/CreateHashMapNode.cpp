@@ -33,7 +33,7 @@ CreateHashMapNode::CreateHashMapNode(WGPUDevice device, const glm::uvec2& resolu
     m_output_tile_id_to_index.update_gpu_data();
 }
 
-void CreateHashMapNode::run()
+void CreateHashMapNode::run_impl()
 {
     qDebug() << "running ConvertToHashMapNode ...";
 

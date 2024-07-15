@@ -39,7 +39,7 @@ NormalComputeNode::NormalComputeNode(
     m_output_tile_map.update_gpu_data();
 }
 
-void NormalComputeNode::run()
+void NormalComputeNode::run_impl()
 {
     qDebug() << "running NormalComputeNode ...";
 

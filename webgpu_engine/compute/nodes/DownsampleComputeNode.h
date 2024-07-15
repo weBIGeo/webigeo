@@ -34,7 +34,7 @@ public:
     DownsampleComputeNode(const PipelineManager& pipeline_manager, WGPUDevice device, size_t capacity, size_t num_downsample_levels = 1);
 
 public slots:
-    void run() override;
+    void run_impl() override;
 
 protected:
     Data get_output_data_impl(SocketIndex output_index) override;

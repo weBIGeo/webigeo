@@ -35,7 +35,7 @@ public:
     void on_single_tile_received(const nucleus::tile_scheduler::tile_types::TileLayer& tile);
 
 public slots:
-    void run() override;
+    void run_impl() override;
 
 protected:
     Data get_output_data_impl(SocketIndex output_index) override;

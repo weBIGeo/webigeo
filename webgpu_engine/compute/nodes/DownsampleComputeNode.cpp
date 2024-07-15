@@ -36,7 +36,7 @@ DownsampleComputeNode::DownsampleComputeNode(const PipelineManager& pipeline_man
     assert(m_num_downsample_steps > 0 && m_num_downsample_steps < 18);
 }
 
-void DownsampleComputeNode::run()
+void DownsampleComputeNode::run_impl()
 {
     qDebug() << "running DownsampleTilesNode ...";
 
