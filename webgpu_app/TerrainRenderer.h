@@ -45,7 +45,7 @@ public:
     void render_gui();
     void on_window_resize(int width, int height);
 
-    [[nodiscard]] InputMapper* get_input_mapper() { return m_inputMapper.get(); }
+    [[nodiscard]] InputMapper* get_input_mapper() { return m_input_mapper.get(); }
     [[nodiscard]] GuiManager* get_gui_manager() { return m_gui_manager.get(); }
 
     // PROPERTIES
@@ -65,7 +65,7 @@ private:
     GLFWwindow* m_window;
     std::unique_ptr<webgpu_engine::Window> m_webgpu_window;
     std::unique_ptr<nucleus::Controller> m_controller;
-    std::unique_ptr<InputMapper> m_inputMapper;
+    std::unique_ptr<InputMapper> m_input_mapper;
     std::unique_ptr<GuiManager> m_gui_manager;
 
     WGPUInstance m_instance = nullptr;

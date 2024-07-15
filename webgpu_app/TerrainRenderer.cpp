@@ -179,7 +179,7 @@ void TerrainRenderer::start() {
     m_controller = std::make_unique<nucleus::Controller>(m_webgpu_window.get());
 
     nucleus::camera::Controller* camera_controller = m_controller->camera_controller();
-    m_inputMapper = std::make_unique<InputMapper>(this, camera_controller);
+    m_input_mapper = std::make_unique<InputMapper>(this, camera_controller);
 
     connect(this, &TerrainRenderer::update_camera_requested, camera_controller, &nucleus::camera::Controller::update_camera_request);
 
