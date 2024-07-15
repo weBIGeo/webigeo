@@ -23,6 +23,8 @@
 
 namespace webgpu_engine::compute::nodes {
 
+glm::uvec3 NormalComputeNode::SHADER_WORKGROUP_SIZE = { 1, 16, 16 };
+
 NormalComputeNode::NormalComputeNode(
     const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, SocketIndex capacity, WGPUTextureFormat output_format)
     : Node({ data_type<const std::vector<tile::Id>*>(), data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>() },
@@ -88,8 +90,7 @@ void NormalComputeNode::run_impl()
             compute_pass_desc.label = "compute controller compute pass";
             webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
 
-            // const glm::uvec3& workgroup_counts = { tile_ids.size(), 1, 1 };
-            glm::uvec3 workgroup_counts = { tile_ids.size(), 1, 1 };
+            glm::uvec3 workgroup_counts = glm::uvec3 { tile_ids.size(), m_output_texture.width(), m_output_texture.height() } / SHADER_WORKGROUP_SIZE;
             wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, compute_bind_group.handle(), 0, nullptr);
             m_pipeline_manager->dummy_compute_pipeline().run(compute_pass, workgroup_counts);
         }

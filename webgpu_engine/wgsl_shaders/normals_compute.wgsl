@@ -30,7 +30,7 @@
 // output
 @group(0) @binding(5) var output_tiles: texture_storage_2d_array<rgba8unorm, write>; // normal tiles (output)
 
-@compute @workgroup_size(1)
+@compute @workgroup_size(1, 16, 16)
 fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     const input_n_edge_vertices = 65;
     const n_quads_per_direction: u32 = 65 - 1;
@@ -49,14 +49,11 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     // retrieve array layer by hash
     let texture_array_index = i32(map_value_buffer[hash]);
 
-    for (var i: u32 = 0; i < 256; i++) {
-        for (var j: u32 = 0; j < 256; j++) {
-            let uv = vec2f(f32(i) / f32(256), f32(j) / f32(256));
-            let pos_y = uv.y * f32(quad_height) + bounds.y;
-            let altitude_correction_factor = calc_altitude_correction_factor(pos_y);
-            let normal = normal_by_finite_difference_method(uv, input_n_edge_vertices, quad_width, quad_height, altitude_correction_factor, texture_array_index, input_tiles);
-            //let color = vec3f(f32(i) / 256, f32(j) / 256, f32(id.x) / 256);
-            textureStore(output_tiles, vec2(i, j), id.x, vec4f(normal, 1));
-        }
-    }
+    let col = id.y;
+    let row = id.z;
+    let uv = vec2f(f32(col) / f32(256), f32(row) / f32(256));
+    let pos_y = uv.y * f32(quad_height) + bounds.y;
+    let altitude_correction_factor = calc_altitude_correction_factor(pos_y);
+    let normal = normal_by_finite_difference_method(uv, input_n_edge_vertices, quad_width, quad_height, altitude_correction_factor, texture_array_index, input_tiles);
+    textureStore(output_tiles, vec2(col, row), id.x, vec4f(normal, 1));
 }
