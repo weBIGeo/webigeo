@@ -45,8 +45,6 @@ private:
 
 template <typename T, int N> void SingleVertexBufferInfo::add_attribute(uint32_t shader_location, uint32_t offset)
 {
-    static_assert(VertexFormat<T, N>::format() != WGPUVertexFormat_Undefined);
-
     WGPUVertexAttribute attribute {};
     attribute.shaderLocation = shader_location;
     attribute.format = VertexFormat<T, N>::format();

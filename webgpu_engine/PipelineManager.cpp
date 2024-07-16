@@ -70,7 +70,7 @@ void PipelineManager::create_bind_group_layouts()
 {
     WGPUBindGroupLayoutEntry shared_config_entry {};
     shared_config_entry.binding = 0;
-    shared_config_entry.visibility = WGPUShaderStage::WGPUShaderStage_Vertex | WGPUShaderStage::WGPUShaderStage_Fragment;
+    shared_config_entry.visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
     shared_config_entry.buffer.type = WGPUBufferBindingType_Uniform;
     shared_config_entry.buffer.minBindingSize = 0;
     m_shared_config_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(
@@ -78,7 +78,7 @@ void PipelineManager::create_bind_group_layouts()
 
     WGPUBindGroupLayoutEntry camera_entry {};
     camera_entry.binding = 0;
-    camera_entry.visibility = WGPUShaderStage::WGPUShaderStage_Vertex | WGPUShaderStage::WGPUShaderStage_Fragment;
+    camera_entry.visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
     camera_entry.buffer.type = WGPUBufferBindingType_Uniform;
     camera_entry.buffer.minBindingSize = 0;
     m_camera_bind_group_layout
@@ -86,7 +86,7 @@ void PipelineManager::create_bind_group_layouts()
 
     WGPUBindGroupLayoutEntry n_vertices_entry {};
     n_vertices_entry.binding = 0;
-    n_vertices_entry.visibility = WGPUShaderStage::WGPUShaderStage_Vertex;
+    n_vertices_entry.visibility = WGPUShaderStage_Vertex;
     n_vertices_entry.buffer.type = WGPUBufferBindingType_Uniform;
     n_vertices_entry.buffer.minBindingSize = 0;
 

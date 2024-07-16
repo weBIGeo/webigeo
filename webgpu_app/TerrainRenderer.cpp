@@ -330,7 +330,7 @@ void TerrainRenderer::create_swapchain(uint32_t width, uint32_t height)
     WGPUSwapChainDescriptor swapchain_desc = {};
     swapchain_desc.width = width;
     swapchain_desc.height = height;
-    swapchain_desc.usage = WGPUTextureUsage::WGPUTextureUsage_RenderAttachment;
+    swapchain_desc.usage = WGPUTextureUsage_RenderAttachment;
     swapchain_desc.format = m_swapchain_format;
     swapchain_desc.presentMode = prop_swapchain_presentmode;
     m_swapchain = wgpuDeviceCreateSwapChain(m_device, m_surface, &swapchain_desc);
