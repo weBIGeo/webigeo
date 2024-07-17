@@ -382,43 +382,7 @@ void TerrainRenderer::webgpu_create_context()
     qDebug() << "Requesting device...";
     WGPURequiredLimits required_limits {};
     WGPUSupportedLimits supported_limits {};
-#ifndef __EMSCRIPTEN__
     wgpuAdapterGetLimits(m_adapter, &supported_limits);
-#else
-    // TODO: Update emscripten and hope wgpuAdapterGetLimits is supported
-    // or alternatively setup some custom js interop (https://developer.mozilla.org/en-US/docs/Web/API/GPUSupportedLimits)
-    supported_limits.limits.maxTextureDimension1D = 8192;
-    supported_limits.limits.maxTextureDimension2D = 8192;
-    supported_limits.limits.maxTextureDimension3D = 2048;
-    supported_limits.limits.maxTextureArrayLayers = 256;
-    supported_limits.limits.maxBindGroups = 4;
-    supported_limits.limits.maxBindingsPerBindGroup = 640;
-    supported_limits.limits.maxDynamicUniformBuffersPerPipelineLayout = 8;
-    supported_limits.limits.maxDynamicStorageBuffersPerPipelineLayout = 4;
-    supported_limits.limits.maxSampledTexturesPerShaderStage = 16;
-    supported_limits.limits.maxSamplersPerShaderStage = 16;
-    supported_limits.limits.maxStorageBuffersPerShaderStage = 8;
-    supported_limits.limits.maxStorageTexturesPerShaderStage = 4;
-    supported_limits.limits.maxUniformBuffersPerShaderStage = 12;
-    supported_limits.limits.maxUniformBufferBindingSize = 65536; // 64 KB
-    supported_limits.limits.maxStorageBufferBindingSize = 134217728; // 128 MB
-    supported_limits.limits.minUniformBufferOffsetAlignment = 256;
-    supported_limits.limits.minStorageBufferOffsetAlignment = 256;
-    supported_limits.limits.maxVertexBuffers = 8;
-    supported_limits.limits.maxBufferSize = 268435456; // 256 MB
-    supported_limits.limits.maxVertexAttributes = 16;
-    supported_limits.limits.maxVertexBufferArrayStride = 2048;
-    supported_limits.limits.maxInterStageShaderComponents = 60;
-    supported_limits.limits.maxInterStageShaderVariables = 16;
-    supported_limits.limits.maxColorAttachments = 8;
-    supported_limits.limits.maxColorAttachmentBytesPerSample = 32;
-    supported_limits.limits.maxComputeWorkgroupStorageSize = 16384; // 16 KB
-    supported_limits.limits.maxComputeInvocationsPerWorkgroup = 256;
-    supported_limits.limits.maxComputeWorkgroupSizeX = 256;
-    supported_limits.limits.maxComputeWorkgroupSizeY = 256;
-    supported_limits.limits.maxComputeWorkgroupSizeZ = 64;
-    supported_limits.limits.maxComputeWorkgroupsPerDimension = 65535;
-#endif
 
     // irrelevant for us, but needs to be set
     required_limits.limits.minStorageBufferOffsetAlignment = supported_limits.limits.minStorageBufferOffsetAlignment;
