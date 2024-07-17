@@ -23,6 +23,8 @@
 
 namespace webgpu_engine::compute::nodes {
 
+glm::uvec3 NormalComputeNode::SHADER_WORKGROUP_SIZE = { 1, 16, 16 };
+
 NormalComputeNode::NormalComputeNode(
     const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, SocketIndex capacity, WGPUTextureFormat output_format)
     : Node({ data_type<const std::vector<tile::Id>*>(), data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>() },
@@ -39,7 +41,7 @@ NormalComputeNode::NormalComputeNode(
     m_output_tile_map.update_gpu_data();
 }
 
-void NormalComputeNode::run()
+void NormalComputeNode::run_impl()
 {
     qDebug() << "running NormalComputeNode ...";
 
@@ -73,7 +75,7 @@ void NormalComputeNode::run()
     WGPUBindGroupEntry output_texture_array_entry = m_output_texture.texture().texture_view().create_bind_group_entry(5);
     std::vector<WGPUBindGroupEntry> entries { input_tile_ids_entry, input_bounds_entry, input_hash_map_key_buffer_entry, input_hash_map_value_buffer_entry,
         input_height_texture_array_entry, output_texture_array_entry };
-    webgpu::raii::BindGroup compute_bind_group(m_device, m_pipeline_manager->compute_bind_group_layout(), entries, "compute controller bind group");
+    webgpu::raii::BindGroup compute_bind_group(m_device, m_pipeline_manager->normals_compute_bind_group_layout(), entries, "compute controller bind group");
 
     // bind GPU resources and run pipeline
     // the result is a texture array with the calculated overlays, and a hashmap that maps id to texture array index
@@ -88,8 +90,7 @@ void NormalComputeNode::run()
             compute_pass_desc.label = "compute controller compute pass";
             webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
 
-            // const glm::uvec3& workgroup_counts = { tile_ids.size(), 1, 1 };
-            glm::uvec3 workgroup_counts = { tile_ids.size(), 1, 1 };
+            glm::uvec3 workgroup_counts = glm::uvec3 { tile_ids.size(), m_output_texture.width(), m_output_texture.height() } / SHADER_WORKGROUP_SIZE;
             wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, compute_bind_group.handle(), 0, nullptr);
             m_pipeline_manager->dummy_compute_pipeline().run(compute_pass, workgroup_counts);
         }
@@ -103,6 +104,8 @@ void NormalComputeNode::run()
 
     // write hashmap
     // since the compute pass stores textures at indices [0, num_tile_ids), we can just write those indices into the hashmap
+    m_output_tile_map.clear();
+    m_output_texture.clear();
     for (uint16_t i = 0; i < tile_ids.size(); i++) {
         m_output_texture.reserve(i);
         m_output_tile_map.store(tile_ids[i], i);

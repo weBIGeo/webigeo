@@ -31,6 +31,8 @@ public:
     enum Input : SocketIndex { TILE_ID_LIST_TO_PROCESS = 0, TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP = 1, TEXTURE_ARRAY = 2 };
     enum Output : SocketIndex { OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP = 0, OUTPUT_TEXTURE_ARRAY = 1 };
 
+    static glm::uvec3 SHADER_WORKGROUP_SIZE; // TODO currently hardcoded in shader! can we somehow not hardcode it? maybe using overrides
+
     NormalComputeNode(
         const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity, WGPUTextureFormat output_format);
 
@@ -38,7 +40,7 @@ public:
     const TileStorageTexture& texture_storage() const { return m_output_texture; }
 
 public slots:
-    void run() override;
+    void run_impl() override;
 
 protected:
     Data get_output_data_impl(SocketIndex output_index) override;

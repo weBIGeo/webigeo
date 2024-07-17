@@ -56,8 +56,7 @@ fn sample_higher_zoomlevel_tile(tile_id: TileId, coords: vec2<u32>, size: u32) -
     return sampled_value;
 }
 
-
-@compute @workgroup_size(1) //TODO pick appropriate values
+@compute @workgroup_size(1, 16, 16)
 fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     let tile_id = input_tile_ids[id.x];
     let size = 256u; // TODO don't hardcode
@@ -76,6 +75,4 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     let final_value = (sample_00 + sample_01 + sample_10 + sample_11) * 0.25f;
 
     textureStore(output_textures, final_coord, id.x, final_value);
-    //textureStore(output_textures, final_coord, id.x, vec4f(f32(id.y) / 256f, f32(id.z) / 256f, 0f, 1f));
-
 }

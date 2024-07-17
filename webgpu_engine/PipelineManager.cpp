@@ -37,7 +37,7 @@ const webgpu::raii::GenericRenderPipeline& PipelineManager::compose_pipeline() c
 
 const webgpu::raii::GenericRenderPipeline& PipelineManager::atmosphere_pipeline() const { return *m_atmosphere_pipeline; }
 
-const webgpu::raii::CombinedComputePipeline& PipelineManager::dummy_compute_pipeline() const { return *m_dummy_compute_pipeline; }
+const webgpu::raii::CombinedComputePipeline& PipelineManager::dummy_compute_pipeline() const { return *m_normals_compute_pipeline; }
 
 const webgpu::raii::CombinedComputePipeline& PipelineManager::downsample_compute_pipeline() const { return *m_downsample_compute_pipeline; }
 
@@ -49,7 +49,7 @@ const webgpu::raii::BindGroupLayout& PipelineManager::tile_bind_group_layout() c
 
 const webgpu::raii::BindGroupLayout& PipelineManager::compose_bind_group_layout() const { return *m_compose_bind_group_layout; }
 
-const webgpu::raii::BindGroupLayout& PipelineManager::compute_bind_group_layout() const { return *m_compute_bind_group_layout; }
+const webgpu::raii::BindGroupLayout& PipelineManager::normals_compute_bind_group_layout() const { return *m_normals_compute_bind_group_layout; }
 
 const webgpu::raii::BindGroupLayout& PipelineManager::overlay_bind_group_layout() const { return *m_overlay_bind_group_layout; }
 
@@ -61,7 +61,7 @@ void PipelineManager::create_pipelines()
     create_tile_pipeline();
     create_compose_pipeline();
     create_atmosphere_pipeline();
-    create_dummy_compute_pipeline();
+    create_normals_compute_pipeline();
     create_downsample_compute_pipeline();
     m_pipelines_created = true;
 }
@@ -70,7 +70,7 @@ void PipelineManager::create_bind_group_layouts()
 {
     WGPUBindGroupLayoutEntry shared_config_entry {};
     shared_config_entry.binding = 0;
-    shared_config_entry.visibility = WGPUShaderStage::WGPUShaderStage_Vertex | WGPUShaderStage::WGPUShaderStage_Fragment;
+    shared_config_entry.visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
     shared_config_entry.buffer.type = WGPUBufferBindingType_Uniform;
     shared_config_entry.buffer.minBindingSize = 0;
     m_shared_config_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(
@@ -78,7 +78,7 @@ void PipelineManager::create_bind_group_layouts()
 
     WGPUBindGroupLayoutEntry camera_entry {};
     camera_entry.binding = 0;
-    camera_entry.visibility = WGPUShaderStage::WGPUShaderStage_Vertex | WGPUShaderStage::WGPUShaderStage_Fragment;
+    camera_entry.visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
     camera_entry.buffer.type = WGPUBufferBindingType_Uniform;
     camera_entry.buffer.minBindingSize = 0;
     m_camera_bind_group_layout
@@ -86,7 +86,7 @@ void PipelineManager::create_bind_group_layouts()
 
     WGPUBindGroupLayoutEntry n_vertices_entry {};
     n_vertices_entry.binding = 0;
-    n_vertices_entry.visibility = WGPUShaderStage::WGPUShaderStage_Vertex;
+    n_vertices_entry.visibility = WGPUShaderStage_Vertex;
     n_vertices_entry.buffer.type = WGPUBufferBindingType_Uniform;
     n_vertices_entry.buffer.minBindingSize = 0;
 
@@ -186,8 +186,8 @@ void PipelineManager::create_bind_group_layouts()
     compute_output_tiles_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2DArray;
     compute_output_tiles_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
     compute_output_tiles_entry.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
-
-    m_compute_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
+    
+    m_normals_compute_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
         std::vector<WGPUBindGroupLayoutEntry> { compute_input_tile_ids_entry, compute_input_bounds_entry, compute_key_buffer_entry, compute_value_buffer_entry,
             compute_input_height_textures_entry, compute_output_tiles_entry },
         "dummy compute bind group layout");
@@ -256,7 +256,7 @@ void PipelineManager::release_pipelines()
     m_tile_pipeline.release();
     m_compose_pipeline.release();
     m_atmosphere_pipeline.release();
-    m_dummy_compute_pipeline.release();
+    m_normals_compute_pipeline.release();
     m_downsample_compute_pipeline.release();
     m_pipelines_created = false;
 }
@@ -317,10 +317,10 @@ void PipelineManager::create_shadow_pipeline() {
     //TODO
 }
 
-void PipelineManager::create_dummy_compute_pipeline()
+void PipelineManager::create_normals_compute_pipeline()
 {
-    m_dummy_compute_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(
-        m_device, m_shader_manager->dummy_compute(), std::vector<const webgpu::raii::BindGroupLayout*> { m_compute_bind_group_layout.get() });
+    m_normals_compute_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(
+        m_device, m_shader_manager->normals_compute(), std::vector<const webgpu::raii::BindGroupLayout*> { m_normals_compute_bind_group_layout.get() });
 }
 
 void PipelineManager::create_downsample_compute_pipeline()

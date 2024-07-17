@@ -41,7 +41,7 @@ public:
     const webgpu::raii::ShaderModule& screen_pass_vert() const;
     const webgpu::raii::ShaderModule& compose_frag() const;
     const webgpu::raii::ShaderModule& atmosphere_frag() const;
-    const webgpu::raii::ShaderModule& dummy_compute() const;
+    const webgpu::raii::ShaderModule& normals_compute() const;
     const webgpu::raii::ShaderModule& downsample_compute() const;
 
     std::unique_ptr<webgpu::raii::ShaderModule> create_shader_module(const std::string& name, const std::string& code);
@@ -62,7 +62,7 @@ private:
     std::unique_ptr<webgpu::raii::ShaderModule> m_screen_pass_vert_shader_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_compose_frag_shader_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_atmosphere_frag_shader_module;
-    std::unique_ptr<webgpu::raii::ShaderModule> m_dummy_compute_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_normals_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_downsample_compute_module;
 };
 

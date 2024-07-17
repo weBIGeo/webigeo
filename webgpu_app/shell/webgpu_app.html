@@ -29,6 +29,7 @@
     <div id="screen"></div>
     <canvas width="800" height="600" class="emscripten" id="webgpucanvas"></canvas>
 
+    <script src="webgpu_app.js"></script>
     <script src="touch-emulator.js"></script>
     <script type="text/javascript">
       //TouchEmulator();
@@ -72,7 +73,7 @@
                                 exitData.text !== undefined ? ` (${exitData.text})` : '';
                             showUi(spinner);
                         },
-                        entryFunction: window.createQtAppInstance,
+                        entryFunction: window.webgpu_app_entry,
                         containerElements: [screen],
                     },
                     // Canvas need to be set here as its needed for emscripten GLFW

@@ -32,7 +32,7 @@ public:
     CreateHashMapNode(WGPUDevice device, const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format);
 
 public slots:
-    void run() override;
+    void run_impl() override;
 
 protected:
     Data get_output_data_impl(SocketIndex output_index) override;

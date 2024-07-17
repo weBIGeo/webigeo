@@ -18,6 +18,8 @@
 
 #include "Node.h"
 
+#include <QDebug>
+
 namespace webgpu_engine::compute::nodes {
 
 Node::Node(const std::vector<DataType>& input_types, const std::vector<DataType>& output_types)
@@ -26,6 +28,11 @@ Node::Node(const std::vector<DataType>& input_types, const std::vector<DataType>
     , connected_input_sockets(input_types.size())
     , connected_output_sockets(output_types.size())
 {
+    connect(this, &webgpu_engine::compute::nodes::Node::run_started, this, [this]() { this->m_last_run_started = std::chrono::high_resolution_clock::now(); });
+    connect(
+        this, &webgpu_engine::compute::nodes::Node::run_finished, this, [this]() { this->m_last_run_finished = std::chrono::high_resolution_clock::now(); });
+    connect(
+        this, &webgpu_engine::compute::nodes::Node::run_finished, this, [this]() { qDebug() << " node execution took " << this->last_run_duration() << "ms"; });
 }
 
 void Node::connect_input_socket(size_t input_index, Node* connected_node, size_t connected_output_index)
@@ -46,6 +53,12 @@ void Node::connect_output_socket(size_t output_index, Node* connected_node, size
 
     connected_output_sockets[output_index].connected_node = connected_node;
     connected_output_sockets[output_index].connected_socket_index = connected_input_index;
+}
+
+void Node::run()
+{
+    emit run_started();
+    run_impl();
 }
 
 DataType Node::get_input_socket_type(size_t input_socket_index) const
@@ -86,5 +99,7 @@ Data Node::get_input_data(size_t input_index)
     assert(input_socket_types[input_index] == data.index()); // correct type
     return data;
 }
+
+float Node::last_run_duration() const { return std::chrono::duration_cast<std::chrono::milliseconds>(m_last_run_finished - m_last_run_started).count(); }
 
 } // namespace webgpu_engine::compute::nodes

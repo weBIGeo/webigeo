@@ -28,13 +28,14 @@ TileSelectNode::TileSelectNode()
 {
 }
 
-void TileSelectNode::run()
+void TileSelectNode::run_impl()
 {
     qDebug() << "running TileSelectNode ...";
 
-    RectangularTileRegion region { .min = { 8768, 10624 },
-        .max = { 8768 + 11, 10624 + 11 }, // inclusive, so this region has 12x12 tiles
-        .zoom_level = 14,
+    glm::uvec2 min = { 140288, 169984 };
+    RectangularTileRegion region { .min = min,
+        .max = min + glm::uvec2 { 12, 12 }, // inclusive, so this region has 13x13 tiles
+        .zoom_level = 18,
         .scheme = tile::Scheme::Tms };
     m_output_tile_ids = region.get_tiles();
     emit run_finished();

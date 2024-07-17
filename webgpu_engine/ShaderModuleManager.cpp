@@ -37,7 +37,7 @@ void ShaderModuleManager::create_shader_modules()
     m_screen_pass_vert_shader_module = create_shader_module("screen_pass_vert.wgsl");
     m_compose_frag_shader_module = create_shader_module("compose_frag.wgsl");
     m_atmosphere_frag_shader_module = create_shader_module("atmosphere_frag.wgsl");
-    m_dummy_compute_module = create_shader_module("dummy_compute.wgsl");
+    m_normals_compute_module = create_shader_module("normals_compute.wgsl");
     m_downsample_compute_module = create_shader_module("downsample_compute.wgsl");
 }
 
@@ -47,7 +47,7 @@ void ShaderModuleManager::release_shader_modules()
     m_screen_pass_vert_shader_module.release();
     m_compose_frag_shader_module.release();
     m_atmosphere_frag_shader_module.release();
-    m_dummy_compute_module.release();
+    m_normals_compute_module.release();
     m_downsample_compute_module.release();
 }
 
@@ -59,7 +59,7 @@ const webgpu::raii::ShaderModule& ShaderModuleManager::compose_frag() const { re
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::atmosphere_frag() const { return *m_atmosphere_frag_shader_module; }
 
-const webgpu::raii::ShaderModule& ShaderModuleManager::dummy_compute() const { return *m_dummy_compute_module; }
+const webgpu::raii::ShaderModule& ShaderModuleManager::normals_compute() const { return *m_normals_compute_module; }
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::downsample_compute() const { return *m_downsample_compute_module; }
 

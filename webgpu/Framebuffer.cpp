@@ -50,7 +50,7 @@ void Framebuffer::recreate_depth_texture()
     texture_desc.mipLevelCount = 1;
     texture_desc.sampleCount = 1;
     texture_desc.size = { m_format.size.x, m_format.size.y, 1 };
-    texture_desc.usage = WGPUTextureUsage::WGPUTextureUsage_RenderAttachment;
+    texture_desc.usage = WGPUTextureUsage_RenderAttachment;
     texture_desc.viewFormatCount = 1;
     texture_desc.viewFormats = &m_format.depth_format;
     m_depth_texture = std::make_unique<raii::Texture>(m_device, texture_desc);

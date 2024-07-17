@@ -95,13 +95,11 @@ void Texture::write(WGPUQueue queue, const nucleus::Raster<uint16_t>& data, uint
     image_copy_texture.aspect = WGPUTextureAspect::WGPUTextureAspect_All;
     image_copy_texture.mipLevel = 0;
     image_copy_texture.origin = { 0, 0, layer };
-    image_copy_texture.nextInChain = nullptr;
 
     WGPUTextureDataLayout texture_data_layout {};
     texture_data_layout.bytesPerRow = uint32_t(sizeof(uint16_t) * data.width());
     texture_data_layout.rowsPerImage = uint32_t(data.height());
     texture_data_layout.offset = 0;
-    texture_data_layout.nextInChain = nullptr;
     WGPUExtent3D copy_extent { m_descriptor.size.width, m_descriptor.size.height, 1 };
     wgpuQueueWriteTexture(queue, &image_copy_texture, data.bytes(), uint32_t(data.size_in_bytes()), &texture_data_layout, &copy_extent);
 }
@@ -117,13 +115,11 @@ void Texture::write(WGPUQueue queue, const nucleus::utils::ColourTexture& data, 
     image_copy_texture.aspect = WGPUTextureAspect::WGPUTextureAspect_All;
     image_copy_texture.mipLevel = 0;
     image_copy_texture.origin = { 0, 0, layer };
-    image_copy_texture.nextInChain = nullptr;
 
     WGPUTextureDataLayout texture_data_layout {};
     texture_data_layout.bytesPerRow = 4 * data.width(); // for uncompressed RGBA
     texture_data_layout.rowsPerImage = data.height();
     texture_data_layout.offset = 0;
-    texture_data_layout.nextInChain = nullptr;
     WGPUExtent3D copy_extent { m_descriptor.size.width, m_descriptor.size.height, 1 };
     wgpuQueueWriteTexture(queue, &image_copy_texture, data.data(), data.n_bytes(), &texture_data_layout, &copy_extent);
 }

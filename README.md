@@ -14,7 +14,7 @@ weBIGeo's primary target is the web. Additionally we support native builds on Wi
 ## Building the web version
 
 ### Dependencies
-* Qt 6.6.2 with
+* Qt 6.7.2 with
   * MinGW (GCC on linux might work but not tested)
   * Qt Shader Tools (otherwise Qt configure fails)
   * Sources
@@ -22,28 +22,28 @@ weBIGeo's primary target is the web. Additionally we support native builds on Wi
 * To exactly follow along with build instructions you need `ninja`, `cmake` and `emsdk` in your PATH
 
 ### Building Qt with emscripten
-For WebGPU to work we need to compile with emscripten version > 3.1.47. The default emscripten version, supported by Qt 6.6.2 is 3.1.37 (https://doc.qt.io/qt-6/wasm.html#installing-emscripten). Therefore we need to recompile the Qt sources with the appropriate version by ourselfs. (This step might be unnecessary in the near future with the release of [Qt 6.7](https://wiki.qt.io/Qt_6.7_Release)).
+For WebGPU to work we need to compile with emscripten version > 3.1.47. The default emscripten version, supported by Qt 6.7.2 is 3.1.50 (https://doc.qt.io/qt-6/wasm.html#installing-emscripten). However, newer emscripten releases include important fixes (e.g. requesting GPU limits from adapter) and API changes (e.g. new surface API) for webGPU. Therefore we need to recompile the Qt sources with the appropriate version by ourselfs. (This step might be unnecessary in the near future with the release of [Qt 6.8](https://wiki.qt.io/Qt_6.8_Release)).
 
 1. Open new CMD Terminal
 
 2. Navigate to Qt Path:
    ```
-   cd "C:\Qt\6.6.2"
+   cd "C:\Qt\6.7.2"
    ```
 
 3. Generate build and install path (and make sure they are empty)
    ```
-   mkdir build & mkdir wasm_singlethread_emsdk_3_1_55_custom & cd build
+   mkdir build & mkdir wasm_singlethread_emsdk_3_1_61_custom & cd build
    ```
 
 4. Install and activate specific emsdk version
    ```
-   emsdk install 3.1.55 & emsdk activate 3.1.55
+   emsdk install 3.1.61 & emsdk activate 3.1.61
    ```
 
 5. Configure Qt with a minimal setup (takes ~ 4min)
    ```
-   "../Src/configure" -debug-and-release -qt-host-path C:\Qt\6.6.2\mingw_64 -make libs -no-widgets -optimize-size -no-warnings-are-errors -platform wasm-emscripten -submodules qtdeclarative -no-dbus -no-sql-sqlite -feature-wasm-simd128 -no-feature-cssparser -no-feature-quick-treeview -no-feature-quick-pathview -no-feature-texthtmlparser -no-feature-textodfwriter -no-feature-quickcontrols2-windows -no-feature-quickcontrols2-macos -no-feature-quickcontrols2-ios -no-feature-quickcontrols2-imagine -no-feature-quickcontrols2-universal -no-feature-quickcontrols2-fusion -no-feature-qtwebengine-build -no-feature-qtprotobufgen -no-feature-qtpdf-build -no-feature-pdf -no-feature-printer -no-feature-sqlmodel -no-feature-qtpdf-quick-build -no-feature-quick-pixmap-cache-threaded-download -feature-quick-canvas -no-feature-quick-designer -no-feature-quick-particles -no-feature-quick-sprite -no-feature-raster-64bit -no-feature-raster-fp -prefix ../wasm_singlethread_emsdk_3_1_55_custom
+   "../Src/configure" -debug-and-release -qt-host-path C:\Qt\6.7.2\mingw_64 -make libs -no-widgets -optimize-size -no-warnings-are-errors -platform wasm-emscripten -submodules qtdeclarative -no-dbus -no-sql-sqlite -feature-wasm-simd128 -no-feature-cssparser -no-feature-quick-treeview -no-feature-quick-pathview -no-feature-texthtmlparser -no-feature-textodfwriter -no-feature-quickcontrols2-windows -no-feature-quickcontrols2-macos -no-feature-quickcontrols2-ios -no-feature-quickcontrols2-imagine -no-feature-quickcontrols2-universal -no-feature-quickcontrols2-fusion -no-feature-qtwebengine-build -no-feature-qtprotobufgen -no-feature-qtpdf-build -no-feature-pdf -no-feature-printer -no-feature-sqlmodel -no-feature-qtpdf-quick-build -no-feature-quick-pixmap-cache-threaded-download -feature-quick-canvas -no-feature-quick-designer -no-feature-quick-particles -no-feature-quick-sprite -no-feature-raster-64bit -no-feature-raster-fp -prefix ../wasm_singlethread_emsdk_3_1_61_custom
    ```
 
 6. Build Qt (takes ~ 8min)
@@ -61,20 +61,6 @@ For WebGPU to work we need to compile with emscripten version > 3.1.47. The defa
    cd .. & rmdir /s /q build
    ```
 
-9. Manuelly apply a patch to emscripten that fixes a webGPU bug, see section below.
-
-#### Emscripten webGPU patch
-
-As of writing this, emscripten has a bug when requesting a webGPU device. In particular the field `maxColorAttachmentBytesPerSample` is ignored. Unfortunately, we need this. Therefore, we need to append a line to the emscripten source.
-
-Open the file `/path/to/emsdk/upstream/emscripten/src/library_webgpu.js`. After line `2609` (for emscripten 3.1.55), insert the line
-
-```c++
-setLimitU32IfDefined("maxColorAttachmentBytesPerSample", {{{ C_STRUCTS.WGPULimits.maxColorAttachmentBytesPerSample }}});
-```
-
-That is it. Note, this gets overridden whenever you install another version of emscripten via `emsdk`.
-
 ### Create Custom Kit for Qt Creator
 This step is specifically tailored to the Qt-Creator IDE.
 
@@ -84,11 +70,16 @@ This step is specifically tailored to the Qt-Creator IDE.
 
 [![Emscripten Path Qt Creator](https://github.com/weBIGeo/ressources/blob/main/for_md/emscripten_path_qt_creator_thumb.jpg?raw=true)](https://github.com/weBIGeo/ressources/blob/main/for_md/emscripten_path_qt_creator.jpg?raw=true) [![Custom Qt Version for emsdk](https://github.com/weBIGeo/ressources/blob/main/for_md/custom_qt_version_thumb.jpg?raw=true)](https://github.com/weBIGeo/ressources/blob/main/for_md/custom_qt_version.jpg?raw=true) [![Custom Qt Kit for emsdk](https://github.com/weBIGeo/ressources/blob/main/for_md/custom_qt_kit_thumb.jpg?raw=true)](https://github.com/weBIGeo/ressources/blob/main/for_md/custom_qt_kit.jpg?raw=true)
 
+### Set EMSDK environment variable
+[TODO] find better way of handling that, the IDE should set this
+
+Usually, the Qt-IDE (Qt Creator) sets emscripten environment variables right before building after configuring the correct path to emsdk. However, for the current combination of versions, the variable is not set properly by the IDE. Therefore, in order to build the WebAssmebly version, manually set the environment variable EMSDK to emsdk's root directory.
+
 ## Building the native version
 
 ### Dependencies
 * Windows
-* Qt 6.6.2 with
+* Qt 6.7.2 with
   * Sources
   * Qt Shader Tools (otherwise Qt configure fails)
 * Python
@@ -112,7 +103,7 @@ There is no precompiled version of Qt for the MSVC2022-compiler. Therefore we ag
 
 2. Navigate to Qt Path:
    ```
-   cd "C:\Qt\6.6.2"
+   cd "C:\Qt\6.7.2"
    ```
 
 3. Generate build and install path (and make sure they are empty)
@@ -150,7 +141,7 @@ If you work with the Qt-IDE you need to setup the newly created Qt build as a de
 Dawn is the webgpu-implementation used in chromium, which is the open-source-engine for Google Chrome. Compiling dawn ourselves allows us to deploy weBIGeo natively such that we don't have to work in the browser sandbox during development. Building Dawn will take some time and memory as we need Debug and Release-Builds.
 
 > [!NOTE]
-> We choose the dawn version of branch `chromium/6246`, because it seems to be the one best aligned with the emscripten version in use. All of those versions are subject to change, especially since the webgpu-standard is not finalized! 
+> We choose the dawn version of branch `chromium/6600`, because it is the newest as of writing this. It is well aligned with the emscripten version in use as well as provides important fixes and API changes. All of those versions are subject to change, especially since the webgpu-standard is not finalized! 
 
 1. We need the compiler env variables, so choose either (or do manually :P)
 
@@ -168,7 +159,7 @@ Dawn is the webgpu-implementation used in chromium, which is the open-source-eng
 
 3.  Clone dawn and step into directory
     ```
-    git clone --branch chromium/6246 --depth 1 https://dawn.googlesource.com/dawn & cd dawn
+    git clone --branch chromium/6600 --depth 1 https://dawn.googlesource.com/dawn & cd dawn
     ```
 
 4.  Fetch dawn dependencies

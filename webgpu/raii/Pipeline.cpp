@@ -40,7 +40,7 @@ GenericRenderPipeline::GenericRenderPipeline(WGPUDevice device, const ShaderModu
         if (i < blend_states.size() && blend_states.at(i).has_value()) {
             color_target_state.blend = &blend_states.at(i).value();
         }
-        color_target_state.writeMask = WGPUColorWriteMask::WGPUColorWriteMask_All;
+        color_target_state.writeMask = WGPUColorWriteMask_All;
         color_target_states.push_back(color_target_state);
     }
 

@@ -30,7 +30,7 @@ TileRequestNode::TileRequestNode()
     connect(m_tile_loader.get(), &nucleus::tile_scheduler::TileLoadService::load_finished, this, &TileRequestNode::on_single_tile_received);
 }
 
-void TileRequestNode::run()
+void TileRequestNode::run_impl()
 {
     qDebug() << "running HeightRequestNode ...";
 

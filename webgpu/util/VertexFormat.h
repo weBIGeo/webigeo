@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <QDebug>
 #include <webgpu/webgpu.h>
 
 namespace webgpu::util {
@@ -27,7 +28,11 @@ template <typename T, int N> struct VertexFormat {
     static constexpr size_t size() { return sizeof(T) * N; }
 };
 
-template <typename T, int N> constexpr WGPUVertexFormat VertexFormat<T, N>::format() { return WGPUVertexFormat_Undefined; }
+template <typename T, int N> constexpr WGPUVertexFormat VertexFormat<T, N>::format()
+{
+    static_assert(sizeof N != sizeof N, "tried to get unmapped vertex format");
+    return static_cast<WGPUVertexFormat>(0);
+}
 template <> constexpr WGPUVertexFormat VertexFormat<float, 1>::format() { return WGPUVertexFormat_Float32; }
 template <> constexpr WGPUVertexFormat VertexFormat<float, 2>::format() { return WGPUVertexFormat_Float32x2; }
 template <> constexpr WGPUVertexFormat VertexFormat<float, 3>::format() { return WGPUVertexFormat_Float32x3; }

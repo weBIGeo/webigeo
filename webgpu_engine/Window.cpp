@@ -213,13 +213,11 @@ glm::vec4 Window::synchronous_position_readback(const glm::dvec2& ndc) {
 
     const auto& src_texture = m_gbuffer->color_texture(1);
     // Define Source Texture
-    WGPUImageCopyTexture image_copy_texture_source = {
-        .nextInChain = nullptr,
-        .texture = src_texture.handle(),
-        .mipLevel = 0,
-        .origin = {device_coordinates.x,device_coordinates.y,0},
-        .aspect = {}
-    };
+    WGPUImageCopyTexture image_copy_texture_source = {};
+    image_copy_texture_source.texture = src_texture.handle();
+    image_copy_texture_source.mipLevel = 0;
+    image_copy_texture_source.origin = { device_coordinates.x, device_coordinates.y, 0 };
+    image_copy_texture_source.aspect = {};
     // Define destination buffer
     WGPUTextureDataLayout texture_data_layout = {
         .nextInChain = nullptr,
@@ -227,13 +225,11 @@ glm::vec4 Window::synchronous_position_readback(const glm::dvec2& ndc) {
         .bytesPerRow = 256, // multiple of 256
         .rowsPerImage = 1,
     };
-    WGPUImageCopyBuffer image_copy_buffer_destination = {
-        .nextInChain = nullptr,
-        .layout = texture_data_layout,
-        .buffer = m_position_readback_buffer->handle(),
-    };
+    WGPUImageCopyBuffer image_copy_buffer_destination = {};
+    image_copy_buffer_destination.layout = texture_data_layout;
+    image_copy_buffer_destination.buffer = m_position_readback_buffer->handle();
     WGPUExtent3D image_copy_extent = {
-        .width  = 1,
+        .width = 1,
         .height = 1,
         .depthOrArrayLayers = 1,
     };
@@ -354,10 +350,8 @@ void Window::request_redraw() { m_needs_redraw = true; }
 
 void Window::create_buffers()
 {
-    m_shared_config_ubo
-        = std::make_unique<Buffer<uboSharedConfig>>(m_device, WGPUBufferUsage::WGPUBufferUsage_CopyDst | WGPUBufferUsage::WGPUBufferUsage_Uniform);
-    m_camera_config_ubo
-        = std::make_unique<Buffer<uboCameraConfig>>(m_device, WGPUBufferUsage::WGPUBufferUsage_CopyDst | WGPUBufferUsage::WGPUBufferUsage_Uniform);
+    m_shared_config_ubo = std::make_unique<Buffer<uboSharedConfig>>(m_device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
+    m_camera_config_ubo = std::make_unique<Buffer<uboCameraConfig>>(m_device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
     m_position_readback_buffer = std::make_unique<webgpu::raii::RawBuffer<glm::vec4>>(
         m_device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead, 256 / sizeof(glm::vec4), "position readback buffer");
 }

@@ -42,7 +42,7 @@ void NodeGraph::init_test_node_graph(const PipelineManager& manager, WGPUDevice 
     add_node(std::make_unique<TileRequestNode>());
     add_node(std::make_unique<CreateHashMapNode>(device, input_resolution, capacity, WGPUTextureFormat_R16Uint));
     add_node(std::make_unique<NormalComputeNode>(manager, device, output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm));
-    add_node(std::make_unique<DownsampleComputeNode>(manager, device, capacity));
+    add_node(std::make_unique<DownsampleComputeNode>(manager, device, capacity, 3));
 
     Node* tile_select_node = m_nodes[0].get();
     Node* height_request_node = m_nodes[1].get();
