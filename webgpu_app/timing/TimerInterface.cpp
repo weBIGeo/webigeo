@@ -71,13 +71,18 @@ float TimerInterface::get_standard_deviation()
     return std::sqrt((m_sum_of_squares / n) - (mean * mean));
 }
 
-size_t TimerInterface::get_sample_count() { return m_results.size(); }
+size_t TimerInterface::get_sample_count() const { return m_results.size(); }
+
+float TimerInterface::get_max() const { return m_max; }
+float TimerInterface::get_min() const { return m_min; }
 
 void TimerInterface::clear_results()
 {
     m_results.clear();
     m_sum = 0.0f;
     m_sum_of_squares = 0.0f;
+    m_max = FLT_MIN;
+    m_min = FLT_MAX;
 }
 
 std::string TimerInterface::to_string()
@@ -98,8 +103,12 @@ void TimerInterface::add_result(float result)
     m_results.push_back(result);
     m_sum += result;
     m_sum_of_squares += result * result;
+    m_max = std::max(m_max, result);
+    m_min = std::min(m_min, result);
     emit tick(result);
 }
+
+const std::vector<float>& TimerInterface::get_results() const { return m_results; }
 
 uint32_t TimerInterface::s_next_id = 0;
 

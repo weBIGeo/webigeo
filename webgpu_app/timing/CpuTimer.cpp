@@ -27,6 +27,11 @@ CpuTimer::CpuTimer(int queue_size)
 
 void CpuTimer::start() { m_ticks[0] = std::chrono::high_resolution_clock::now(); }
 
-void CpuTimer::stop() { m_ticks[1] = std::chrono::high_resolution_clock::now(); }
+void CpuTimer::stop()
+{
+    m_ticks[1] = std::chrono::high_resolution_clock::now();
+    const float duration = std::chrono::duration<float>(m_ticks[1] - m_ticks[0]).count();
+    add_result(duration);
+}
 
 } // namespace webgpu_app::timing

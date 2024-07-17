@@ -128,6 +128,7 @@ void TerrainRenderer::render_gui()
 
 void TerrainRenderer::render() {
     // Do nothing, this checks for ongoing asynchronous operations and call their callbacks
+    m_cputimer->start();
     glfwPollEvents();
 
     WGPUTextureView swapchain_texture = wgpuSwapChainGetCurrentTextureView(m_swapchain);
@@ -180,6 +181,8 @@ void TerrainRenderer::render() {
     wgpuInstanceProcessEvents(m_instance);
     wgpuDeviceTick(m_device);
 #endif
+
+    m_cputimer->stop();
 }
 
 void TerrainRenderer::start() {
@@ -274,9 +277,10 @@ void TerrainRenderer::start() {
     m_gui_manager->init(m_window, m_device, m_swapchain_format, WGPUTextureFormat_Undefined);
 #endif
 
-    m_gputimer = std::make_shared<timing::WebGpuTimer>(m_device, 4, 240);
-    m_timer_manager->add_timer(m_gputimer, "GPU Timer");
-    // connect(m_gputimer.get(), &timing::WebGpuTimer::tick, this, &TerrainRenderer::gpu_timer_tick);
+    m_cputimer = std::make_shared<timing::CpuTimer>(120);
+    m_timer_manager->add_timer(m_cputimer, "CPU Timer", "Renderer");
+    m_gputimer = std::make_shared<timing::WebGpuTimer>(m_device, 4, 120);
+    m_timer_manager->add_timer(m_gputimer, "GPU Timer", "Renderer");
 
     m_initialized = true;
 

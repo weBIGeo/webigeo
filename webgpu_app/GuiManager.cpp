@@ -101,60 +101,76 @@ bool GuiManager::want_capture_mouse()
 #endif
 }
 
+void GuiManager::toggle_timer(uint32_t timer_id)
+{
+    if (is_timer_selected(timer_id)) {
+        m_selected_timer.erase(timer_id);
+    } else {
+        m_selected_timer.clear(); // Remove if multiple selection possible
+        m_selected_timer.insert(timer_id);
+    }
+}
+
+bool GuiManager::is_timer_selected(uint32_t timer_id) { return m_selected_timer.find(timer_id) != m_selected_timer.end(); }
+
 void GuiManager::draw()
 {
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-    static float frame_time = 0.0f;
     static std::vector<std::pair<int, int>> links;
     static bool first_frame = true;
-    static float fpsValues[90] = {}; // Array to store FPS values for the graph, adjust size as needed for the time window
-    static float fpsRepaint[90] = {};
-    static int fpsIndex = 0; // Current index in FPS values array
-    static float lastTime = 0.0f; // Last time FPS was updated
 
-    ImGuiIO& io = ImGui::GetIO();
+    // ImGuiIO& io = ImGui::GetIO();
 
-    ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - 300, 0)); // Set position to top-left corner
-    ImGui::SetNextWindowSize(ImVec2(300, ImGui::GetIO().DisplaySize.y)); // Set height to full screen height, width as desired
+    ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - 400, 0)); // Set position to top-left corner
+    ImGui::SetNextWindowSize(ImVec2(400, ImGui::GetIO().DisplaySize.y)); // Set height to full screen height, width as desired
 
     ImGui::Begin("weBIGeo", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar);
 
-    // Calculate delta time and FPS
-    float currentTime = ImGui::GetTime();
-    float deltaTime = currentTime - lastTime;
-    lastTime = currentTime;
-    float fps = 1.0f / deltaTime;
-
-    // Store the current FPS value in the array
-    fpsValues[fpsIndex] = fps;
-    fpsRepaint[fpsIndex] = m_terrain_renderer->prop_repaint_count;
-    fpsIndex = (fpsIndex + 1) % IM_ARRAYSIZE(fpsValues); // Loop around the array
-
-    frame_time = frame_time * 0.95f + (1000.0f / io.Framerate) * 0.05f;
-
-    ImGui::Text("Average: %.3f ms/frame (%.1f FPS)", frame_time, io.Framerate);
-
-    ImGui::PlotLines("", fpsValues, IM_ARRAYSIZE(fpsValues), fpsIndex, nullptr, 0.0f, 70.0f, ImVec2(280, 80));
-
     if (ImGui::CollapsingHeader("Timing", ImGuiTreeNodeFlags_DefaultOpen)) {
+
+        const timing::GuiTimerWrapper* selected_timer = nullptr;
+        if (!m_selected_timer.empty()) {
+            uint32_t first_selected_timer_id = *m_selected_timer.begin();
+            selected_timer = m_terrain_renderer->get_timer_manager()->get_timer_by_id(first_selected_timer_id);
+        }
+        if (selected_timer) {
+            const auto* tmr = selected_timer->timer.get();
+            if (tmr->get_sample_count() > 2) {
+                ImVec4 timer_color = *(ImVec4*)(void*)&selected_timer->color;
+                ImGui::PushStyleColor(ImGuiCol_PlotLines, timer_color);
+                ImGui::PlotLines("Selected Timer", &tmr->get_results()[0], (int)tmr->get_sample_count(), 0, nullptr, 0.0f, tmr->get_max(), ImVec2(380, 80));
+                ImGui::PopStyleColor();
+            }
+        }
+
         auto group_list = m_terrain_renderer->get_timer_manager()->get_groups();
         for (const auto& group : group_list) {
             bool showGroup = true;
             if (group.name != "") {
+                ImGui::Indent();
                 showGroup = ImGui::CollapsingHeader(group.name.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
             }
             if (showGroup) {
                 for (const auto& tmr : group.timers) {
-                    ImVec4 color(tmr.color.x, tmr.color.y, tmr.color.z, tmr.color.w);
+                    const uint32_t tmr_id = tmr.timer->get_id();
+                    ImVec4 color(0.8f, 0.8f, 0.8f, 1.0f);
+                    if (is_timer_selected(tmr_id)) {
+                        color = *(ImVec4*)(void*)&tmr.color;
+                    }
 
-                    if (ImGui::ColorButton("##Color", color, ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoDragDrop, ImVec2(10, 10))) {
-                        tmr.timer->clear_results();
+                    if (ImGui::ColorButton(
+                            ("##t" + std::to_string(tmr_id)).c_str(), color, ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoDragDrop, ImVec2(10, 10))) {
+                        toggle_timer(tmr_id);
+                        // debug log the tmr_id
+                        qDebug() << "Timer ID: " << tmr_id;
                     }
                     ImGui::SameLine();
                     ImGui::Text("%s: %s ±%s [%zu]", tmr.name.c_str(), timing::format_time(tmr.timer->get_average()).c_str(),
                         timing::format_time(tmr.timer->get_standard_deviation()).c_str(), tmr.timer->get_sample_count());
                 }
             }
+            if (group.name != "")
+                ImGui::Unindent();
         }
         if (ImGui::Button("Reset All Timers")) {
             for (const auto& group : group_list)
@@ -174,8 +190,8 @@ void GuiManager::draw()
         }
     }
 
-    if (ImGui::Button(!m_showNodeEditor ? "Show Node Editor" : "Hide Node Editor", ImVec2(280, 20))) {
-        m_showNodeEditor = !m_showNodeEditor;
+    if (ImGui::Button(!m_show_nodeeditor ? "Show Node Editor" : "Hide Node Editor")) {
+        m_show_nodeeditor = !m_show_nodeeditor;
     }
     ImGui::End();
 
@@ -184,10 +200,10 @@ void GuiManager::draw()
         ImNodes::SetNodeScreenSpacePos(2, ImVec2(400, 50));
     }
 
-    if (m_showNodeEditor) {
+    if (m_show_nodeeditor) {
         // ========== BEGIN NODE WINDOW ===========
         ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(ImGui::GetIO().DisplaySize.x - 300, ImGui::GetIO().DisplaySize.y), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(ImGui::GetIO().DisplaySize.x - 400, ImGui::GetIO().DisplaySize.y), ImGuiCond_Always);
         ImGui::Begin("Node Editor", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar);
 
         // BEGINN NODE EDITOR

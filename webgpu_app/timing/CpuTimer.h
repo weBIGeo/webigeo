@@ -29,6 +29,7 @@ public:
     CpuTimer(int queue_size);
 
     void start();
+
     void stop();
 
 protected:

@@ -39,9 +39,13 @@ public:
 
     float get_average();
     float get_standard_deviation();
-    size_t get_sample_count();
+    size_t get_sample_count() const;
+
+    float get_max() const;
+    float get_min() const;
 
     void clear_results();
+    const std::vector<float>& get_results() const;
 
     std::string to_string();
 
@@ -56,6 +60,9 @@ private:
     size_t m_capacity;
     float m_sum = 0.0f;
     float m_sum_of_squares = 0.0f;
+    float m_max = FLT_MIN;
+    float m_min = FLT_MAX;
+
     uint32_t m_id;
 
     static uint32_t s_next_id;

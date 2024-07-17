@@ -45,6 +45,21 @@ class GuiTimerManager : public QObject {
     Q_OBJECT
 
 public:
+    static constexpr const glm::vec3 timer_colors[] = {
+        glm::vec3(1.0f, 0.0f, 0.0f), // red
+        glm::vec3(0.0f, 1.0f, 1.0f), // cyan
+        glm::vec3(0.49f, 0.0f, 1.0f), // violet
+        glm::vec3(0.49f, 1.0f, 0.0f), // spring green
+        glm::vec3(1.0f, 0.0f, 1.0f), // magenta
+        glm::vec3(0.0f, 0.49f, 1.0f), // ocean
+        glm::vec3(0.0f, 1.0f, 0.0f), // green
+        glm::vec3(1.0f, 0.49f, 0.0f), // orange
+        glm::vec3(0.0f, 0.0f, 1.0f), // blue
+        glm::vec3(0.0f, 1.0f, 0.49f), // turquoise
+        glm::vec3(1.0f, 1.0f, 0.0f), // yellow
+        glm::vec3(1.0f, 0.0f, 0.49f) // raspberry
+    };
+
     // adds the given timer
     std::shared_ptr<TimerInterface> add_timer(std::shared_ptr<TimerInterface> tmr);
 
@@ -53,16 +68,32 @@ public:
     {
         std::shared_ptr<TimerInterface> timer = std::dynamic_pointer_cast<TimerInterface>(tmr);
         if (timer) {
+            auto tmrColor = color;
+            if (tmrColor.x < 0.0f) {
+                tmrColor = glm::vec4(timer_colors[timer->get_id() % 12], 1.0f);
+            }
             auto it = std::find_if(m_groups.begin(), m_groups.end(), [&](const GuiTimerGroup& g) { return g.name == group; });
             if (it != m_groups.end()) {
-                it->timers.push_back({ timer, name, group, color });
+                it->timers.push_back({ timer, name, group, tmrColor });
             } else {
-                GuiTimerGroup newGroup { group, { { timer, name, group, color } } };
+                GuiTimerGroup newGroup { group, { { timer, name, group, tmrColor } } };
                 m_groups.push_back(newGroup);
             }
         } else {
             qCritical() << "Timer can't be added as it's not initialized correctly";
         }
+    }
+
+    [[nodiscard]] const GuiTimerWrapper* get_timer_by_id(uint32_t timer_id)
+    {
+        for (const auto& group : m_groups) {
+            for (const auto& tmr : group.timers) {
+                if (tmr.timer->get_id() == timer_id) {
+                    return &tmr;
+                }
+            }
+        }
+        return nullptr;
     }
 
     [[nodiscard]] const std::vector<GuiTimerGroup>& get_groups() const { return m_groups; }

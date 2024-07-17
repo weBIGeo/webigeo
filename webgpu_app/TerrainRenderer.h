@@ -29,6 +29,7 @@
 #include <webgpu/webgpu.h>
 #include <webgpu_engine/Window.h>
 
+#include "timing/CpuTimer.h"
 #include "timing/GuiTimerManager.h"
 #include "timing/WebGpuTimer.h"
 
@@ -108,6 +109,7 @@ private:
     std::unique_ptr<webgpu::raii::RawBuffer<uint64_t>> m_timestamp_result;
 
     std::shared_ptr<timing::WebGpuTimer> m_gputimer;
+    std::shared_ptr<timing::CpuTimer> m_cputimer;
 
     long m_frame_index = 0;
 

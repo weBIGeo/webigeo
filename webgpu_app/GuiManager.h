@@ -19,6 +19,7 @@
 #pragma once
 
 #include <GLFW/glfw3.h>
+#include <set>
 #include <webgpu/webgpu.h>
 
 class TerrainRenderer;
@@ -49,9 +50,14 @@ private:
     GLFWwindow* m_window;
     WGPUDevice m_device;
     TerrainRenderer* m_terrain_renderer = nullptr;
-    bool m_showNodeEditor = false;
+    bool m_show_nodeeditor = false;
+
+    std::set<uint32_t> m_selected_timer = { 0 };
 
     void draw();
+
+    void toggle_timer(uint32_t timer_id);
+    bool is_timer_selected(uint32_t timer_id);
 };
 
 } // namespace webgpu_app
