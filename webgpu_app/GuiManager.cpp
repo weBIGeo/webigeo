@@ -27,6 +27,8 @@
 #include "webgpu_engine/Window.h"
 #include <QDebug>
 
+namespace webgpu_app {
+
 void GuiManager::init(
     GLFWwindow* window, WGPUDevice device, [[maybe_unused]] WGPUTextureFormat swapchainFormat, [[maybe_unused]] WGPUTextureFormat depthTextureFormat)
 {
@@ -134,12 +136,42 @@ void GuiManager::draw()
 
     ImGui::PlotLines("", fpsValues, IM_ARRAYSIZE(fpsValues), fpsIndex, nullptr, 0.0f, 70.0f, ImVec2(280, 80));
 
-    m_terrain_renderer->render_gui();
+    if (ImGui::CollapsingHeader("Timing", ImGuiTreeNodeFlags_DefaultOpen)) {
+        auto group_list = m_terrain_renderer->get_timer_manager()->get_groups();
+        for (const auto& group : group_list) {
+            bool showGroup = true;
+            if (group.name != "") {
+                showGroup = ImGui::CollapsingHeader(group.name.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
+            }
+            if (showGroup) {
+                for (const auto& tmr : group.timers) {
+                    ImVec4 color(tmr.color.x, tmr.color.y, tmr.color.z, tmr.color.w);
 
-    ImGui::Separator();
+                    if (ImGui::ColorButton("##Color", color, ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoDragDrop, ImVec2(10, 10))) {
+                        tmr.timer->clear_results();
+                    }
+                    ImGui::SameLine();
+                    ImGui::Text("%s: %s ±%s [%zu]", tmr.name.c_str(), timing::format_time(tmr.timer->get_average()).c_str(),
+                        timing::format_time(tmr.timer->get_standard_deviation()).c_str(), tmr.timer->get_sample_count());
+                }
+            }
+        }
+        if (ImGui::Button("Reset All Timers")) {
+            for (const auto& group : group_list)
+                for (const auto& tmr : group.timers)
+                    tmr.timer->clear_results();
+        }
+    }
 
-    if (m_webgpu_window) {
-        m_webgpu_window->paint_gui();
+    if (ImGui::CollapsingHeader("APP Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+        m_terrain_renderer->render_gui();
+    }
+
+    if (ImGui::CollapsingHeader("Engine Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+        auto webgpu_window = m_terrain_renderer->get_webgpu_window();
+        if (webgpu_window) {
+            webgpu_window->paint_gui();
+        }
     }
 
     if (ImGui::Button(!m_showNodeEditor ? "Show Node Editor" : "Hide Node Editor", ImVec2(280, 20))) {
@@ -213,3 +245,5 @@ void GuiManager::draw()
     first_frame = false;
 #endif
 }
+
+} // namespace webgpu_app

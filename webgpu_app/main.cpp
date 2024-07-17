@@ -57,7 +57,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
     // Set custom logging handler for Qt
     qInstallMessageHandler(qt_logging_callback);
 
-    TerrainRenderer renderer;
+    webgpu_app::TerrainRenderer renderer;
     renderer.start();
     // NOTE: Please be aware that for WEB-Deployment renderer.start() is non-blocking!!
     // So Code at this point will run after initialization

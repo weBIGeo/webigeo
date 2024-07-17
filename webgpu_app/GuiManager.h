@@ -27,12 +27,15 @@ namespace webgpu_engine {
 class Window;
 }
 
+namespace webgpu_app {
+
+class TerrainRenderer;
+
 class GuiManager {
 
 public:
-    GuiManager(webgpu_engine::Window* webgpu_window, TerrainRenderer* terrain_renderer)
-        : m_webgpu_window(webgpu_window)
-        , m_terrain_renderer(terrain_renderer)
+    GuiManager(TerrainRenderer* terrain_renderer)
+        : m_terrain_renderer(terrain_renderer)
     {
     }
 
@@ -45,9 +48,10 @@ public:
 private:
     GLFWwindow* m_window;
     WGPUDevice m_device;
-    webgpu_engine::Window* m_webgpu_window = nullptr;
     TerrainRenderer* m_terrain_renderer = nullptr;
     bool m_showNodeEditor = false;
 
     void draw();
 };
+
+} // namespace webgpu_app

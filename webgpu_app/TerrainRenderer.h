@@ -19,14 +19,20 @@
 
 #pragma once
 
+#include "GuiManager.h"
 #include "InputMapper.h"
-#include "gui/GuiManager.h"
 #include "nucleus/Controller.h"
 #include <GLFW/glfw3.h>
 #include <memory>
 
+#include <nucleus/timing/TimerManager.h>
 #include <webgpu/webgpu.h>
 #include <webgpu_engine/Window.h>
+
+#include "timing/GuiTimerManager.h"
+#include "timing/WebGpuTimer.h"
+
+namespace webgpu_app {
 
 class TerrainRenderer : public QObject {
     Q_OBJECT
@@ -47,6 +53,8 @@ public:
 
     [[nodiscard]] InputMapper* get_input_mapper() { return m_inputMapper.get(); }
     [[nodiscard]] GuiManager* get_gui_manager() { return m_gui_manager.get(); }
+    [[nodiscard]] timing::GuiTimerManager* get_timer_manager() { return m_timer_manager.get(); }
+    [[nodiscard]] webgpu_engine::Window* get_webgpu_window() { return m_webgpu_window.get(); }
 
     // PROPERTIES
     bool prop_force_repaint = true;
@@ -67,6 +75,9 @@ private:
     std::unique_ptr<nucleus::Controller> m_controller;
     std::unique_ptr<InputMapper> m_inputMapper;
     std::unique_ptr<GuiManager> m_gui_manager;
+    std::unique_ptr<timing::GuiTimerManager> m_timer_manager;
+
+    WGPUInstanceDescriptor m_instance_desc;
 
     WGPUInstance m_instance = nullptr;
     WGPUSurface m_surface = nullptr;
@@ -96,8 +107,12 @@ private:
     std::unique_ptr<webgpu::raii::RawBuffer<uint64_t>> m_timestamp_resolve;
     std::unique_ptr<webgpu::raii::RawBuffer<uint64_t>> m_timestamp_result;
 
+    std::shared_ptr<timing::WebGpuTimer> m_gputimer;
+
     long m_frame_index = 0;
 
     void webgpu_create_context();
     void webgpu_release_context();
 };
+
+} // namespace webgpu_app

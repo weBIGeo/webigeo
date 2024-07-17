@@ -19,7 +19,6 @@
 
 #include "TerrainRenderer.h"
 
-#include "qcoreapplication.h"
 #include "webgpu_engine/Window.h"
 #include <QFile>
 #include <webgpu/webgpu_interface.hpp>
@@ -35,6 +34,10 @@
 #include "imgui.h"
 #endif
 #include "util/error_logging.h"
+
+#include <nucleus/timing/CpuTimer.h>
+
+namespace webgpu_app {
 
 static void windowResizeCallback(GLFWwindow* window, int width, int height) {
     auto terrainRenderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
@@ -117,6 +120,9 @@ void TerrainRenderer::render_gui()
     }
     ImGui::Checkbox("Repaint each frame", &prop_force_repaint);
     ImGui::Text("Repaint-Counter: %d", prop_repaint_count);
+
+    // ImGui::Text("%s", m_gputimer->to_string().c_str());
+
 #endif
 }
 
@@ -133,11 +139,7 @@ void TerrainRenderer::render() {
     command_encoder_desc.label = "Command Encoder";
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(m_device, &command_encoder_desc);
 
-    static int measure_every = 200;
-
-    if (m_frame_index % measure_every) {
-        wgpuCommandEncoderWriteTimestamp(encoder, m_timestamp_queries, 0);
-    }
+    m_gputimer->start(encoder);
 
     prop_frame_count++;
     if (m_webgpu_window->needs_redraw() || prop_force_repaint || prop_force_repaint_once) {
@@ -159,11 +161,7 @@ void TerrainRenderer::render() {
 #endif
     }
 
-    if (m_frame_index % measure_every) {
-        wgpuCommandEncoderWriteTimestamp(encoder, m_timestamp_queries, 1);
-        wgpuCommandEncoderResolveQuerySet(encoder, m_timestamp_queries, 0, 2, m_timestamp_resolve->handle(), 0);
-        m_timestamp_resolve->copy_to_buffer(encoder, 0, *m_timestamp_result, 0, m_timestamp_resolve->size_in_byte());
-    }
+    m_gputimer->stop(encoder);
 
     wgpuTextureViewRelease(swapchain_texture);
 
@@ -174,21 +172,14 @@ void TerrainRenderer::render() {
     wgpuQueueSubmit(m_queue, 1, &command);
     wgpuCommandBufferRelease(command);
 
+    m_gputimer->resolve(m_queue);
+
 #ifndef __EMSCRIPTEN__
     // Swapchain in the WEB is handled by the browser!
     wgpuSwapChainPresent(m_swapchain);
     wgpuInstanceProcessEvents(m_instance);
     wgpuDeviceTick(m_device);
 #endif
-
-    if (m_frame_index % measure_every == 3) {
-        std::vector<uint64_t> res = m_timestamp_result->read_back_sync(m_device);
-        uint64_t delta = res[1] - res[0];
-        qDebug() << "Frame duration: " << delta << "ns";
-        // output in seconds:
-        qDebug() << "Frame duration: " << delta / 1e9 << "s";
-    }
-    m_frame_index++;
 }
 
 void TerrainRenderer::start() {
@@ -277,24 +268,15 @@ void TerrainRenderer::start() {
 
     glfwSetWindowSize(m_window, m_viewport_size.x, m_viewport_size.y);
 
+    m_timer_manager = std::make_unique<timing::GuiTimerManager>();
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-    m_gui_manager = std::make_unique<GuiManager>(m_webgpu_window.get(), this);
+    m_gui_manager = std::make_unique<GuiManager>(this);
     m_gui_manager->init(m_window, m_device, m_swapchain_format, WGPUTextureFormat_Undefined);
 #endif
 
-    // Create timestamp queries
-    m_timestamp_query_desc = {
-        .nextInChain = nullptr,
-        .label = "Timestamp Queries",
-        .type = WGPUQueryType_Timestamp,
-        .count = 2, // start and end
-    };
-    m_timestamp_queries = wgpuDeviceCreateQuerySet(m_device, &m_timestamp_query_desc);
-    m_timestamp_writes = { .querySet = m_timestamp_queries, .beginningOfPassWriteIndex = 0, .endOfPassWriteIndex = 1 };
-    m_timestamp_resolve
-        = std::make_unique<webgpu::raii::RawBuffer<uint64_t>>(m_device, WGPUBufferUsage_QueryResolve | WGPUBufferUsage_CopySrc, 2, "Timestamp GPU Buffer");
-    m_timestamp_result
-        = std::make_unique<webgpu::raii::RawBuffer<uint64_t>>(m_device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead, 2, "Timestamp Readback");
+    m_gputimer = std::make_shared<timing::WebGpuTimer>(m_device, 4, 240);
+    m_timer_manager->add_timer(m_gputimer, "GPU Timer");
+    // connect(m_gputimer.get(), &timing::WebGpuTimer::tick, this, &TerrainRenderer::gpu_timer_tick);
 
     m_initialized = true;
 
@@ -392,7 +374,9 @@ void TerrainRenderer::webgpu_create_context()
 {
     qDebug() << "Creating WebGPU instance...";
 
-    WGPUInstanceDescriptor instance_desc {};
+    m_instance_desc = {
+        .nextInChain = nullptr,
+    };
 
 #ifndef __EMSCRIPTEN__
     WGPUDawnTogglesDescriptor dawnToggles;
@@ -406,10 +390,10 @@ void TerrainRenderer::webgpu_create_context()
     dawnToggles.enabledToggleCount = enabledToggles.size();
     dawnToggles.disabledToggleCount = 0;
 
-    instance_desc.nextInChain = &dawnToggles.chain;
+    m_instance_desc.nextInChain = &dawnToggles.chain;
 #endif
 
-    m_instance = wgpuCreateInstance(&instance_desc);
+    m_instance = wgpuCreateInstance(&m_instance_desc);
     if (!m_instance) {
         qFatal("Could not initialize WebGPU!");
     }
@@ -528,3 +512,5 @@ void TerrainRenderer::webgpu_release_context()
     wgpuAdapterRelease(m_adapter);
     wgpuInstanceRelease(m_instance);
 }
+
+} // namespace webgpu_app
