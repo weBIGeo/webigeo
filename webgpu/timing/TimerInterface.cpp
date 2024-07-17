@@ -20,6 +20,7 @@
 #include <QDebug>
 #include <cmath>
 #include <iomanip>
+#include <limits>
 #include <sstream>
 
 namespace webgpu::timing {
@@ -43,6 +44,7 @@ TimerInterface::TimerInterface(size_t capacity)
     : m_capacity(capacity)
     , m_id(s_next_id++)
 {
+    clear_results();
     m_results.reserve(capacity);
 #ifdef ALP_ENABLE_TRACK_OBJECT_LIFECYCLE
     qDebug() << "nucleus::timing::TimerInterface(name=" << get_name().c_str() << ")";
@@ -81,8 +83,8 @@ void TimerInterface::clear_results()
     m_results.clear();
     m_sum = 0.0f;
     m_sum_of_squares = 0.0f;
-    m_max = FLT_MIN;
-    m_min = FLT_MAX;
+    m_max = std::numeric_limits<float>::min();
+    m_min = std::numeric_limits<float>::max();
 }
 
 std::string TimerInterface::to_string()

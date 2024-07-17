@@ -60,8 +60,8 @@ private:
     size_t m_capacity;
     float m_sum = 0.0f;
     float m_sum_of_squares = 0.0f;
-    float m_max = FLT_MIN;
-    float m_min = FLT_MAX;
+    float m_max;
+    float m_min;
 
     uint32_t m_id;
 

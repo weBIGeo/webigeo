@@ -378,11 +378,9 @@ void TerrainRenderer::webgpu_create_context()
 {
     qDebug() << "Creating WebGPU instance...";
 
-    m_instance_desc = {
-        .nextInChain = nullptr,
-    };
-
 #ifndef __EMSCRIPTEN__
+    m_instance_desc = {};
+    m_instance_desc.nextInChain = nullptr;
     WGPUDawnTogglesDescriptor dawnToggles;
     dawnToggles.chain.next = nullptr;
     dawnToggles.chain.sType = WGPUSType_DawnTogglesDescriptor;
@@ -395,9 +393,11 @@ void TerrainRenderer::webgpu_create_context()
     dawnToggles.disabledToggleCount = 0;
 
     m_instance_desc.nextInChain = &dawnToggles.chain;
+    m_instance = wgpuCreateInstance(&m_instance_desc);
+#else
+    m_instance = wgpuCreateInstance(nullptr);
 #endif
 
-    m_instance = wgpuCreateInstance(&m_instance_desc);
     if (!m_instance) {
         qFatal("Could not initialize WebGPU!");
     }
@@ -473,6 +473,8 @@ void TerrainRenderer::webgpu_create_context()
     std::vector<WGPUFeatureName> requiredFeatures;
     if (wgpuAdapterHasFeature(m_adapter, WGPUFeatureName_TimestampQuery)) {
         requiredFeatures.push_back(WGPUFeatureName_TimestampQuery);
+    } else {
+        qWarning() << "Timestamp queries are not supported!";
     }
 
     WGPUDeviceDescriptor device_desc {};
