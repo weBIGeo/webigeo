@@ -16,8 +16,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "CpuTimer.h"
+#include "GuiTimerManager.h"
 
-namespace webgpu_app::timing {
+namespace webgpu::timing {
 
-} // namespace webgpu_app::timing
+GuiTimerManager::GuiTimerManager() = default;
+
+std::shared_ptr<TimerInterface> GuiTimerManager::add_timer(std::shared_ptr<TimerInterface> tmr)
+{
+    // Your implementation here if needed
+    return tmr;
+}
+
+const GuiTimerWrapper* GuiTimerManager::get_timer_by_id(uint32_t timer_id) const
+{
+    for (const auto& group : m_groups) {
+        for (const auto& tmr : group.timers) {
+            if (tmr.timer->get_id() == timer_id) {
+                return &tmr;
+            }
+        }
+    }
+    return nullptr;
+}
+
+} // namespace webgpu::timing

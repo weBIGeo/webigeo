@@ -16,19 +16,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "GuiTimerManager.h"
+#pragma once
 
-#ifdef QT_DEBUG
-#include <QDebug>
-#endif
+#include "TimerInterface.h"
+#include "chrono"
 
-namespace webgpu_app::timing {
+namespace webgpu::timing {
 
-GuiTimerManager::GuiTimerManager()
-{
-#ifdef ALP_ENABLE_TRACK_OBJECT_LIFECYCLE
-    qDebug("nucleus::timing::TimerManager()");
-#endif
-}
+/// The CpuTimer class measures times on the c++ side using the std::chronos library
+class CpuTimer : public TimerInterface {
+public:
+    CpuTimer(int queue_size);
 
-} // namespace webgpu_app::timing
+    void start();
+
+    void stop();
+
+protected:
+private:
+    std::chrono::time_point<std::chrono::high_resolution_clock> m_ticks[2];
+};
+
+} // namespace webgpu::timing

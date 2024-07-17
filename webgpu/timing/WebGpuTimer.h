@@ -18,23 +18,32 @@
 
 #pragma once
 
+#include "../raii/RawBuffer.h"
 #include "TimerInterface.h"
-#include "chrono"
+#include <memory>
+#include <vector>
+#include <webgpu/webgpu.h>
 
-namespace webgpu_app::timing {
+namespace webgpu::timing {
 
-/// The CpuTimer class measures times on the c++ side using the std::chronos library
-class CpuTimer : public TimerInterface {
+class WebGpuTimer : public TimerInterface {
 public:
-    CpuTimer(int queue_size);
+    WebGpuTimer(WGPUDevice device, uint32_t ring_buffer_size, size_t capacity);
+    void start(WGPUCommandEncoder encoder);
+    void stop(WGPUCommandEncoder encoder);
+    void resolve(WGPUQueue queue);
 
-    void start();
-
-    void stop();
-
-protected:
 private:
-    std::chrono::time_point<std::chrono::high_resolution_clock> m_ticks[2];
+    WGPUQuerySetDescriptor m_timestamp_query_desc;
+    WGPUQuerySet m_timestamp_queries;
+    WGPURenderPassTimestampWrites m_timestamp_writes;
+    WGPUDevice m_device;
+
+    std::unique_ptr<webgpu::raii::RawBuffer<uint64_t>> m_timestamp_resolve;
+    std::vector<std::unique_ptr<webgpu::raii::RawBuffer<uint64_t>>> m_timestamp_readback_buffer;
+
+    uint32_t m_ringbuffer_index_write = 0; // next write index
+    uint32_t m_ringbuffer_index_read = 0; // next read index
 };
 
-} // namespace webgpu_app::timing
+} // namespace webgpu::timing

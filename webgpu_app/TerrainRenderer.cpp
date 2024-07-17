@@ -111,15 +111,15 @@ void TerrainRenderer::init_window() {
 void TerrainRenderer::render_gui()
 {
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-    static bool vsync_enabled = (prop_swapchain_presentmode == WGPUPresentMode::WGPUPresentMode_Fifo);
+    static bool vsync_enabled = (m_swapchain_presentmode == WGPUPresentMode::WGPUPresentMode_Fifo);
     if (ImGui::Checkbox("VSync", &vsync_enabled)) {
-        prop_swapchain_presentmode = vsync_enabled ? WGPUPresentMode::WGPUPresentMode_Fifo : WGPUPresentMode::WGPUPresentMode_Immediate;
+        m_swapchain_presentmode = vsync_enabled ? WGPUPresentMode::WGPUPresentMode_Fifo : WGPUPresentMode::WGPUPresentMode_Immediate;
         // Recreate swapchain
-        prop_force_repaint_once = true;
+        m_force_repaint_once = true;
         this->on_window_resize(m_viewport_size.x, m_viewport_size.y);
     }
-    ImGui::Checkbox("Repaint each frame", &prop_force_repaint);
-    ImGui::Text("Repaint-Counter: %d", prop_repaint_count);
+    ImGui::Checkbox("Repaint each frame", &m_force_repaint);
+    ImGui::Text("Repaint-Counter: %d", m_repaint_count);
 
     // ImGui::Text("%s", m_gputimer->to_string().c_str());
 
@@ -142,11 +142,11 @@ void TerrainRenderer::render() {
 
     m_gputimer->start(encoder);
 
-    prop_frame_count++;
-    if (m_webgpu_window->needs_redraw() || prop_force_repaint || prop_force_repaint_once) {
+    m_frame_count++;
+    if (m_webgpu_window->needs_redraw() || m_force_repaint || m_force_repaint_once) {
         m_webgpu_window->paint(m_framebuffer.get(), encoder);
-        prop_repaint_count++;
-        prop_force_repaint_once = false;
+        m_repaint_count++;
+        m_force_repaint_once = false;
     }
 
     {
@@ -271,15 +271,15 @@ void TerrainRenderer::start() {
 
     glfwSetWindowSize(m_window, m_viewport_size.x, m_viewport_size.y);
 
-    m_timer_manager = std::make_unique<timing::GuiTimerManager>();
+    m_timer_manager = std::make_unique<webgpu::timing::GuiTimerManager>();
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     m_gui_manager = std::make_unique<GuiManager>(this);
     m_gui_manager->init(m_window, m_device, m_swapchain_format, WGPUTextureFormat_Undefined);
 #endif
 
-    m_cputimer = std::make_shared<timing::CpuTimer>(120);
+    m_cputimer = std::make_shared<webgpu::timing::CpuTimer>(120);
     m_timer_manager->add_timer(m_cputimer, "CPU Timer", "Renderer");
-    m_gputimer = std::make_shared<timing::WebGpuTimer>(m_device, 4, 120);
+    m_gputimer = std::make_shared<webgpu::timing::WebGpuTimer>(m_device, 4, 120);
     m_timer_manager->add_timer(m_gputimer, "GPU Timer", "Renderer");
 
     m_initialized = true;
@@ -355,7 +355,7 @@ void TerrainRenderer::create_swapchain(uint32_t width, uint32_t height)
     swapchain_desc.height = height;
     swapchain_desc.usage = WGPUTextureUsage::WGPUTextureUsage_RenderAttachment;
     swapchain_desc.format = m_swapchain_format;
-    swapchain_desc.presentMode = prop_swapchain_presentmode;
+    swapchain_desc.presentMode = m_swapchain_presentmode;
     m_swapchain = wgpuDeviceCreateSwapChain(m_device, m_surface, &swapchain_desc);
     qInfo() << "Got swapchain: " << m_swapchain;
 }

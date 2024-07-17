@@ -29,9 +29,9 @@
 #include <webgpu/webgpu.h>
 #include <webgpu_engine/Window.h>
 
-#include "timing/CpuTimer.h"
-#include "timing/GuiTimerManager.h"
-#include "timing/WebGpuTimer.h"
+#include <webgpu/timing/CpuTimer.h>
+#include <webgpu/timing/GuiTimerManager.h>
+#include <webgpu/timing/WebGpuTimer.h>
 
 namespace webgpu_app {
 
@@ -54,15 +54,8 @@ public:
 
     [[nodiscard]] InputMapper* get_input_mapper() { return m_inputMapper.get(); }
     [[nodiscard]] GuiManager* get_gui_manager() { return m_gui_manager.get(); }
-    [[nodiscard]] timing::GuiTimerManager* get_timer_manager() { return m_timer_manager.get(); }
+    [[nodiscard]] webgpu::timing::GuiTimerManager* get_timer_manager() { return m_timer_manager.get(); }
     [[nodiscard]] webgpu_engine::Window* get_webgpu_window() { return m_webgpu_window.get(); }
-
-    // PROPERTIES
-    bool prop_force_repaint = true;
-    bool prop_force_repaint_once = false;
-    uint32_t prop_repaint_count = 0;
-    uint32_t prop_frame_count = 0;
-    WGPUPresentMode prop_swapchain_presentmode = WGPUPresentMode::WGPUPresentMode_Fifo;
 
 signals:
     void update_camera_requested();
@@ -76,7 +69,7 @@ private:
     std::unique_ptr<nucleus::Controller> m_controller;
     std::unique_ptr<InputMapper> m_inputMapper;
     std::unique_ptr<GuiManager> m_gui_manager;
-    std::unique_ptr<timing::GuiTimerManager> m_timer_manager;
+    std::unique_ptr<webgpu::timing::GuiTimerManager> m_timer_manager;
 
     WGPUInstanceDescriptor m_instance_desc;
 
@@ -108,10 +101,14 @@ private:
     std::unique_ptr<webgpu::raii::RawBuffer<uint64_t>> m_timestamp_resolve;
     std::unique_ptr<webgpu::raii::RawBuffer<uint64_t>> m_timestamp_result;
 
-    std::shared_ptr<timing::WebGpuTimer> m_gputimer;
-    std::shared_ptr<timing::CpuTimer> m_cputimer;
+    std::shared_ptr<webgpu::timing::WebGpuTimer> m_gputimer;
+    std::shared_ptr<webgpu::timing::CpuTimer> m_cputimer;
 
-    long m_frame_index = 0;
+    bool m_force_repaint = true;
+    bool m_force_repaint_once = false;
+    uint32_t m_repaint_count = 0;
+    uint32_t m_frame_count = 0;
+    WGPUPresentMode m_swapchain_presentmode = WGPUPresentMode::WGPUPresentMode_Fifo;
 
     void webgpu_create_context();
     void webgpu_release_context();

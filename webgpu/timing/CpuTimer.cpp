@@ -18,7 +18,7 @@
 
 #include "CpuTimer.h"
 
-namespace webgpu_app::timing {
+namespace webgpu::timing {
 
 CpuTimer::CpuTimer(int queue_size)
     : TimerInterface(queue_size)
@@ -34,4 +34,4 @@ void CpuTimer::stop()
     add_result(duration);
 }
 
-} // namespace webgpu_app::timing
+} // namespace webgpu::timing

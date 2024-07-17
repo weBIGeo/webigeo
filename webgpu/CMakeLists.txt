@@ -41,6 +41,11 @@ set(SOURCES
     util/VertexBufferInfo.h util/VertexBufferInfo.cpp
     util/VertexFormat.h
 
+    timing/GuiTimerManager.h timing/GuiTimerManager.cpp
+    timing/TimerInterface.h timing/TimerInterface.cpp
+    timing/CpuTimer.h timing/CpuTimer.cpp
+    timing/WebGpuTimer.h timing/WebGpuTimer.cpp
+
     Framebuffer.h Framebuffer.cpp
 
     webgpu_interface.hpp webgpu_interface.cpp)

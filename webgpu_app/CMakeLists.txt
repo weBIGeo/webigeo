@@ -32,11 +32,6 @@ set(SOURCES
     util/error_logging.h util/error_logging.cpp
 
     GuiManager.h GuiManager.cpp
-
-    timing/GuiTimerManager.h timing/GuiTimerManager.cpp
-    timing/TimerInterface.h timing/TimerInterface.cpp
-    timing/CpuTimer.h timing/CpuTimer.cpp
-    timing/WebGpuTimer.h timing/WebGpuTimer.cpp
 )
 
 if (EMSCRIPTEN)

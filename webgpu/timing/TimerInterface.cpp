@@ -22,7 +22,7 @@
 #include <iomanip>
 #include <sstream>
 
-namespace webgpu_app::timing {
+namespace webgpu::timing {
 
 std::string format_time(float time, int precision)
 {
@@ -112,4 +112,4 @@ const std::vector<float>& TimerInterface::get_results() const { return m_results
 
 uint32_t TimerInterface::s_next_id = 0;
 
-} // namespace webgpu_app::timing
+} // namespace webgpu::timing

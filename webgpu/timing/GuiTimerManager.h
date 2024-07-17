@@ -18,16 +18,15 @@
 
 #pragma once
 
+#include "TimerInterface.h"
 #include <QDebug>
-#include <QList>
+#include <QObject>
 #include <glm/glm.hpp>
 #include <memory>
+#include <string>
 #include <vector>
 
-#include "TimerInterface.h"
-#include <memory>
-
-namespace webgpu_app::timing {
+namespace webgpu::timing {
 
 struct GuiTimerWrapper {
     std::shared_ptr<TimerInterface> timer;
@@ -45,22 +44,7 @@ class GuiTimerManager : public QObject {
     Q_OBJECT
 
 public:
-    static constexpr const glm::vec3 timer_colors[] = {
-        glm::vec3(1.0f, 0.0f, 0.0f), // red
-        glm::vec3(0.0f, 1.0f, 1.0f), // cyan
-        glm::vec3(0.49f, 0.0f, 1.0f), // violet
-        glm::vec3(0.49f, 1.0f, 0.0f), // spring green
-        glm::vec3(1.0f, 0.0f, 1.0f), // magenta
-        glm::vec3(0.0f, 0.49f, 1.0f), // ocean
-        glm::vec3(0.0f, 1.0f, 0.0f), // green
-        glm::vec3(1.0f, 0.49f, 0.0f), // orange
-        glm::vec3(0.0f, 0.0f, 1.0f), // blue
-        glm::vec3(0.0f, 1.0f, 0.49f), // turquoise
-        glm::vec3(1.0f, 1.0f, 0.0f), // yellow
-        glm::vec3(1.0f, 0.0f, 0.49f) // raspberry
-    };
-
-    // adds the given timer
+    // Adds the given timer
     std::shared_ptr<TimerInterface> add_timer(std::shared_ptr<TimerInterface> tmr);
 
     template <typename T, typename = std::enable_if_t<std::is_base_of<TimerInterface, T>::value>>
@@ -83,18 +67,7 @@ public:
             qCritical() << "Timer can't be added as it's not initialized correctly";
         }
     }
-
-    [[nodiscard]] const GuiTimerWrapper* get_timer_by_id(uint32_t timer_id)
-    {
-        for (const auto& group : m_groups) {
-            for (const auto& tmr : group.timers) {
-                if (tmr.timer->get_id() == timer_id) {
-                    return &tmr;
-                }
-            }
-        }
-        return nullptr;
-    }
+    [[nodiscard]] const GuiTimerWrapper* get_timer_by_id(uint32_t timer_id) const;
 
     [[nodiscard]] const std::vector<GuiTimerGroup>& get_groups() const { return m_groups; }
 
@@ -103,6 +76,21 @@ public:
 private:
     // Contains the timer groups
     std::vector<GuiTimerGroup> m_groups;
+
+    static constexpr glm::vec3 timer_colors[] = {
+        glm::vec3(1.0f, 0.0f, 0.0f), // red
+        glm::vec3(0.0f, 1.0f, 1.0f), // cyan
+        glm::vec3(0.49f, 0.0f, 1.0f), // violet
+        glm::vec3(0.49f, 1.0f, 0.0f), // spring green
+        glm::vec3(1.0f, 0.0f, 1.0f), // magenta
+        glm::vec3(0.0f, 0.49f, 1.0f), // ocean
+        glm::vec3(0.0f, 1.0f, 0.0f), // green
+        glm::vec3(1.0f, 0.49f, 0.0f), // orange
+        glm::vec3(0.0f, 0.0f, 1.0f), // blue
+        glm::vec3(0.0f, 1.0f, 0.49f), // turquoise
+        glm::vec3(1.0f, 1.0f, 0.0f), // yellow
+        glm::vec3(1.0f, 0.0f, 0.49f) // raspberry
+    };
 };
 
-} // namespace webgpu_app::timing
+} // namespace webgpu::timing

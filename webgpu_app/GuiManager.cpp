@@ -128,7 +128,7 @@ void GuiManager::draw()
 
     if (ImGui::CollapsingHeader("Timing", ImGuiTreeNodeFlags_DefaultOpen)) {
 
-        const timing::GuiTimerWrapper* selected_timer = nullptr;
+        const webgpu::timing::GuiTimerWrapper* selected_timer = nullptr;
         if (!m_selected_timer.empty()) {
             uint32_t first_selected_timer_id = *m_selected_timer.begin();
             selected_timer = m_terrain_renderer->get_timer_manager()->get_timer_by_id(first_selected_timer_id);
@@ -138,7 +138,7 @@ void GuiManager::draw()
             if (tmr->get_sample_count() > 2) {
                 ImVec4 timer_color = *(ImVec4*)(void*)&selected_timer->color;
                 ImGui::PushStyleColor(ImGuiCol_PlotLines, timer_color);
-                ImGui::PlotLines("Selected Timer", &tmr->get_results()[0], (int)tmr->get_sample_count(), 0, nullptr, 0.0f, tmr->get_max(), ImVec2(380, 80));
+                ImGui::PlotLines("##SelTimerGraph", &tmr->get_results()[0], (int)tmr->get_sample_count(), 0, nullptr, 0.0f, tmr->get_max(), ImVec2(380, 80));
                 ImGui::PopStyleColor();
             }
         }
@@ -161,12 +161,10 @@ void GuiManager::draw()
                     if (ImGui::ColorButton(
                             ("##t" + std::to_string(tmr_id)).c_str(), color, ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoDragDrop, ImVec2(10, 10))) {
                         toggle_timer(tmr_id);
-                        // debug log the tmr_id
-                        qDebug() << "Timer ID: " << tmr_id;
                     }
                     ImGui::SameLine();
-                    ImGui::Text("%s: %s ±%s [%zu]", tmr.name.c_str(), timing::format_time(tmr.timer->get_average()).c_str(),
-                        timing::format_time(tmr.timer->get_standard_deviation()).c_str(), tmr.timer->get_sample_count());
+                    ImGui::Text("%s: %s ±%s [%zu]", tmr.name.c_str(), webgpu::timing::format_time(tmr.timer->get_average()).c_str(),
+                        webgpu::timing::format_time(tmr.timer->get_standard_deviation()).c_str(), tmr.timer->get_sample_count());
                 }
             }
             if (group.name != "")

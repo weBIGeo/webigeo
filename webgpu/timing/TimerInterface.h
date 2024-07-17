@@ -22,7 +22,7 @@
 #include <string>
 #include <vector>
 
-namespace webgpu_app::timing {
+namespace webgpu::timing {
 
 std::string format_time(float time, int precision = 2);
 
@@ -68,4 +68,4 @@ private:
     static uint32_t s_next_id;
 };
 
-} // namespace webgpu_app::timing
+} // namespace webgpu::timing
