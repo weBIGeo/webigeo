@@ -18,6 +18,7 @@
  *****************************************************************************/
 
 #include "Texture.h"
+#include <QDebug>
 
 namespace webgpu::raii {
 
@@ -78,8 +79,7 @@ uint8_t Texture::get_bytes_per_element(WGPUTextureFormat format)
         return 16;
 
     default:
-        std::cout << "tried to get texture size for format " << format << std::endl;
-        std::exit(-1);
+        qFatal("tried to get texture size for unsupoorted format");
     }
 }
 
@@ -159,7 +159,7 @@ void Texture::read_back_async(WGPUDevice device, size_t layer_index, ReadBackCal
         Texture* _this = reinterpret_cast<Texture*>(user_data);
 
         if (status != WGPUBufferMapAsyncStatus_Success) {
-            std::cout << "error: failed mapping buffer for ComputeTileStorage read back" << std::endl;
+            qCritical() << "error: failed mapping buffer for ComputeTileStorage read back";
             _this->m_read_back_states.pop();
             return;
         }

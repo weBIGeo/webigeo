@@ -20,8 +20,8 @@
 #pragma once
 
 #include "base_types.h"
+#include <QDebug>
 #include <QString>
-#include <iostream>
 #include <queue>
 #include <webgpu/webgpu.h>
 #include <webgpu/webgpu_interface.hpp>
@@ -94,7 +94,7 @@ public:
             RawBuffer<T>* _this = reinterpret_cast<RawBuffer<T>*>(user_data);
 
             if (status != WGPUBufferMapAsyncStatus_Success) {
-                std::cout << "error: failed mapping buffer for RawBuffer read back " << std::endl;
+                qCritical() << "failed mapping buffer for RawBuffer read back ";
 
                 _this->m_read_back_callbacks.pop();
                 return;
@@ -127,8 +127,7 @@ public:
             copy_to_buffer(device, *(m_read_back_callbacks.back().staging_buffer));
             wgpuBufferMapAsync(m_read_back_callbacks.back().staging_buffer->handle(), WGPUMapMode_Read, 0, size_in_byte(), on_buffer_mapped, this);
         } else {
-            std::cout << "read_back_async: Cannot initialise buffer read back, requires usage MapRead or CopySrc" << std::endl;
-            exit(-1);
+            qFatal("read_back_async: Cannot initialise buffer read back, requires usage MapRead or CopySrc");
         }
     }
 
@@ -146,8 +145,7 @@ public:
         webgpuSleepAndWaitForFlag(device, &work_done, 1, max_timeout_ms);
 
         if (!work_done) {
-            std::cerr << "failed sync readback: timeout or failed buffer mapping" << std::endl;
-            exit(-1);
+            qFatal("failed sync readback: timeout or failed buffer mapping");
         }
         return sync_buffer;
     }
