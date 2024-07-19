@@ -142,7 +142,7 @@ public:
             work_done = true;
         });
 
-        webgpuSleepAndWaitForFlag(device, &work_done, 1, max_timeout_ms);
+        webgpu::waitForFlag(device, &work_done, 1, max_timeout_ms);
 
         if (!work_done) {
             qFatal("failed sync readback: timeout or failed buffer mapping");

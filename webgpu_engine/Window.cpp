@@ -265,7 +265,7 @@ glm::vec4 Window::synchronous_position_readback(const glm::dvec2& ndc) {
             wgpuBufferMapAsync(_this->m_position_readback_buffer->handle(), WGPUMapMode_Read, 0, sizeof(glm::vec4), onBufferMapped, pUserData);
         }, this);
 
-    webgpuSleepAndWaitForFlag(m_device, &m_position_readback_done);
+    webgpu::waitForFlag(m_device, &m_position_readback_done);
 
     //std::cout << "Position: " << glm::to_string(m_position_readback_result) << std::endl;
     return m_position_readback_result;

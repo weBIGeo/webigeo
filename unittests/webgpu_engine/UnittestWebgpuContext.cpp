@@ -34,7 +34,7 @@ WGPURequiredLimits UnittestWebgpuContext::default_limits()
 
 UnittestWebgpuContext::UnittestWebgpuContext(WGPURequiredLimits required_limits)
 {
-    webgpuPlatformInit();
+    webgpu::platformInit();
 
     instance = wgpuCreateInstance(nullptr);
     assert(instance);
@@ -42,7 +42,7 @@ UnittestWebgpuContext::UnittestWebgpuContext(WGPURequiredLimits required_limits)
     WGPURequestAdapterOptions adapter_opts {};
     adapter_opts.powerPreference = WGPUPowerPreference_HighPerformance;
     adapter_opts.compatibleSurface = nullptr;
-    adapter = requestAdapterSync(instance, adapter_opts);
+    adapter = webgpu::requestAdapterSync(instance, adapter_opts);
     assert(adapter);
 
     WGPUDeviceDescriptor device_desc {};
@@ -50,7 +50,7 @@ UnittestWebgpuContext::UnittestWebgpuContext(WGPURequiredLimits required_limits)
     device_desc.requiredFeatureCount = 0;
     device_desc.requiredLimits = &required_limits;
     device_desc.defaultQueue.label = "default queue for unittests";
-    device = requestDeviceSync(adapter, device_desc);
+    device = webgpu::requestDeviceSync(adapter, device_desc);
     assert(device);
 
     auto onDeviceError = [](WGPUErrorType type, char const* message, void* /* pUserData */) {

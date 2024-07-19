@@ -104,7 +104,7 @@ private:
     std::shared_ptr<webgpu::timing::WebGpuTimer> m_gputimer;
     std::shared_ptr<webgpu::timing::CpuTimer> m_cputimer;
 
-    bool m_force_repaint = true;
+    bool m_force_repaint = false;
     bool m_force_repaint_once = false;
     uint32_t m_repaint_count = 0;
     uint32_t m_frame_count = 0;

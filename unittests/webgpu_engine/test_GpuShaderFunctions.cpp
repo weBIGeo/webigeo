@@ -152,7 +152,7 @@ TEST_CASE("encoder functions")
                 *reinterpret_cast<bool*>(user_data) = true;
             },
             &done);
-        webgpuSleepAndWaitForFlag(context.device, &done);
+        webgpu::waitForFlag(context.device, &done);
 
         std::vector<uint32_t> output = output_buffer->read_back_sync(context.device);
         REQUIRE(output.size() == test_normals_buffer_data.size());

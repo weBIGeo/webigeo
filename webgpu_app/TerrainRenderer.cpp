@@ -140,7 +140,8 @@ void TerrainRenderer::render() {
     command_encoder_desc.label = "Command Encoder";
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(m_device, &command_encoder_desc);
 
-    m_gputimer->start(encoder);
+    if (webgpu::isTimingSupported())
+        m_gputimer->start(encoder);
 
     m_frame_count++;
     if (m_webgpu_window->needs_redraw() || m_force_repaint || m_force_repaint_once) {
@@ -162,7 +163,8 @@ void TerrainRenderer::render() {
 #endif
     }
 
-    m_gputimer->stop(encoder);
+    if (webgpu::isTimingSupported())
+        m_gputimer->stop(encoder);
 
     wgpuTextureViewRelease(swapchain_texture);
 
@@ -173,7 +175,8 @@ void TerrainRenderer::render() {
     wgpuQueueSubmit(m_queue, 1, &command);
     wgpuCommandBufferRelease(command);
 
-    m_gputimer->resolve(m_queue);
+    if (webgpu::isTimingSupported())
+        m_gputimer->resolve(m_queue);
 
 #ifndef __EMSCRIPTEN__
     // Swapchain in the WEB is handled by the browser!
@@ -188,7 +191,7 @@ void TerrainRenderer::render() {
 void TerrainRenderer::start() {
     init_window();
 
-    webgpuPlatformInit();
+    webgpu::platformInit();
 
     webgpu_create_context();
 
@@ -279,8 +282,10 @@ void TerrainRenderer::start() {
 
     m_cputimer = std::make_shared<webgpu::timing::CpuTimer>(120);
     m_timer_manager->add_timer(m_cputimer, "CPU Timer", "Renderer");
-    m_gputimer = std::make_shared<webgpu::timing::WebGpuTimer>(m_device, 4, 120);
-    m_timer_manager->add_timer(m_gputimer, "GPU Timer", "Renderer");
+    if (webgpu::isTimingSupported()) {
+        m_gputimer = std::make_shared<webgpu::timing::WebGpuTimer>(m_device, 4, 120);
+        m_timer_manager->add_timer(m_gputimer, "GPU Timer", "Renderer");
+    }
 
     m_initialized = true;
 
@@ -377,7 +382,6 @@ void TerrainRenderer::on_window_resize(int width, int height) {
 void TerrainRenderer::webgpu_create_context()
 {
     qDebug() << "Creating WebGPU instance...";
-
 #ifndef __EMSCRIPTEN__
     m_instance_desc = {};
     m_instance_desc.nextInChain = nullptr;
@@ -399,7 +403,7 @@ void TerrainRenderer::webgpu_create_context()
 #endif
 
     if (!m_instance) {
-        qFatal("Could not initialize WebGPU!");
+        qFatal("Could not initialize WebGPU Instance!");
     }
     qInfo() << "Got instance: " << m_instance;
 
@@ -414,7 +418,7 @@ void TerrainRenderer::webgpu_create_context()
     WGPURequestAdapterOptions adapter_opts {};
     adapter_opts.powerPreference = WGPUPowerPreference_HighPerformance;
     adapter_opts.compatibleSurface = m_surface;
-    m_adapter = requestAdapterSync(m_instance, adapter_opts);
+    m_adapter = webgpu::requestAdapterSync(m_instance, adapter_opts);
     if (!m_adapter) {
         qFatal("Could not get adapter!");
     }
@@ -435,11 +439,7 @@ void TerrainRenderer::webgpu_create_context()
     m_webgpu_window->update_required_gpu_limits(required_limits.limits, supported_limits.limits);
 
     std::vector<WGPUFeatureName> requiredFeatures;
-    if (wgpuAdapterHasFeature(m_adapter, WGPUFeatureName_TimestampQuery)) {
-        requiredFeatures.push_back(WGPUFeatureName_TimestampQuery);
-    } else {
-        qWarning() << "Timestamp queries are not supported!";
-    }
+    requiredFeatures.push_back(WGPUFeatureName_TimestampQuery);
 
     WGPUDeviceDescriptor device_desc {};
     device_desc.label = "webigeo device";
@@ -447,15 +447,13 @@ void TerrainRenderer::webgpu_create_context()
     device_desc.requiredFeatureCount = (uint32_t)requiredFeatures.size();
     device_desc.requiredLimits = &required_limits;
     device_desc.defaultQueue.label = "webigeo queue";
-    m_device = requestDeviceSync(m_adapter, device_desc);
+    m_device = webgpu::requestDeviceSync(m_adapter, device_desc);
     if (!m_device) {
         qFatal("Could not get device!");
     }
     qInfo() << "Got device: " << m_device;
 
-    if (!wgpuDeviceHasFeature(m_device, WGPUFeatureName_TimestampQuery)) {
-        qWarning() << "Timestamp queries are not supported!";
-    }
+    webgpu::checkForTimingSupport(m_adapter, m_device);
 
     // Set error callback
     wgpuDeviceSetUncapturedErrorCallback(m_device, webgpu_device_error_callback, nullptr /* pUserData */);

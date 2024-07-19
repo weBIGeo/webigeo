@@ -51,19 +51,21 @@
 
 #include "webgpu_interface.hpp"
 
+#include <QDebug>
 #include <assert.h>
 #include <iostream>
 #include <stdio.h>
-#include <thread>
 #include <webgpu/webgpu.h>
 
 #ifdef __EMSCRIPTEN__
 // needed for emscripten_sleep
 #include <emscripten/emscripten.h>
+#include <emscripten/val.h>
 #else
 // include Dawn only for non-emscripten build
-#include <dawn/native/DawnNative.h>
 #include <dawn/dawn_proc.h>
+#include <dawn/native/DawnNative.h>
+#include <thread>
 #endif
 
 
@@ -195,8 +197,12 @@ WGPUSurface glfwGetWGPUSurface(WGPUInstance instance, GLFWwindow* window) {
 #endif
 }
 
-void webgpuPlatformInit() {
+namespace webgpu {
 
+bool timerSupportFlag = false;
+
+void platformInit()
+{
     // Dawn forwards all wgpu* function calls to function pointer members of some struct.
     // This is stored in some (Dawn internal) variable. In our current setup, all these
     // function pointers default to nullptr, resulting in access violations when called.
@@ -204,11 +210,10 @@ void webgpuPlatformInit() {
 #ifndef __EMSCRIPTEN__
     dawnProcSetProcs(&(dawn::native::GetProcs()));
 #endif
-
 }
 
 // NOTE: USE WITH CAUTION!
-void webgpuSleep([[maybe_unused]] const WGPUDevice& device, [[maybe_unused]] int milliseconds)
+void sleep([[maybe_unused]] const WGPUDevice& device, [[maybe_unused]] int milliseconds)
 {
 #ifdef __EMSCRIPTEN__
     emscripten_sleep(1); // using asyncify to return to js event loop
@@ -218,10 +223,11 @@ void webgpuSleep([[maybe_unused]] const WGPUDevice& device, [[maybe_unused]] int
 #endif
 }
 
-void webgpuSleepAndWaitForFlag(const WGPUDevice& device, bool* flag, int sleepInterval, int timeout) {
+void waitForFlag(const WGPUDevice& device, bool* flag, int sleepInterval, int timeout)
+{
     int time = 0;
     while (!*flag) {
-        webgpuSleep(device, sleepInterval);
+        webgpu::sleep(device, sleepInterval);
         time += sleepInterval;
         if (time > timeout) {
             std::cerr << "Timeout while waiting for flag" << std::endl;
@@ -229,6 +235,33 @@ void webgpuSleepAndWaitForFlag(const WGPUDevice& device, bool* flag, int sleepIn
         }
     }
 }
+
+void checkForTimingSupport(const WGPUAdapter& adapter, const WGPUDevice& device)
+{
+    // Check wether timing is supported
+#ifdef __EMSCRIPTEN__
+    timerSupportFlag = false;
+    emscripten::val module_value = emscripten::val::module_property("webgpuTimingsAvailable");
+    if (!module_value.isUndefined()) {
+        timerSupportFlag = (module_value.as<int>() == 1);
+        if (!timerSupportFlag)
+            qWarning() << "Timestamp queries are not supported! (JS based check failed)";
+    } else {
+        qCritical() << "Timestamp query flag couldn't be found as a module property!";
+    }
+#else
+    timerSupportFlag = true;
+    if (!wgpuAdapterHasFeature(adapter, WGPUFeatureName_TimestampQuery)) {
+        qWarning() << "Timestamp queries are not supported! (Not necessary adapter feature)";
+        timerSupportFlag = false;
+    } else if (!wgpuDeviceHasFeature(device, WGPUFeatureName_TimestampQuery)) {
+        qWarning() << "Timestamp queries are not supported! (Not necessary device feature)";
+        timerSupportFlag = false;
+    }
+#endif
+}
+
+bool isTimingSupported() { return timerSupportFlag; }
 
 // Request webgpu adapter synchronously. Adapted from webgpu.hpp to vanilla webGPU types.
 WGPUAdapter requestAdapterSync(WGPUInstance instance, const WGPURequestAdapterOptions& options)
@@ -290,3 +323,5 @@ WGPUDevice requestDeviceSync(WGPUAdapter adapter, const WGPUDeviceDescriptor& de
     assert(request_ended_data.request_ended);
     return request_ended_data.device;
 }
+
+} // namespace webgpu

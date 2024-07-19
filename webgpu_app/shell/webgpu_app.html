@@ -34,6 +34,31 @@
     <script type="text/javascript">
       //TouchEmulator();
       const JS_MAX_TOUCHES = 3;
+      var WEBGPU_TIMINGS_AVAILABE = 0;
+
+      function isWebGPUAvailable() {
+        return navigator.gpu !== undefined;
+      }
+
+      // Custom Check if WebGPU-Timings are available, by checking if the adapter and device support timestamp-query and writeTimestamp function
+      // This is necessary as the feature can be existant but timestamp queries can be disabled in the browser.
+      async function isWebGPUTimingAvailable() {
+        const adapter = await navigator.gpu.requestAdapter();
+            if (!adapter) return false;
+            const device = await adapter.requestDevice({ requiredFeatures: ['timestamp-query'] });
+            if (!device) return false;
+            const isTimestampSupported = device.features.has('timestamp-query');
+            let isWriteTimestampSupported = false;
+            if (isTimestampSupported) {
+                // Create a command encoder and check if writeTimestamp exists
+                const commandEncoder = device.createCommandEncoder();
+                if (typeof commandEncoder.writeTimestamp === 'function') {
+                    isWriteTimestampSupported = true;
+                }
+            }
+            return isTimestampSupported && isWriteTimestampSupported;
+      }
+
       eminstance = null;
         async function init()
         {
@@ -43,13 +68,24 @@
             const webgpu_canvas = document.querySelector('#webgpucanvas');
 
             // Check wether the browser supports WebGPU
-            if (!navigator.gpu)
+            if (!isWebGPUAvailable())
             {
               console.error('WebGPU is not supported in this browser');
               // Clear body and write h1 in the body to show the error message
               status.innerHTML = 'Error: WebGPU is not supported in this browser!';
               return;
             }
+
+            // Check wether the browser supports WebGPU-Timings
+            WEBGPU_TIMINGS_AVAILABE = await isWebGPUTimingAvailable() ? 1 : 0;
+            /*
+            if (!webgpu_timing_available)
+            {
+              console.error('WebGPU-Timings are not supported in this browser');
+              // Clear body and write h1 in the body to show the error message
+              status.innerHTML = 'Error: WebGPU-Timings are not supported in this browser!';
+              return;
+            }*/
 
             const showUi = (ui) => {
                 [spinner, screen].forEach(element => element.style.display = 'none');
@@ -79,6 +115,9 @@
                     // Canvas need to be set here as its needed for emscripten GLFW
                     canvas: (() => {
                       return webgpu_canvas;
+                    })(),
+                    webgpuTimingsAvailable: (() => {
+                      return WEBGPU_TIMINGS_AVAILABE;
                     })(),
                 });
                 // Set the canvas to be the same size as the screen

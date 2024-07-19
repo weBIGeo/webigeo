@@ -62,12 +62,14 @@ extern "C" {
  * Get a WGPUSurface from a GLFW window.
  */
 WGPUSurface glfwGetWGPUSurface(WGPUInstance instance, GLFWwindow* window);
+}
 
+namespace webgpu {
 /**
  * Do platform specific stuff before webgpu is used. This function needs to be
  * called before any other webgpu function.
  */
-void webgpuPlatformInit();
+void platformInit();
 
 /**
  * A sleep function which works with webassembly by using asyncify and native by utilizing
@@ -75,7 +77,7 @@ void webgpuPlatformInit();
  * In the best case, this function should only be used for test purposes.
  * @param milliseconds The number of milliseconds to sleep.
  */
-void webgpuSleep(const WGPUDevice& device, int milliseconds);
+void sleep(const WGPUDevice& device, int milliseconds);
 
 /**
  * Uses webgpuSleep to wait for a flag to be set to true. USE WITH CAUTION!
@@ -84,8 +86,12 @@ void webgpuSleep(const WGPUDevice& device, int milliseconds);
  * @param sleepInterval The interval in milliseconds between each poll
  * @param timeout The maximum time to wait for the flag to be set
  */
-void webgpuSleepAndWaitForFlag(const WGPUDevice& device, bool* flag, int sleepInterval = 1, int timeout = 1000);
+void waitForFlag(const WGPUDevice& device, bool* flag, int sleepInterval = 1, int timeout = 1000);
+
+// I don't like this. Better suggestions welcome
+[[nodiscard]] bool isTimingSupported();
+void checkForTimingSupport(const WGPUAdapter& adapter, const WGPUDevice& device);
 
 WGPUAdapter requestAdapterSync(WGPUInstance instance, const WGPURequestAdapterOptions& options);
 WGPUDevice requestDeviceSync(WGPUAdapter adapter, const WGPUDeviceDescriptor& descriptor);
-}
+} // namespace webgpu
