@@ -115,9 +115,6 @@ void TerrainRenderer::render_gui()
     }
     ImGui::Checkbox("Repaint each frame", &m_force_repaint);
     ImGui::Text("Repaint-Counter: %d", m_repaint_count);
-
-    // ImGui::Text("%s", m_gputimer->to_string().c_str());
-
 #endif
 }
 

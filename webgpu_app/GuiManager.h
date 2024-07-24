@@ -20,6 +20,8 @@
 
 #include <GLFW/glfw3.h>
 #include <set>
+#include <string>
+#include <vector>
 #include <webgpu/webgpu.h>
 
 class TerrainRenderer;
@@ -35,10 +37,7 @@ class TerrainRenderer;
 class GuiManager {
 
 public:
-    GuiManager(TerrainRenderer* terrain_renderer)
-        : m_terrain_renderer(terrain_renderer)
-    {
-    }
+    GuiManager(TerrainRenderer* terrain_renderer);
 
     void init(GLFWwindow* window, WGPUDevice device, WGPUTextureFormat swapchainFormat, WGPUTextureFormat depthTextureFormat);
     void render(WGPURenderPassEncoder renderPass);
@@ -51,6 +50,9 @@ private:
     WGPUDevice m_device;
     TerrainRenderer* m_terrain_renderer = nullptr;
     bool m_show_nodeeditor = false;
+
+    std::vector<std::string> m_camera_preset_names;
+    int m_selected_camera_preset = 0;
 
     std::set<uint32_t> m_selected_timer = { 0 };
 

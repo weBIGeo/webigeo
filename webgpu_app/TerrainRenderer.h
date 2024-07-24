@@ -56,6 +56,7 @@ public:
     [[nodiscard]] GuiManager* get_gui_manager() { return m_gui_manager.get(); }
     [[nodiscard]] webgpu::timing::GuiTimerManager* get_timer_manager() { return m_timer_manager.get(); }
     [[nodiscard]] webgpu_engine::Window* get_webgpu_window() { return m_webgpu_window.get(); }
+    [[nodiscard]] nucleus::Controller* get_controller() { return m_controller.get(); }
 
 signals:
     void update_camera_requested();

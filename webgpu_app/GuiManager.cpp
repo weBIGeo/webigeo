@@ -26,8 +26,20 @@
 #endif
 #include "webgpu_engine/Window.h"
 #include <QDebug>
+#include <nucleus/camera/PositionStorage.h>
 
 namespace webgpu_app {
+
+GuiManager::GuiManager(TerrainRenderer* terrain_renderer)
+    : m_terrain_renderer(terrain_renderer)
+{
+    // Lets build a vector of std::string...
+    const auto position_storage = nucleus::camera::PositionStorage::instance();
+    const QList<QString> position_storage_list = position_storage->getPositionList();
+    for (const auto& position : position_storage_list) {
+        m_camera_preset_names.push_back(position.toStdString());
+    }
+}
 
 void GuiManager::init(
     GLFWwindow* window, WGPUDevice device, [[maybe_unused]] WGPUTextureFormat swapchainFormat, [[maybe_unused]] WGPUTextureFormat depthTextureFormat)
@@ -174,6 +186,28 @@ void GuiManager::draw()
             for (const auto& group : group_list)
                 for (const auto& tmr : group.timers)
                     tmr.timer->clear_results();
+        }
+    }
+
+    if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::BeginCombo("Preset", m_camera_preset_names[m_selected_camera_preset].c_str())) {
+            for (int n = 0; n < m_camera_preset_names.size(); n++) {
+                bool is_selected = (m_selected_camera_preset == n);
+                if (ImGui::Selectable(m_camera_preset_names[n].c_str(), is_selected)) {
+                    m_selected_camera_preset = n;
+
+                    const auto position_storage = nucleus::camera::PositionStorage::instance();
+                    const auto camera_controller = m_terrain_renderer->get_controller()->camera_controller();
+                    auto new_definition = position_storage->get_by_index(m_selected_camera_preset);
+                    auto old_vp_size = camera_controller->definition().viewport_size();
+                    new_definition.set_viewport_size(old_vp_size);
+                    camera_controller->set_definition(new_definition);
+                }
+                if (is_selected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
         }
     }
 
