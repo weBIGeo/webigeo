@@ -27,10 +27,19 @@ void WebInterop::_touch_event(const JsTouchEvent& event) {
     emit instance().touch_event(event);
 }
 
+void WebInterop::_mouse_button_event(int button, int action, int mods, double xpos, double ypos)
+{
+    emit instance().mouse_button_event(button, action, mods, xpos, ypos);
+}
+
+void WebInterop::_mouse_position_event([[maybe_unused]] int button, double xpos, double ypos) { emit instance().mouse_position_event(xpos, ypos); }
+
 // Emscripten binding
 EMSCRIPTEN_BINDINGS(webinterop_module) {
     emscripten::function("canvas_size_changed", &WebInterop::_canvas_size_changed);
     emscripten::function("touch_event", &WebInterop::_touch_event);
+    emscripten::function("mouse_button_event", &WebInterop::_mouse_button_event);
+    emscripten::function("mouse_position_event", &WebInterop::_mouse_position_event);
 
     emscripten::value_object<WebInterop::JsTouch>("JsTouch")
         .field("clientX", &WebInterop::JsTouch::clientX)

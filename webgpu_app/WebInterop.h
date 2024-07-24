@@ -64,9 +64,15 @@ public:
     static void _canvas_size_changed(int width, int height);
     static void _touch_event(const JsTouchEvent& event);
 
+    static void _mouse_button_event(int button, int action, int mods, double xpos, double ypos);
+    static void _mouse_position_event(int button, double xpos, double ypos);
+
 signals:
     void canvas_size_changed(int width, int height);
     void touch_event(const JsTouchEvent& event);
+
+    void mouse_button_event(int button, int action, int mods, double xpos, double ypos);
+    void mouse_position_event(double xpos, double ypos);
 
 private:
     // Private constructor

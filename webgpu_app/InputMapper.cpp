@@ -21,8 +21,11 @@
 #include "nucleus/camera/Controller.h"
 #include <QDebug>
 
-InputMapper::InputMapper(QObject* parent, nucleus::camera::Controller* camera_controller)
+namespace webgpu_app {
+
+InputMapper::InputMapper(QObject* parent, nucleus::camera::Controller* camera_controller, GuiManager* gui_manager)
     : QObject(parent)
+    , m_gui_manager(gui_manager)
 {
     // Initialize keymap
     m_keymap.fill(Qt::Key_unknown);
@@ -58,6 +61,8 @@ InputMapper::InputMapper(QObject* parent, nucleus::camera::Controller* camera_co
 void InputMapper::on_key_callback(int key, [[maybe_unused]]int scancode, int action, [[maybe_unused]]int mods) {
     assert(key >= 0 && (size_t)key < m_keymap.size());
     if (m_ongoing_touch_interaction) return;
+    if (m_gui_manager && m_gui_manager->want_capture_keyboard())
+        return;
 
     const auto qtKey = m_keymap[key];
     if (qtKey == Qt::Key_unknown) {
@@ -67,16 +72,16 @@ void InputMapper::on_key_callback(int key, [[maybe_unused]]int scancode, int act
 
     QKeyCombination combination(qtKey);
     if (action == GLFW_PRESS) {
-        //std::cout << "pressed " << m_keymap[key] << std::endl;
         emit key_pressed(combination);
     } else if (action == GLFW_RELEASE) {
-        //std::cout << "released " << m_keymap[key] << std::endl;
         emit key_released(combination);
     }
 }
 
 void InputMapper::on_cursor_position_callback(double xpos, double ypos) {
     if (m_ongoing_touch_interaction) return;
+    if (m_gui_manager && m_gui_manager->want_capture_mouse())
+        return;
     m_mouse.point.last_position = m_mouse.point.position;
     m_mouse.point.position = { xpos, ypos };
     emit mouse_moved(m_mouse);
@@ -85,12 +90,8 @@ void InputMapper::on_cursor_position_callback(double xpos, double ypos) {
 void InputMapper::on_mouse_button_callback(int button, int action, [[maybe_unused]]int mods, double xpos, double ypos) {
     assert(button >= 0 && (size_t)button < m_buttonmap.size());
     if (m_ongoing_touch_interaction) return;
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-    /*ImGuiIO& io = ImGui::GetIO();
-    if (io.WantCaptureMouse) {
+    if (m_gui_manager && m_gui_manager->want_capture_mouse())
         return;
-    }*/
-#endif
 
     m_mouse.point.last_position = m_mouse.point.position;
     m_mouse.point.position = { xpos, ypos };
@@ -104,6 +105,16 @@ void InputMapper::on_mouse_button_callback(int button, int action, [[maybe_unuse
     }
 
     emit mouse_pressed(m_mouse);
+}
+
+void InputMapper::on_scroll_callback(double xoffset, double yoffset)
+{
+    if (m_gui_manager && m_gui_manager->want_capture_mouse())
+        return;
+    nucleus::event_parameter::Wheel wheel {};
+    wheel.angle_delta = QPoint(static_cast<int>(xoffset), static_cast<int>(yoffset) * 50.0f);
+    wheel.point.position = m_mouse.point.position;
+    emit wheel_turned(wheel);
 }
 
 #ifdef __EMSCRIPTEN__
@@ -199,9 +210,4 @@ void InputMapper::touch_event(const WebInterop::JsTouchEvent& event) {
 
 #endif
 
-void InputMapper::on_scroll_callback(double xoffset, double yoffset) {
-    nucleus::event_parameter::Wheel wheel {};
-    wheel.angle_delta = QPoint(static_cast<int>(xoffset), static_cast<int>(yoffset) * 50.0f);
-    wheel.point.position = m_mouse.point.position;
-    emit wheel_turned(wheel);
-}
+} // namespace webgpu_app

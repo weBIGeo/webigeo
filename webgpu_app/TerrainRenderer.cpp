@@ -39,29 +39,24 @@
 
 namespace webgpu_app {
 
-static void windowResizeCallback(GLFWwindow* window, int width, int height) {
+static void window_resize_callback(GLFWwindow* window, int width, int height)
+{
     auto terrainRenderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
     terrainRenderer->on_window_resize(width, height);
 }
 
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
     auto renderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
-    if (renderer->get_gui_manager()->want_capture_keyboard())
-        return;
     renderer->get_input_mapper()->on_key_callback(key, scancode, action, mods);
 }
 
 static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
     auto renderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
-    if (renderer->get_gui_manager()->want_capture_mouse())
-        return;
     renderer->get_input_mapper()->on_cursor_position_callback(xpos, ypos);
 }
 
 static void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
     auto renderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
-    if (renderer->get_gui_manager()->want_capture_mouse())
-        return;
     double xpos, ypos;
     glfwGetCursorPos(window, &xpos, &ypos);
     renderer->get_input_mapper()->on_mouse_button_callback(button, action, mods, xpos, ypos);
@@ -70,8 +65,6 @@ static void mouse_button_callback(GLFWwindow* window, int button, int action, in
 static void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
     auto renderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
-    if (renderer->get_gui_manager()->want_capture_mouse())
-        return;
     renderer->get_input_mapper()->on_scroll_callback(xoffset, yoffset);
 }
 
@@ -94,10 +87,12 @@ void TerrainRenderer::init_window() {
         qFatal("Could not open GLFW window");
     }
     glfwSetWindowUserPointer(m_window, this);
-    glfwSetWindowSizeCallback(m_window, windowResizeCallback);
     glfwSetKeyCallback(m_window, key_callback);
+    glfwSetWindowSizeCallback(m_window, window_resize_callback);
+#ifndef __EMSCRIPTEN__
     glfwSetCursorPosCallback(m_window, cursor_position_callback);
     glfwSetMouseButtonCallback(m_window, mouse_button_callback);
+#endif
     glfwSetScrollCallback(m_window, scroll_callback);
 
 #ifndef __EMSCRIPTEN__
@@ -199,9 +194,14 @@ void TerrainRenderer::start() {
     m_controller = std::make_unique<nucleus::Controller>(m_webgpu_window.get());
 
     nucleus::camera::Controller* camera_controller = m_controller->camera_controller();
-    m_input_mapper = std::make_unique<InputMapper>(this, camera_controller);
+    m_input_mapper = std::make_unique<InputMapper>(this, camera_controller, m_gui_manager.get());
 
     connect(this, &TerrainRenderer::update_camera_requested, camera_controller, &nucleus::camera::Controller::update_camera_request);
+
+#ifdef __EMSCRIPTEN__
+    connect(&WebInterop::instance(), &WebInterop::mouse_button_event, m_input_mapper.get(), &InputMapper::on_mouse_button_callback);
+    connect(&WebInterop::instance(), &WebInterop::mouse_position_event, m_input_mapper.get(), &InputMapper::on_cursor_position_callback);
+#endif
 
     m_webgpu_window->set_wgpu_context(m_instance, m_device, m_adapter, m_surface, m_queue);
     m_webgpu_window->initialise_gpu();

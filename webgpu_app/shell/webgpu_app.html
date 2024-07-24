@@ -78,14 +78,6 @@
 
             // Check wether the browser supports WebGPU-Timings
             WEBGPU_TIMINGS_AVAILABE = await isWebGPUTimingAvailable() ? 1 : 0;
-            /*
-            if (!webgpu_timing_available)
-            {
-              console.error('WebGPU-Timings are not supported in this browser');
-              // Clear body and write h1 in the body to show the error message
-              status.innerHTML = 'Error: WebGPU-Timings are not supported in this browser!';
-              return;
-            }*/
 
             const showUi = (ui) => {
                 [spinner, screen].forEach(element => element.style.display = 'none');
@@ -153,6 +145,29 @@
                 window.addEventListener('touchstart', handleTouchEvent, false);
                 window.addEventListener('touchmove', handleTouchEvent, false);
                 window.addEventListener('touchend', handleTouchEvent, false);
+
+                // Prevent right-click context menu
+                webgpu_canvas.oncontextmenu = function(e) { e.preventDefault(); e.stopPropagation(); }
+                
+                jsButtonToEmButton = {
+                    0: 0, // left mouse
+                    1: 2, // middle mouse
+                    2: 1, // right mouse
+                    3: 3, // browser back
+                    4: 4  // browser forward
+                  };
+                webgpu_canvas.onmousedown = function(event) {
+                  eminstance.mouse_button_event(jsButtonToEmButton[event.button], 1, 0, event.clientX, event.clientY);
+                  document.onmousemove = function(event) {
+                    eminstance.mouse_position_event(jsButtonToEmButton[event.button], event.clientX, event.clientY);
+                  };
+                  document.onmouseup = function() {
+                    eminstance.mouse_button_event(jsButtonToEmButton[event.button], 0, 0, event.clientX, event.clientY);
+                    document.onmousemove = null;
+                    if(webgpu_canvas.releaseCapture) { webgpu_canvas.releaseCapture(); }
+                  };
+                  if(webgpu_canvas.setCapture) { webgpu_canvas.setCapture(); }
+                }
 
             } catch (e) {
                 console.error(e);
