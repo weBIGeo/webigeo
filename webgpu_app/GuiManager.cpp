@@ -191,8 +191,8 @@ void GuiManager::draw()
 
     if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
         if (ImGui::BeginCombo("Preset", m_camera_preset_names[m_selected_camera_preset].c_str())) {
-            for (int n = 0; n < m_camera_preset_names.size(); n++) {
-                bool is_selected = (m_selected_camera_preset == n);
+            for (size_t n = 0; n < m_camera_preset_names.size(); n++) {
+                bool is_selected = (size_t(m_selected_camera_preset) == n);
                 if (ImGui::Selectable(m_camera_preset_names[n].c_str(), is_selected)) {
                     m_selected_camera_preset = n;
 
