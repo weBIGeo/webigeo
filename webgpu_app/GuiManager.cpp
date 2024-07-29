@@ -194,7 +194,7 @@ void GuiManager::draw()
             for (size_t n = 0; n < m_camera_preset_names.size(); n++) {
                 bool is_selected = (size_t(m_selected_camera_preset) == n);
                 if (ImGui::Selectable(m_camera_preset_names[n].c_str(), is_selected)) {
-                    m_selected_camera_preset = n;
+                    m_selected_camera_preset = int(n);
 
                     const auto position_storage = nucleus::camera::PositionStorage::instance();
                     const auto camera_controller = m_terrain_renderer->get_controller()->camera_controller();
