@@ -59,7 +59,13 @@ fn sample_higher_zoomlevel_tile(tile_id: TileId, coords: vec2<u32>, size: u32) -
 @compute @workgroup_size(1, 16, 16)
 fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     let tile_id = input_tile_ids[id.x];
-    let size = 256u; // TODO don't hardcode
+    let size = textureDimensions(output_textures).x; // TODO allow non-square
+    
+    // exit if thread id is outside image dimensions (i.e. thread is not supposed to be doing any work)
+    if (id.y >= size || id.z >= size) {
+        return;
+    }
+    
     let final_coord = vec2<u32>(id.y, id.z);
     
     let coords_sample_00 = (2 * final_coord + vec2u(0, 0));
