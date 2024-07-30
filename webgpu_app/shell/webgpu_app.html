@@ -173,12 +173,13 @@
             };
           })(),
         });
+        
         // Set the canvas to be the same size as the screen
-        eminstance.canvas_size_changed(window.innerWidth, window.innerHeight);
+        await eminstance.ccall("global_canvas_size_changed", null, ["number", "number"], [window.innerWidth, window.innerHeight], {async: true});
 
         // on resize, update the canvas size
-        window.addEventListener('resize', () => {
-          eminstance.canvas_size_changed(window.innerWidth, window.innerHeight);
+        window.addEventListener('resize', async () => {
+          await eminstance.ccall("global_canvas_size_changed", null, ["number", "number"], [window.innerWidth, window.innerHeight], {async: true});
         });
 
         function handleTouchEvent(e) {
@@ -217,14 +218,23 @@
           3: 3, // browser back
           4: 4  // browser forward
         };
-        webgpu_canvas.onmousedown = function (event) {
+        webgpu_canvas.onmousedown = async function (event) {
           log_wrapper.classList.add('noselect');
-          eminstance.mouse_button_event(jsButtonToEmButton[event.button], 1, 0, event.clientX, event.clientY);
-          document.onmousemove = function (event) {
-            eminstance.mouse_position_event(jsButtonToEmButton[event.button], event.clientX, event.clientY);
+          await eminstance.ccall("global_mouse_button_event", null,
+            ["number", "number", "number", "number", "number"],
+            [jsButtonToEmButton[event.button], 1, 0, event.clientX, event.clientY],
+            {async: true});
+          document.onmousemove = async function (event) {
+            await eminstance.ccall("global_mouse_position_event", null,
+              ["number", "number", "number"],
+              [jsButtonToEmButton[event.button], event.clientX, event.clientY],
+              {async: true});
           };
-          document.onmouseup = function () {
-            eminstance.mouse_button_event(jsButtonToEmButton[event.button], 0, 0, event.clientX, event.clientY);
+          document.onmouseup = async function () {
+            await eminstance.ccall("global_mouse_button_event", null,
+              ["number", "number", "number", "number", "number"],
+              [jsButtonToEmButton[event.button], 0, 0, event.clientX, event.clientY], 
+              {async: true});
             document.onmousemove = null;
             if (webgpu_canvas.releaseCapture) { webgpu_canvas.releaseCapture(); }
             log_wrapper.classList.remove('noselect');

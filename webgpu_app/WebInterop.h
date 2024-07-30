@@ -23,6 +23,13 @@
 
 #define JS_MAX_TOUCHES 3 // also needs changes in WebInterop.cpp and the shell!
 
+extern "C" {
+[[maybe_unused]] void global_canvas_size_changed(int width, int height);
+//[[maybe_unused]] void global_touch_event(const JsTouchEvent& event);
+[[maybe_unused]] void global_mouse_button_event(int button, int action, int mods, double xpos, double ypos);
+[[maybe_unused]] void global_mouse_position_event(int button, double xpos, double ypos);
+}
+
 // The WebInterop class acts as bridge between the C++ code and the JavaScript code.
 // It maps the exposed Javascript functions to signals on the singleton which can be used in our QObjects.
 class WebInterop : public QObject {

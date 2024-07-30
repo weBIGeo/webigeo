@@ -19,6 +19,15 @@
 #include "WebInterop.h"
 #include <array>
 
+void global_canvas_size_changed(int width, int height) { WebInterop::_canvas_size_changed(width, height); }
+
+void global_mouse_button_event(int button, int action, int mods, double xpos, double ypos)
+{
+    WebInterop::_mouse_button_event(button, action, mods, xpos, ypos);
+}
+
+void global_mouse_position_event(int button, double xpos, double ypos) { WebInterop::_mouse_position_event(button, xpos, ypos); }
+
 void WebInterop::_canvas_size_changed(int width, int height) {
     emit instance().canvas_size_changed(width, height);
 }
