@@ -58,7 +58,7 @@ if (EMSCRIPTEN)
             -sUSE_GLFW=3 # Use Emscripten-provided GLFW
             -sUSE_WEBGPU # Handle WebGPU symbols
             -sASYNCIFY # Required by WebGPU-C++
-            #-sEXPORTED_FUNCTIONS=_main,_set_glfw_window_size # _main needs to be specifically exported if sEXPORTED_FUNCTIONS is set
+            -sEXPORTED_FUNCTIONS=_main,_global_canvas_size_changed,_global_mouse_button_event,_global_mouse_position_event # _main needs to be specifically exported if sEXPORTED_FUNCTIONS is set
             #-sEXPORTED_RUNTIME_METHODS=ccall,cwrap,UTF16ToString,stringToUTF16,JSEvents,specialHTMLTargets,FS # will be overwritten by Qt
             #--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/resources # resources pls via qt resource system
             #--shell-file "${CMAKE_CURRENT_SOURCE_DIR}/shell/${SHELL_FILE}" # setting custom shell here makes no sense as qt will overwrite it anyway
@@ -82,6 +82,10 @@ if (EMSCRIPTEN)
             #-sASYNCIFY_IMPORTS=qt_asyncify_suspend_js,qt_asyncify_resume_js
             #-s ERROR_ON_UNDEFINED_SYMBOLS=1
     )
+
+    # enables to append to EXPORTED_RUNTIME_METHODS which is overridden by Qt
+    # see issue (https://bugreports.qt.io/browse/QTBUG-104882) and fix (https://codereview.qt-project.org/c/qt/qtbase/+/421733)
+    set_target_properties(webgpu_app PROPERTIES QT_WASM_EXTRA_EXPORTED_METHODS "ccall,cwrap")
 
     # Copy custom shell (name of file == name of target)
     # IMPORTANT: THIS WILL ONLY BE EXECUTED WHEN THE TARGET IS ACTUALLY REBUILT
