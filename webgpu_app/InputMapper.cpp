@@ -66,7 +66,7 @@ void InputMapper::on_key_callback(int key, [[maybe_unused]]int scancode, int act
 
     const auto qtKey = m_keymap[key];
     if (qtKey == Qt::Key_unknown) {
-        qWarning() << "Key not mapped " << key;
+        // qWarning() << "Key not mapped " << key;
         return;
     }
 

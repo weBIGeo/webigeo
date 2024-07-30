@@ -25,7 +25,9 @@
 #include <imnodes.h>
 #endif
 #include "webgpu_engine/Window.h"
+#include <IconsFontAwesome5.h>
 #include <QDebug>
+#include <QFile>
 #include <nucleus/camera/PositionStorage.h>
 
 namespace webgpu_app {
@@ -67,6 +69,49 @@ void GuiManager::init(
     ImGui::StyleColorsLight();
     ImGui::GetStyle().Colors[ImGuiCol_WindowBg] = ImVec4(0.9f, 0.9f, 0.9f, 0.9f);
     ImNodes::StyleColorsLight();
+
+    this->install_fonts();
+#endif
+}
+
+void GuiManager::install_fonts()
+{
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
+    ImGuiIO& io = ImGui::GetIO();
+
+    float baseFontSize = 16.0f;
+    float iconFontSize = 14.0f;
+
+    {
+        QFile file(":/fonts/Roboto-Regular.ttf");
+        if (!file.open(QIODevice::ReadOnly)) {
+            throw std::runtime_error("Failed to open Main Font.");
+        }
+        QByteArray byteArray = file.readAll();
+        file.close();
+
+        ImFontConfig font_cfg;
+        font_cfg.FontDataOwnedByAtlas = false;
+        io.Fonts->AddFontFromMemoryTTF(byteArray.data(), byteArray.size(), baseFontSize, &font_cfg);
+    }
+
+    {
+        QFile file(":/fonts/fa5-solid-900.ttf");
+        if (!file.open(QIODevice::ReadOnly)) {
+            throw std::runtime_error("Failed to open glyph font.");
+        }
+        QByteArray byteArray = file.readAll();
+        file.close();
+
+        // merge in icons from Font Awesome
+        static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
+        ImFontConfig icons_config;
+        icons_config.MergeMode = true;
+        icons_config.PixelSnapH = true;
+        icons_config.GlyphMinAdvanceX = iconFontSize;
+        icons_config.FontDataOwnedByAtlas = false;
+        io.Fonts->AddFontFromMemoryTTF(byteArray.data(), byteArray.size(), iconFontSize, &icons_config, icons_ranges);
+    }
 #endif
 }
 
@@ -138,7 +183,7 @@ void GuiManager::draw()
 
     ImGui::Begin("weBIGeo", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar);
 
-    if (ImGui::CollapsingHeader("Timing", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (ImGui::CollapsingHeader(ICON_FA_STOPWATCH "  Timing", ImGuiTreeNodeFlags_Leaf)) {
 
         const webgpu::timing::GuiTimerWrapper* selected_timer = nullptr;
         if (!m_selected_timer.empty()) {
@@ -189,7 +234,7 @@ void GuiManager::draw()
         }
     }
 
-    if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (ImGui::CollapsingHeader(ICON_FA_CAMERA " Camera", ImGuiTreeNodeFlags_Leaf)) {
         if (ImGui::BeginCombo("Preset", m_camera_preset_names[m_selected_camera_preset].c_str())) {
             for (size_t n = 0; n < m_camera_preset_names.size(); n++) {
                 bool is_selected = (size_t(m_selected_camera_preset) == n);
@@ -211,18 +256,18 @@ void GuiManager::draw()
         }
     }
 
-    if (ImGui::CollapsingHeader("APP Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (ImGui::CollapsingHeader(ICON_FA_COG "  APP Settings", ImGuiTreeNodeFlags_Leaf)) {
         m_terrain_renderer->render_gui();
     }
 
-    if (ImGui::CollapsingHeader("Engine Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (ImGui::CollapsingHeader(ICON_FA_COGS "  Engine Settings", ImGuiTreeNodeFlags_Leaf)) {
         auto webgpu_window = m_terrain_renderer->get_webgpu_window();
         if (webgpu_window) {
             webgpu_window->paint_gui();
         }
     }
 
-    if (ImGui::Button(!m_show_nodeeditor ? "Show Node Editor" : "Hide Node Editor")) {
+    if (ImGui::Button(!m_show_nodeeditor ? ICON_FA_NETWORK_WIRED "  Show Node Editor" : ICON_FA_NETWORK_WIRED "  Hide Node Editor")) {
         m_show_nodeeditor = !m_show_nodeeditor;
     }
     ImGui::End();

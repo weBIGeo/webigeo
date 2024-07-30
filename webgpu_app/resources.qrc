@@ -2,4 +2,8 @@
     <qresource prefix="/icons">
         <file alias="logo32.png">resources/icons/logo32.png</file>
     </qresource>
+    <qresource prefix="/fonts">
+        <file alias="Roboto-Regular.ttf">resources/fonts/Roboto-Regular.ttf</file>
+        <file alias="fa5-solid-900.ttf">resources/fonts/fa5-solid-900.ttf</file>
+    </qresource>
 </RCC>

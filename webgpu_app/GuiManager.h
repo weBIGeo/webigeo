@@ -58,6 +58,8 @@ private:
 
     void draw();
 
+    void install_fonts();
+
     void toggle_timer(uint32_t timer_id);
     bool is_timer_selected(uint32_t timer_id);
 };
