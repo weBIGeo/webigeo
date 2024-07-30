@@ -75,7 +75,7 @@ fn normal_by_finite_difference_method(
 {
     // from here: https://stackoverflow.com/questions/6656358/calculating-normals-in-a-triangle-mesh/21660173#21660173
     let height = quad_width + quad_height;
-    let uv_tex = vec2<i32>(i32(uv.x * f32(edge_vertices_count)), i32(uv.y * f32(edge_vertices_count)));
+    let uv_tex = vec2<i32>(i32(uv.x * f32(edge_vertices_count - 1)), i32(uv.y * f32(edge_vertices_count - 1)));
     let upper_bounds = vec2<i32>(i32(edge_vertices_count - 1), i32(edge_vertices_count - 1));
     let lower_bounds = vec2<i32>(0, 0);
     let hL_uv = clamp(uv_tex - vec2<i32>(1, 0), lower_bounds, upper_bounds);
