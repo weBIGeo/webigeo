@@ -16,14 +16,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
+#define LOG_MESSAGE_FILTERING 1
+
 #include "error_logging.h"
 
 #include <QDateTime>
 #include <QFileInfo>
 #include <iostream>
 
+#if LOG_MESSAGE_FILTERING
+static const std::map<QtMsgType, QString> logMessageFilters = { { QtWarningMsg, "QNetworkAccess: got HTTP status code 0" } };
+#endif
+
 void qt_logging_callback(QtMsgType type, const QMessageLogContext& context, const QString& msg)
 {
+#if LOG_MESSAGE_FILTERING
+    for (const auto& filter : logMessageFilters) {
+        if (type == filter.first && msg.contains(filter.second)) {
+            return;
+        }
+    }
+#endif
+
     QByteArray localMsg = msg.toLocal8Bit();
     // const char *function = context.function ? context.function : "";
     const char* typeStr = nullptr;
@@ -78,6 +92,9 @@ void qt_logging_callback(QtMsgType type, const QMessageLogContext& context, cons
                      .arg(localMsg.constData());
 
     (*stream) << logMessage.toStdString() << std::endl;
+    // Note: We could use Logging Categories at some point. (when we have >100 employees maybe)
+    // QString category = context.category ? context.category : "default";
+    // (*stream) << logMessage.toStdString() << category.toStdString() << std::endl;
 
     if (type == QtFatalMsg) {
         abort();
