@@ -133,7 +133,8 @@ void DownsampleComputeNode::compute_downsampled_tiles(const std::vector<tile::Id
             compute_pass_desc.label = "compute: downsample pass";
             webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
 
-            glm::uvec3 workgroup_counts = glm::uvec3 { gpu_tile_ids.size(), hashmap_textures.width(), hashmap_textures.height() } / SHADER_WORKGROUP_SIZE;
+            glm::uvec3 workgroup_counts
+                = glm::ceil(glm::vec3(gpu_tile_ids.size(), hashmap_textures.width(), hashmap_textures.height()) / glm::vec3(SHADER_WORKGROUP_SIZE));
             wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, m_compute_bind_group->handle(), 0, nullptr);
             m_pipeline_manager->downsample_compute_pipeline().run(compute_pass, workgroup_counts);
         }
