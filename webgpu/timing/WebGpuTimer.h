@@ -27,11 +27,13 @@
 namespace webgpu::timing {
 
 class WebGpuTimer : public TimerInterface {
+
 public:
     WebGpuTimer(WGPUDevice device, uint32_t ring_buffer_size, size_t capacity);
     void start(WGPUCommandEncoder encoder);
     void stop(WGPUCommandEncoder encoder);
-    void resolve(WGPUQueue queue);
+    /// Readback of last value. Needs to be called after queue submit!
+    void resolve();
 
 private:
     WGPUQuerySetDescriptor m_timestamp_query_desc;
@@ -42,8 +44,13 @@ private:
     std::unique_ptr<webgpu::raii::RawBuffer<uint64_t>> m_timestamp_resolve;
     std::vector<std::unique_ptr<webgpu::raii::RawBuffer<uint64_t>>> m_timestamp_readback_buffer;
 
-    uint32_t m_ringbuffer_index_write = 0; // next write index
-    uint32_t m_ringbuffer_index_read = 0; // next read index
+    int m_ringbuffer_index_write = 0; // next write index
+    int m_ringbuffer_index_read = -1; // next index to read
+    inline void increment_index(int& index) { index = (index + 1) % this->m_timestamp_readback_buffer.size(); }
+
+#ifdef QT_DEBUG
+    uint32_t m_dbg_dropped_measurement_count = 0;
+#endif
 };
 
 } // namespace webgpu::timing

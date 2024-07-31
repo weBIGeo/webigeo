@@ -168,7 +168,7 @@ void TerrainRenderer::render() {
     wgpuCommandBufferRelease(command);
 
     if (webgpu::isTimingSupported())
-        m_gputimer->resolve(m_queue);
+        m_gputimer->resolve();
 
 #ifndef __EMSCRIPTEN__
     // Swapchain in the WEB is handled by the browser!
@@ -280,7 +280,7 @@ void TerrainRenderer::start() {
     m_cputimer = std::make_shared<webgpu::timing::CpuTimer>(120);
     m_timer_manager->add_timer(m_cputimer, "CPU Timer", "Renderer");
     if (webgpu::isTimingSupported()) {
-        m_gputimer = std::make_shared<webgpu::timing::WebGpuTimer>(m_device, 4, 120);
+        m_gputimer = std::make_shared<webgpu::timing::WebGpuTimer>(m_device, 3, 120);
         m_timer_manager->add_timer(m_gputimer, "GPU Timer", "Renderer");
     }
 

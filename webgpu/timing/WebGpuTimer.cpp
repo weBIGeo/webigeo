@@ -22,13 +22,31 @@
 
 namespace webgpu::timing {
 
+#ifdef QT_DEBUG
+const char* readback_timer_names(uint32_t id)
+{
+    if (id == 0)
+        return "Timestamp Readback 1";
+    else if (id == 1)
+        return "Timestamp Readback 2";
+    else if (id == 2)
+        return "Timestamp Readback 3";
+    else if (id == 3)
+        return "Timestamp Readback 4";
+    else
+        return "Timestamp Readback X";
+}
+#else
+inline const char* readback_timer_names([[maybe_unused]] uint32_t id) { return "Timestamp Readback"; }
+#endif
+
 WebGpuTimer::WebGpuTimer(WGPUDevice device, uint32_t ring_buffer_size, size_t capacity)
     : TimerInterface(capacity)
     , m_device(device)
 {
     m_timestamp_query_desc = {
         .nextInChain = nullptr,
-        .label = ("T" + std::to_string(get_id()) + " Queries").c_str(), // does this work memory-wise?
+        .label = "Timing Query",
         .type = WGPUQueryType_Timestamp,
         .count = 2, // start and end
     };
@@ -39,7 +57,7 @@ WebGpuTimer::WebGpuTimer(WGPUDevice device, uint32_t ring_buffer_size, size_t ca
 
     for (uint32_t i = 0; i < ring_buffer_size; ++i) {
         m_timestamp_readback_buffer.push_back(
-            std::make_unique<webgpu::raii::RawBuffer<uint64_t>>(device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead, 2, "Timestamp Readback"));
+            std::make_unique<webgpu::raii::RawBuffer<uint64_t>>(device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead, 2, readback_timer_names(i)));
     }
 }
 
@@ -57,26 +75,33 @@ void WebGpuTimer::stop(WGPUCommandEncoder encoder)
     // Resolve the query set into the resolve buffer
     wgpuCommandEncoderResolveQuerySet(encoder, m_timestamp_queries, 0, 2, m_timestamp_resolve->handle(), 0);
     // Copy the resolve buffer to the result buffer
-    m_timestamp_resolve->copy_to_buffer(encoder, 0, *m_timestamp_readback_buffer[m_ringbuffer_index_write], 0, size_2_uint64);
-    m_ringbuffer_index_write = (m_ringbuffer_index_write + 1) % m_timestamp_readback_buffer.size();
+    const auto i = m_ringbuffer_index_write;
+    if (m_timestamp_readback_buffer[i]->map_state() == WGPUBufferMapState_Unmapped) {
+        m_timestamp_resolve->copy_to_buffer(encoder, 0, *m_timestamp_readback_buffer[i], 0, size_2_uint64);
+        m_ringbuffer_index_read = i;
+        increment_index(m_ringbuffer_index_write);
+    }
+#ifdef QT_DEBUG
+    else {
+        m_dbg_dropped_measurement_count++;
+        if (m_dbg_dropped_measurement_count == 100) {
+            qWarning() << "WebGPUTimer" << this->get_id() << "already dropped 100 measurements. Consider increasing ring buffer size.";
+        }
+    }
+#endif
 }
 
-void WebGpuTimer::resolve(WGPUQueue queue)
+void WebGpuTimer::resolve()
 {
-    wgpuQueueOnSubmittedWorkDone(
-        queue,
-        []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* pUserData) {
-            WebGpuTimer* _this = reinterpret_cast<WebGpuTimer*>(pUserData);
-            if (status != WGPUQueueWorkDoneStatus_Success)
-                return;
-
-            _this->m_timestamp_readback_buffer[_this->m_ringbuffer_index_read]->read_back_async(_this->m_device, [_this](std::vector<uint64_t> data) {
-                const float result_in_s = (data[1] - data[0]) / 1e9;
-                _this->add_result(result_in_s);
-            });
-            _this->m_ringbuffer_index_read = (_this->m_ringbuffer_index_read + 1) % _this->m_timestamp_readback_buffer.size();
-        },
-        this);
+    if (m_ringbuffer_index_read < 0)
+        return; // Nothing to resolve
+    m_timestamp_readback_buffer[m_ringbuffer_index_read]->read_back_async(m_device, [this](WGPUBufferMapAsyncStatus status, std::vector<uint64_t> data) {
+        if (status == WGPUBufferMapAsyncStatus_Success) {
+            const float result_in_s = (data[1] - data[0]) / 1e9;
+            add_result(result_in_s);
+        }
+    });
+    m_ringbuffer_index_read = -1;
 }
 
 } // namespace webgpu::timing
