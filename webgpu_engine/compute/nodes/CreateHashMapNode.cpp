@@ -65,7 +65,7 @@ void CreateHashMapNode::run_impl()
             // std::vector<uint32_t> value_buffer_contents = _this->m_output_tile_id_to_index.value_buffer().read_back_sync(_this->m_device, 10000);
             // std::cout << "done" << std::endl;
 
-            _this->run_finished(); // emits signal run_finished()
+            emit _this->run_finished();
         },
         this);
 }

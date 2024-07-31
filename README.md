@@ -21,7 +21,7 @@ weBIGeo's primary target is the web. Additionally we support native builds on Wi
 * [emscripten](https://emscripten.org/docs/getting_started/downloads.html)
 * To exactly follow along with build instructions you need `ninja`, `cmake` and `emsdk` in your PATH
 
-### Building Qt with emscripten
+### Building Qt with emscripten (singlethreaded)
 For WebGPU to work we need to compile with emscripten version > 3.1.47. The default emscripten version, supported by Qt 6.7.2 is 3.1.50 (https://doc.qt.io/qt-6/wasm.html#installing-emscripten). However, newer emscripten releases include important fixes (e.g. requesting GPU limits from adapter) and API changes (e.g. new surface API) for webGPU. Therefore we need to recompile the Qt sources with the appropriate version by ourselfs. (This step might be unnecessary in the near future with the release of [Qt 6.8](https://wiki.qt.io/Qt_6.8_Release)).
 
 1. Open new CMD Terminal
@@ -61,12 +61,52 @@ For WebGPU to work we need to compile with emscripten version > 3.1.47. The defa
    cd .. & rmdir /s /q build
    ```
 
+### Building Qt with emscripten (multithreaded)
+For multithreading to work Qt and emscripten properly, we have to yet again compile a custom version of Qt with an extra flag.
+
+1. Open new CMD Terminal
+
+2. Navigate to Qt Path:
+   ```
+   cd "C:\Qt\6.7.2"
+   ```
+
+3. Generate build and install path (and make sure they are empty)
+   ```
+   mkdir build & mkdir wasm_multithread_emsdk_3_1_61_custom & cd build
+   ```
+
+4. Install and activate specific emsdk version
+   ```
+   emsdk install 3.1.61 & emsdk activate 3.1.61
+   ```
+
+5. Configure Qt with a minimal setup
+   ```
+   "../Src/configure" -debug-and-release -qt-host-path C:\Qt\6.7.2\mingw_64 -make libs -no-widgets -optimize-size -no-warnings-are-errors -platform wasm-emscripten -submodules qtdeclarative -no-dbus -no-sql-sqlite -feature-wasm-simd128 -feature-thread -no-feature-cssparser -no-feature-quick-treeview -no-feature-quick-pathview -no-feature-texthtmlparser -no-feature-textodfwriter -no-feature-quickcontrols2-windows -no-feature-quickcontrols2-macos -no-feature-quickcontrols2-ios -no-feature-quickcontrols2-imagine -no-feature-quickcontrols2-universal -no-feature-quickcontrols2-fusion -no-feature-qtwebengine-build -no-feature-qtprotobufgen -no-feature-qtpdf-build -no-feature-pdf -no-feature-printer -no-feature-sqlmodel -no-feature-qtpdf-quick-build -no-feature-quick-pixmap-cache-threaded-download -feature-quick-canvas -no-feature-quick-designer -no-feature-quick-particles -no-feature-quick-sprite -no-feature-raster-64bit -no-feature-raster-fp -prefix ../wasm_multithread_emsdk_3_1_61_custom
+   ```
+
+6. Build Qt
+   ```
+   cmake --build . --parallel
+   ```
+
+7. Install Qt
+   ```
+   cmake --install .
+   ```
+   
+8. Cleanup
+   ```
+   cd .. & rmdir /s /q build
+   ```
+
 ### Create Custom Kit for Qt Creator
 This step is specifically tailored to the Qt-Creator IDE.
 
 1. `Preferences -> Devices -> WebAssembly`: Set path to the emsdk git repository
-2. `Preferences -> Kits -> Qt Versions`: Add the newly built Qt-Version.
-3. `Preferences -> Kits -> Kits`: Add the new kit which links to the created Qt-Version.
+2. `Preferences -> Kits -> Qt Versions`: Add the newly built Qt-Version(s).
+3. `Preferences -> Kits -> Kits`: Add the new kit(s) and set them to use the custom Qt-Version(s) respectively.
 
 [![Emscripten Path Qt Creator](https://github.com/weBIGeo/ressources/blob/main/for_md/emscripten_path_qt_creator_thumb.jpg?raw=true)](https://github.com/weBIGeo/ressources/blob/main/for_md/emscripten_path_qt_creator.jpg?raw=true) [![Custom Qt Version for emsdk](https://github.com/weBIGeo/ressources/blob/main/for_md/custom_qt_version_thumb.jpg?raw=true)](https://github.com/weBIGeo/ressources/blob/main/for_md/custom_qt_version.jpg?raw=true) [![Custom Qt Kit for emsdk](https://github.com/weBIGeo/ressources/blob/main/for_md/custom_qt_kit_thumb.jpg?raw=true)](https://github.com/weBIGeo/ressources/blob/main/for_md/custom_qt_kit.jpg?raw=true)
 
@@ -115,7 +155,6 @@ There is no precompiled version of Qt for the MSVC2022-compiler. Therefore we ag
    ```
    "../Src/configure.bat" -debug-and-release -prefix ../msvc2022_64_custom -nomake examples -nomake tests
    ```
-
 
 5. Build Qt (takes ~ 25min)
    ```
