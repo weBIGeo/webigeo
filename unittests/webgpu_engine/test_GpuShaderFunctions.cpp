@@ -154,7 +154,8 @@ TEST_CASE("encoder functions")
             &done);
         webgpu::waitForFlag(context.device, &done);
 
-        std::vector<uint32_t> output = output_buffer->read_back_sync(context.device);
+        std::vector<uint32_t> output;
+        output_buffer->read_back_sync(context.device, output);
         REQUIRE(output.size() == test_normals_buffer_data.size());
 
         int failed_normals = 0;

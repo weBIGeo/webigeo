@@ -1,6 +1,7 @@
 /*****************************************************************************
  * Alpine Renderer
  * Copyright (C) 2024 Patrick Komon
+ * Copyright (C) 2024 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -51,8 +52,10 @@ TEST_CASE("webgpu hash map")
         gpu_hash_map.store(key2, value2);
         gpu_hash_map.update_gpu_data();
 
-        std::vector<compute::GpuTileId> ids = gpu_hash_map.key_buffer().read_back_sync(context.device, 1000);
-        std::vector<HashMapValue> values = gpu_hash_map.value_buffer().read_back_sync(context.device, 1000);
+        std::vector<compute::GpuTileId> ids;
+        gpu_hash_map.key_buffer().read_back_sync(context.device, ids, 1000);
+        std::vector<HashMapValue> values;
+        gpu_hash_map.value_buffer().read_back_sync(context.device, values, 1000);
 
         CHECK(ids.size() == values.size());
         CHECK(ids.size() == std::numeric_limits<uint16_t>::max() + 1);
@@ -74,8 +77,10 @@ TEST_CASE("webgpu hash map")
         gpu_hash_map.store(key2, new_value2);
         gpu_hash_map.update_gpu_data();
 
-        ids = gpu_hash_map.key_buffer().read_back_sync(context.device, 1000);
-        values = gpu_hash_map.value_buffer().read_back_sync(context.device, 1000);
+        ids.clear();
+        values.clear();
+        gpu_hash_map.key_buffer().read_back_sync(context.device, ids, 1000);
+        gpu_hash_map.value_buffer().read_back_sync(context.device, values, 1000);
 
         CHECK(ids.size() == values.size());
         CHECK(ids.size() == std::numeric_limits<uint16_t>::max() + 1);
@@ -106,8 +111,10 @@ TEST_CASE("webgpu hash map")
         gpu_hash_map.store(key2, value2);
         gpu_hash_map.update_gpu_data();
 
-        std::vector<tile::Id> ids = gpu_hash_map.key_buffer().read_back_sync(context.device, 1000);
-        std::vector<HashMapValue> values = gpu_hash_map.value_buffer().read_back_sync(context.device, 1000);
+        std::vector<tile::Id> ids;
+        gpu_hash_map.key_buffer().read_back_sync(context.device, ids, 1000);
+        std::vector<HashMapValue> values;
+        gpu_hash_map.value_buffer().read_back_sync(context.device, values, 1000);
 
         CHECK(ids.size() == values.size());
         CHECK(ids.size() == std::numeric_limits<uint16_t>::max() + 1);
