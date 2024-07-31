@@ -39,13 +39,7 @@ class WebInterop : public QObject {
     Q_OBJECT
 
 public:
-
-    enum JsTouchType {
-        JS_TOUCH_START = 0,
-        JS_TOUCH_MOVE = 1,
-        JS_TOUCH_END = 2,
-        JS_TOUCH_CANCEL = 3
-    };
+    enum JsTouchType { JS_TOUCH_START = 0, JS_TOUCH_MOVE = 1, JS_TOUCH_END = 2, JS_TOUCH_CANCEL = 3 };
 
     struct JsTouch {
         int clientX;
