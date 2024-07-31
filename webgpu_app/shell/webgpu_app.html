@@ -61,7 +61,6 @@
         if (screen === ui)
           screen.style.position = 'default';
         ui.style.display = 'block';
-        if (hacks.debugBuild) hacks.showLog();
       }
 
       try {
@@ -97,6 +96,7 @@
         });
 
         await hacks.setEminstance(eminstance);
+        if (hacks.debugBuild) hacks.showLog();
 
       } catch (e) {
         console.error(e);

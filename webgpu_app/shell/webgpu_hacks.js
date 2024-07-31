@@ -62,6 +62,7 @@ class WeBIGeoHacks {
   }
 
   async handleResizeEvent(event) {
+    if (!this.eminstance) return;
     await this.eminstance.ccall("global_canvas_size_changed", null, ["number", "number"], [window.innerWidth, window.innerHeight], { async: true });
   }
 
@@ -92,7 +93,7 @@ class WeBIGeoHacks {
 
   async setEminstance(eminstance) {
     this.eminstance = eminstance;
-    this.debugBuild = eminstance.hasOwnProperty("getCallStack");
+    this.debugBuild = eminstance.hasOwnProperty("getCallStack") || eminstance.hasOwnProperty("getCallstack");
 
     // Set the canvas to be the same size as the screen upon initialization
     await eminstance.ccall("global_canvas_size_changed", null, ["number", "number"], [window.innerWidth, window.innerHeight], { async: true });
@@ -103,7 +104,7 @@ class WeBIGeoHacks {
     this.webgpuTimingsAvailable = false;
 
     if (navigator.gpu === undefined) {
-      webgpuAvailable = false;
+      this.webgpuAvailable = false;
       return;
     }
 
