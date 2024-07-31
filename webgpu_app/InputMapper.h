@@ -42,7 +42,7 @@ public:
     void on_key_callback(int key, int scancode, int action, int mods);
     void on_cursor_position_callback(double xpos, double ypos);
     void on_mouse_button_callback(int button, int action, int mods, double xpos, double ypos);
-    void on_scroll_callback(double xoffset, double yoffset);
+    void on_scroll_callback(double xoffset, double yoffset, double xpos, double ypos);
 
 signals:
     void key_pressed(QKeyCombination key);

@@ -198,77 +198,26 @@ void Window::paint_gui()
 }
 
 glm::vec4 Window::synchronous_position_readback(const glm::dvec2& ndc) {
-    if (!m_position_readback_done) return {};
+    if (m_position_readback_buffer->map_state() == WGPUBufferMapState_Unmapped) {
+        // A little bit silly, but we have to transform it back to device coordinates
+        glm::uvec2 device_coordinates = { (ndc.x + 1) * 0.5 * m_swapchain_size.x, (1 - (ndc.y + 1) * 0.5) * m_swapchain_size.y };
 
-    // A little bit silly, but we have to transform it back to device coordinates
-    glm::uvec2 device_coordinates = {
-        (ndc.x + 1) * 0.5 * m_swapchain_size.x,
-        (1 - (ndc.y + 1) * 0.5) * m_swapchain_size.y
-    };
+        // clamp device coordinates to the swapchain size
+        device_coordinates = glm::clamp(device_coordinates, glm::uvec2(0), glm::uvec2(m_swapchain_size - glm::vec2(1.0)));
 
-    // clamp device coordinates to the swapchain size
-    device_coordinates = glm::clamp(device_coordinates, glm::uvec2(0), glm::uvec2(m_swapchain_size - glm::vec2(1.0)));
+        const auto& src_texture = m_gbuffer->color_texture(1);
+        // Need to read a multiple of 16 values to fit requirement for texture_to_buffer copy
+        src_texture.copy_to_buffer(m_device, *m_position_readback_buffer.get(), glm::uvec3(device_coordinates.x, device_coordinates.y, 0), glm::uvec2(16, 1));
 
-    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(m_device, {});
+        std::vector<glm::vec4> pos_buffer;
+        WGPUBufferMapAsyncStatus result = m_position_readback_buffer->read_back_sync(m_device, pos_buffer);
+        if (result == WGPUBufferMapAsyncStatus_Success) {
+            m_last_position_readback = pos_buffer[0];
+        }
+    } // else qDebug() << "Dropped position readback request, buffer still mapping.";
 
-    const auto& src_texture = m_gbuffer->color_texture(1);
-    // Define Source Texture
-    WGPUImageCopyTexture image_copy_texture_source = {};
-    image_copy_texture_source.texture = src_texture.handle();
-    image_copy_texture_source.mipLevel = 0;
-    image_copy_texture_source.origin = { device_coordinates.x, device_coordinates.y, 0 };
-    image_copy_texture_source.aspect = {};
-    // Define destination buffer
-    WGPUTextureDataLayout texture_data_layout = {
-        .nextInChain = nullptr,
-        .offset      = 0,
-        .bytesPerRow = 256, // multiple of 256
-        .rowsPerImage = 1,
-    };
-    WGPUImageCopyBuffer image_copy_buffer_destination = {};
-    image_copy_buffer_destination.layout = texture_data_layout;
-    image_copy_buffer_destination.buffer = m_position_readback_buffer->handle();
-    WGPUExtent3D image_copy_extent = {
-        .width = 1,
-        .height = 1,
-        .depthOrArrayLayers = 1,
-    };
-    wgpuCommandEncoderCopyTextureToBuffer(encoder, &image_copy_texture_source, &image_copy_buffer_destination, &image_copy_extent);
-
-    WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, {});
-    wgpuCommandEncoderRelease(encoder);
-    wgpuQueueSubmit(m_queue, 1, &command);
-    wgpuCommandBufferRelease(command);
-
-    m_position_readback_done = false;
-    wgpuQueueOnSubmittedWorkDone(m_queue, []([[maybe_unused]]WGPUQueueWorkDoneStatus status, void* pUserData) {
-            auto onBufferMapped = [](WGPUBufferMapAsyncStatus status, void* pUserData) {
-                Window* _this = reinterpret_cast<Window*>(pUserData);
-
-                if (status != WGPUBufferMapAsyncStatus_Success) {
-                    qWarning() << "Error in buffer mapping";
-                    _this->m_position_readback_done = true;
-                    return;
-                };
-
-                glm::vec4* bufferData = (glm::vec4*)wgpuBufferGetConstMappedRange(_this->m_position_readback_buffer->handle(), 0, sizeof(glm::vec4));
-                _this->m_position_readback_result = bufferData[0];
-                wgpuBufferUnmap(_this->m_position_readback_buffer->handle());
-                _this->m_position_readback_done = true;
-            };
-            Window* _this = reinterpret_cast<Window*>(pUserData);
-            if (status != WGPUQueueWorkDoneStatus_Success) {
-                qWarning() << "Error in queue work";
-                _this->m_position_readback_done = true;
-                return;
-            }
-            wgpuBufferMapAsync(_this->m_position_readback_buffer->handle(), WGPUMapMode_Read, 0, sizeof(glm::vec4), onBufferMapped, pUserData);
-        }, this);
-
-    webgpu::waitForFlag(m_device, &m_position_readback_done);
-
-    //std::cout << "Position: " << glm::to_string(m_position_readback_result) << std::endl;
-    return m_position_readback_result;
+    // qDebug() << "Position:" << glm::to_string(m_last_position_readback);
+    return m_last_position_readback;
 }
 
 

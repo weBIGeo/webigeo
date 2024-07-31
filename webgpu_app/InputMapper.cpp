@@ -79,7 +79,8 @@ void InputMapper::on_key_callback(int key, [[maybe_unused]]int scancode, int act
 }
 
 void InputMapper::on_cursor_position_callback(double xpos, double ypos) {
-    if (m_ongoing_touch_interaction) return;
+    if (m_ongoing_touch_interaction)
+        return;
     if (m_gui_manager && m_gui_manager->want_capture_mouse())
         return;
     m_mouse.point.last_position = m_mouse.point.position;
@@ -89,7 +90,8 @@ void InputMapper::on_cursor_position_callback(double xpos, double ypos) {
 
 void InputMapper::on_mouse_button_callback(int button, int action, [[maybe_unused]]int mods, double xpos, double ypos) {
     assert(button >= 0 && (size_t)button < m_buttonmap.size());
-    if (m_ongoing_touch_interaction) return;
+    if (m_ongoing_touch_interaction)
+        return;
     if (m_gui_manager && m_gui_manager->want_capture_mouse())
         return;
 
@@ -107,13 +109,13 @@ void InputMapper::on_mouse_button_callback(int button, int action, [[maybe_unuse
     emit mouse_pressed(m_mouse);
 }
 
-void InputMapper::on_scroll_callback(double xoffset, double yoffset)
+void InputMapper::on_scroll_callback(double xoffset, double yoffset, double xpos, double ypos)
 {
     if (m_gui_manager && m_gui_manager->want_capture_mouse())
         return;
     nucleus::event_parameter::Wheel wheel {};
     wheel.angle_delta = QPoint(static_cast<int>(xoffset), static_cast<int>(yoffset) * 50.0f);
-    wheel.point.position = m_mouse.point.position;
+    wheel.point.position = { xpos, ypos };
     emit wheel_turned(wheel);
 }
 

@@ -149,7 +149,7 @@ void Texture::read_back_async(WGPUDevice device, size_t layer_index, ReadBackCal
                                    device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead, single_layer_size_in_bytes(), "tile storage read back buffer"),
         callback, layer_index);
 
-    copy_to_buffer(device, *m_read_back_states.back().buffer, uint32_t(layer_index));
+    copy_to_buffer(device, *m_read_back_states.back().buffer, glm::uvec3(0, 0, uint32_t(layer_index)));
 
     auto on_buffer_mapped = [](WGPUBufferMapAsyncStatus status, void* user_data) {
         Texture* _this = reinterpret_cast<Texture*>(user_data);

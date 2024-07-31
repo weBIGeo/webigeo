@@ -50,6 +50,7 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
     renderer->get_input_mapper()->on_key_callback(key, scancode, action, mods);
 }
 
+#ifndef __EMSCRIPTEN__
 static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
     auto renderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
     renderer->get_input_mapper()->on_cursor_position_callback(xpos, ypos);
@@ -61,11 +62,13 @@ static void mouse_button_callback(GLFWwindow* window, int button, int action, in
     glfwGetCursorPos(window, &xpos, &ypos);
     renderer->get_input_mapper()->on_mouse_button_callback(button, action, mods, xpos, ypos);
 }
-
+#endif
 static void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
     auto renderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
-    renderer->get_input_mapper()->on_scroll_callback(xoffset, yoffset);
+    double xpos, ypos;
+    glfwGetCursorPos(window, &xpos, &ypos);
+    renderer->get_input_mapper()->on_scroll_callback(xoffset, yoffset, xpos, ypos);
 }
 
 TerrainRenderer::TerrainRenderer() {

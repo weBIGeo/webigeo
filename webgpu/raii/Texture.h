@@ -52,9 +52,46 @@ public:
     void write(WGPUQueue queue, const nucleus::utils::ColourTexture& data, uint32_t layer = 0);
 
     // submits to default queue of device
-    template <typename T> void copy_to_buffer(WGPUDevice device, const RawBuffer<T>& buffer, uint32_t layer = 0) const;
+    template <typename T>
+    void copy_to_buffer(WGPUDevice device, const RawBuffer<T>& buffer, glm::uvec3 origin = glm::uvec3(0), glm::uvec2 extent = glm::uvec2(0)) const
+    {
+        WGPUCommandEncoderDescriptor desc {};
+        desc.label = "copy texture to buffer command encoder";
+        raii::CommandEncoder encoder(device, desc);
+        copy_to_buffer<T>(encoder.handle(), buffer, origin, extent);
+        WGPUCommandBufferDescriptor cmd_buffer_desc {};
+        WGPUCommandBuffer cmd_buffer = wgpuCommandEncoderFinish(encoder.handle(), &cmd_buffer_desc);
+        WGPUQueue queue = wgpuDeviceGetQueue(device);
+        wgpuQueueSubmit(queue, 1, &cmd_buffer);
+        // TODO release cmd buffer -> use raii
+    }
 
-    template <typename T> void copy_to_buffer(WGPUCommandEncoder encoder, const RawBuffer<T>& buffer, uint32_t layer = 0) const;
+    template <typename T>
+    void copy_to_buffer(WGPUCommandEncoder encoder, const RawBuffer<T>& buffer, glm::uvec3 origin = glm::uvec3(0), glm::uvec2 extent = glm::uvec2(0)) const
+    {
+        // the row for the destination buffer needs to be aligned to 256 byte. Meaning: If we have
+        // a texture that does not fit those requirements we need to manually have a buffer with appropriate
+        // padding.
+        assert((extent.x * get_bytes_per_element(m_descriptor.format)) % 256 == 0);
+        if (extent.x == 0 || extent.y == 0) {
+            extent = glm::uvec2(m_descriptor.size.width, m_descriptor.size.height);
+        }
+
+        WGPUImageCopyTexture source {};
+        source.texture = m_handle;
+        source.mipLevel = 0;
+        source.origin = { .x = origin.x, .y = origin.y, .z = origin.z };
+        source.aspect = WGPUTextureAspect_All;
+
+        WGPUImageCopyBuffer destination {};
+        destination.buffer = buffer.handle();
+        destination.layout.offset = 0;
+        destination.layout.bytesPerRow = extent.x * get_bytes_per_element(m_descriptor.format); // I thought this has to be 256 multiple?
+        destination.layout.rowsPerImage = extent.y;
+
+        const WGPUExtent3D wgpu_extent { .width = extent.x, .height = extent.y, .depthOrArrayLayers = 1 };
+        wgpuCommandEncoderCopyTextureToBuffer(encoder, &source, &destination, &wgpu_extent);
+    }
 
     void copy_to_texture(WGPUCommandEncoder encoder, uint32_t source_layer, const Texture& target_texture, uint32_t target_layer = 0) const;
 
@@ -72,36 +109,5 @@ public:
 private:
     std::queue<ReadBackState> m_read_back_states;
 };
-
-template <typename T> void Texture::copy_to_buffer(WGPUDevice device, const RawBuffer<T>& buffer, uint32_t layer) const
-{
-    WGPUCommandEncoderDescriptor desc {};
-    desc.label = "copy texture to buffer command encoder";
-    raii::CommandEncoder encoder(device, desc);
-    copy_to_buffer<T>(encoder.handle(), buffer, layer);
-    WGPUCommandBufferDescriptor cmd_buffer_desc {};
-    WGPUCommandBuffer cmd_buffer = wgpuCommandEncoderFinish(encoder.handle(), &cmd_buffer_desc);
-    WGPUQueue queue = wgpuDeviceGetQueue(device);
-    wgpuQueueSubmit(queue, 1, &cmd_buffer);
-    // TODO release cmd buffer -> use raii
-}
-
-template <typename T> void Texture::copy_to_buffer(WGPUCommandEncoder encoder, const RawBuffer<T>& buffer, uint32_t layer) const
-{
-    WGPUImageCopyTexture source {};
-    source.texture = m_handle;
-    source.mipLevel = 0;
-    source.origin = { .x = 0, .y = 0, .z = layer };
-    source.aspect = WGPUTextureAspect_All;
-
-    WGPUImageCopyBuffer destination {};
-    destination.buffer = buffer.handle();
-    destination.layout.offset = 0;
-    destination.layout.bytesPerRow = m_descriptor.size.width * get_bytes_per_element(m_descriptor.format);
-    destination.layout.rowsPerImage = m_descriptor.size.height;
-
-    const WGPUExtent3D extent { .width = m_descriptor.size.width, .height = m_descriptor.size.height, .depthOrArrayLayers = 1 };
-    wgpuCommandEncoderCopyTextureToBuffer(encoder, &source, &destination, &extent);
-}
 
 } // namespace webgpu::raii

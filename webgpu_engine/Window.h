@@ -69,8 +69,7 @@ public slots:
 
 private:
     std::unique_ptr<webgpu::raii::RawBuffer<glm::vec4>> m_position_readback_buffer;
-    bool m_position_readback_done = true;
-    glm::vec4 m_position_readback_result;
+    glm::vec4 m_last_position_readback;
 
     void create_buffers();
     void create_bind_groups();
