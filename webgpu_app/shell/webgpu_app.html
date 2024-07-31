@@ -26,90 +26,19 @@
   <div id="screen"></div>
   <div id="logwrapper">
     <div id="log"></div>
-    <div id="clearlogbutton" onclick="javascript: document.querySelector('#log').innerHTML = ''">Clear Log</div>
+    <div id="logbuttonwrapper">
+      <div id="buttouchemulator" class="button">Touch-Emulator</div>
+      <div id="buthidelog" class="button">Hide Log [^]</div>
+      <div id="butclearlog" class="button">Clear Log</div>
+    </div>
   </div>
 
   <canvas width="800" height="600" class="emscripten" id="webgpucanvas"></canvas>
 
+  <script src="webgpu_hacks.js"></script>
   <script src="webgpu_app.js"></script>
-  <script src="touch-emulator.js"></script>
   <script type="text/javascript">
-    //TouchEmulator();
-    const JS_MAX_TOUCHES = 3;
-    var WEBGPU_TIMINGS_AVAILABE = 0;
 
-    function isWebGPUAvailable() {
-      return navigator.gpu !== undefined;
-    }
-
-    // Custom Check if WebGPU-Timings are available, by checking if the adapter and device support timestamp-query and writeTimestamp function
-    // This is necessary as the feature can be existant but timestamp queries can be disabled in the browser.
-    async function isWebGPUTimingAvailable() {
-      const adapter = await navigator.gpu.requestAdapter();
-      if (!adapter) return false;
-      const device = await adapter.requestDevice({ requiredFeatures: ['timestamp-query'] });
-      if (!device) return false;
-      const isTimestampSupported = device.features.has('timestamp-query');
-      let isWriteTimestampSupported = false;
-      if (isTimestampSupported) {
-        // Create a command encoder and check if writeTimestamp exists
-        const commandEncoder = device.createCommandEncoder();
-        if (typeof commandEncoder.writeTimestamp === 'function') {
-          isWriteTimestampSupported = true;
-        }
-      }
-      return isTimestampSupported && isWriteTimestampSupported;
-    }
-
-    function showLog() {
-      const log_wrapper = document.querySelector('#logwrapper');
-      log_wrapper.style.display = 'block';
-    }
-
-    function hideLog() {
-      const log_wrapper = document.querySelector('#logwrapper');
-      log_wrapper.style.display = 'none';
-    }
-
-    function toggleLog() {
-      const log_wrapper = document.querySelector('#logwrapper');
-      if (log_wrapper.style.display === 'none') showLog();
-      else hideLog();
-    }
-
-    function prepareAnsiLogString(text) {
-      // Define a combined mapping of special characters and ANSI codes to HTML replacements
-      const replacementMap = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '\n': '<br>',
-        ' ': '&nbsp;',
-        '\033[30m': '<font color="black">',
-        '\033[31m': '<font color="#ed4e4c">',
-        '\033[32m': '<font color="green">',
-        '\033[33m': '<font color="#d2c057">',
-        '\033[34m': '<font color="#2774f0">',
-        '\033[35m': '<font color="magenta">',
-        '\033[36m': '<font color="#12b5cb">',
-        '\033[37m': '<font color="white">',
-        '\033[0m': '</font>' // Reset code to close the font tag
-      };
-
-      // Replace special characters and ANSI codes with HTML entities and tags
-      for (const char in replacementMap) {
-        if (replacementMap.hasOwnProperty(char)) {
-          const replacement = replacementMap[char];
-          text = text.split(char).join(replacement);
-        }
-      }
-
-      return text;
-    }
-
-
-
-    eminstance = null;
     async function init() {
       const spinner = document.querySelector('#qtspinner');
       const screen = document.querySelector('#screen');
@@ -118,23 +47,21 @@
       const log_element = document.querySelector('#log');
       const log_wrapper = document.querySelector('#logwrapper');
 
-      // Check wether the browser supports WebGPU
-      if (!isWebGPUAvailable()) {
+      const hacks = new WeBIGeoHacks(webgpu_canvas, log_wrapper, log_element);
+      await hacks.checkWebGPU();
+
+      if (!hacks.webgpuAvailable) {
         console.error('WebGPU is not supported in this browser');
-        // Clear body and write h1 in the body to show the error message
         status.innerHTML = 'Error: WebGPU is not supported in this browser!';
         return;
       }
-
-      // Check wether the browser supports WebGPU-Timings
-      WEBGPU_TIMINGS_AVAILABE = await isWebGPUTimingAvailable() ? 1 : 0;
 
       const showUi = (ui) => {
         [spinner, screen].forEach(element => element.style.display = 'none');
         if (screen === ui)
           screen.style.position = 'default';
         ui.style.display = 'block';
-        showLog();
+        if (hacks.debugBuild) hacks.showLog();
       }
 
       try {
@@ -159,98 +86,17 @@
             return webgpu_canvas;
           })(),
           webgpuTimingsAvailable: (() => {
-            return WEBGPU_TIMINGS_AVAILABE;
+            return hacks.webgpuTimingsAvailable;
           })(),
           print: (function () {
             return (...args) => {
               var text = args.join(' ');
-              console.log(text);
-              if (log_element) {
-                let html_text = prepareAnsiLogString(text + '\n');
-                log_element.innerHTML += html_text;
-                log_element.scrollTop = log_element.scrollHeight; // focus on bottom
-              }
+              hacks.log(text);
             };
           })(),
         });
-        
-        // Set the canvas to be the same size as the screen
-        await eminstance.ccall("global_canvas_size_changed", null, ["number", "number"], [window.innerWidth, window.innerHeight], {async: true});
 
-        // on resize, update the canvas size
-        window.addEventListener('resize', async () => {
-          await eminstance.ccall("global_canvas_size_changed", null, ["number", "number"], [window.innerWidth, window.innerHeight], {async: true});
-        });
-
-        async function handleTouchEvent(e) {
-          const disabledJsTouch = { clientX: -1, clientY: -1, identifier: -1 };
-
-          
-          const changedJsTouches = Array(JS_MAX_TOUCHES).fill(disabledJsTouch);
-          for (let i = 0; i < Math.min(e.changedTouches.length, JS_MAX_TOUCHES); i++) {
-            const touch = e.changedTouches[i];
-            changedJsTouches[i] = { clientX: touch.clientX, clientY: touch.clientY, identifier: touch.identifier };
-          }
-
-          const activeJsTouches = Array(JS_MAX_TOUCHES).fill(disabledJsTouch);
-          for (let i = 0; i < Math.min(e.touches.length, JS_MAX_TOUCHES); i++) {
-            const touch = e.touches[i];
-            activeJsTouches[i] = { clientX: touch.clientX, clientY: touch.clientY, identifier: touch.identifier };
-          }
-
-          await eminstance.ccall("global_touch_event", null,
-              Array(19).fill("number"),
-              [
-                ...changedJsTouches.flatMap(touch => [touch.clientX, touch.clientY, touch.identifier]),
-                ...activeJsTouches.flatMap(touch => [touch.clientX, touch.clientY, touch.identifier]),
-                e.type === 'touchstart' ? 0 : e.type === 'touchmove' ? 1 : e.type === "touchend" ? 2 : 3
-              ],
-              {async: true});
-        }
-
-        window.addEventListener('touchstart', handleTouchEvent, false);
-        window.addEventListener('touchmove', handleTouchEvent, false);
-        window.addEventListener('touchend', handleTouchEvent, false);
-
-        // Prevent right-click context menu
-        webgpu_canvas.oncontextmenu = function (e) { e.preventDefault(); e.stopPropagation(); }
-
-        jsButtonToEmButton = {
-          0: 0, // left mouse
-          1: 2, // middle mouse
-          2: 1, // right mouse
-          3: 3, // browser back
-          4: 4  // browser forward
-        };
-        webgpu_canvas.onmousedown = async function (event) {
-          log_wrapper.classList.add('noselect');
-          await eminstance.ccall("global_mouse_button_event", null,
-            ["number", "number", "number", "number", "number"],
-            [jsButtonToEmButton[event.button], 1, 0, event.clientX, event.clientY],
-            {async: true});
-          document.onmousemove = async function (event) {
-            await eminstance.ccall("global_mouse_position_event", null,
-              ["number", "number", "number"],
-              [jsButtonToEmButton[event.button], event.clientX, event.clientY],
-              {async: true});
-          };
-          document.onmouseup = async function () {
-            await eminstance.ccall("global_mouse_button_event", null,
-              ["number", "number", "number", "number", "number"],
-              [jsButtonToEmButton[event.button], 0, 0, event.clientX, event.clientY], 
-              {async: true});
-            document.onmousemove = null;
-            if (webgpu_canvas.releaseCapture) { webgpu_canvas.releaseCapture(); }
-            log_wrapper.classList.remove('noselect');
-          };
-          if (webgpu_canvas.setCapture) { webgpu_canvas.setCapture(); }
-        }
-
-        // Toogle display of the log by pressing F10
-        window.addEventListener('keydown', function (event) {
-          console.log(event.key);
-          if (event.key === 'Dead') toggleLog();
-        });
+        await hacks.setEminstance(eminstance);
 
       } catch (e) {
         console.error(e);

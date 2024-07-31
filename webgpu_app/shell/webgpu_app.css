@@ -66,14 +66,25 @@
       -ms-user-select: none;
     }
 
-    #clearlogbutton {
+    #logbuttonwrapper {
       position: absolute;
       z-index: 2;
       right: 2em;
       bottom: 0;
-      padding: 1em;
-      background-color: rgba(40, 40, 40, 0.9);
+      padding: 0.5em;
+    }
+
+    .button {
+      padding: 0.5em 2em 0.5em 2em;
+      margin: 0.5em;
+      background-color: rgba(40, 40, 40, 0.7);
       cursor: pointer;
       color: white;
-      border: 1px solid rgba(255, 255, 255, 0.3)
+      text-align: center;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 0.5em;
+    }
+
+    .button:hover {
+      background-color: rgba(15, 55, 78, 0.9);
     }
