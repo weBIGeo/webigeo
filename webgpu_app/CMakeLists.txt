@@ -59,7 +59,7 @@ if (EMSCRIPTEN)
             -sUSE_GLFW=3 # Use Emscripten-provided GLFW
             -sUSE_WEBGPU # Handle WebGPU symbols
             -sASYNCIFY # Required by WebGPU-C++
-            -sEXPORTED_FUNCTIONS=_main,_global_canvas_size_changed,_global_mouse_button_event,_global_mouse_position_event # _main needs to be specifically exported if sEXPORTED_FUNCTIONS is set
+            -sEXPORTED_FUNCTIONS=_main,_global_canvas_size_changed,_global_mouse_button_event,_global_mouse_position_event,_global_touch_event # _main needs to be specifically exported if sEXPORTED_FUNCTIONS is set
             #-sEXPORTED_RUNTIME_METHODS=ccall,cwrap,UTF16ToString,stringToUTF16,JSEvents,specialHTMLTargets,FS # will be overwritten by Qt
             #--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/resources # resources pls via qt resource system
             #--shell-file "${CMAKE_CURRENT_SOURCE_DIR}/shell/${SHELL_FILE}" # setting custom shell here makes no sense as qt will overwrite it anyway

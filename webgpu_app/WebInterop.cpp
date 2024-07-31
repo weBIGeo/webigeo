@@ -21,6 +21,22 @@
 
 void global_canvas_size_changed(int width, int height) { WebInterop::_canvas_size_changed(width, height); }
 
+void global_touch_event(int32_t changed_client_x1, int32_t changed_client_y1, int32_t changed_identifier1, int32_t changed_client_x2, int32_t changed_client_y2,
+    int32_t changed_identifier2, int32_t changed_client_x3, int32_t changed_client_y3, int32_t changed_identifier3, int32_t client_x1, int32_t client_y1,
+    int32_t identifier1, int32_t client_x2, int32_t client_y2, int32_t identifier2, int32_t client_x3, int32_t client_y3, int32_t identifier3,
+    int32_t js_touch_type_int)
+{
+    WebInterop::JsTouchEvent touch_event;
+    touch_event.changedTouches[0] = { .clientX = changed_client_x1, .clientY = changed_client_y1, .identifier = changed_identifier1 };
+    touch_event.changedTouches[1] = { .clientX = changed_client_x2, .clientY = changed_client_y2, .identifier = changed_identifier2 };
+    touch_event.changedTouches[2] = { .clientX = changed_client_x3, .clientY = changed_client_y3, .identifier = changed_identifier3 };
+    touch_event.touches[0] = { .clientX = client_x1, .clientY = client_y1, .identifier = identifier1 };
+    touch_event.touches[1] = { .clientX = client_x2, .clientY = client_y2, .identifier = identifier2 };
+    touch_event.touches[2] = { .clientX = client_x3, .clientY = client_y3, .identifier = identifier3 };
+    touch_event.typeint = js_touch_type_int;
+    WebInterop::_touch_event(touch_event);
+}
+
 void global_mouse_button_event(int button, int action, int mods, double xpos, double ypos)
 {
     WebInterop::_mouse_button_event(button, action, mods, xpos, ypos);

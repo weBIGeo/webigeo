@@ -25,7 +25,10 @@
 
 extern "C" {
 [[maybe_unused]] void global_canvas_size_changed(int width, int height);
-//[[maybe_unused]] void global_touch_event(const JsTouchEvent& event);
+[[maybe_unused]] void global_touch_event(int32_t changed_client_x1, int32_t changed_client_y1, int32_t changed_identifier1, int32_t changed_client_x2,
+    int32_t changed_client_y2, int32_t changed_identifier2, int32_t changed_client_x3, int32_t changed_client_y3, int32_t changed_identifier3,
+    int32_t client_x1, int32_t client_y1, int32_t identifier1, int32_t client_x2, int32_t client_y2, int32_t identifier2, int32_t client_x3, int32_t client_y3,
+    int32_t identifier3, int32_t js_touch_type_int);
 [[maybe_unused]] void global_mouse_button_event(int button, int action, int mods, double xpos, double ypos);
 [[maybe_unused]] void global_mouse_position_event(int button, double xpos, double ypos);
 }

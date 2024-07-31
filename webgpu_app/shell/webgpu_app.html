@@ -182,26 +182,30 @@
           await eminstance.ccall("global_canvas_size_changed", null, ["number", "number"], [window.innerWidth, window.innerHeight], {async: true});
         });
 
-        function handleTouchEvent(e) {
-          const disabledJsTouch = { clientX: -1, clientY: -1, screenX: -1, screenY: -1, identifier: -1 };
+        async function handleTouchEvent(e) {
+          const disabledJsTouch = { clientX: -1, clientY: -1, identifier: -1 };
 
-          var changedJsTouches = Array(JS_MAX_TOUCHES).fill(disabledJsTouch);
+          
+          const changedJsTouches = Array(JS_MAX_TOUCHES).fill(disabledJsTouch);
           for (let i = 0; i < Math.min(e.changedTouches.length, JS_MAX_TOUCHES); i++) {
             const touch = e.changedTouches[i];
             changedJsTouches[i] = { clientX: touch.clientX, clientY: touch.clientY, identifier: touch.identifier };
           }
 
-          var activeJsTouches = Array(JS_MAX_TOUCHES).fill(disabledJsTouch);
+          const activeJsTouches = Array(JS_MAX_TOUCHES).fill(disabledJsTouch);
           for (let i = 0; i < Math.min(e.touches.length, JS_MAX_TOUCHES); i++) {
             const touch = e.touches[i];
             activeJsTouches[i] = { clientX: touch.clientX, clientY: touch.clientY, identifier: touch.identifier };
           }
 
-          eminstance.touch_event({
-            changedTouches: changedJsTouches,
-            touches: activeJsTouches,
-            type: e.type === 'touchstart' ? 0 : e.type === 'touchmove' ? 1 : e.type === "touchend" ? 2 : 3,
-          });
+          await eminstance.ccall("global_touch_event", null,
+              Array(19).fill("number"),
+              [
+                ...changedJsTouches.flatMap(touch => [touch.clientX, touch.clientY, touch.identifier]),
+                ...activeJsTouches.flatMap(touch => [touch.clientX, touch.clientY, touch.identifier]),
+                e.type === 'touchstart' ? 0 : e.type === 'touchmove' ? 1 : e.type === "touchend" ? 2 : 3
+              ],
+              {async: true});
         }
 
         window.addEventListener('touchstart', handleTouchEvent, false);
