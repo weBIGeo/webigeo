@@ -17,7 +17,7 @@
  *****************************************************************************/
 
 #include "tile_util.wgsl"
-#include "tile_id.wgsl"
+#include "tile_hashmap.wgsl"
 
 // input
 @group(0) @binding(0) var<storage> input_tile_ids: array<TileId>;

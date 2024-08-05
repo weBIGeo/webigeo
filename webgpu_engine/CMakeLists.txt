@@ -60,7 +60,7 @@ qt_add_resources(webgpu_engine "shaders"
         "wgsl_shaders/atmosphere_implementation.wgsl"
         "wgsl_shaders/encoder.wgsl"
         "wgsl_shaders/tile_util.wgsl"
-        "wgsl_shaders/tile_id.wgsl"
+        "wgsl_shaders/tile_hashmap.wgsl"
         "wgsl_shaders/downsample_compute.wgsl"
         "wgsl_shaders/normals_compute.wgsl"
 )

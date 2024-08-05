@@ -1,5 +1,6 @@
 /*****************************************************************************
- * Alpine Terrain Renderer
+ * weBIGeo
+ * Copyright (C) 2024 Adam Celarek
  * Copyright (C) 2024 Patrick Komon
  *
  * This program is free software: you can redistribute it and/or modify

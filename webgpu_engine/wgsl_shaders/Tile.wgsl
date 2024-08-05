@@ -23,7 +23,7 @@
 #include "camera_config.wgsl"
 #include "encoder.wgsl"
 #include "tile_util.wgsl"
-#include "tile_id.wgsl"
+#include "tile_hashmap.wgsl"
 
 @group(0) @binding(0) var<uniform> config: shared_config;
 
