@@ -71,16 +71,36 @@ fn get_neighboring_tile_id_and_pos(num_edge_vertices: u32, tile_id: TileId, pos:
     *out_pos = vec2u(new_pos);
 }
 
+fn bilinear_sample(texture_array: texture_2d_array<u32>, texture_sampler: sampler, uv: vec2f, layer: u32) -> u32 {
+    let texture_dimensions: vec2u = textureDimensions(texture_array);
+    let texture_uv: vec2f = uv * vec2f(texture_dimensions);
+    let weights: vec2f = fract(texture_uv + 0.5);
+    return u32(dot(vec4f(1.0),
+                vec4f((1.0 - weights.x) * weights.y, weights.x * weights.y, weights.x * (1.0 - weights.y), (1.0 - weights.x) * (1.0 - weights.y))
+                    * vec4f(textureGather(0, texture_array, texture_sampler, uv, layer))));
+
+    // manual way, probably slower (maybe also incorrect)
+    //let upper_left = vec2u(floor(texture_uv));
+    //let upper_right = upper_left + vec2u(1, 0);
+    //let lower_left = upper_left + vec2u(0, 1);
+    //let lower_right = upper_left + vec2u(1, 1);
+    //return u32((1.0 - weights.x) * (1.0 - weights.y) * f32(textureLoad(texture_array, upper_left, layer, 0).r)
+    //    + (1.0 - weights.x) * weights.y * f32(textureLoad(texture_array, lower_left, layer, 0).r)
+    //    + weights.x * (1.0 - weights.y) * f32(textureLoad(texture_array, upper_right, layer, 0).r)
+    //    + weights.x * weights.y * f32(textureLoad(texture_array, lower_right, layer, 0).r));
+}
+
 fn sample_height(
     tile_id: TileId,
-    pos: vec2u,
+    uv: vec2f,
     map_key_buffer: ptr<storage, array<TileId>>,
     map_value_buffer: ptr<storage, array<u32>>,
-    height_textures: texture_2d_array<u32>
+    height_tiles_texture: texture_2d_array<u32>,
+    height_tiles_sampler: sampler
 ) -> u32 {
     var texture_array_index: u32;
     let found = get_texture_array_index(tile_id, &texture_array_index, map_key_buffer, map_value_buffer);
-    return select(0, textureLoad(height_textures, pos, texture_array_index, 0).r, found);
+    return select(0, bilinear_sample(height_tiles_texture, height_tiles_sampler, uv, texture_array_index), found);
 }
 
 
@@ -90,13 +110,14 @@ fn sample_height_with_neighbors(
     pos: vec2i,
     map_key_buffer: ptr<storage, array<TileId>>,
     map_value_buffer: ptr<storage, array<u32>>,
-    height_textures: texture_2d_array<u32>
+    height_tiles_texture: texture_2d_array<u32>,
+    height_tiles_sampler: sampler
 ) -> u32 {
     var target_tile_id: TileId;
     var target_pos: vec2u;
     get_neighboring_tile_id_and_pos(num_edge_vertices, tile_id, pos, &target_tile_id, &target_pos);
     
-    return sample_height(target_tile_id, target_pos, map_key_buffer, map_value_buffer, height_textures);
+    return sample_height(target_tile_id, vec2f(target_pos) / f32(num_edge_vertices), map_key_buffer, map_value_buffer, height_tiles_texture, height_tiles_sampler);
 }
 
 //TODO put somewhere else (where?)
@@ -109,26 +130,27 @@ fn normal_by_finite_difference_method_with_neighbors(
     tile_id: TileId,
     tiles_map_key_buffer: ptr<storage, array<TileId>>,
     tiles_map_value_buffer: ptr<storage, array<u32>>,
-    height_tiles_texture: texture_2d_array<u32>
+    height_tiles_texture: texture_2d_array<u32>,
+    height_tiles_sampler: sampler
 ) -> vec3<f32> {
     // from here: https://stackoverflow.com/questions/6656358/calculating-normals-in-a-triangle-mesh/21660173#21660173
     let height = quad_width + quad_height;
     let uv_tex = vec2<i32>(i32(uv.x * f32(edge_vertices_count - 1)), i32(uv.y * f32(edge_vertices_count - 1))); // in [0, texture_dimension(input_tiles) - 1]
     
     let hL_uv = uv_tex - vec2<i32>(1, 0);
-    let hL_sample = sample_height_with_neighbors(edge_vertices_count, tile_id, hL_uv, &map_key_buffer, &map_value_buffer, height_tiles_texture);
+    let hL_sample = sample_height_with_neighbors(edge_vertices_count, tile_id, hL_uv, &map_key_buffer, &map_value_buffer, height_tiles_texture, height_tiles_sampler);
     let hL = f32(hL_sample) * altitude_correction_factor;
 
     let hR_uv = uv_tex + vec2<i32>(1, 0);
-    let hR_sample = sample_height_with_neighbors(edge_vertices_count, tile_id, hR_uv, &map_key_buffer, &map_value_buffer, height_tiles_texture);
+    let hR_sample = sample_height_with_neighbors(edge_vertices_count, tile_id, hR_uv, &map_key_buffer, &map_value_buffer, height_tiles_texture, height_tiles_sampler);
     let hR = f32(hR_sample) * altitude_correction_factor;
 
     let hD_uv = uv_tex + vec2<i32>(0, 1);
-    let hD_sample = sample_height_with_neighbors(edge_vertices_count, tile_id, hD_uv, &map_key_buffer, &map_value_buffer, height_tiles_texture);
+    let hD_sample = sample_height_with_neighbors(edge_vertices_count, tile_id, hD_uv, &map_key_buffer, &map_value_buffer, height_tiles_texture, height_tiles_sampler);
     let hD = f32(hD_sample) * altitude_correction_factor;
 
     let hU_uv = uv_tex - vec2<i32>(0, 1);
-    let hU_sample = sample_height_with_neighbors(edge_vertices_count, tile_id, hU_uv, &map_key_buffer, &map_value_buffer, height_tiles_texture);
+    let hU_sample = sample_height_with_neighbors(edge_vertices_count, tile_id, hU_uv, &map_key_buffer, &map_value_buffer, height_tiles_texture, height_tiles_sampler);
     let hU = f32(hU_sample) * altitude_correction_factor;
 
     return normalize(vec3<f32>(hL - hR, hD - hU, height));

@@ -44,9 +44,9 @@ TileStorageTexture::TileStorageTexture(WGPUDevice device, const glm::uvec2& reso
     height_sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     height_sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     height_sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    height_sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Linear;
-    height_sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Linear;
-    height_sampler_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Linear;
+    height_sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
+    height_sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
+    height_sampler_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Nearest;
     height_sampler_desc.lodMinClamp = 0.0f;
     height_sampler_desc.lodMaxClamp = 1.0f;
     height_sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;

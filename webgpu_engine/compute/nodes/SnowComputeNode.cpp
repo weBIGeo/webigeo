@@ -64,6 +64,7 @@ void SnowComputeNode::run_impl()
     m_input_tile_ids.write(m_queue, gpu_tile_ids.data(), gpu_tile_ids.size());
     m_tile_bounds.write(m_queue, tile_bounds.data(), tile_bounds.size());
 
+    // TODO dont hardcode
     m_input_snow_settings.data.angle.x = 1; // enabled
     m_input_snow_settings.data.angle.y = 0; // angle lower limit
     m_input_snow_settings.data.angle.z = 30; // angle upper limit
@@ -84,9 +85,10 @@ void SnowComputeNode::run_impl()
     WGPUBindGroupEntry input_hash_map_key_buffer_entry = hash_map.key_buffer().create_bind_group_entry(3);
     WGPUBindGroupEntry input_hash_map_value_buffer_entry = hash_map.value_buffer().create_bind_group_entry(4);
     WGPUBindGroupEntry input_height_texture_array_entry = height_textures.texture().texture_view().create_bind_group_entry(5);
-    WGPUBindGroupEntry output_texture_array_entry = m_output_texture.texture().texture_view().create_bind_group_entry(6);
+    WGPUBindGroupEntry input_height_texture_sampler_entry = height_textures.texture().sampler().create_bind_group_entry(6);
+    WGPUBindGroupEntry output_texture_array_entry = m_output_texture.texture().texture_view().create_bind_group_entry(7);
     std::vector<WGPUBindGroupEntry> entries { input_tile_ids_entry, input_bounds_entry, input_settings_buffer_entry, input_hash_map_key_buffer_entry,
-        input_hash_map_value_buffer_entry, input_height_texture_array_entry, output_texture_array_entry };
+        input_hash_map_value_buffer_entry, input_height_texture_array_entry, input_height_texture_sampler_entry, output_texture_array_entry };
     webgpu::raii::BindGroup compute_bind_group(m_device, m_pipeline_manager->snow_compute_bind_group_layout(), entries, "compute controller bind group");
 
     // bind GPU resources and run pipeline
