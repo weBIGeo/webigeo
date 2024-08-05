@@ -190,9 +190,9 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
     // HANDLE OVERLAYS (and mix it with the albedo color) THAT CAN JUST BE DONE IN THIS STAGE
     // NOTE: Performancewise its generally better to handle overlays in the compose step! (overdraw)
     if (config.overlay_mode > 0u && config.overlay_mode < 100u) {
-        var overlay_color = vec3f(0.0);
+        var overlay_color = vec4f(0.0);
         if (config.overlay_mode == 1) {
-            overlay_color = normal * 0.5 + 0.5;
+            overlay_color = vec4f(normal * 0.5 + 0.5, 1.0);
         } else if (config.overlay_mode == 99) { // compute overlay
             //TODO we should probably write overlay color into a separate gbuffer texture and do blending in compose shader (?) 
             
@@ -207,17 +207,17 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
             // textureSample needs to happen in uniform control flow
             // therefore: if texture was found, sample correct texture array index, otherwise sample from texture 0
             let overlay_texture_index = select(0, map_value_buffer[hash], was_found);
-            let sampled_overlay_color = textureSample(overlay_texture, ortho_sampler, vertex_out.uv, overlay_texture_index).rgb;
+            let sampled_overlay_color = textureSample(overlay_texture, ortho_sampler, vertex_out.uv, overlay_texture_index).rgba;
             
             if (was_found) {
                 overlay_color = sampled_overlay_color;
             } else {
-                overlay_color = albedo; //kind of ugly
+                overlay_color = vec4f(albedo, 1.0); //kind of ugly
             }
         } else {
-            overlay_color = vertex_out.color;
+            overlay_color = vec4f(vertex_out.color, 1.0);
         }
-        albedo = mix(albedo, overlay_color, config.overlay_strength);
+        albedo = mix(albedo, overlay_color.xyz, config.overlay_strength * overlay_color.w);
     }
     frag_out.albedo = vec4f(albedo, 1.0);
 

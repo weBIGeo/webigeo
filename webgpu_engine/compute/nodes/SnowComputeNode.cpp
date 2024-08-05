@@ -16,34 +16,35 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "NormalComputeNode.h"
+#include "SnowComputeNode.h"
 
 #include "nucleus/srs.h"
 #include <QDebug>
 
 namespace webgpu_engine::compute::nodes {
 
-glm::uvec3 NormalComputeNode::SHADER_WORKGROUP_SIZE = { 1, 16, 16 };
+glm::uvec3 SnowComputeNode::SHADER_WORKGROUP_SIZE = { 1, 16, 16 };
 
-NormalComputeNode::NormalComputeNode(
-    const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, SocketIndex capacity, WGPUTextureFormat output_format)
+webgpu_engine::compute::nodes::SnowComputeNode::SnowComputeNode(
+    const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity, WGPUTextureFormat output_format)
     : Node({ data_type<const std::vector<tile::Id>*>(), data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>() },
         { data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>() })
     , m_pipeline_manager { &pipeline_manager }
     , m_device { device }
     , m_queue(wgpuDeviceGetQueue(m_device))
     , m_capacity { capacity }
-    , m_tile_bounds(device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc, capacity, "normal compute, tile bounds buffer")
-    , m_input_tile_ids(device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc, capacity, "normal compute, tile id buffer")
+    , m_tile_bounds(device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc, capacity, "snow compute, tile bounds buffer")
+    , m_input_tile_ids(device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc, capacity, "snow compute, tile id buffer")
+    , m_input_snow_settings(device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
     , m_output_tile_map(device, tile::Id { unsigned(-1), {} }, -1)
     , m_output_texture(device, output_resolution, capacity, output_format)
 {
     m_output_tile_map.update_gpu_data();
 }
 
-void NormalComputeNode::run_impl()
+void SnowComputeNode::run_impl()
 {
-    qDebug() << "running NormalComputeNode ...";
+    qDebug() << "running SnowComputeNode ...";
 
     // get tile ids to process
     const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(get_input_data(0)); // list of tile ids to process
@@ -63,41 +64,52 @@ void NormalComputeNode::run_impl()
     m_input_tile_ids.write(m_queue, gpu_tile_ids.data(), gpu_tile_ids.size());
     m_tile_bounds.write(m_queue, tile_bounds.data(), tile_bounds.size());
 
+    m_input_snow_settings.data.angle.x = 1; // enabled
+    m_input_snow_settings.data.angle.y = 0; // angle lower limit
+    m_input_snow_settings.data.angle.z = 30; // angle upper limit
+    m_input_snow_settings.data.angle.w = 0; // angle blend
+    m_input_snow_settings.data.alt.x = 1000; // min altitude
+    m_input_snow_settings.data.alt.y = 200; // variation
+    m_input_snow_settings.data.alt.z = 200; // blend
+    m_input_snow_settings.data.alt.w = 1; // specular
+    m_input_snow_settings.update_gpu_data(m_queue);
+
     // create bind group
     // TODO re-create bind groups only when input handles change
     // TODO adapter shader code
     // TODO compute bounds in other node!
     WGPUBindGroupEntry input_tile_ids_entry = m_input_tile_ids.create_bind_group_entry(0);
     WGPUBindGroupEntry input_bounds_entry = m_tile_bounds.create_bind_group_entry(1);
-    WGPUBindGroupEntry input_hash_map_key_buffer_entry = hash_map.key_buffer().create_bind_group_entry(2);
-    WGPUBindGroupEntry input_hash_map_value_buffer_entry = hash_map.value_buffer().create_bind_group_entry(3);
-    WGPUBindGroupEntry input_height_texture_array_entry = height_textures.texture().texture_view().create_bind_group_entry(4);
-    WGPUBindGroupEntry output_texture_array_entry = m_output_texture.texture().texture_view().create_bind_group_entry(5);
-    std::vector<WGPUBindGroupEntry> entries { input_tile_ids_entry, input_bounds_entry, input_hash_map_key_buffer_entry, input_hash_map_value_buffer_entry,
-        input_height_texture_array_entry, output_texture_array_entry };
-    webgpu::raii::BindGroup compute_bind_group(m_device, m_pipeline_manager->normals_compute_bind_group_layout(), entries, "compute controller bind group");
+    WGPUBindGroupEntry input_settings_buffer_entry = m_input_snow_settings.raw_buffer().create_bind_group_entry(2);
+    WGPUBindGroupEntry input_hash_map_key_buffer_entry = hash_map.key_buffer().create_bind_group_entry(3);
+    WGPUBindGroupEntry input_hash_map_value_buffer_entry = hash_map.value_buffer().create_bind_group_entry(4);
+    WGPUBindGroupEntry input_height_texture_array_entry = height_textures.texture().texture_view().create_bind_group_entry(5);
+    WGPUBindGroupEntry output_texture_array_entry = m_output_texture.texture().texture_view().create_bind_group_entry(6);
+    std::vector<WGPUBindGroupEntry> entries { input_tile_ids_entry, input_bounds_entry, input_settings_buffer_entry, input_hash_map_key_buffer_entry,
+        input_hash_map_value_buffer_entry, input_height_texture_array_entry, output_texture_array_entry };
+    webgpu::raii::BindGroup compute_bind_group(m_device, m_pipeline_manager->snow_compute_bind_group_layout(), entries, "compute controller bind group");
 
     // bind GPU resources and run pipeline
     // the result is a texture array with the calculated overlays, and a hashmap that maps id to texture array index
     // the shader will only writes into texture array, the hashmap is written on cpu side
     {
         WGPUCommandEncoderDescriptor descriptor {};
-        descriptor.label = "compute controller command encoder";
+        descriptor.label = "snow compute controller command encoder";
         webgpu::raii::CommandEncoder encoder(m_device, descriptor);
 
         {
             WGPUComputePassDescriptor compute_pass_desc {};
-            compute_pass_desc.label = "compute controller compute pass";
+            compute_pass_desc.label = "snow compute controller compute pass";
             webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
 
             glm::uvec3 workgroup_counts
                 = glm::ceil(glm::vec3(tile_ids.size(), m_output_texture.width(), m_output_texture.height()) / glm::vec3(SHADER_WORKGROUP_SIZE));
             wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, compute_bind_group.handle(), 0, nullptr);
-            m_pipeline_manager->normals_compute_pipeline().run(compute_pass, workgroup_counts);
+            m_pipeline_manager->snow_compute_pipeline().run(compute_pass, workgroup_counts);
         }
 
         WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
-        cmd_buffer_descriptor.label = "NormalComputeNode command buffer";
+        cmd_buffer_descriptor.label = "SnowComputeNode command buffer";
         WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder.handle(), &cmd_buffer_descriptor);
         wgpuQueueSubmit(m_queue, 1, &command);
         wgpuCommandBufferRelease(command);
@@ -116,13 +128,13 @@ void NormalComputeNode::run_impl()
     wgpuQueueOnSubmittedWorkDone(
         m_queue,
         []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
-            NormalComputeNode* _this = reinterpret_cast<NormalComputeNode*>(user_data);
+            SnowComputeNode* _this = reinterpret_cast<SnowComputeNode*>(user_data);
             _this->run_finished(); // emits signal run_finished()
         },
         this);
 }
 
-Data NormalComputeNode::get_output_data_impl(SocketIndex output_index)
+Data SnowComputeNode::get_output_data_impl(SocketIndex output_index)
 {
     switch (output_index) {
     case Output::OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP:

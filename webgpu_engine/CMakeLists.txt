@@ -41,6 +41,7 @@ set(SOURCES
     compute/nodes/NormalComputeNode.h compute/nodes/NormalComputeNode.cpp
     compute/nodes/DownsampleComputeNode.h compute/nodes/DownsampleComputeNode.cpp
     compute/nodes/NodeGraph.h compute/nodes/NodeGraph.cpp
+    compute/nodes/SnowComputeNode.h compute/nodes/SnowComputeNode.cpp
 )
 
 qt_add_library(webgpu_engine STATIC ${SOURCES})
@@ -63,6 +64,8 @@ qt_add_resources(webgpu_engine "shaders"
         "wgsl_shaders/tile_hashmap.wgsl"
         "wgsl_shaders/downsample_compute.wgsl"
         "wgsl_shaders/normals_compute.wgsl"
+        "wgsl_shaders/noise.wgsl"
+        "wgsl_shaders/snow_compute.wgsl"
 )
 
 # Note: This has to go into the webgpu_app as soon as we don't use ImGui in the engine anymore!!!

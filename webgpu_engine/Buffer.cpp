@@ -19,6 +19,7 @@
 
 #include "Buffer.h"
 #include "UniformBufferObjects.h"
+#include "compute/nodes/SnowComputeNode.h"
 
 namespace webgpu_engine {
 
@@ -46,6 +47,7 @@ template <typename T> const webgpu::raii::RawBuffer<T>& Buffer<T>::raw_buffer() 
 // IMPORTANT: All possible Template Classes need to be defined here:
 template class Buffer<uboSharedConfig>;
 template class Buffer<uboCameraConfig>;
+template class Buffer<compute::nodes::SnowComputeNode::SnowSettings>;
 // TODO
 // template class UniformBuffer<uboShadowConfig>;
 

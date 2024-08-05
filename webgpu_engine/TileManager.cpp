@@ -22,7 +22,7 @@
 
 #include "nucleus/camera/Definition.h"
 #include "nucleus/utils/terrain_mesh_index_generator.h"
-#include "webgpu_engine/compute/nodes/NormalComputeNode.h"
+#include "webgpu_engine/compute/nodes/SnowComputeNode.h"
 #include <QDebug>
 
 using webgpu_engine::TileManager;
@@ -388,7 +388,8 @@ void TileRendererInstancedSingleArrayMultiCall::init(glm::uvec2 height_resolutio
             "tile bind group"));
     }
 
-    const compute::nodes::NormalComputeNode& normal_compute_node = static_cast<const compute::nodes::NormalComputeNode&>(m_compute_graph->get_node(3));
+    // TODO refactor!
+    const compute::nodes::SnowComputeNode& normal_compute_node = static_cast<const compute::nodes::SnowComputeNode&>(m_compute_graph->get_node(3));
 
     WGPUBindGroupEntry input_hash_map_key_buffer_entry = normal_compute_node.hash_map().key_buffer().create_bind_group_entry(0);
     WGPUBindGroupEntry input_hash_map_value_buffer_entry = normal_compute_node.hash_map().value_buffer().create_bind_group_entry(1);

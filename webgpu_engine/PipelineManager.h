@@ -35,7 +35,8 @@ public:
     const webgpu::raii::GenericRenderPipeline& compose_pipeline() const;
     const webgpu::raii::GenericRenderPipeline& atmosphere_pipeline() const;
 
-    const webgpu::raii::CombinedComputePipeline& dummy_compute_pipeline() const;
+    const webgpu::raii::CombinedComputePipeline& normals_compute_pipeline() const;
+    const webgpu::raii::CombinedComputePipeline& snow_compute_pipeline() const;
     const webgpu::raii::CombinedComputePipeline& downsample_compute_pipeline() const;
 
     const webgpu::raii::BindGroupLayout& shared_config_bind_group_layout() const;
@@ -43,6 +44,7 @@ public:
     const webgpu::raii::BindGroupLayout& tile_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& compose_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& normals_compute_bind_group_layout() const;
+    const webgpu::raii::BindGroupLayout& snow_compute_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& overlay_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& downsample_compute_bind_group_layout() const;
 
@@ -57,7 +59,17 @@ private:
     void create_atmosphere_pipeline();
     void create_shadow_pipeline();
     void create_normals_compute_pipeline();
+    void create_snow_compute_pipeline();
     void create_downsample_compute_pipeline();
+
+    void create_shared_config_bind_group_layout();
+    void create_camera_bind_group_layout();
+    void create_tile_bind_group_layout();
+    void create_compose_bind_group_layout();
+    void create_normals_compute_bind_group_layout();
+    void create_snow_compute_bind_group_layout();
+    void create_overlay_bind_group_layout();
+    void create_downsample_compute_bind_group_layout();
 
 private:
     WGPUDevice m_device;
@@ -68,6 +80,7 @@ private:
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_atmosphere_pipeline;
 
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_normals_compute_pipeline;
+    std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_snow_compute_pipeline;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_downsample_compute_pipeline;
 
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_shared_config_bind_group_layout;
@@ -77,6 +90,7 @@ private:
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_normals_compute_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_overlay_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_downsample_compute_bind_group_layout;
+    std::unique_ptr<webgpu::raii::BindGroupLayout> m_snow_compute_bind_group_layout;
 
     bool m_pipelines_created = false;
 };
