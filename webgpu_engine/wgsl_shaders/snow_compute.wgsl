@@ -117,7 +117,7 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
         altitude_correction_factor, tile_id, &map_key_buffer, &map_value_buffer, input_tiles, input_tiles_sampler);
     
     let pos_x = uv.x * f32(quad_width) + bounds.x;
-    let pos_z = altitude_correction_factor * f32(sample_height(tile_id, uv, &map_key_buffer, &map_value_buffer, input_tiles, input_tiles_sampler));
+    let pos_z = altitude_correction_factor * f32(sample_height_with_index(tile_id, vec2u(uv * vec2f(f32(input_n_edge_vertices - 1))), &map_key_buffer, &map_value_buffer, input_tiles));
     let overlay = overlay_snow(normal, vec3f(pos_x, pos_y, pos_z));
 
     textureStore(output_tiles, vec2(col, row), id.x, overlay); // incorrect

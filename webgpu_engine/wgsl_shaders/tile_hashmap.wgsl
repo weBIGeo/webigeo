@@ -76,19 +76,10 @@ fn bilinear_sample(texture_array: texture_2d_array<u32>, texture_sampler: sample
     let weights: vec2f = fract(uv * vec2f(texture_dimensions));
     return u32(dot(vec4f((1.0 - weights.x) * weights.y, weights.x * weights.y, weights.x * (1.0 - weights.y), (1.0 - weights.x) * (1.0 - weights.y)),
                    vec4f(textureGather(0, texture_array, texture_sampler, uv, layer))));
-
-    // manual way, probably slower (maybe also incorrect)
-    //let upper_left = vec2u(floor(texture_uv));
-    //let upper_right = upper_left + vec2u(1, 0);
-    //let lower_left = upper_left + vec2u(0, 1);
-    //let lower_right = upper_left + vec2u(1, 1);
-    //return u32((1.0 - weights.x) * (1.0 - weights.y) * f32(textureLoad(texture_array, upper_left, layer, 0).r)
-    //    + (1.0 - weights.x) * weights.y * f32(textureLoad(texture_array, lower_left, layer, 0).r)
-    //    + weights.x * (1.0 - weights.y) * f32(textureLoad(texture_array, upper_right, layer, 0).r)
-    //    + weights.x * weights.y * f32(textureLoad(texture_array, lower_right, layer, 0).r));
 }
 
-fn sample_height(
+// currently unused
+fn sample_height_with_uv(
     tile_id: TileId,
     uv: vec2f,
     map_key_buffer: ptr<storage, array<TileId>>,
@@ -101,6 +92,17 @@ fn sample_height(
     return select(0, bilinear_sample(height_tiles_texture, height_tiles_sampler, uv, texture_array_index), found);
 }
 
+fn sample_height_with_index(
+    tile_id: TileId,
+    pos: vec2u,
+    map_key_buffer: ptr<storage, array<TileId>>,
+    map_value_buffer: ptr<storage, array<u32>>,
+    height_textures: texture_2d_array<u32>
+) -> u32 {
+    var texture_array_index: u32;
+    let found = get_texture_array_index(tile_id, &texture_array_index, map_key_buffer, map_value_buffer);
+    return select(0, textureLoad(height_textures, pos, texture_array_index, 0).r, found);
+}
 
 fn sample_height_with_neighbors(
     num_edge_vertices: u32,
@@ -115,7 +117,7 @@ fn sample_height_with_neighbors(
     var target_pos: vec2u;
     get_neighboring_tile_id_and_pos(num_edge_vertices, tile_id, pos, &target_tile_id, &target_pos);
     
-    return sample_height(target_tile_id, vec2f(target_pos) / f32(num_edge_vertices), map_key_buffer, map_value_buffer, height_tiles_texture, height_tiles_sampler);
+    return sample_height_with_index(target_tile_id, target_pos, map_key_buffer, map_value_buffer, height_tiles_texture);
 }
 
 //TODO put somewhere else (where?)
