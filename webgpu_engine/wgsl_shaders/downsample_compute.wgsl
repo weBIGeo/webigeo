@@ -56,6 +56,59 @@ fn sample_higher_zoomlevel_tile(tile_id: TileId, coords: vec2<u32>, size: u32) -
     return sampled_value;
 }
 
+
+
+// Function to perform the compare-and-swap operation
+fn compare_and_swap(a: ptr<function, f32>, b: ptr<function, f32>) {
+    let temp = *a;
+    if (*a > *b) {
+        *a = *b;
+        *b = temp;
+    }
+}
+
+// Function to sort a vec4 using a sorting network
+fn sort_vec4(input: vec4<f32>) -> vec4<f32> {
+    var a = input.x;
+    var b = input.y;
+    var c = input.z;
+    var d = input.w;
+    var data = array<f32, 4>(input.x, input.y, input.z, input.w);
+
+    // Sorting network for 4 elements
+    compare_and_swap(&a, &b);
+    compare_and_swap(&c, &d);
+    compare_and_swap(&a, &c);
+    compare_and_swap(&b, &d);
+    compare_and_swap(&b, &c);
+
+    return vec4<f32>(a, b, c, d);
+}
+
+fn median(input: vec4<f32>) -> f32 {
+    let sorted = sort_vec4(input);
+    return (sorted.y + sorted.z) / 2;
+}
+
+fn aggregate_linear(sample_00: vec4f, sample_01: vec4f, sample_10: vec4f, sample_11: vec4f) -> vec4f {
+    return (sample_00 + sample_01 + sample_10 + sample_11) * 0.25f;
+}
+
+fn aggregate_max(sample_00: vec4f, sample_01: vec4f, sample_10: vec4f, sample_11: vec4f) -> vec4f {
+    return max(sample_00, max(sample_01, max(sample_10, sample_11)));
+}
+
+fn aggregate_min(sample_00: vec4f, sample_01: vec4f, sample_10: vec4f, sample_11: vec4f) -> vec4f {
+    return min(sample_00, min(sample_01, min(sample_10, sample_11)));
+}
+
+fn aggregate_median(sample_00: vec4f, sample_01: vec4f, sample_10: vec4f, sample_11: vec4f) -> vec4f {
+    return vec4f(median(vec4f(sample_00.x, sample_01.x, sample_10.x, sample_11.x)),
+        median(vec4f(sample_00.y, sample_01.y, sample_10.y, sample_11.y)),
+        median(vec4f(sample_00.z, sample_01.z, sample_10.z, sample_11.z)),
+        median(vec4f(sample_00.w, sample_01.w, sample_10.w, sample_11.w)));
+}
+
 @compute @workgroup_size(1, 16, 16)
 fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     let tile_id = input_tile_ids[id.x];
@@ -78,7 +131,7 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     let sample_10 = sample_higher_zoomlevel_tile(tile_id, coords_sample_10, size);
     let sample_11 = sample_higher_zoomlevel_tile(tile_id, coords_sample_11, size);
 
-    let final_value = (sample_00 + sample_01 + sample_10 + sample_11) * 0.25f;
+    let final_value = aggregate_linear(sample_00, sample_01, sample_10, sample_11);
 
     textureStore(output_textures, final_coord, id.x, final_value);
 }
