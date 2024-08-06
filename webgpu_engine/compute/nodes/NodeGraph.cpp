@@ -38,7 +38,7 @@ void NodeGraph::init_test_node_graph(const PipelineManager& manager, WGPUDevice 
 {
     size_t capacity = 256;
     glm::uvec2 input_resolution = { 65, 65 };
-    glm::uvec2 output_resolution = { 256, 256 };
+    glm::uvec2 output_resolution = { 65, 65 };
     add_node(std::make_unique<TileSelectNode>());
     add_node(std::make_unique<TileRequestNode>());
     add_node(std::make_unique<CreateHashMapNode>(device, input_resolution, capacity, WGPUTextureFormat_R16Uint));

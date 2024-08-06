@@ -43,6 +43,8 @@ public:
 
     static uint8_t get_bytes_per_element(WGPUTextureFormat format);
 
+    static const uint16_t BYTES_PER_ROW_PADDING;
+
 public:
     using GpuResource::GpuResource;
 
@@ -69,13 +71,17 @@ public:
     template <typename T>
     void copy_to_buffer(WGPUCommandEncoder encoder, const RawBuffer<T>& buffer, glm::uvec3 origin = glm::uvec3(0), glm::uvec2 extent = glm::uvec2(0)) const
     {
-        // the row for the destination buffer needs to be aligned to 256 byte. Meaning: If we have
-        // a texture that does not fit those requirements we need to manually have a buffer with appropriate
-        // padding.
-        assert((extent.x * get_bytes_per_element(m_descriptor.format)) % 256 == 0);
         if (extent.x == 0 || extent.y == 0) {
             extent = glm::uvec2(m_descriptor.size.width, m_descriptor.size.height);
         }
+
+        // the row for the destination buffer needs to be aligned to 256 byte. Meaning: If we have
+        // a texture that does not fit those requirements we need to have a buffer with appropriate
+        // padding per row.
+        uint32_t bytes_per_extent_row = uint32_t(
+            std::ceil(double(extent.x) * double(get_bytes_per_element(m_descriptor.format)) / double(BYTES_PER_ROW_PADDING)) * BYTES_PER_ROW_PADDING);
+
+        assert(bytes_per_extent_row * extent.y <= buffer.size_in_byte());
 
         WGPUImageCopyTexture source {};
         source.texture = m_handle;
@@ -86,7 +92,7 @@ public:
         WGPUImageCopyBuffer destination {};
         destination.buffer = buffer.handle();
         destination.layout.offset = 0;
-        destination.layout.bytesPerRow = extent.x * get_bytes_per_element(m_descriptor.format); // I thought this has to be 256 multiple?
+        destination.layout.bytesPerRow = bytes_per_extent_row; // this has to be a multiple of 256
         destination.layout.rowsPerImage = extent.y;
 
         const WGPUExtent3D wgpu_extent { .width = extent.x, .height = extent.y, .depthOrArrayLayers = 1 };
@@ -104,6 +110,7 @@ public:
     std::unique_ptr<TextureView> create_view(const WGPUTextureViewDescriptor& desc) const;
 
     size_t size_in_bytes();
+    size_t bytes_per_row();
     size_t single_layer_size_in_bytes();
 
 private:

@@ -83,6 +83,8 @@ uint8_t Texture::get_bytes_per_element(WGPUTextureFormat format)
     }
 }
 
+const uint16_t Texture::BYTES_PER_ROW_PADDING = 256u;
+
 // TODO: This should be a template function if possible which takes raster images
 // that fit the current texture format.
 void Texture::write(WGPUQueue queue, const nucleus::Raster<uint16_t>& data, uint32_t layer)
@@ -146,7 +148,7 @@ void Texture::read_back_async(WGPUDevice device, size_t layer_index, ReadBackCal
 {
     // create buffer and add buffer and callback to back of queue
     m_read_back_states.emplace(std::make_unique<raii::RawBuffer<char>>(
-                                   device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead, single_layer_size_in_bytes(), "tile storage read back buffer"),
+                                   device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead, single_layer_size_in_bytes(), "texture read back staging buffer"),
         callback, layer_index);
 
     copy_to_buffer(device, *m_read_back_states.back().buffer, glm::uvec3(0, 0, uint32_t(layer_index)));
@@ -163,7 +165,12 @@ void Texture::read_back_async(WGPUDevice device, size_t layer_index, ReadBackCal
         const ReadBackState& current_state = _this->m_read_back_states.front();
 
         const char* buffer_data = (const char*)wgpuBufferGetConstMappedRange(current_state.buffer->handle(), 0, current_state.buffer->size_in_byte());
-        current_state.callback(current_state.layer_index, std::make_shared<QByteArray>(buffer_data, current_state.buffer->size_in_byte()));
+        auto array = std::make_shared<QByteArray>();
+        for (uint32_t i = 0; i < _this->m_descriptor.size.height; i++) {
+            array->append(&buffer_data[i * _this->bytes_per_row()], _this->m_descriptor.size.width * get_bytes_per_element(_this->m_descriptor.format));
+        }
+
+        current_state.callback(current_state.layer_index, array);
         wgpuBufferUnmap(current_state.buffer->handle());
 
         _this->m_read_back_states.pop();
@@ -206,6 +213,12 @@ std::unique_ptr<TextureView> Texture::create_view(const WGPUTextureViewDescripto
 
 size_t Texture::size_in_bytes() { return single_layer_size_in_bytes() * m_descriptor.size.depthOrArrayLayers; }
 
-size_t Texture::single_layer_size_in_bytes() { return get_bytes_per_element(m_descriptor.format) * m_descriptor.size.width * m_descriptor.size.height; }
+size_t Texture::bytes_per_row()
+{
+    return size_t(std::ceil(double(m_descriptor.size.width) * double(get_bytes_per_element(m_descriptor.format)) / double(BYTES_PER_ROW_PADDING))
+        * BYTES_PER_ROW_PADDING); // rows are padded to 256 bytes
+}
+
+size_t Texture::single_layer_size_in_bytes() { return bytes_per_row() * m_descriptor.size.height; }
 
 } // namespace webgpu::raii
