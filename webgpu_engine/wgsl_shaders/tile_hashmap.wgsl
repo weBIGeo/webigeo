@@ -73,8 +73,7 @@ fn get_neighboring_tile_id_and_pos(num_edge_vertices: u32, tile_id: TileId, pos:
 
 fn bilinear_sample(texture_array: texture_2d_array<u32>, texture_sampler: sampler, uv: vec2f, layer: u32) -> u32 {
     let texture_dimensions: vec2u = textureDimensions(texture_array);
-    let texture_uv: vec2f = uv * vec2f(texture_dimensions);
-    let weights: vec2f = fract(texture_uv + 0.5);
+    let weights: vec2f = fract(uv * vec2f(texture_dimensions));
     return u32(dot(vec4f((1.0 - weights.x) * weights.y, weights.x * weights.y, weights.x * (1.0 - weights.y), (1.0 - weights.x) * (1.0 - weights.y)),
                    vec4f(textureGather(0, texture_array, texture_sampler, uv, layer))));
 
