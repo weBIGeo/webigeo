@@ -56,6 +56,7 @@ private:
     WGPUDevice m_device;
     WGPUQueue m_queue;
     size_t m_capacity;
+    bool m_should_output_files;
 
     // calculated on cpu-side before each invocation
     webgpu::raii::RawBuffer<glm::vec4> m_tile_bounds; // aabb per tile

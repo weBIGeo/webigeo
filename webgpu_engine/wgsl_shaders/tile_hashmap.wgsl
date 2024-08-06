@@ -75,9 +75,8 @@ fn bilinear_sample(texture_array: texture_2d_array<u32>, texture_sampler: sample
     let texture_dimensions: vec2u = textureDimensions(texture_array);
     let texture_uv: vec2f = uv * vec2f(texture_dimensions);
     let weights: vec2f = fract(texture_uv + 0.5);
-    return u32(dot(vec4f(1.0),
-                vec4f((1.0 - weights.x) * weights.y, weights.x * weights.y, weights.x * (1.0 - weights.y), (1.0 - weights.x) * (1.0 - weights.y))
-                    * vec4f(textureGather(0, texture_array, texture_sampler, uv, layer))));
+    return u32(dot(vec4f((1.0 - weights.x) * weights.y, weights.x * weights.y, weights.x * (1.0 - weights.y), (1.0 - weights.x) * (1.0 - weights.y)),
+                   vec4f(textureGather(0, texture_array, texture_sampler, uv, layer))));
 
     // manual way, probably slower (maybe also incorrect)
     //let upper_left = vec2u(floor(texture_uv));

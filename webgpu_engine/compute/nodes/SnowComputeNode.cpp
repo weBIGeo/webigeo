@@ -19,7 +19,9 @@
 #include "SnowComputeNode.h"
 
 #include "nucleus/srs.h"
+#include "nucleus/stb/stb_image_writer.h"
 #include <QDebug>
+#include <QString>
 
 namespace webgpu_engine::compute::nodes {
 
@@ -33,11 +35,13 @@ webgpu_engine::compute::nodes::SnowComputeNode::SnowComputeNode(
     , m_device { device }
     , m_queue(wgpuDeviceGetQueue(m_device))
     , m_capacity { capacity }
+    , m_should_output_files { true }
     , m_tile_bounds(device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc, capacity, "snow compute, tile bounds buffer")
     , m_input_tile_ids(device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc, capacity, "snow compute, tile id buffer")
     , m_input_snow_settings(device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
     , m_output_tile_map(device, tile::Id { unsigned(-1), {} }, -1)
-    , m_output_texture(device, output_resolution, capacity, output_format)
+    , m_output_texture(device, output_resolution, capacity, output_format,
+          WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc)
 {
     m_output_tile_map.update_gpu_data();
 }
@@ -132,6 +136,25 @@ void SnowComputeNode::run_impl()
         []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
             SnowComputeNode* _this = reinterpret_cast<SnowComputeNode*>(user_data);
             _this->run_finished(); // emits signal run_finished()
+
+            const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(_this->get_input_data(0)); // list of tile ids to process
+
+            // write files for debugging
+            for (size_t i = 0; i < tile_ids.size(); i++) {
+                _this->m_output_texture.texture().texture().read_back_async(
+                    _this->m_device, i, [_this, &tile_ids](size_t layer_index, std::shared_ptr<QByteArray> data) {
+                        QString dir = "tiles";
+                        std::filesystem::create_directory(std::filesystem::path(dir.toStdString()));
+                        const auto& tile_id = tile_ids[layer_index];
+
+                        QString file_name
+                            = QString::number(tile_id.coords.x) + "_" + QString::number(tile_id.coords.y) + "_" + QString::number(tile_id.zoom_level) + ".png";
+
+                        nucleus::stb::write_8bit_rgba_image_to_file_bmp(
+                            *data, _this->texture_storage().width(), _this->texture_storage().height(), dir + "/" + file_name);
+                    });
+            }
+            
         },
         this);
 }
