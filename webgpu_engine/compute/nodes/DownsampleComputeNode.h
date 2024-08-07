@@ -35,6 +35,9 @@ public:
 public:
     DownsampleComputeNode(const PipelineManager& pipeline_manager, WGPUDevice device, size_t capacity, size_t num_downsample_levels = 1);
 
+    const GpuHashMap<tile::Id, uint32_t, GpuTileId>& hash_map();
+    const TileStorageTexture& texture_storage();
+
 public slots:
     void run_impl() override;
 

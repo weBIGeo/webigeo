@@ -388,12 +388,10 @@ void TileRendererInstancedSingleArrayMultiCall::init(glm::uvec2 height_resolutio
             "tile bind group"));
     }
 
-    // TODO refactor!
-    const compute::nodes::SnowComputeNode& normal_compute_node = static_cast<const compute::nodes::SnowComputeNode&>(m_compute_graph->get_node(3));
-
-    WGPUBindGroupEntry input_hash_map_key_buffer_entry = normal_compute_node.hash_map().key_buffer().create_bind_group_entry(0);
-    WGPUBindGroupEntry input_hash_map_value_buffer_entry = normal_compute_node.hash_map().value_buffer().create_bind_group_entry(1);
-    WGPUBindGroupEntry input_texture_array_entry = normal_compute_node.texture_storage().texture().texture_view().create_bind_group_entry(2);
+    // bindings for compute graph output
+    WGPUBindGroupEntry input_hash_map_key_buffer_entry = m_compute_graph->output_hash_map().key_buffer().create_bind_group_entry(0);
+    WGPUBindGroupEntry input_hash_map_value_buffer_entry = m_compute_graph->output_hash_map().value_buffer().create_bind_group_entry(1);
+    WGPUBindGroupEntry input_texture_array_entry = m_compute_graph->output_texture_storage().texture().texture_view().create_bind_group_entry(2);
     std::vector<WGPUBindGroupEntry> entries { input_hash_map_key_buffer_entry, input_hash_map_value_buffer_entry, input_texture_array_entry };
     m_overlay_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->overlay_bind_group_layout(), entries, "overlay bind group");
 }
