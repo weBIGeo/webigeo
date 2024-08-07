@@ -196,20 +196,15 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
         } else if (config.overlay_mode == 99) { // compute overlay
             //TODO we should probably write overlay color into a separate gbuffer texture and do blending in compose shader (?) 
             
-            // find correct hash for tile id
-            var tile_id = TileId(vertex_out.tile_id.x, vertex_out.tile_id.y, vertex_out.tile_id.z, 4294967295u);
-            var hash = hash_tile_id(tile_id);
-            while(!tile_ids_equal(map_key_buffer[hash], tile_id) && !tile_id_empty(map_key_buffer[hash])) {
-                hash++;
-            }
-            let was_found = !tile_id_empty(map_key_buffer[hash]);
+            let tile_id = TileId(vertex_out.tile_id.x, vertex_out.tile_id.y, vertex_out.tile_id.z, 4294967295u);
+            var texure_array_index: u32;
+            let found = get_texture_array_index(tile_id, &texure_array_index, &map_key_buffer, &map_value_buffer);
 
             // textureSample needs to happen in uniform control flow
             // therefore: if texture was found, sample correct texture array index, otherwise sample from texture 0
-            let overlay_texture_index = select(0, map_value_buffer[hash], was_found);
-            let sampled_overlay_color = textureSample(overlay_texture, ortho_sampler, vertex_out.uv, overlay_texture_index).rgba;
+            let sampled_overlay_color = textureSample(overlay_texture, ortho_sampler, vertex_out.uv, texure_array_index).rgba;
             
-            if (was_found) {
+            if (found) {
                 overlay_color = sampled_overlay_color;
             } else {
                 overlay_color = vec4f(albedo, 1.0); //kind of ugly
