@@ -179,11 +179,22 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
     var frag_out: FragOut;
     frag_out.position = vec4f(vertex_out.pos_cws, dist);
 
+    let tile_id = TileId(vertex_out.tile_id.x, vertex_out.tile_id.y, vertex_out.tile_id.z, 4294967295u);
     var normal = vertex_out.normal;
     if (config.normal_mode != 0) {
         if (config.normal_mode == 1) {
             normal = normal_by_fragment_position_interpolation(vertex_out.pos_cws);
         }
+
+        // replace per vertex normals with better normals, if present
+        var texure_array_index: u32;
+        let found = get_texture_array_index(tile_id, &texure_array_index, &map_key_buffer, &map_value_buffer);
+        let normal_texture_texel_value = textureSample(overlay_texture, ortho_sampler, vertex_out.uv, texure_array_index).xyzw;
+
+        if (found && normal_texture_texel_value.w != 0.0f) {
+            normal = normal_texture_texel_value.xyz * 2.0 - 1.0;
+        }
+
         frag_out.normal_enc = octNormalEncode2u16(normal);
     }
 
@@ -196,7 +207,6 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
         } else if (config.overlay_mode == 99) { // compute overlay
             //TODO we should probably write overlay color into a separate gbuffer texture and do blending in compose shader (?) 
             
-            let tile_id = TileId(vertex_out.tile_id.x, vertex_out.tile_id.y, vertex_out.tile_id.z, 4294967295u);
             var texure_array_index: u32;
             let found = get_texture_array_index(tile_id, &texure_array_index, &map_key_buffer, &map_value_buffer);
 

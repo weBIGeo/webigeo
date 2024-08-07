@@ -65,7 +65,7 @@ void Window::initialise_gpu()
     m_pipeline_manager->create_pipelines();
     create_bind_groups();
 
-    m_compute_graph = compute::nodes::NodeGraph::create_snow_compute_graph(*m_pipeline_manager, m_device);
+    m_compute_graph = compute::nodes::NodeGraph::create_normal_compute_graph(*m_pipeline_manager, m_device);
     connect(m_compute_graph.get(), &compute::nodes::NodeGraph::run_finished, this, &Window::request_redraw);
 
     m_tile_manager->init(m_device, m_queue, *m_pipeline_manager, *m_compute_graph);
