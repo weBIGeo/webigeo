@@ -1,7 +1,8 @@
- /*****************************************************************************
+/*****************************************************************************
  * Alpine Renderer
  * Copyright (C) 2023 Adam Celarek
  * Copyright (C) 2023 Gerald Kimmersdorfer
+ * Copyright (C) 2024 Patrick Komon
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -69,6 +70,12 @@ inline nucleus::camera::Definition schneeberg()
     return {{coords.x + 2500, coords.y - 100, coords.z + 100}, {coords.x, coords.y, coords.z - 100}};
 }
 
+inline nucleus::camera::Definition schneeberg_popping()
+{
+    const auto coords = srs::lat_long_alt_to_world({ 47.731568, 15.812723, 1811.69 });
+    return { { coords }, { coords.x + 500, coords.y + 1000, coords.z - 500 } };
+}
+
 inline nucleus::camera::Definition karwendel()
 {
     const auto coords = srs::lat_long_alt_to_world({47.416665, 11.4666648, 2000});
@@ -105,6 +112,7 @@ private:
         _positions.insert({"wien", nucleus::camera::stored_positions::wien()});
         _positions.insert({"grossglockner_shadow", nucleus::camera::stored_positions::grossglockner_shadow()});
         _positions.insert({"weichtalhaus", nucleus::camera::stored_positions::weichtalhaus()});
+        _positions.insert({ "schneeberg_popping", nucleus::camera::stored_positions::schneeberg_popping() });
     }
     static PositionStorage* _instance;
     std::map<std::string, nucleus::camera::Definition> _positions;
