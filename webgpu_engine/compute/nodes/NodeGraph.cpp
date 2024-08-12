@@ -58,7 +58,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_compute_graph(const Pipeline
 
     size_t capacity = 256;
     glm::uvec2 input_resolution = { 65, 65 };
-    glm::uvec2 output_resolution = { 65, 65 };
+    glm::uvec2 output_resolution = { 256, 256 };
     node_graph->add_node(std::make_unique<TileSelectNode>());
     node_graph->add_node(std::make_unique<TileRequestNode>());
     node_graph->add_node(std::make_unique<CreateHashMapNode>(device, input_resolution, capacity, WGPUTextureFormat_R16Uint));
