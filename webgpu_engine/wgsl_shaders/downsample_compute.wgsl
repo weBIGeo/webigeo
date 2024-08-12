@@ -91,7 +91,15 @@ fn median(input: vec4<f32>) -> f32 {
 }
 
 fn aggregate_linear(sample_00: vec4f, sample_01: vec4f, sample_10: vec4f, sample_11: vec4f) -> vec4f {
-    return (sample_00 + sample_01 + sample_10 + sample_11) * 0.25f;
+    let avg = (2 * sample_00 - 1
+        + 2 * sample_01 - 1
+        + 2 * sample_10 - 1
+        + 2 * sample_11 - 1) * 0.25;
+    return vec4f(normalize(avg.xyz), avg.w) * 0.5 + 0.5;
+    
+    // this leads to normals that seem to be getting progressively shorter on lower levels, maybe an accuracy thing?
+    // when using higher resolutions (i.e. 256 instead of 65), the difference is not visible
+    //return (sample_00 + sample_01 + sample_10 + sample_11) * 0.25f;
 }
 
 fn aggregate_max(sample_00: vec4f, sample_01: vec4f, sample_10: vec4f, sample_11: vec4f) -> vec4f {
