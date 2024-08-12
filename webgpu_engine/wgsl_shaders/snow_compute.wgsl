@@ -20,7 +20,7 @@
 
 #include "tile_util.wgsl"
 #include "tile_hashmap.wgsl"
-#include "noise.wgsl"
+#include "snow.wgsl"
 
 struct SnowSettings {
     angle: vec4f,
@@ -40,50 +40,6 @@ struct SnowSettings {
 
 // output
 @group(0) @binding(7) var output_tiles: texture_storage_2d_array<rgba8unorm, write>; // snow tiles (output)
-
-
-//TODO find nice place to put
-fn calculate_falloff(dist: f32, lower: f32, upper: f32) -> f32 { return clamp(1.0 - (dist - lower) / (upper - lower), 0.0, 1.0); }
-
-fn world_to_lat_long_alt(pos_ws: vec3f) -> vec3f {
-    let mercN = pos_ws.y * PI / ORIGIN_SHIFT;
-    let latRad = 2.0 * (atan(exp(mercN)) - (PI / 4.0));
-    let latitude = latRad * 180.0 / PI;
-    let longitude = (pos_ws.x + ORIGIN_SHIFT) / (ORIGIN_SHIFT / 180.0) - 180.0;
-    let altitude = pos_ws.z * cos(latitude * PI / 180.0);
-    return vec3f(latitude, longitude, altitude);
-}
-
-fn calculate_band_falloff(val: f32, min: f32, max: f32, smoothf: f32) -> f32 {
-    if (val < min) { return calculate_falloff(val, min + smoothf, min); }
-    else if (val > max) { return calculate_falloff(val, max, max + smoothf); }
-    else { return 1.0; }
-}
-
-fn overlay_snow(normal: vec3f, pos_ws: vec3f) -> vec4f {
-    // Calculate steepness in deg where 90.0 = vertical (90°) and 0.0 = flat (0°)
-    let steepness_deg = (1.0 - dot(normal, vec3(0.0, 0.0, 1.0))) * 90.0;
-
-    let steepness_based_alpha = calculate_band_falloff(
-                steepness_deg,
-                snow_settings.angle.y,
-                snow_settings.angle.z,
-                snow_settings.angle.w);
-
-    let lat_long_alt = world_to_lat_long_alt(pos_ws);
-    let pos_noise_hf = noise(pos_ws / 70.0);
-    let pos_noise_lf = noise(pos_ws / 500.0);
-    let snow_border = snow_settings.alt.x
-            + (snow_settings.alt.y * (2.0 * pos_noise_lf - 0.5))
-            + (snow_settings.alt.y * (0.5 * (pos_noise_hf - 0.5)));
-    let altitude_based_alpha = calculate_falloff(
-                lat_long_alt.z,
-                snow_border,
-                snow_border - snow_settings.alt.z * pos_noise_lf) ;
-
-    let snow_color = vec3f(1.0);
-    return vec4f(snow_color, altitude_based_alpha * steepness_based_alpha);
-}
 
 
 @compute @workgroup_size(1, 16, 16)
@@ -118,7 +74,7 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     
     let pos_x = uv.x * f32(quad_width) + bounds.x;
     let pos_z = altitude_correction_factor * f32(sample_height_with_index(tile_id, vec2u(uv * vec2f(f32(input_n_edge_vertices - 1))), &map_key_buffer, &map_value_buffer, input_tiles));
-    let overlay = overlay_snow(normal, vec3f(pos_x, pos_y, pos_z));
+    let overlay = overlay_snow(normal, vec3f(pos_x, pos_y, pos_z), snow_settings.angle, snow_settings.alt);
 
     textureStore(output_tiles, vec2(col, row), id.x, overlay); // incorrect
 }

@@ -96,3 +96,12 @@ fn normal_by_finite_difference_method(
 
     return normalize(vec3<f32>(hL - hR, hD - hU, height));
 }
+
+fn world_to_lat_long_alt(pos_ws: vec3f) -> vec3f {
+    let mercN = pos_ws.y * PI / ORIGIN_SHIFT;
+    let latRad = 2.0 * (atan(exp(mercN)) - (PI / 4.0));
+    let latitude = latRad * 180.0 / PI;
+    let longitude = (pos_ws.x + ORIGIN_SHIFT) / (ORIGIN_SHIFT / 180.0) - 180.0;
+    let altitude = pos_ws.z * cos(latitude * PI / 180.0);
+    return vec3f(latitude, longitude, altitude);
+}

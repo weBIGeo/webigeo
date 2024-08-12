@@ -182,6 +182,33 @@ void Window::paint_gui()
                 m_needs_redraw = true;
             }
         }
+        bool snow_on = (m_shared_config_ubo->data.m_snow_settings_angle.x == 1.0f);
+        if (ImGui::Checkbox("Snow", &snow_on)) {
+            m_needs_redraw = true;
+            m_shared_config_ubo->data.m_snow_settings_angle.x = (snow_on ? 1.0f : 0.0f);
+        }
+
+        if (m_shared_config_ubo->data.m_snow_settings_angle.x) {
+            if (ImGui::DragFloatRange2("Angle limit", &m_shared_config_ubo->data.m_snow_settings_angle.y, &m_shared_config_ubo->data.m_snow_settings_angle.z,
+                    0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp)) {
+                m_needs_redraw = true;
+            }
+            if (ImGui::SliderFloat("Angle blend", &m_shared_config_ubo->data.m_snow_settings_angle.w, 0.0f, 90.0f, "%.1f°")) {
+                m_needs_redraw = true;
+            }
+            if (ImGui::SliderFloat("Altitude limit", &m_shared_config_ubo->data.m_snow_settings_alt.x, 0.0f, 4000.0f, "%.1fm")) {
+                m_needs_redraw = true;
+            }
+            if (ImGui::SliderFloat("Altitude variation", &m_shared_config_ubo->data.m_snow_settings_alt.y, 0.0f, 1000.0f, "%.1f°")) {
+                m_needs_redraw = true;
+            }
+            if (ImGui::SliderFloat("Altitude blend", &m_shared_config_ubo->data.m_snow_settings_alt.z, 0.0f, 1000.0f)) {
+                m_needs_redraw = true;
+            }
+            if (ImGui::SliderFloat("Specular", &m_shared_config_ubo->data.m_snow_settings_alt.w, 0.0f, 5.0f)) {
+                m_needs_redraw = true;
+            }
+        }
     }
 
     if (ImGui::Checkbox("Phong Shading", (bool*)&m_shared_config_ubo->data.m_phong_enabled)) {

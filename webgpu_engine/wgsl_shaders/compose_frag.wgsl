@@ -22,6 +22,8 @@
 #include "screen_pass_shared.wgsl"
 #include "atmosphere_implementation.wgsl"
 #include "encoder.wgsl"
+#include "snow.wgsl"
+#include "tile_util.wgsl"
 
 @group(0) @binding(0) var<uniform> conf : shared_config;
 @group(1) @binding(0) var<uniform> camera : camera_config;
@@ -30,11 +32,6 @@
 @group(2) @binding(1) var position_texture : texture_2d<f32>;
 @group(2) @binding(2) var normal_texture : texture_2d<u32>;
 @group(2) @binding(3) var atmosphere_texture : texture_2d<f32>;
-
-
-fn calculate_falloff(dist: f32, start: f32, end: f32) -> f32 {
-    return clamp(1.0 - (dist - start) / (end - start), 0.0, 1.0);
-}
 
 // Calculates the diffuse and specular illumination contribution for the given
 // parameters according to the Blinn-Phong lighting model.
@@ -119,7 +116,7 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         let origin = camera.position.xyz;
         let pos_ws = pos_cws + origin;
         let ray_direction = pos_cws / dist;
-        let material_light_response = conf.material_light_response;
+        var material_light_response = conf.material_light_response;
 
         //TODO (unused in original code?)
         //let light_through_atmosphere = calculate_atmospheric_light(origin / 1000.0, ray_direction, dist / 1000.0, albedo, 10);
@@ -131,10 +128,9 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         }
 
         if (bool(conf.snow_settings_angle.x)) {
-            //TODO
-            //lowp vec4 overlay_color = overlay_snow(normal, pos_ws, dist);
-            //material_light_response.z += conf.snow_settings_alt.w * overlay_color.a;
-            //albedo = mix(albedo, overlay_color.rgb, overlay_color.a);
+            let overlay_color: vec4f = overlay_snow(normal, pos_ws, conf.snow_settings_angle, conf.snow_settings_alt);
+            material_light_response.z += conf.snow_settings_alt.w * overlay_color.a;
+            albedo = mix(albedo, overlay_color.rgb, overlay_color.a);
         }
 
         // NOTE: PRESHADING OVERLAY ONLY APPLIED ON TILES NOT ON BACKGROUND!!!
