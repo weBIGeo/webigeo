@@ -34,7 +34,7 @@ void TileSelectNode::run_impl()
 
     glm::uvec2 min = { 140288 + 100, 169984 };
     RectangularTileRegion region { .min = min,
-        .max = min + glm::uvec2 { 12, 12 }, // inclusive, so this region has 13x13 tiles
+        .max = min + glm::uvec2 { 26, 26 }, // inclusive, so this region has 13x13 tiles
         .zoom_level = 18,
         .scheme = tile::Scheme::Tms };
     m_output_tile_ids = region.get_tiles();

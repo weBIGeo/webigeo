@@ -56,7 +56,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_compute_graph(const Pipeline
 {
     auto node_graph = std::make_unique<NodeGraph>();
 
-    size_t capacity = 256;
+    size_t capacity = 1024;
     glm::uvec2 input_resolution = { 65, 65 };
     glm::uvec2 output_resolution = { 256, 256 };
     node_graph->add_node(std::make_unique<TileSelectNode>());
