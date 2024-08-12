@@ -23,21 +23,18 @@
 
 namespace webgpu_engine::compute::nodes {
 
-TileSelectNode::TileSelectNode()
+TileSelectNode::TileSelectNode(const TileIdGenerator& tile_id_generator)
     : Node({}, { data_type<const std::vector<tile::Id>*>() })
+    , m_tile_id_generator(tile_id_generator)
 {
 }
 
 void TileSelectNode::run_impl()
 {
     qDebug() << "running TileSelectNode ...";
-
-    glm::uvec2 min = { 140288 + 100, 169984 };
-    RectangularTileRegion region { .min = min,
-        .max = min + glm::uvec2 { 26, 26 }, // inclusive, so this region has 13x13 tiles
-        .zoom_level = 18,
-        .scheme = tile::Scheme::Tms };
-    m_output_tile_ids = region.get_tiles();
+    m_output_tile_ids.clear();
+    const auto& tile_ids = m_tile_id_generator();
+    m_output_tile_ids.insert(m_output_tile_ids.begin(), tile_ids.begin(), tile_ids.end());
     emit run_finished();
 }
 

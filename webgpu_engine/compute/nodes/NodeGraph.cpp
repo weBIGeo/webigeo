@@ -24,6 +24,7 @@
 #include "SnowComputeNode.h"
 #include "TileRequestNode.h"
 #include "TileSelectNode.h"
+#include "compute/RectangularTileRegion.h"
 #include <QDebug>
 #include <memory>
 
@@ -58,12 +59,19 @@ void NodeGraph::run()
 
 std::unique_ptr<NodeGraph> NodeGraph::create_normal_compute_graph(const PipelineManager& manager, WGPUDevice device)
 {
-    auto node_graph = std::make_unique<NodeGraph>();
+    glm::uvec2 min = { 140288 + 100, 169984 };
+    RectangularTileRegion region { .min = min,
+        .max = min + glm::uvec2 { 26, 26 }, // inclusive, so this region has 13x13 tiles
+        .zoom_level = 18,
+        .scheme = tile::Scheme::Tms };
+    auto tile_id_generator_func = [region]() { return region.get_tiles(); };
 
     size_t capacity = 1024;
     glm::uvec2 input_resolution = { 65, 65 };
     glm::uvec2 output_resolution = { 256, 256 };
-    node_graph->add_node(std::make_unique<TileSelectNode>());
+
+    auto node_graph = std::make_unique<NodeGraph>();
+    node_graph->add_node(std::make_unique<TileSelectNode>(tile_id_generator_func));
     node_graph->add_node(std::make_unique<TileRequestNode>());
     node_graph->add_node(std::make_unique<CreateHashMapNode>(device, input_resolution, capacity, WGPUTextureFormat_R16Uint));
     node_graph->add_node(std::make_unique<NormalComputeNode>(manager, device, output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm));
@@ -107,12 +115,19 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_compute_graph(const Pipeline
 }
 std::unique_ptr<NodeGraph> NodeGraph::create_snow_compute_graph(const PipelineManager& manager, WGPUDevice device)
 {
-    auto node_graph = std::make_unique<NodeGraph>();
+    glm::uvec2 min = { 140288, 169984 };
+    RectangularTileRegion region { .min = min,
+        .max = min + glm::uvec2 { 12, 12 }, // inclusive, so this region has 13x13 tiles
+        .zoom_level = 18,
+        .scheme = tile::Scheme::Tms };
+    auto tile_id_generator_func = [region]() { return region.get_tiles(); };
 
     size_t capacity = 256;
     glm::uvec2 input_resolution = { 65, 65 };
     glm::uvec2 output_resolution = { 65, 65 };
-    node_graph->add_node(std::make_unique<TileSelectNode>());
+
+    auto node_graph = std::make_unique<NodeGraph>();
+    node_graph->add_node(std::make_unique<TileSelectNode>(tile_id_generator_func));
     node_graph->add_node(std::make_unique<TileRequestNode>());
     node_graph->add_node(std::make_unique<CreateHashMapNode>(device, input_resolution, capacity, WGPUTextureFormat_R16Uint));
     node_graph->add_node(std::make_unique<SnowComputeNode>(manager, device, output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm));

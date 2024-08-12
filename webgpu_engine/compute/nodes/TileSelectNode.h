@@ -26,10 +26,12 @@ class TileSelectNode : public Node {
     Q_OBJECT
 
 public:
+    using TileIdGenerator = std::function<std::vector<tile::Id>()>;
+
     enum Input {};
     enum Output { TILE_ID_LIST = 0 };
 
-    TileSelectNode();
+    TileSelectNode(const TileIdGenerator& tile_id_generator);
 
 public slots:
     void run_impl() override;
@@ -38,6 +40,7 @@ protected:
     Data get_output_data_impl(SocketIndex output_index) override;
 
 private:
+    TileIdGenerator m_tile_id_generator;
     std::vector<tile::Id> m_output_tile_ids;
 };
 } // namespace webgpu_engine::compute::nodes
