@@ -63,7 +63,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_compute_graph(const Pipeline
     node_graph->add_node(std::make_unique<TileRequestNode>());
     node_graph->add_node(std::make_unique<CreateHashMapNode>(device, input_resolution, capacity, WGPUTextureFormat_R16Uint));
     node_graph->add_node(std::make_unique<NormalComputeNode>(manager, device, output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm));
-    node_graph->add_node(std::make_unique<DownsampleComputeNode>(manager, device, capacity, 3));
+    node_graph->add_node(std::make_unique<DownsampleComputeNode>(manager, device, capacity, 5));
 
     Node* tile_select_node = node_graph->m_nodes[0].get();
     Node* height_request_node = node_graph->m_nodes[1].get();
