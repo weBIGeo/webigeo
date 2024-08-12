@@ -38,22 +38,12 @@ fn sample_higher_zoomlevel_tile(tile_id: TileId, coords: vec2<u32>, size: u32) -
     higher_zoomlevel_tile_id.y = 2u * tile_id.y + select(0u, 1u, coords.y < size);
     higher_zoomlevel_tile_id.zoomlevel = tile_id.zoomlevel + 1;
 
-    // find correct hash for tile id
-    var hash = hash_tile_id(higher_zoomlevel_tile_id);
-    while(!tile_ids_equal(map_key_buffer[hash], higher_zoomlevel_tile_id) && !tile_id_empty(map_key_buffer[hash])) {
-        hash++;
+    var texture_array_index: u32;
+    let found = get_texture_array_index(higher_zoomlevel_tile_id, &texture_array_index, &map_key_buffer, &map_value_buffer);
+    if (!found) {
+        return vec4f(0);
     }
-    let was_found = !tile_id_empty(map_key_buffer[hash]);
-
-    var sampled_value: vec4<f32>;
-    if (!was_found) {
-        sampled_value = vec4f(0);
-    } else {
-        let texture_index = map_value_buffer[hash];
-        sampled_value = textureLoad(input_textures, coords % vec2u(size), texture_index, 0);
-    }
-
-    return sampled_value;
+    return textureLoad(input_textures, coords % vec2u(size), texture_array_index, 0);
 }
 
 
