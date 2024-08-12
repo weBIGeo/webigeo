@@ -192,6 +192,12 @@ void Window::paint_gui()
         if (ImGui::Button("Run pipeline", ImVec2(280, 20))) {
             m_compute_graph->run();
         }
+
+        if (ImGui::Button("Clear output", ImVec2(280, 20))) {
+            m_compute_graph->output_hash_map().clear();
+            m_compute_graph->output_hash_map().update_gpu_data();
+            m_needs_redraw = true;
+        }
     }
 #endif
 }

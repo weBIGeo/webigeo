@@ -38,12 +38,12 @@ DownsampleComputeNode::DownsampleComputeNode(const PipelineManager& pipeline_man
     assert(m_num_downsample_steps > 0 && m_num_downsample_steps < 18);
 }
 
-const GpuHashMap<tile::Id, uint32_t, GpuTileId>& DownsampleComputeNode::hash_map()
+GpuHashMap<tile::Id, uint32_t, GpuTileId>& DownsampleComputeNode::hash_map()
 {
     return *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(get_input_data(Input::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP));
 }
 
-const TileStorageTexture& DownsampleComputeNode::texture_storage() { return *std::get<data_type<TileStorageTexture*>()>(get_input_data(Input::TEXTURE_ARRAY)); }
+TileStorageTexture& DownsampleComputeNode::texture_storage() { return *std::get<data_type<TileStorageTexture*>()>(get_input_data(Input::TEXTURE_ARRAY)); }
 
 void DownsampleComputeNode::run_impl()
 {

@@ -43,7 +43,11 @@ void NodeGraph::connect_sockets(Node* from_node, SocketIndex output_socket, Node
 
 const GpuHashMap<tile::Id, uint32_t, GpuTileId>& NodeGraph::output_hash_map() const { return *m_output_hash_map_ptr; }
 
+GpuHashMap<tile::Id, uint32_t, GpuTileId>& NodeGraph::output_hash_map() { return *m_output_hash_map_ptr; }
+
 const TileStorageTexture& NodeGraph::output_texture_storage() const { return *m_output_texture_storage_ptr; }
+
+TileStorageTexture& NodeGraph::output_texture_storage() { return *m_output_texture_storage_ptr; }
 
 void NodeGraph::run()
 {

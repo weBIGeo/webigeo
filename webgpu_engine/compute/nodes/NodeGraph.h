@@ -44,7 +44,9 @@ public:
     //  - a hashmap (mapping tile id to texture array layer)
     //  - a texture array
     const GpuHashMap<tile::Id, uint32_t, GpuTileId>& output_hash_map() const;
+    GpuHashMap<tile::Id, uint32_t, GpuTileId>& output_hash_map();
     const TileStorageTexture& output_texture_storage() const;
+    TileStorageTexture& output_texture_storage();
 
 public slots:
     void run();
@@ -58,8 +60,8 @@ public:
 
 private:
     std::vector<std::unique_ptr<Node>> m_nodes;
-    const GpuHashMap<tile::Id, uint32_t, GpuTileId>* m_output_hash_map_ptr;
-    const TileStorageTexture* m_output_texture_storage_ptr;
+    GpuHashMap<tile::Id, uint32_t, GpuTileId>* m_output_hash_map_ptr;
+    TileStorageTexture* m_output_texture_storage_ptr;
 };
 
 } // namespace webgpu_engine::compute::nodes
