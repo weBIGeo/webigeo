@@ -70,10 +70,11 @@ inline nucleus::camera::Definition schneeberg()
     return {{coords.x + 2500, coords.y - 100, coords.z + 100}, {coords.x, coords.y, coords.z - 100}};
 }
 
-inline nucleus::camera::Definition schneeberg_popping()
+inline nucleus::camera::Definition heiligenblut_popping()
 {
-    const auto coords = srs::lat_long_alt_to_world({ 47.731568, 15.812723, 1811.69 });
-    return { { coords }, { coords.x + 500, coords.y + 1000, coords.z - 500 } };
+
+    const auto coords = srs::lat_long_alt_to_world({ 47.05179073901546, 12.81791073526902, 2000 });
+    return { { coords }, { coords.x - 1000, coords.y - 500, coords.z - 500 } };
 }
 
 inline nucleus::camera::Definition karwendel()
@@ -112,7 +113,7 @@ private:
         _positions.insert({"wien", nucleus::camera::stored_positions::wien()});
         _positions.insert({"grossglockner_shadow", nucleus::camera::stored_positions::grossglockner_shadow()});
         _positions.insert({"weichtalhaus", nucleus::camera::stored_positions::weichtalhaus()});
-        _positions.insert({ "schneeberg_popping", nucleus::camera::stored_positions::schneeberg_popping() });
+        _positions.insert({ "heiligenblut_popping", nucleus::camera::stored_positions::heiligenblut_popping() });
     }
     static PositionStorage* _instance;
     std::map<std::string, nucleus::camera::Definition> _positions;
