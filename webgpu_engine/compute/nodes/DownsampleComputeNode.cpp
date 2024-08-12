@@ -59,7 +59,7 @@ void DownsampleComputeNode::run_impl()
 
     // (re)create storage texture to write downsampled tiles to
     m_internal_storage_texture = std::make_unique<TileStorageTexture>(m_device, glm::uvec2 { hashmap_textures.width(), hashmap_textures.height() },
-        downsampled_tile_ids.size(), WGPUTextureFormat_RGBA8Unorm, WGPUTextureUsage_StorageBinding | WGPUTextureUsage_CopySrc);
+        downsampled_tile_ids.size(), hashmap_textures.texture().texture().descriptor().format, WGPUTextureUsage_StorageBinding | WGPUTextureUsage_CopySrc);
 
     // (re)create bind group
     // TODO re-create bind groups only when input handles change
