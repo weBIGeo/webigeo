@@ -154,7 +154,7 @@ fn vertexMain(@builtin(vertex_index) vertex_index: u32, vertex_in: VertexIn) -> 
 
     vertex_out.normal = vec3f(0.0);
     if (config.normal_mode == 2) {
-        vertex_out.normal = normal_by_finite_difference_method(uv, u32(n_edge_vertices), quad_width, quad_height, altitude_correction_factor, vertex_in.texture_layer, height_texture);
+        vertex_out.normal = normal_by_finite_difference_method(uv, quad_width, quad_height, altitude_correction_factor, vertex_in.texture_layer, height_texture);
     }
     vertex_out.texture_layer = vertex_in.texture_layer;
 

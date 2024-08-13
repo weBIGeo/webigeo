@@ -66,17 +66,17 @@ fn calculate_bounds(tile_id: TileId) -> vec4<f32> {
 
 fn normal_by_finite_difference_method(
     uv: vec2<f32>,
-    edge_vertices_count: u32,
     quad_width: f32,
     quad_height: f32,
     altitude_correction_factor: f32,
     texture_layer: i32,
     texture_array: texture_2d_array<u32>) -> vec3<f32>
 {
+    let height_texture_size = textureDimensions(texture_array);
     // from here: https://stackoverflow.com/questions/6656358/calculating-normals-in-a-triangle-mesh/21660173#21660173
     let height = quad_width + quad_height;
-    let uv_tex = vec2<i32>(i32(uv.x * f32(edge_vertices_count - 1)), i32(uv.y * f32(edge_vertices_count - 1)));
-    let upper_bounds = vec2<i32>(i32(edge_vertices_count - 1), i32(edge_vertices_count - 1));
+    let uv_tex = vec2i(uv_to_index(uv, height_texture_size));
+    let upper_bounds = vec2<i32>(height_texture_size - 1);
     let lower_bounds = vec2<i32>(0, 0);
     let hL_uv = clamp(uv_tex - vec2<i32>(1, 0), lower_bounds, upper_bounds);
     let hL_sample = textureLoad(texture_array, hL_uv, texture_layer, 0);
@@ -104,4 +104,12 @@ fn world_to_lat_long_alt(pos_ws: vec3f) -> vec3f {
     let longitude = (pos_ws.x + ORIGIN_SHIFT) / (ORIGIN_SHIFT / 180.0) - 180.0;
     let altitude = pos_ws.z * cos(latitude * PI / 180.0);
     return vec3f(latitude, longitude, altitude);
+}
+
+
+fn index_to_uv(index: vec2u, texture_dimensions: vec2u) -> vec2f {
+    return (vec2f(index) + 0.5) / vec2f(texture_dimensions); 
+}
+fn uv_to_index(uv: vec2f, texture_dimensions: vec2u) -> vec2u {
+    return min(vec2u(floor(uv * vec2f(texture_dimensions))), texture_dimensions);
 }
