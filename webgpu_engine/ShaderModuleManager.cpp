@@ -40,6 +40,7 @@ void ShaderModuleManager::create_shader_modules()
     m_normals_compute_module = create_shader_module("normals_compute.wgsl");
     m_snow_compute_module = create_shader_module("snow_compute.wgsl");
     m_downsample_compute_module = create_shader_module("downsample_compute.wgsl");
+    m_upsample_textures_compute_module = create_shader_module("upsample_textures_compute.wgsl");
 }
 
 void ShaderModuleManager::release_shader_modules()
@@ -51,6 +52,7 @@ void ShaderModuleManager::release_shader_modules()
     m_normals_compute_module.release();
     m_snow_compute_module.release();
     m_downsample_compute_module.release();
+    m_upsample_textures_compute_module.release();
 }
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::tile() const { return *m_tile_shader_module; }
@@ -66,6 +68,8 @@ const webgpu::raii::ShaderModule& ShaderModuleManager::normals_compute() const {
 const webgpu::raii::ShaderModule& ShaderModuleManager::snow_compute() const { return *m_snow_compute_module; }
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::downsample_compute() const { return *m_downsample_compute_module; }
+
+const webgpu::raii::ShaderModule& ShaderModuleManager::upsample_textures_compute() const { return *m_upsample_textures_compute_module; }
 
 std::string ShaderModuleManager::read_file_contents(const std::string& name) const {
     const auto path = m_prefix / name; // operator/ concats paths

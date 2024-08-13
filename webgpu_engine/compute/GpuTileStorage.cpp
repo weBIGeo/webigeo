@@ -112,6 +112,18 @@ size_t TileStorageTexture::height() const { return m_texture_array->texture().de
 
 size_t TileStorageTexture::capacity() const { return m_capacity; }
 
+std::vector<uint32_t> TileStorageTexture::used_layer_indices() const
+{
+    std::vector<uint32_t> indices;
+    indices.reserve(m_capacity);
+    for (uint32_t i = 0; i < m_capacity; i++) {
+        if (m_layers_used.at(i)) {
+            indices.emplace_back(i);
+        }
+    }
+    return indices;
+}
+
 webgpu::raii::TextureWithSampler& TileStorageTexture::texture() { return *m_texture_array; }
 
 const webgpu::raii::TextureWithSampler& TileStorageTexture::texture() const { return *m_texture_array; }

@@ -29,6 +29,8 @@ TextureWithSampler::TextureWithSampler(WGPUDevice device, const WGPUTextureDescr
 
 Texture& TextureWithSampler::texture() { return *m_texture; }
 
+const Texture& TextureWithSampler::texture() const { return *m_texture; }
+
 const TextureView& TextureWithSampler::texture_view() const { return *m_texture_view; }
 
 const Sampler& TextureWithSampler::sampler() const { return *m_sampler; }

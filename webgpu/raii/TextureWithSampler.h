@@ -31,6 +31,7 @@ public:
     TextureWithSampler(WGPUDevice device, const WGPUTextureDescriptor& texture_desc, const WGPUSamplerDescriptor& sampler_desc);
 
     Texture& texture();
+    const Texture& texture() const;
     const TextureView& texture_view() const;
     const Sampler& sampler() const;
 

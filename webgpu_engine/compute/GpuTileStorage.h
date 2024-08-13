@@ -39,6 +39,7 @@ public:
     size_t width() const;
     size_t height() const;
     size_t capacity() const;
+    std::vector<uint32_t> used_layer_indices() const;
 
     webgpu::raii::TextureWithSampler& texture();
     const webgpu::raii::TextureWithSampler& texture() const;

@@ -44,6 +44,7 @@ public:
     const webgpu::raii::ShaderModule& normals_compute() const;
     const webgpu::raii::ShaderModule& snow_compute() const;
     const webgpu::raii::ShaderModule& downsample_compute() const;
+    const webgpu::raii::ShaderModule& upsample_textures_compute() const;
 
     std::unique_ptr<webgpu::raii::ShaderModule> create_shader_module(const std::string& name, const std::string& code);
 
@@ -66,6 +67,7 @@ private:
     std::unique_ptr<webgpu::raii::ShaderModule> m_normals_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_snow_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_downsample_compute_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_upsample_textures_compute_module;
 };
 
 } // namespace webgpu_engine
