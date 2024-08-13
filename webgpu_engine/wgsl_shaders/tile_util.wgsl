@@ -107,9 +107,12 @@ fn world_to_lat_long_alt(pos_ws: vec3f) -> vec3f {
 }
 
 
+// transforms (x,y) from range [(0,0), texture_dimensions - 1] to [(0,0), (1,1)]
 fn index_to_uv(index: vec2u, texture_dimensions: vec2u) -> vec2f {
     return (vec2f(index) + 0.5) / vec2f(texture_dimensions); 
 }
+
+// transforms (u,v) from range [(0,0), (1,1)] to []
 fn uv_to_index(uv: vec2f, texture_dimensions: vec2u) -> vec2u {
-    return min(vec2u(floor(uv * vec2f(texture_dimensions))), texture_dimensions);
+    return min(vec2u(floor(uv * vec2f(texture_dimensions))), texture_dimensions - 1);
 }
