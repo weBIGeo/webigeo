@@ -37,25 +37,21 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     // id.yz in [0, ceil(texture_dimensions(output_tiles).xy / workgroup_size.yz) - 1]
 
     // exit if thread id is outside image dimensions (i.e. thread is not supposed to be doing any work)
-    let output_n_edge_vertices = textureDimensions(output_tiles);
-    if (id.y >= output_n_edge_vertices.x || id.z >= output_n_edge_vertices.y) {
+    let output_texture_size = textureDimensions(output_tiles);
+    if (id.y >= output_texture_size.x || id.z >= output_texture_size.y) {
         return;
     }
-    let output_num_quads_per_direction = output_n_edge_vertices - 1;
-
     // id.yz in [0, texture_dimensions(output_tiles) - 1]
-
-    let input_n_edge_vertices = textureDimensions(input_tiles).x; //TODO allow non-square
-    let input_n_quads_per_direction: u32 = input_n_edge_vertices - 1;
 
     let tile_id = input_tile_ids[id.x];
     let bounds = input_tile_bounds[id.x];
-    let quad_width: f32 = (bounds.z - bounds.x) / f32(input_n_quads_per_direction);
-    let quad_height: f32 = (bounds.w - bounds.y) / f32(input_n_quads_per_direction);
+    let input_texture_size = textureDimensions(input_tiles);
+    let quad_width: f32 = (bounds.z - bounds.x) / f32(input_texture_size.x - 1);
+    let quad_height: f32 = (bounds.w - bounds.y) / f32(input_texture_size.y - 1);
 
     let col = id.y; // in [0, texture_dimension(output_tiles).x - 1]
     let row = id.z; // in [0, texture_dimension(output_tiles).y - 1]
-    let uv = index_to_uv(vec2u(col, row), output_n_edge_vertices); // in [0, 1]
+    let uv = index_to_uv(vec2u(col, row), output_texture_size); // in [0, 1]
     let pos_y = uv.y * f32(quad_height) + bounds.y;
     let altitude_correction_factor = calc_altitude_correction_factor(pos_y);
     let normal = normal_by_finite_difference_method_with_neighbors(uv, quad_width, quad_height,
