@@ -189,7 +189,11 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
         // replace per vertex normals with better normals, if present
         var texure_array_index: u32;
         let found = get_texture_array_index(tile_id, &texure_array_index, &map_key_buffer, &map_value_buffer);
-        let normal_texture_texel_value = textureSample(overlay_texture, ortho_sampler, vertex_out.uv, texure_array_index).xyzw;
+        
+        // remap texture coordinates to skip first and last half texel (so uv grid spans only texel centers)
+        let normal_texture_size = textureDimensions(overlay_texture);
+        let normal_uv = vertex_out.uv * (vec2f(normal_texture_size - 1) / vec2f(normal_texture_size)) + 1f / (2f * vec2f(normal_texture_size));
+        let normal_texture_texel_value = textureSample(overlay_texture, ortho_sampler, normal_uv, texure_array_index).xyzw;
 
         if (found && normal_texture_texel_value.w != 0.0f) {
             normal = normal_texture_texel_value.xyz * 2.0 - 1.0;
