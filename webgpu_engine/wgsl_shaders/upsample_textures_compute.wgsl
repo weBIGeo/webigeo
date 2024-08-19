@@ -65,7 +65,7 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     let col = id.y; // in [0, texture_dimension(output_tiles).x - 1]
     let row = id.z; // in [0, texture_dimension(output_tiles).y - 1]
     let input_texture_size: vec2u = textureDimensions(input_textures);
-    let uv = index_to_uv(vec2u(col, row), output_texture_size);
+    let uv = vec2f(f32(col), f32(row)) / vec2f(output_texture_size - 1);
     let result = bilinear_sample_vec4f(input_textures, input_sampler, uv, texture_layer_index);
     
     textureStore(output_textures, vec2(col, row), texture_layer_index, result);

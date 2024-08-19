@@ -46,23 +46,23 @@ fn get_texture_array_index(tile_id: TileId, texture_array_index: ptr<function, u
     return was_found;
 }
 
-fn get_neighboring_tile_id_and_pos(num_edge_vertices: u32, tile_id: TileId, pos: vec2<i32>, out_tile_id: ptr<function, TileId>, out_pos: ptr<function, vec2<u32>>) {
+fn get_neighboring_tile_id_and_pos(texture_size: u32, tile_id: TileId, pos: vec2<i32>, out_tile_id: ptr<function, TileId>, out_pos: ptr<function, vec2<u32>>) {
     var new_pos = pos;
     var new_tile_id = tile_id;
     
     // tiles overlap! in each direction, the last value of one tile equals the first of the next
     // therefore offset by 1 in respective direction
     if (new_pos.x == -1) {
-        new_pos.x = i32(num_edge_vertices - 2);
+        new_pos.x = i32(texture_size - 2);
         new_tile_id.x -= 1;
-    } else if (new_pos.x == i32(num_edge_vertices)) {
+    } else if (new_pos.x == i32(texture_size)) {
         new_pos.x = 1;
         new_tile_id.x += 1;
     }
     if (new_pos.y == -1) {
-        new_pos.y = i32(num_edge_vertices - 2);
+        new_pos.y = i32(texture_size - 2);
         new_tile_id.y += 1;
-    } else if (new_pos.y == i32(num_edge_vertices)) {
+    } else if (new_pos.y == i32(texture_size)) {
         new_pos.y = 1;
         new_tile_id.y -= 1;
     }
@@ -105,7 +105,7 @@ fn sample_height_by_index(
 }
 
 fn sample_height_with_neighbors(
-    num_edge_vertices: u32,
+    texture_size: u32,
     tile_id: TileId,
     pos: vec2i,
     map_key_buffer: ptr<storage, array<TileId>>,
@@ -115,7 +115,7 @@ fn sample_height_with_neighbors(
 ) -> u32 {
     var target_tile_id: TileId;
     var target_pos: vec2u;
-    get_neighboring_tile_id_and_pos(num_edge_vertices, tile_id, pos, &target_tile_id, &target_pos);
+    get_neighboring_tile_id_and_pos(texture_size, tile_id, pos, &target_tile_id, &target_pos);
     
     return sample_height_by_index(target_tile_id, target_pos, map_key_buffer, map_value_buffer, height_tiles_texture);
 }
@@ -136,8 +136,10 @@ fn normal_by_finite_difference_method_with_neighbors(
     let height_texture_size: vec2u = textureDimensions(height_tiles_texture);
     
     let height = quad_width + quad_height;
-    let uv_tex = vec2i(uv_to_index(uv, height_texture_size)); // in [0, texture_dimension(input_tiles) - 1]
-    
+
+    // 0 is texel center of first texel, 1 is texel center of last texel
+    let uv_tex = vec2i(floor(uv * vec2f(height_texture_size - 1) + 0.5));
+
     let hL_uv = uv_tex - vec2<i32>(1, 0);
     let hL_sample = sample_height_with_neighbors(height_texture_size.x, tile_id, hL_uv, &map_key_buffer, &map_value_buffer, height_tiles_texture, height_tiles_sampler);
     let hL = f32(hL_sample) * altitude_correction_factor;

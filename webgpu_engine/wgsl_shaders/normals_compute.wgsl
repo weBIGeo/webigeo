@@ -51,7 +51,7 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
 
     let col = id.y; // in [0, texture_dimension(output_tiles).x - 1]
     let row = id.z; // in [0, texture_dimension(output_tiles).y - 1]
-    let uv = index_to_uv(vec2u(col, row), output_texture_size); // in [0, 1]
+    let uv = vec2f(f32(col), f32(row)) / vec2f(output_texture_size - 1);
     let pos_y = uv.y * f32(quad_height) + bounds.y;
     let altitude_correction_factor = calc_altitude_correction_factor(pos_y);
     let normal = normal_by_finite_difference_method_with_neighbors(uv, quad_width, quad_height,
