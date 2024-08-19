@@ -34,16 +34,19 @@ fn bilinear_sample_vec4f(texture_array: texture_2d_array<f32>, texture_sampler: 
     // weights need to match the texels that are chosen by textureGather - this does NOT align perfectly, and introduces some artifacts
     // adding offset fixes this issue, see https://www.reedbeta.com/blog/texture-gathers-and-coordinate-precision/
     const offset = 1.0f / 512.0f;
-    let weights: vec2f = fract(uv * vec2f(texture_dimensions) - 0.5 + offset);
+    
+    // remap texture coordinates to skip first and last half texel (so uv grid spans only texel centers)
+    let actual_uv = uv * (vec2f(texture_dimensions - 1) / vec2f(texture_dimensions)) + 1.0f / (2.0f * vec2f(texture_dimensions));
+    let weights: vec2f = fract(actual_uv * vec2f(texture_dimensions) - 0.5 + offset);
 
     let x = dot(vec4f((1.0 - weights.x) * weights.y, weights.x * weights.y, weights.x * (1.0 - weights.y), (1.0 - weights.x) * (1.0 - weights.y)),
-        vec4f(textureGather(0, texture_array, texture_sampler, uv, layer)));
+        vec4f(textureGather(0, texture_array, texture_sampler, actual_uv, layer)));
     let y = dot(vec4f((1.0 - weights.x) * weights.y, weights.x * weights.y, weights.x * (1.0 - weights.y), (1.0 - weights.x) * (1.0 - weights.y)),
-        vec4f(textureGather(1, texture_array, texture_sampler, uv, layer)));
+        vec4f(textureGather(1, texture_array, texture_sampler, actual_uv, layer)));
     let z = dot(vec4f((1.0 - weights.x) * weights.y, weights.x * weights.y, weights.x * (1.0 - weights.y), (1.0 - weights.x) * (1.0 - weights.y)),
-        vec4f(textureGather(2, texture_array, texture_sampler, uv, layer)));
+        vec4f(textureGather(2, texture_array, texture_sampler, actual_uv, layer)));
     let w = dot(vec4f((1.0 - weights.x) * weights.y, weights.x * weights.y, weights.x * (1.0 - weights.y), (1.0 - weights.x) * (1.0 - weights.y)),
-        vec4f(textureGather(3, texture_array, texture_sampler, uv, layer)));
+        vec4f(textureGather(3, texture_array, texture_sampler, actual_uv, layer)));
 
     return vec4f(x, y, z, w);
 }
