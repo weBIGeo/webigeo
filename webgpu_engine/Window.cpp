@@ -70,17 +70,15 @@ void Window::initialise_gpu()
 
     m_tile_manager->init(m_device, m_queue, *m_pipeline_manager, *m_compute_graph);
 
-    // TODO move somewhere else
-    auto grossglockner = glm::fvec4(nucleus::srs::lat_long_alt_to_world({ 47.07386676653372, 12.694470292406267, 3798 }), 1);
-    auto schneeberg = glm::fvec4(nucleus::srs::lat_long_alt_to_world({ 47.767163598, 15.804663448, 2076 }), 1);
-    auto stephansdom = glm::fvec4(nucleus::srs::lat_long_alt_to_world({ 48.20851144787232, 16.373082444395656, 300 }), 1);
-    m_points = { grossglockner, schneeberg, stephansdom };
-    m_points_buffer = std::make_unique<webgpu::raii::RawBuffer<glm::fvec4>>(
-        m_device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst, m_points.size(), "line renderer, storage buffer for points");
-    m_points_buffer->write(m_queue, m_points.data(), m_points.size());
+    m_track_renderer = std::make_unique<TrackRenderer>(m_device, *m_pipeline_manager);
 
-    m_lines_bind_group = std::make_unique<webgpu::raii::BindGroup>(
-        m_device, m_pipeline_manager->lines_bind_group_layout(), std::initializer_list<WGPUBindGroupEntry> { m_points_buffer->create_bind_group_entry(0) });
+    // TODO add track loading
+    std::vector<glm::dvec3> m_points = {
+        { 47.07386676653372, 12.694470292406267, 3798 }, // grossglockner
+        { 47.767163598, 15.804663448, 2076 }, // schneeberg
+        { 48.20851144787232, 16.373082444395656, 300 } // stephansdom
+    };
+    m_track_renderer->add_track(m_points);
 
     qInfo() << "gpu_ready_changed";
     emit gpu_ready_changed(true);
@@ -98,37 +96,14 @@ void Window::resize_framebuffer(int w, int h)
     atmosphere_framebuffer_format.size = glm::uvec2(1, h);
     m_atmosphere_framebuffer = std::make_unique<webgpu::Framebuffer>(m_device, atmosphere_framebuffer_format);
 
-    // TODO move somewhere else
-    WGPUTextureDescriptor lines_texture_desc {};
-    lines_texture_desc.label = "lines render texture";
-    lines_texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
-    lines_texture_desc.size = { uint32_t(w), uint32_t(h), 1 };
-    lines_texture_desc.mipLevelCount = 1;
-    lines_texture_desc.sampleCount = 1;
-    lines_texture_desc.format = WGPUTextureFormat::WGPUTextureFormat_RGBA8Unorm;
-    lines_texture_desc.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding;
-
-    WGPUSamplerDescriptor lines_sampler_desc {};
-    lines_sampler_desc.label = "lines render sampler";
-    lines_sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    lines_sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    lines_sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    lines_sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Linear;
-    lines_sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Linear;
-    lines_sampler_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Linear;
-    lines_sampler_desc.lodMinClamp = 0.0f;
-    lines_sampler_desc.lodMaxClamp = 1.0f;
-    lines_sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
-    lines_sampler_desc.maxAnisotropy = 1;
-
-    m_lines_texture = std::make_unique<webgpu::raii::TextureWithSampler>(m_device, lines_texture_desc, lines_sampler_desc);
+    m_track_renderer->resize_render_target_texture(w, h);
 
     m_compose_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->compose_bind_group_layout(),
         std::initializer_list<WGPUBindGroupEntry> { m_gbuffer->color_texture_view(0).create_bind_group_entry(0), // albedo texture
             m_gbuffer->color_texture_view(1).create_bind_group_entry(1), // position texture
             m_gbuffer->color_texture_view(2).create_bind_group_entry(2), // normal texture
             m_atmosphere_framebuffer->color_texture_view(0).create_bind_group_entry(3), // atmosphere texture
-            m_lines_texture->texture_view().create_bind_group_entry(4) });
+            m_track_renderer->render_target_texture().texture_view().create_bind_group_entry(4) });
 }
 
 std::unique_ptr<webgpu::raii::RenderPassEncoder> begin_render_pass(
@@ -170,46 +145,9 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         m_tile_manager->draw(render_pass->handle(), m_camera, tile_set, true, m_camera.position());
     }
 
-    // TODO refactor - move to its own class
-    //   we'd also only want a single shader invocation for multiple tracks
     // render lines to color buffer
     if (m_shared_config_ubo->data.m_render_tracks_enabled) {
-
-        WGPURenderPassColorAttachment color_attachment {};
-        color_attachment.view = m_lines_texture->texture_view().handle();
-        color_attachment.resolveTarget = nullptr;
-        color_attachment.loadOp = WGPULoadOp::WGPULoadOp_Clear;
-        color_attachment.storeOp = WGPUStoreOp::WGPUStoreOp_Store;
-        color_attachment.clearValue = WGPUColor { 0.0, 0.0, 0.0, 0.0 };
-        // depthSlice field for RenderPassColorAttachment (https://github.com/gpuweb/gpuweb/issues/4251)
-        // this field specifies the slice to render to when rendering to a 3d texture (view)
-        // passing a valid index but referencing a non-3d texture leads to an error
-        // TODO use some constant that represents "undefined" for this value (I couldn't find a constant for this?)
-        //     (I just guessed -1 (max unsigned int value) and it worked)
-        color_attachment.depthSlice = -1;
-
-        WGPURenderPassDepthStencilAttachment depth_stencil_attachment {};
-        depth_stencil_attachment.view = m_gbuffer->depth_texture_view().handle();
-        depth_stencil_attachment.depthLoadOp = WGPULoadOp_Undefined;
-        depth_stencil_attachment.depthStoreOp = WGPUStoreOp_Undefined;
-        depth_stencil_attachment.depthReadOnly = true;
-        depth_stencil_attachment.stencilLoadOp = WGPULoadOp::WGPULoadOp_Undefined;
-        depth_stencil_attachment.stencilStoreOp = WGPUStoreOp::WGPUStoreOp_Undefined;
-        depth_stencil_attachment.stencilReadOnly = true;
-
-        WGPURenderPassDescriptor render_pass_descriptor {};
-        render_pass_descriptor.label = "line render render pass";
-        render_pass_descriptor.colorAttachmentCount = 1;
-        render_pass_descriptor.colorAttachments = &color_attachment;
-        render_pass_descriptor.depthStencilAttachment = &depth_stencil_attachment;
-        render_pass_descriptor.timestampWrites = nullptr;
-        auto render_pass = std::make_unique<webgpu::raii::RenderPassEncoder>(command_encoder, render_pass_descriptor);
-
-        wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 0, m_shared_config_bind_group->handle(), 0, nullptr);
-        wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 1, m_camera_bind_group->handle(), 0, nullptr);
-        wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 2, m_lines_bind_group->handle(), 0, nullptr);
-        wgpuRenderPassEncoderSetPipeline(render_pass->handle(), m_pipeline_manager->lines_render_pipeline().handle());
-        wgpuRenderPassEncoderDraw(render_pass->handle(), uint32_t(m_points.size()), 1, 0, 0);
+        m_track_renderer->render(command_encoder, *m_shared_config_bind_group, *m_camera_bind_group, m_gbuffer->depth_texture_view());
     }
 
     // render geometry buffers to target framebuffer

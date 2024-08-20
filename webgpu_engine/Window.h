@@ -21,6 +21,7 @@
 #include "PipelineManager.h"
 #include "ShaderModuleManager.h"
 #include "TileManager.h"
+#include "TrackRenderer.h"
 #include "UniformBufferObjects.h"
 #include "compute/nodes/NodeGraph.h"
 #include "nucleus/AbstractRenderWindow.h"
@@ -115,11 +116,7 @@ private:
 
     std::unique_ptr<compute::nodes::NodeGraph> m_compute_graph;
 
-    // TODO move somewhere else
-    std::unique_ptr<webgpu::raii::TextureWithSampler> m_lines_texture;
-    std::vector<glm::fvec4> m_points;
-    std::unique_ptr<webgpu::raii::RawBuffer<glm::fvec4>> m_points_buffer;
-    std::unique_ptr<webgpu::raii::BindGroup> m_lines_bind_group;
+    std::unique_ptr<TrackRenderer> m_track_renderer;
 };
 
 } // namespace webgpu_engine

@@ -29,6 +29,7 @@ set(SOURCES
     TileSet.h
     TileManager.h TileManager.cpp
     Buffer.h Buffer.cpp
+    TrackRenderer.h TrackRenderer.cpp
 
     compute/GpuHashMap.h compute/GpuHashMap.cpp
     compute/GpuTileStorage.h compute/GpuTileStorage.cpp
