@@ -78,8 +78,7 @@ public:
     uint32_t m_height_lines_enabled = false;
     uint32_t m_csm_enabled = false;
     uint32_t m_overlay_shadowmaps_enabled = false;
-    uint32_t m_padi1 = 0;
-
+    uint32_t m_render_tracks_enabled = false;
 };
 
 struct uboCameraConfig {

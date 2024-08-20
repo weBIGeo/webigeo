@@ -32,6 +32,7 @@
 @group(2) @binding(1) var position_texture : texture_2d<f32>;
 @group(2) @binding(2) var normal_texture : texture_2d<u32>;
 @group(2) @binding(3) var atmosphere_texture : texture_2d<f32>;
+@group(2) @binding(4) var lines_texture : texture_2d<f32>;
 
 // Calculates the diffuse and specular illumination contribution for the given
 // parameters according to the Blinn-Phong lighting model.
@@ -214,6 +215,14 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
     }
 
     */
+
+    if (bool(conf.render_tracks_enabled)) {
+        // for now, just render lines on top of everything else
+        let lines_color = textureLoad(lines_texture, tci, 0).rgb;
+        if (any(lines_color > vec3f(0))) {
+            out_Color = vec4f(lines_color, 1);
+        }
+    }
 
     return out_Color;
 }

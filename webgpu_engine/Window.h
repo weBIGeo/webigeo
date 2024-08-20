@@ -114,6 +114,12 @@ private:
     bool m_needs_redraw = true;
 
     std::unique_ptr<compute::nodes::NodeGraph> m_compute_graph;
+
+    // TODO move somewhere else
+    std::unique_ptr<webgpu::raii::TextureWithSampler> m_lines_texture;
+    std::vector<glm::fvec4> m_points;
+    std::unique_ptr<webgpu::raii::RawBuffer<glm::fvec4>> m_points_buffer;
+    std::unique_ptr<webgpu::raii::BindGroup> m_lines_bind_group;
 };
 
 } // namespace webgpu_engine

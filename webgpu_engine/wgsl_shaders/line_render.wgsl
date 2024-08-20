@@ -1,7 +1,6 @@
 /*****************************************************************************
  * weBIGeo
  * Copyright (C) 2024 Patrick Komon
- * Copyright (C) 2023 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,32 +16,36 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-struct shared_config {
-    sun_light: vec4f,
-    sun_light_dir: vec4f,
-    amb_light: vec4f,
-    material_color: vec4f,
-    material_light_response: vec4f,
-    snow_settings_angle: vec4f,
-    snow_settings_alt: vec4f,
+#include "shared_config.wgsl"
+#include "camera_config.wgsl"
 
-    overlay_strength: f32,
-    ssao_falloff_to_value: f32,
-    padf1: f32,
-    padf2: f32,
+@group(0) @binding(0) var<uniform> config: shared_config;
 
-    phong_enabled: u32,
-    normal_mode: u32,
-    overlay_mode: u32,
-    overlay_postshading_enabled: u32,
+@group(1) @binding(0) var<uniform> camera: camera_config;
 
-    ssao_enabled: u32,
-    ssao_kernel: u32,
-    ssao_range_check: u32,
-    ssao_blur_kernel_size: u32,
+@group(2) @binding(0) var<storage> positions: array<vec4f>;
 
-    height_lines_enabled: u32,
-    csm_enabled: u32,
-    overlay_shadowmaps_enabled: u32,
-    render_tracks_enabled: u32,
-};
+struct VertexOut {
+    @builtin(position) position: vec4f,
+}
+
+struct FragOut {
+    @location(0) color: vec4f,
+}
+
+@vertex
+fn vertexMain(@builtin(vertex_index) vertex_index: u32) -> VertexOut {
+    
+    var vertex_out: VertexOut;
+    let pos = positions[vertex_index];
+    
+    vertex_out.position = camera.view_proj_matrix * vec4f(pos.xyz - camera.position.xyz, 1);
+    return vertex_out;
+}
+
+@fragment
+fn fragmentMain(vertex_out: VertexOut) -> FragOut {
+    var frag_out: FragOut;
+    frag_out.color = vec4f(1, 0, 0, 1);
+    return frag_out;
+}

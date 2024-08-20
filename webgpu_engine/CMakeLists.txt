@@ -69,6 +69,7 @@ qt_add_resources(webgpu_engine "shaders"
         "wgsl_shaders/snow.wgsl"
         "wgsl_shaders/snow_compute.wgsl"
         "wgsl_shaders/upsample_textures_compute.wgsl"
+        "wgsl_shaders/line_render.wgsl"
 )
 
 # Note: This has to go into the webgpu_app as soon as we don't use ImGui in the engine anymore!!!
