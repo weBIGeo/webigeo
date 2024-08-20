@@ -19,20 +19,19 @@
 #pragma once
 
 #include "Node.h"
-#include "nucleus/tile_scheduler/TileLoadService.h"
 
 namespace webgpu_engine::compute::nodes {
 
-class TileRequestNode : public Node {
+class SelectTilesNode : public Node {
     Q_OBJECT
 
 public:
-    enum Input : SocketIndex { TILE_ID_LIST = 0 };
-    enum Output : SocketIndex { TILE_TEXTURE_LIST = 0 };
+    using TileIdGenerator = std::function<std::vector<tile::Id>()>;
 
-    TileRequestNode();
+    enum Input {};
+    enum Output { TILE_ID_LIST = 0 };
 
-    void on_single_tile_received(const nucleus::tile_scheduler::tile_types::TileLayer& tile);
+    SelectTilesNode(const TileIdGenerator& tile_id_generator);
 
 public slots:
     void run_impl() override;
@@ -41,11 +40,7 @@ protected:
     Data get_output_data_impl(SocketIndex output_index) override;
 
 private:
-    std::unique_ptr<nucleus::tile_scheduler::TileLoadService> m_tile_loader;
-    size_t m_num_tiles_received = 0;
-    size_t m_num_tiles_requested = 0;
-    std::vector<QByteArray> m_received_tile_textures;
-    std::vector<tile::Id> m_requested_tile_ids;
+    TileIdGenerator m_tile_id_generator;
+    std::vector<tile::Id> m_output_tile_ids;
 };
-
 } // namespace webgpu_engine::compute::nodes

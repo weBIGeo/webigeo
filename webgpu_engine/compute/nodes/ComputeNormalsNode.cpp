@@ -16,16 +16,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "NormalComputeNode.h"
+#include "ComputeNormalsNode.h"
 
 #include "nucleus/srs.h"
 #include <QDebug>
 
 namespace webgpu_engine::compute::nodes {
 
-glm::uvec3 NormalComputeNode::SHADER_WORKGROUP_SIZE = { 1, 16, 16 };
+glm::uvec3 ComputeNormalsNode::SHADER_WORKGROUP_SIZE = { 1, 16, 16 };
 
-NormalComputeNode::NormalComputeNode(
+ComputeNormalsNode::ComputeNormalsNode(
     const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, SocketIndex capacity, WGPUTextureFormat output_format)
     : Node({ data_type<const std::vector<tile::Id>*>(), data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>() },
         { data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>() })
@@ -41,7 +41,7 @@ NormalComputeNode::NormalComputeNode(
     m_output_tile_map.update_gpu_data();
 }
 
-void NormalComputeNode::run_impl()
+void ComputeNormalsNode::run_impl()
 {
     qDebug() << "running NormalComputeNode ...";
 
@@ -117,13 +117,13 @@ void NormalComputeNode::run_impl()
     wgpuQueueOnSubmittedWorkDone(
         m_queue,
         []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
-            NormalComputeNode* _this = reinterpret_cast<NormalComputeNode*>(user_data);
+            ComputeNormalsNode* _this = reinterpret_cast<ComputeNormalsNode*>(user_data);
             _this->run_finished(); // emits signal run_finished()
         },
         this);
 }
 
-Data NormalComputeNode::get_output_data_impl(SocketIndex output_index)
+Data ComputeNormalsNode::get_output_data_impl(SocketIndex output_index)
 {
     switch (output_index) {
     case Output::OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP:

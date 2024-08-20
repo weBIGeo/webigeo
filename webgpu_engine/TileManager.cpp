@@ -22,7 +22,6 @@
 
 #include "nucleus/camera/Definition.h"
 #include "nucleus/utils/terrain_mesh_index_generator.h"
-#include "webgpu_engine/compute/nodes/SnowComputeNode.h"
 #include <QDebug>
 
 using webgpu_engine::TileManager;

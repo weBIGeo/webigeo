@@ -24,7 +24,7 @@
 namespace webgpu_engine::compute::nodes {
 
 /// GPU compute node, calling run executes code on the GPU
-class NormalComputeNode : public Node {
+class ComputeNormalsNode : public Node {
     Q_OBJECT
 
 public:
@@ -33,7 +33,7 @@ public:
 
     static glm::uvec3 SHADER_WORKGROUP_SIZE; // TODO currently hardcoded in shader! can we somehow not hardcode it? maybe using overrides
 
-    NormalComputeNode(
+    ComputeNormalsNode(
         const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity, WGPUTextureFormat output_format);
 
     const GpuHashMap<tile::Id, uint32_t, GpuTileId>& hash_map() const { return m_output_tile_map; }

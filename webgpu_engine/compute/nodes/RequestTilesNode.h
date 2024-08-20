@@ -16,28 +16,36 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "TileSelectNode.h"
+#pragma once
 
-#include "../RectangularTileRegion.h"
-#include <QDebug>
+#include "Node.h"
+#include "nucleus/tile_scheduler/TileLoadService.h"
 
 namespace webgpu_engine::compute::nodes {
 
-TileSelectNode::TileSelectNode(const TileIdGenerator& tile_id_generator)
-    : Node({}, { data_type<const std::vector<tile::Id>*>() })
-    , m_tile_id_generator(tile_id_generator)
-{
-}
+class RequestTilesNode : public Node {
+    Q_OBJECT
 
-void TileSelectNode::run_impl()
-{
-    qDebug() << "running TileSelectNode ...";
-    m_output_tile_ids.clear();
-    const auto& tile_ids = m_tile_id_generator();
-    m_output_tile_ids.insert(m_output_tile_ids.begin(), tile_ids.begin(), tile_ids.end());
-    emit run_finished();
-}
+public:
+    enum Input : SocketIndex { TILE_ID_LIST = 0 };
+    enum Output : SocketIndex { TILE_TEXTURE_LIST = 0 };
 
-Data TileSelectNode::get_output_data_impl([[maybe_unused]] SocketIndex output_index) { return { &m_output_tile_ids }; }
+    RequestTilesNode();
+
+    void on_single_tile_received(const nucleus::tile_scheduler::tile_types::TileLayer& tile);
+
+public slots:
+    void run_impl() override;
+
+protected:
+    Data get_output_data_impl(SocketIndex output_index) override;
+
+private:
+    std::unique_ptr<nucleus::tile_scheduler::TileLoadService> m_tile_loader;
+    size_t m_num_tiles_received = 0;
+    size_t m_num_tiles_requested = 0;
+    std::vector<QByteArray> m_received_tile_textures;
+    std::vector<tile::Id> m_requested_tile_ids;
+};
 
 } // namespace webgpu_engine::compute::nodes

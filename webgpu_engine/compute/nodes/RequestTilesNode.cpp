@@ -16,21 +16,21 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "TileRequestNode.h"
+#include "RequestTilesNode.h"
 
 #include <QDebug>
 
 namespace webgpu_engine::compute::nodes {
 
-TileRequestNode::TileRequestNode()
+RequestTilesNode::RequestTilesNode()
     : Node({ data_type<const std::vector<tile::Id>*>() }, { data_type<const std::vector<QByteArray>*>() })
     , m_tile_loader { std::make_unique<nucleus::tile_scheduler::TileLoadService>(
           "https://alpinemaps.cg.tuwien.ac.at/tiles/alpine_png/", nucleus::tile_scheduler::TileLoadService::UrlPattern::ZXY, ".png") } // TODO dont hardcode
 {
-    connect(m_tile_loader.get(), &nucleus::tile_scheduler::TileLoadService::load_finished, this, &TileRequestNode::on_single_tile_received);
+    connect(m_tile_loader.get(), &nucleus::tile_scheduler::TileLoadService::load_finished, this, &RequestTilesNode::on_single_tile_received);
 }
 
-void TileRequestNode::run_impl()
+void RequestTilesNode::run_impl()
 {
     qDebug() << "running HeightRequestNode ...";
 
@@ -49,9 +49,9 @@ void TileRequestNode::run_impl()
     }
 }
 
-Data TileRequestNode::get_output_data_impl([[maybe_unused]] SocketIndex output_index) { return { &m_received_tile_textures }; }
+Data RequestTilesNode::get_output_data_impl([[maybe_unused]] SocketIndex output_index) { return { &m_received_tile_textures }; }
 
-void TileRequestNode::on_single_tile_received(const nucleus::tile_scheduler::tile_types::TileLayer& tile)
+void RequestTilesNode::on_single_tile_received(const nucleus::tile_scheduler::tile_types::TileLayer& tile)
 {
     auto found_it = std::find(m_requested_tile_ids.begin(), m_requested_tile_ids.end(), tile.id);
 

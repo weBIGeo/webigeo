@@ -16,31 +16,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#pragma once
+#include "SelectTilesNode.h"
 
-#include "Node.h"
+#include "../RectangularTileRegion.h"
+#include <QDebug>
 
 namespace webgpu_engine::compute::nodes {
 
-class TileSelectNode : public Node {
-    Q_OBJECT
+SelectTilesNode::SelectTilesNode(const TileIdGenerator& tile_id_generator)
+    : Node({}, { data_type<const std::vector<tile::Id>*>() })
+    , m_tile_id_generator(tile_id_generator)
+{
+}
 
-public:
-    using TileIdGenerator = std::function<std::vector<tile::Id>()>;
+void SelectTilesNode::run_impl()
+{
+    qDebug() << "running TileSelectNode ...";
+    m_output_tile_ids.clear();
+    const auto& tile_ids = m_tile_id_generator();
+    m_output_tile_ids.insert(m_output_tile_ids.begin(), tile_ids.begin(), tile_ids.end());
+    emit run_finished();
+}
 
-    enum Input {};
-    enum Output { TILE_ID_LIST = 0 };
+Data SelectTilesNode::get_output_data_impl([[maybe_unused]] SocketIndex output_index) { return { &m_output_tile_ids }; }
 
-    TileSelectNode(const TileIdGenerator& tile_id_generator);
-
-public slots:
-    void run_impl() override;
-
-protected:
-    Data get_output_data_impl(SocketIndex output_index) override;
-
-private:
-    TileIdGenerator m_tile_id_generator;
-    std::vector<tile::Id> m_output_tile_ids;
-};
 } // namespace webgpu_engine::compute::nodes

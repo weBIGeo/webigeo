@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "SnowComputeNode.h"
+#include "ComputeSnowNode.h"
 
 #include "nucleus/srs.h"
 #include "nucleus/stb/stb_image_writer.h"
@@ -25,9 +25,9 @@
 
 namespace webgpu_engine::compute::nodes {
 
-glm::uvec3 SnowComputeNode::SHADER_WORKGROUP_SIZE = { 1, 16, 16 };
+glm::uvec3 ComputeSnowNode::SHADER_WORKGROUP_SIZE = { 1, 16, 16 };
 
-webgpu_engine::compute::nodes::SnowComputeNode::SnowComputeNode(
+webgpu_engine::compute::nodes::ComputeSnowNode::ComputeSnowNode(
     const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity, WGPUTextureFormat output_format)
     : Node({ data_type<const std::vector<tile::Id>*>(), data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>() },
         { data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>() })
@@ -46,7 +46,7 @@ webgpu_engine::compute::nodes::SnowComputeNode::SnowComputeNode(
     m_output_tile_map.update_gpu_data();
 }
 
-void SnowComputeNode::run_impl()
+void ComputeSnowNode::run_impl()
 {
     qDebug() << "running SnowComputeNode ...";
 
@@ -134,7 +134,7 @@ void SnowComputeNode::run_impl()
     wgpuQueueOnSubmittedWorkDone(
         m_queue,
         []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
-            SnowComputeNode* _this = reinterpret_cast<SnowComputeNode*>(user_data);
+            ComputeSnowNode* _this = reinterpret_cast<ComputeSnowNode*>(user_data);
             _this->run_finished(); // emits signal run_finished()
 
             const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(_this->get_input_data(0)); // list of tile ids to process
@@ -159,7 +159,7 @@ void SnowComputeNode::run_impl()
         this);
 }
 
-Data SnowComputeNode::get_output_data_impl(SocketIndex output_index)
+Data ComputeSnowNode::get_output_data_impl(SocketIndex output_index)
 {
     switch (output_index) {
     case Output::OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP:

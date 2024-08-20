@@ -16,16 +16,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "DownsampleComputeNode.h"
+#include "DownsampleTilesNode.h"
 
 #include <QDebug>
 #include <unordered_set>
 
 namespace webgpu_engine::compute::nodes {
 
-glm::uvec3 DownsampleComputeNode::SHADER_WORKGROUP_SIZE = { 1, 16, 16 };
+glm::uvec3 DownsampleTilesNode::SHADER_WORKGROUP_SIZE = { 1, 16, 16 };
 
-DownsampleComputeNode::DownsampleComputeNode(const PipelineManager& pipeline_manager, WGPUDevice device, size_t capacity, size_t num_downsample_levels)
+DownsampleTilesNode::DownsampleTilesNode(const PipelineManager& pipeline_manager, WGPUDevice device, size_t capacity, size_t num_downsample_levels)
     : Node({ data_type<const std::vector<tile::Id>*>(), data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>() },
         { data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>() })
     , m_pipeline_manager { &pipeline_manager }
@@ -38,14 +38,14 @@ DownsampleComputeNode::DownsampleComputeNode(const PipelineManager& pipeline_man
     assert(m_num_downsample_steps > 0 && m_num_downsample_steps < 18);
 }
 
-GpuHashMap<tile::Id, uint32_t, GpuTileId>& DownsampleComputeNode::hash_map()
+GpuHashMap<tile::Id, uint32_t, GpuTileId>& DownsampleTilesNode::hash_map()
 {
     return *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(get_input_data(Input::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP));
 }
 
-TileStorageTexture& DownsampleComputeNode::texture_storage() { return *std::get<data_type<TileStorageTexture*>()>(get_input_data(Input::TEXTURE_ARRAY)); }
+TileStorageTexture& DownsampleTilesNode::texture_storage() { return *std::get<data_type<TileStorageTexture*>()>(get_input_data(Input::TEXTURE_ARRAY)); }
 
-void DownsampleComputeNode::run_impl()
+void DownsampleTilesNode::run_impl()
 {
     qDebug() << "running DownsampleTilesNode ...";
 
@@ -82,14 +82,14 @@ void DownsampleComputeNode::run_impl()
     wgpuQueueOnSubmittedWorkDone(
         m_queue,
         []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
-            DownsampleComputeNode* _this = reinterpret_cast<DownsampleComputeNode*>(user_data);
+            DownsampleTilesNode* _this = reinterpret_cast<DownsampleTilesNode*>(user_data);
             _this->m_internal_storage_texture.release(); // release texture array when done
             _this->run_finished(); // emits signal run_finished()
         },
         this);
 }
 
-Data DownsampleComputeNode::get_output_data_impl(SocketIndex output_index)
+Data DownsampleTilesNode::get_output_data_impl(SocketIndex output_index)
 {
     switch (output_index) {
     case Output::OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP:
@@ -100,7 +100,7 @@ Data DownsampleComputeNode::get_output_data_impl(SocketIndex output_index)
     exit(-1);
 }
 
-std::vector<tile::Id> DownsampleComputeNode::get_tile_ids_for_downsampled_tiles(const std::vector<tile::Id>& original_tile_ids)
+std::vector<tile::Id> DownsampleTilesNode::get_tile_ids_for_downsampled_tiles(const std::vector<tile::Id>& original_tile_ids)
 {
     std::unordered_set<tile::Id, tile::Id::Hasher> unique_downsampled_tile_ids;
     unique_downsampled_tile_ids.reserve(original_tile_ids.size());
@@ -114,7 +114,7 @@ std::vector<tile::Id> DownsampleComputeNode::get_tile_ids_for_downsampled_tiles(
     return downsampled_tile_ids;
 }
 
-void DownsampleComputeNode::compute_downsampled_tiles(const std::vector<tile::Id>& tile_ids)
+void DownsampleTilesNode::compute_downsampled_tiles(const std::vector<tile::Id>& tile_ids)
 {
     auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(
         get_input_data(Input::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP)); // hash map for height lookup

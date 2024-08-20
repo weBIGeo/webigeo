@@ -19,11 +19,13 @@
 #pragma once
 
 #include "Node.h"
+#include "webgpu_engine/Buffer.h"
 #include "webgpu_engine/PipelineManager.h"
 
 namespace webgpu_engine::compute::nodes {
 
-class DownsampleComputeNode : public Node {
+/// GPU compute node, calling run executes code on the GPU
+class ComputeSnowNode : public Node {
     Q_OBJECT
 
 public:
@@ -32,12 +34,16 @@ public:
 
     static glm::uvec3 SHADER_WORKGROUP_SIZE; // TODO currently hardcoded in shader! can we somehow not hardcode it? maybe using overrides
 
-public:
-    DownsampleComputeNode(const PipelineManager& pipeline_manager, WGPUDevice device, size_t capacity, size_t num_downsample_levels = 1);
+    struct SnowSettings {
+        glm::vec4 angle;
+        glm::vec4 alt;
+    };
 
-    GpuHashMap<tile::Id, uint32_t, GpuTileId>& hash_map();
+    ComputeSnowNode(
+        const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity, WGPUTextureFormat output_format);
 
-    TileStorageTexture& texture_storage();
+    const GpuHashMap<tile::Id, uint32_t, GpuTileId>& hash_map() const { return m_output_tile_map; }
+    const TileStorageTexture& texture_storage() const { return m_output_texture; }
 
 public slots:
     void run_impl() override;
@@ -46,18 +52,22 @@ protected:
     Data get_output_data_impl(SocketIndex output_index) override;
 
 private:
-    static std::vector<tile::Id> get_tile_ids_for_downsampled_tiles(const std::vector<tile::Id>& original_tile_ids);
-    void compute_downsampled_tiles(const std::vector<tile::Id>& tile_ids);
-
-private:
     const PipelineManager* m_pipeline_manager;
     WGPUDevice m_device;
     WGPUQueue m_queue;
+    size_t m_capacity;
+    bool m_should_output_files;
 
-    size_t m_num_downsample_steps; // how many zoomlevels should be downsampled
-    webgpu::raii::RawBuffer<GpuTileId> m_input_tile_ids; // tile ids of (to be calculated) downsampled tiles
-    std::unique_ptr<TileStorageTexture> m_internal_storage_texture; // stores output of downsampling before it is copied back to input hashmap
-    std::unique_ptr<webgpu::raii::BindGroup> m_compute_bind_group;
+    // calculated on cpu-side before each invocation
+    webgpu::raii::RawBuffer<glm::vec4> m_tile_bounds; // aabb per tile
+
+    // input
+    webgpu::raii::RawBuffer<GpuTileId> m_input_tile_ids; // tile ids for which to calculate normals
+    webgpu_engine::Buffer<SnowSettings> m_input_snow_settings; // settings for snow overlay
+
+    // output
+    GpuHashMap<tile::Id, uint32_t, GpuTileId> m_output_tile_map; // hash map
+    TileStorageTexture m_output_texture; // texture per tile
 };
 
 } // namespace webgpu_engine::compute::nodes
