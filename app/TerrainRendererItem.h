@@ -3,6 +3,7 @@
  * Copyright (C) 2017 Klarälvdalens Datakonsult AB, a KDAB Group company (Giuseppe D'Angelo)
  * Copyright (C) 2023 Adam Celarek
  * Copyright (C) 2023 Gerald Kimmersdorfer
+ * Copyright (C) 2024 Jakob Maier
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,23 +21,26 @@
 
 #pragma once
 
-#include <QQuickFramebufferObject>
-#include <QTimer>
-#include <QList>
-#include <QString>
-#include <QVector3D>
-#include <QVector2D>
 #include <QDateTime>
-#include <map>
+#include <QList>
+#include <QQmlEngine>
+#include <QQuickFramebufferObject>
+#include <QString>
+#include <QVector2D>
+#include <QVector3D>
 
-#include "nucleus/camera/Definition.h"
-#include "nucleus/event_parameter.h"
-#include "gl_engine/UniformBufferObjects.h"
-#include "timing/TimerFrontendManager.h"
+#include <gl_engine/UniformBufferObjects.h>
+#include <nucleus/camera/Definition.h>
+#include <nucleus/event_parameter.h>
+
 #include "AppSettings.h"
+#include "timing/TimerFrontendManager.h"
+
+class QTimer;
 
 class TerrainRendererItem : public QQuickFramebufferObject {
     Q_OBJECT
+    QML_NAMED_ELEMENT(TerrainRenderer)
     Q_PROPERTY(int frame_limit READ frame_limit WRITE set_frame_limit NOTIFY frame_limit_changed)
     Q_PROPERTY(nucleus::camera::Definition camera READ camera NOTIFY camera_changed)
     Q_PROPERTY(int camera_width READ camera_width NOTIFY camera_width_changed)

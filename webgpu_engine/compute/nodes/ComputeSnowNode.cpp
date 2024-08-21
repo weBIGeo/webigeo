@@ -150,8 +150,9 @@ void ComputeSnowNode::run_impl()
                         QString file_name
                             = QString::number(tile_id.coords.x) + "_" + QString::number(tile_id.coords.y) + "_" + QString::number(tile_id.zoom_level) + ".png";
 
-                        nucleus::stb::write_8bit_rgba_image_to_file_bmp(
-                            *data, _this->texture_storage().width(), _this->texture_storage().height(), dir + "/" + file_name);
+                        // TODO deprecated, move old nucleus/stb/stb_image_writer.h to nucleus/utils/image_writer.h
+                        // nucleus::stb::write_8bit_rgba_image_to_file_bmp(
+                        //     *data, _this->texture_storage().width(), _this->texture_storage().height(), dir + "/" + file_name);
                     });
             }
             

@@ -18,7 +18,7 @@
 
 #include "GpuTileStorage.h"
 
-#include "nucleus/stb/stb_image_loader.h"
+#include "nucleus/utils/image_loader.h"
 #include "nucleus/utils/tile_conversion.h"
 
 namespace webgpu_engine::compute {
@@ -60,8 +60,8 @@ void TileStorageTexture::store(size_t layer, const QByteArray& data)
     assert(layer < m_capacity);
 
     // convert to raster and store in texture array
-    const nucleus::Raster<glm::u8vec4> height_image = nucleus::stb::load_8bit_rgba_image_from_memory(data);
-    const auto heightraster = nucleus::utils::tile_conversion::u8vec4raster_to_u16raster(height_image);
+    const nucleus::Raster<glm::u8vec4> height_image = nucleus::utils::image_loader::rgba8(data);
+    const auto heightraster = nucleus::utils::tile_conversion::to_u16raster(height_image);
     m_texture_array->texture().write(m_queue, heightraster, uint32_t(layer));
 
     set_layer_used(layer);

@@ -27,7 +27,7 @@
 #include "WebInterop.h"
 #include <emscripten/emscripten.h>
 #else
-#include "nucleus/stb/stb_image_loader.h"
+#include "nucleus/utils/image_loader.h"
 #endif
 
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
@@ -100,7 +100,7 @@ void TerrainRenderer::init_window() {
 
 #ifndef __EMSCRIPTEN__
     // Load Icon for Window
-    auto icon = nucleus::stb::load_8bit_rgba_image_from_file(":/icons/logo32.png");
+    auto icon = nucleus::utils::image_loader::rgba8(":/icons/logo32.png");
     GLFWimage image = { int(icon.width()), int(icon.height()), icon.bytes() };
     glfwSetWindowIcon(m_window, 1, &image);
 #endif
@@ -311,7 +311,7 @@ void TerrainRenderer::start() {
     m_gui_manager->shutdown();
 #endif
     webgpu_release_context();
-    m_webgpu_window->deinit_gpu();
+    m_webgpu_window->destroy();
 
     glfwDestroyWindow(m_window);
     glfwTerminate();

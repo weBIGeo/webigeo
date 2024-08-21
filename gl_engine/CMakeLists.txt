@@ -37,9 +37,18 @@ qt_add_library(gl_engine STATIC
     SSAO.h SSAO.cpp
     ShadowMapping.h ShadowMapping.cpp
     GpuAsyncQueryTimer.h GpuAsyncQueryTimer.cpp
-    MapLabelManager.h MapLabelManager.cpp
     Texture.h Texture.cpp
+    TrackManager.h TrackManager.cpp
+    Context.h Context.cpp
 )
+
+if(ALP_ENABLE_LABELS)
+    target_sources(gl_engine PRIVATE
+        MapLabelManager.h MapLabelManager.cpp
+    )
+    target_compile_definitions(gl_engine PUBLIC ALP_ENABLE_LABELS)
+endif()
+
 target_link_libraries(gl_engine PUBLIC nucleus Qt::OpenGL)
 target_include_directories(gl_engine PRIVATE .)
 
@@ -69,6 +78,10 @@ qt_add_resources(gl_engine "shaders"
     shaders/snow.glsl
     shaders/tile.glsl
     shaders/tile_id.glsl
+    shaders/track.frag
+    shaders/track.vert
+    shaders/turbo_colormap.glsl
+    shaders/intersection.glsl
 )
 target_compile_definitions(gl_engine PUBLIC ALP_RESOURCES_PREFIX="${CMAKE_CURRENT_SOURCE_DIR}/shaders/")
 

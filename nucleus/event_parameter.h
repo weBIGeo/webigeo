@@ -20,9 +20,8 @@
 
 #pragma once
 
-
-#include <QPoint>
 #include <QMetaType>
+#include <QPoint>
 #include <glm/glm.hpp>
 #include <vector>
 
@@ -62,7 +61,7 @@ struct Mouse {
     bool is_begin_event = false;
     bool is_end_event = false;
     bool is_update_event = false;
-    Qt::MouseButton button = Qt::NoButton; //TODO unused?
+    Qt::MouseButton button = Qt::NoButton; // currently unused, but should contain the button that triggered the event.
     Qt::MouseButtons buttons;
     EventPoint point;
 };
@@ -74,7 +73,7 @@ struct Wheel {
     QPoint angle_delta;
     EventPoint point;
 };
-}
+} // namespace nucleus::event_parameter
 Q_DECLARE_METATYPE(nucleus::event_parameter::Touch)
 Q_DECLARE_METATYPE(nucleus::event_parameter::Mouse)
 Q_DECLARE_METATYPE(nucleus::event_parameter::Wheel)

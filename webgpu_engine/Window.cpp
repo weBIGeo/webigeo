@@ -288,7 +288,7 @@ glm::dvec3 Window::position([[maybe_unused]] const glm::dvec2& normalised_device
     return m_camera.position() + glm::dvec3(position.x, position.y, position.z);
 }
 
-void Window::deinit_gpu()
+void Window::destroy()
 {
     m_pipeline_manager->release_pipelines();
     m_shader_manager->release_shader_modules();
