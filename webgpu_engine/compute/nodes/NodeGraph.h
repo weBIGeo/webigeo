@@ -1,6 +1,7 @@
 /*****************************************************************************
  * weBIGeo
  * Copyright (C) 2024 Patrick Komon
+ * Copyright (C) 2024 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,7 +34,7 @@ class NodeGraph : public QObject {
 public:
     NodeGraph() = default;
 
-    void add_node(std::unique_ptr<Node> node);
+    Node* add_node(std::unique_ptr<Node> node);
 
     Node& get_node(size_t node_index);
     const Node& get_node(size_t node_index) const;
@@ -48,6 +49,11 @@ public:
     const TileStorageTexture& output_texture_storage() const;
     TileStorageTexture& output_texture_storage();
 
+    const GpuHashMap<tile::Id, uint32_t, GpuTileId>& output_hash_map_2() const;
+    GpuHashMap<tile::Id, uint32_t, GpuTileId>& output_hash_map_2();
+    const TileStorageTexture& output_texture_storage_2() const;
+    TileStorageTexture& output_texture_storage_2();
+
 public slots:
     void run();
 
@@ -57,11 +63,15 @@ signals:
 public:
     static std::unique_ptr<NodeGraph> create_normal_compute_graph(const PipelineManager& manager, WGPUDevice device);
     static std::unique_ptr<NodeGraph> create_snow_compute_graph(const PipelineManager& manager, WGPUDevice device);
+    static std::unique_ptr<NodeGraph> create_normal_with_snow_compute_graph(const PipelineManager& manager, WGPUDevice device);
 
 private:
     std::vector<std::unique_ptr<Node>> m_nodes;
     GpuHashMap<tile::Id, uint32_t, GpuTileId>* m_output_hash_map_ptr;
     TileStorageTexture* m_output_texture_storage_ptr;
+
+    GpuHashMap<tile::Id, uint32_t, GpuTileId>* m_output_hash_map_ptr_2;
+    TileStorageTexture* m_output_texture_storage_ptr_2;
 };
 
 } // namespace webgpu_engine::compute::nodes

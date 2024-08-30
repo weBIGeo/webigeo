@@ -65,7 +65,7 @@ void Window::initialise_gpu()
     m_pipeline_manager->create_pipelines();
     create_bind_groups();
 
-    m_compute_graph = compute::nodes::NodeGraph::create_normal_compute_graph(*m_pipeline_manager, m_device);
+    m_compute_graph = compute::nodes::NodeGraph::create_normal_with_snow_compute_graph(*m_pipeline_manager, m_device);
     connect(m_compute_graph.get(), &compute::nodes::NodeGraph::run_finished, this, &Window::request_redraw);
 
     m_tile_manager->init(m_device, m_queue, *m_pipeline_manager, *m_compute_graph);
@@ -369,12 +369,18 @@ void Window::create_bind_groups()
 
 void Window::update_required_gpu_limits(WGPULimits& limits, const WGPULimits& supported_limits)
 {
+    const uint32_t max_required_bind_groups = 4u;
+
     if (supported_limits.maxColorAttachmentBytesPerSample < 32u) {
         qFatal("Minimum supported maxColorAttachmentBytesPerSample needs to be >=32");
     }
     if (supported_limits.maxTextureArrayLayers < 1024u) {
         qWarning() << "Minimum supported maxTextureArrayLayers is " << supported_limits.maxTextureArrayLayers << " (1024 recommended)!";
     }
+    if (supported_limits.maxBindGroups < max_required_bind_groups) {
+        qFatal() << "Maximum amount of bindgroups is " << supported_limits.maxBindGroups << " and " << max_required_bind_groups << " are required";
+    }
+    limits.maxBindGroups = std::max(limits.maxBindGroups, max_required_bind_groups);
     limits.maxColorAttachmentBytesPerSample = std::max(limits.maxColorAttachmentBytesPerSample, 32u);
     limits.maxTextureArrayLayers = std::min(std::max(limits.maxTextureArrayLayers, 1024u), supported_limits.maxTextureArrayLayers);
 }

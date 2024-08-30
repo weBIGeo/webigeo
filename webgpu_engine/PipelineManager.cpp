@@ -473,8 +473,15 @@ void PipelineManager::create_overlay_bind_group_layout()
     overlay_input_overlay_textures_entry.texture.sampleType = WGPUTextureSampleType_Float;
     overlay_input_overlay_textures_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
 
+    WGPUBindGroupLayoutEntry overlay_input_overlay_textures_entry_2 {};
+    overlay_input_overlay_textures_entry_2.binding = 3;
+    overlay_input_overlay_textures_entry_2.visibility = WGPUShaderStage_Fragment;
+    overlay_input_overlay_textures_entry_2.texture.sampleType = WGPUTextureSampleType_Float;
+    overlay_input_overlay_textures_entry_2.texture.viewDimension = WGPUTextureViewDimension_2DArray;
+
     m_overlay_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
-        std::vector<WGPUBindGroupLayoutEntry> { overlay_key_buffer_entry, overlay_value_buffer_entry, overlay_input_overlay_textures_entry },
+        std::vector<WGPUBindGroupLayoutEntry> {
+            overlay_key_buffer_entry, overlay_value_buffer_entry, overlay_input_overlay_textures_entry, overlay_input_overlay_textures_entry_2 },
         "overlay bind group layout");
 }
 
