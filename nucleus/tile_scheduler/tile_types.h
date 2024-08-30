@@ -83,7 +83,9 @@ struct LayeredTile {
     NetworkInfo network_info;
     std::shared_ptr<QByteArray> ortho;
     std::shared_ptr<QByteArray> height;
+#ifdef ALP_ENABLE_LABELS
     std::shared_ptr<QByteArray> vector_tile;
+#endif
 };
 static_assert(NamedTile<LayeredTile>);
 

@@ -25,8 +25,14 @@ LayerAssembler::LayerAssembler(QObject* parent)
 {
 }
 
+#ifdef ALP_ENABLE_LABELS
 size_t LayerAssembler::n_items_in_flight() const { return m_height_data.size() + m_ortho_data.size() + m_vector_tile_data.size(); }
+#else
+size_t LayerAssembler::n_items_in_flight() const { return m_height_data.size() + m_ortho_data.size(); }
 
+#endif
+
+#ifdef ALP_ENABLE_LABELS
 tile_types::LayeredTile LayerAssembler::join(
     const tile_types::TileLayer& ortho_tile, const tile_types::TileLayer& height_tile, const tile_types::TileLayer& vector_tile)
 {
@@ -42,6 +48,21 @@ tile_types::LayeredTile LayerAssembler::join(
 
     return { ortho_tile.id, network_info, data_filter(ortho_tile.data), data_filter(height_tile.data), data_filter(vector_tile.data) };
 }
+#else
+tile_types::LayeredTile LayerAssembler::join(const tile_types::TileLayer& ortho_tile, const tile_types::TileLayer& height_tile)
+{
+    assert(ortho_tile.id == height_tile.id);
+    const auto network_info
+        = tile_types::NetworkInfo::join(ortho_tile.network_info, height_tile.network_info); //, vector_tile.network_info -> vector tile might be 404 if empty
+    const auto data_filter = [&network_info](const auto& d) {
+        if (network_info.status == tile_types::NetworkInfo::Status::Good)
+            return d;
+        return std::make_shared<QByteArray>();
+    };
+
+    return { ortho_tile.id, network_info, data_filter(ortho_tile.data), data_filter(height_tile.data) };
+}
+#endif
 
 void LayerAssembler::load(const tile::Id& tile_id)
 {
@@ -60,18 +81,32 @@ void LayerAssembler::deliver_height(const tile_types::TileLayer& tile)
     check_and_emit(tile.id);
 }
 
+#ifdef ALP_ENABLE_LABELS
 void LayerAssembler::deliver_vectortile(const tile_types::TileLayer& tile)
 {
     m_vector_tile_data[tile.id] = tile;
     check_and_emit(tile.id);
 }
+#endif
 
 void LayerAssembler::check_and_emit(const tile::Id& tile_id)
 {
-    if (m_ortho_data.contains(tile_id) && m_height_data.contains(tile_id) && m_vector_tile_data.contains(tile_id)) {
+#ifdef ALP_ENABLE_LABELS
+    if (m_ortho_data.contains(tile_id) && m_height_data.contains(tile_id) && m_vector_tile_data.contains(tile_id)
+
+#else
+    if (m_ortho_data.contains(tile_id) && m_height_data.contains(tile_id))
+#endif
+    {
+#ifdef ALP_ENABLE_LABELS
         emit tile_loaded(join(m_ortho_data[tile_id], m_height_data[tile_id], m_vector_tile_data[tile_id]));
+#else
+        emit tile_loaded(join(m_ortho_data[tile_id], m_height_data[tile_id]));
+#endif
         m_ortho_data.erase(tile_id);
         m_height_data.erase(tile_id);
+#ifdef ALP_ENABLE_LABELS
         m_vector_tile_data.erase(tile_id);
+#endif
     }
 }
