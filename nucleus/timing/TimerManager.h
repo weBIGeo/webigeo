@@ -31,7 +31,6 @@
 
 #include "TimerInterface.h"
 #include <memory>
-#include <mutex>
 
 namespace nucleus::timing {
 

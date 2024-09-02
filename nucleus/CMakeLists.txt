@@ -1,4 +1,4 @@
-#############################################################################
+ #############################################################################
 # Alpine Terrain Renderer
 # Copyright (C) 2023 Adam Celarek <family name at cg tuwien ac at>
 # Copyright (C) 2024 Lucas Dworschak
@@ -21,13 +21,16 @@
 
 project(alpine-renderer-nucleus LANGUAGES CXX)
 
-alp_add_git_repository(stb_slim URL https://github.com/AlpineMapsOrgDependencies/stb_slim.git COMMITISH c44329cf0aae422c5c144a043e2ca47e9d9cc204)
+alp_add_git_repository(stb_slim URL https://github.com/AlpineMapsOrgDependencies/stb_slim.git COMMITISH 547fade2a12793e1bea4733d59646b4f436e25a4)
 alp_add_git_repository(radix URL https://github.com/AlpineMapsOrg/radix.git COMMITISH v24.01.20 NOT_SYSTEM)
 alp_add_git_repository(tl_expected URL https://github.com/TartanLlama/expected.git COMMITISH v1.1.0 DO_NOT_ADD_SUBPROJECT)
 if (NOT TARGET fmt)
     alp_add_git_repository(fmt URL https://github.com/fmtlib/fmt.git COMMITISH 10.1.1)
 endif()
-alp_add_git_repository(zppbits URL https://github.com/eyalz800/zpp_bits.git COMMITISH v4.4.20 DO_NOT_ADD_SUBPROJECT)
+alp_add_git_repository(zppbits URL https://github.com/eyalz800/zpp_bits.git COMMITISH v4.4.22 DO_NOT_ADD_SUBPROJECT)
+if(ALP_ENABLE_LABELS)
+    alp_add_git_repository(vector_tiles URL https://github.com/AlpineMapsOrgDependencies/vector-tile.git COMMITISH origin/main)
+endif()
 alp_add_git_repository(goofy_tc URL https://github.com/AlpineMapsOrgDependencies/Goofy_slim.git COMMITISH 13b228784960a6227bb6ca704ff34161bbac1b91 DO_NOT_ADD_SUBPROJECT)
 
 add_library(zppbits INTERFACE)
@@ -90,8 +93,6 @@ qt_add_library(nucleus STATIC
     utils/UrlModifier.h utils/UrlModifier.cpp
     utils/bit_coding.h
     utils/sun_calculations.h utils/sun_calculations.cpp
-    map_label/MapLabel.h map_label/MapLabel.cpp
-    map_label/MapLabelManager.h map_label/MapLabelManager.cpp
     utils/bit_coding.h
     tile_scheduler/cache_quieries.h
     DataQuerier.h DataQuerier.cpp
@@ -101,10 +102,33 @@ qt_add_library(nucleus STATIC
     timing/TimerInterface.h timing/TimerInterface.cpp
     timing/CpuTimer.h timing/CpuTimer.cpp
     utils/ColourTexture.h utils/ColourTexture.cpp
+    EngineContext.h EngineContext.cpp
+    track/Manager.h track/Manager.cpp
+    track/GPX.cpp
+    track/GPX.h
+    utils/image_loader.h utils/image_loader.cpp
+    utils/thread.h
 )
+if (ALP_ENABLE_AVLANCHE_WARNING_LAYER)
+    target_sources(nucleus
+        PUBLIC avalanche/eaws.h avalanche/eaws.cpp
+    )
+    target_link_libraries(nucleus PUBLIC Qt::Gui)
+endif()
+if(ALP_ENABLE_LABELS)
+    target_sources(nucleus PRIVATE
+        vector_tiles/VectorTileManager.h vector_tiles/VectorTileManager.cpp
+        vector_tiles/VectorTileFeature.h vector_tiles/VectorTileFeature.cpp
+        map_label/LabelFactory.h map_label/LabelFactory.cpp
+        map_label/MapLabelData.h
+    )
+    target_link_libraries(nucleus PUBLIC vector_tiles)
+    target_compile_definitions(nucleus PUBLIC ALP_ENABLE_LABELS)
+endif()
 
 target_include_directories(nucleus PUBLIC ${CMAKE_SOURCE_DIR})
-target_link_libraries(nucleus PUBLIC radix Qt::Core Qt::Gui Qt::Network fmt::fmt zppbits tl_expected nucleus_version stb_slim goofy_tc)
+# Please keep Qt::Gui outside the nucleus. If you need it optional via a cmake based switch
+target_link_libraries(nucleus PUBLIC radix Qt::Core Qt::Network fmt::fmt zppbits tl_expected nucleus_version stb_slim goofy_tc)
 
 qt_add_resources(nucleus "icons"
     PREFIX "/map_icons"
@@ -145,5 +169,7 @@ if (MSVC)
     # /WX fails with an unreachable code warning/error in zpp_bits.h. the system property doesn't seem to work (even though it appears in the build log as
     # "-external:ID:\a\renderer\renderer\extern\zppbits -external:W0")
 else()
-    target_compile_options(nucleus PUBLIC -Wall -Wextra -pedantic -Werror)
+    # imgui does not compile with -Werror. so we have to make it private for now.
+    # better solutions welcome
+    target_compile_options(nucleus PRIVATE -Wall -Wextra -pedantic -Werror)
 endif()

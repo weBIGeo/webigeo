@@ -36,6 +36,7 @@
 #include "nucleus/tile_scheduler/SlotLimiter.h"
 #include "nucleus/tile_scheduler/TileLoadService.h"
 #include "nucleus/tile_scheduler/utils.h"
+#include "nucleus/utils/thread.h"
 #include "radix/TileHeights.h"
 
 using namespace nucleus::tile_scheduler;
@@ -57,7 +58,10 @@ Controller::Controller(AbstractRenderWindow* render_window)
     //                                           {"", "1", "2", "3", "4"}));
     m_ortho_service.reset(
         new TileLoadService("https://gataki.cg.tuwien.ac.at/raw/basemap/tiles/", TileLoadService::UrlPattern::ZYX_yPointingSouth, ".jpeg"));
-
+#ifdef ALP_ENABLE_LABELS
+    m_vectortile_service = std::make_unique<TileLoadService>(
+        "http://localhost:8080/austria.peaks/", nucleus::tile_scheduler::TileLoadService::UrlPattern::ZXY_yPointingSouth, ".mvt");
+#endif
     m_tile_scheduler = std::make_unique<nucleus::tile_scheduler::Scheduler>();
     m_tile_scheduler->read_disk_cache();
     m_render_window->set_quad_limit(512); // must be same as scheduler, dynamic resizing is not supported atm
@@ -73,11 +77,10 @@ Controller::Controller(AbstractRenderWindow* render_window)
         m_tile_scheduler->set_aabb_decorator(decorator);
         m_render_window->set_aabb_decorator(decorator);
     }
-    m_data_querier = std::make_unique<DataQuerier>(&m_tile_scheduler->ram_cache());
+    m_data_querier = std::make_shared<DataQuerier>(&m_tile_scheduler->ram_cache());
+    m_tile_scheduler->set_dataquerier(m_data_querier);
     m_camera_controller = std::make_unique<nucleus::camera::Controller>(
-        nucleus::camera::PositionStorage::instance()->get("grossglockner"),
-        m_render_window->depth_tester(),
-        m_data_querier.get());
+        nucleus::camera::PositionStorage::instance()->get("grossglockner"), m_render_window->depth_tester(), m_data_querier.get());
     {
         auto* sch = m_tile_scheduler.get();
         SlotLimiter* sl = new SlotLimiter(sch);
@@ -90,9 +93,14 @@ Controller::Controller(AbstractRenderWindow* render_window)
         connect(qa, &QuadAssembler::tile_requested, la, &LayerAssembler::load);
         connect(la, &LayerAssembler::tile_requested, m_ortho_service.get(), &TileLoadService::load);
         connect(la, &LayerAssembler::tile_requested, m_terrain_service.get(), &TileLoadService::load);
-
+#ifdef ALP_ENABLE_LABELS
+        connect(la, &LayerAssembler::tile_requested, m_vectortile_service.get(), &TileLoadService::load);
+#endif
         connect(m_ortho_service.get(), &TileLoadService::load_finished, la, &LayerAssembler::deliver_ortho);
         connect(m_terrain_service.get(), &TileLoadService::load_finished, la, &LayerAssembler::deliver_height);
+#ifdef ALP_ENABLE_LABELS
+        connect(m_vectortile_service.get(), &TileLoadService::load_finished, la, &LayerAssembler::deliver_vectortile);
+#endif
         connect(la, &LayerAssembler::tile_loaded, qa, &QuadAssembler::deliver_tile);
         connect(qa, &QuadAssembler::quad_loaded, sl, &SlotLimiter::deliver_quad);
         connect(sl, &SlotLimiter::quad_delivered, sch, &Scheduler::receive_quad);
@@ -113,12 +121,14 @@ Controller::Controller(AbstractRenderWindow* render_window)
 #else
     m_terrain_service->moveToThread(m_scheduler_thread.get());
     m_ortho_service->moveToThread(m_scheduler_thread.get());
+#ifdef ALP_ENABLE_LABELS
+    m_vectortile_service->moveToThread(m_scheduler_thread.get());
+#endif
 #endif
     m_tile_scheduler->moveToThread(m_scheduler_thread.get());
     m_scheduler_thread->start();
 #endif
-    connect(m_render_window, &AbstractRenderWindow::key_pressed, m_camera_controller.get(), &nucleus::camera::Controller::key_press);
-    connect(m_render_window, &AbstractRenderWindow::key_released, m_camera_controller.get(), &nucleus::camera::Controller::key_release);
+
     connect(m_render_window, &AbstractRenderWindow::update_camera_requested, m_camera_controller.get(), &nucleus::camera::Controller::update_camera_request);
     connect(m_render_window, &AbstractRenderWindow::gpu_ready_changed, m_tile_scheduler.get(), &Scheduler::set_enabled);
 
@@ -130,13 +140,20 @@ Controller::Controller(AbstractRenderWindow* render_window)
     connect(m_camera_controller.get(), &nucleus::camera::Controller::definition_changed, m_render_window, &AbstractRenderWindow::update_camera);
 
     connect(m_tile_scheduler.get(), &Scheduler::gpu_quads_updated, m_render_window, &AbstractRenderWindow::update_gpu_quads);
+    // TODO signal connected to signal? maybe bug/unnecessary?
     connect(m_tile_scheduler.get(), &Scheduler::gpu_quads_updated, m_render_window, &AbstractRenderWindow::update_requested);
-
-    m_camera_controller->update();
 }
 
 Controller::~Controller()
 {
+    nucleus::utils::thread::sync_call(m_tile_scheduler.get(), [this]() {
+        m_tile_scheduler.reset();
+        m_terrain_service.reset();
+        m_ortho_service.reset();
+#ifdef ALP_ENABLE_LABELS
+        m_vectortile_service.reset();
+#endif
+    });
 #ifdef ALP_ENABLE_THREADING
     m_scheduler_thread->quit();
     m_scheduler_thread->wait(500); // msec
@@ -152,4 +169,4 @@ Scheduler* Controller::tile_scheduler() const
 {
     return m_tile_scheduler.get();
 }
-}
+} // namespace nucleus

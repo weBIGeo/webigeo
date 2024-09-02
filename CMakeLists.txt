@@ -1,6 +1,8 @@
 #############################################################################
 # Alpine Terrain Renderer
 # Copyright (C) 2023 Adam Celarek <family name at cg tuwien ac at>
+# Copyright (C) 2024 Gerald Kimmersdorfer
+# Copyright (C) 2024 Patrick Komon
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,12 +22,21 @@ cmake_minimum_required(VERSION 3.25)
 project(alpine-renderer LANGUAGES CXX)
 
 option(ALP_UNITTESTS "include unit test targets in the buildsystem" ON)
+option(ALP_GL_ENGINE "include the gl engine in the buildsystem" OFF)
+option(ALP_WEBGPU_ENGINE "include the webgpu engine in the buildsystem" ON)
+option(ALP_WEBGPU_APP "include the webgpu app in the buildsystem" ON)
+option(ALP_PLAIN_RENDERER "include the plain renderer in the buildsystem" OFF)
+option(ALP_QML_APP "include the qml app in the buildsystem" OFF)
+
 option(ALP_ENABLE_ADDRESS_SANITIZER "compiles atb with address sanitizer enabled (only debug, works only on g++ and clang)" OFF)
 option(ALP_ENABLE_THREAD_SANITIZER "compiles atb with thread sanitizer enabled (only debug, works only on g++ and clang)" OFF)
 option(ALP_ENABLE_ASSERTS "enable asserts (do not define NDEBUG)" ON)
 option(ALP_ENABLE_TRACK_OBJECT_LIFECYCLE "enables debug cmd printout of constructors & deconstructors if implemented" OFF)
 option(ALP_ENABLE_APP_SHUTDOWN_AFTER_60S "Shuts down the app after 60S, used for CI testing with asan." OFF)
 option(ALP_ENABLE_LTO "Enable link time optimisation." OFF)
+option(ALP_ENABLE_GL_ENGINE "Enable OpenGL/WebGL engine" ON)
+option(ALP_ENABLE_AVLANCHE_WARNING_LAYER "Enables avalanche warning layer (requires Qt Gui in nucleus)" OFF)
+option(ALP_ENABLE_LABELS "Enables label rendering" ON)
 
 set(ALP_EXTERN_DIR "extern" CACHE STRING "name of the directory to store external libraries, fonts etc..")
 
@@ -77,15 +88,9 @@ endif()
 
 ########################################### dependencies #################################################
 find_package(Qt6 REQUIRED COMPONENTS Core Gui OpenGL Network Quick QuickControls2 LinguistTools)
-if (ALP_ENABLE_DEBUG_GUI)
-    find_package(Qt6 REQUIRED COMPONENTS Widgets Charts)
-endif()
 qt_policy(
     SET QTP0002 NEW
 )
-if (ALP_ENABLE_POSITIONING)
-    find_package(Qt6 REQUIRED COMPONENTS Positioning)
-endif()
 
 include(cmake/alp_add_git_repository.cmake)
 alp_add_git_repository(renderer_static_data URL https://github.com/AlpineMapsOrg/renderer_static_data.git COMMITISH v23.11 DO_NOT_ADD_SUBPROJECT)
@@ -99,10 +104,36 @@ if (ANDROID)
 endif()
 
 add_subdirectory(nucleus)
-add_subdirectory(gl_engine)
-add_subdirectory(plain_renderer)
-add_subdirectory(app)
+if (ALP_ENABLE_GL_ENGINE)
+    if (ALP_ENABLE_DEBUG_GUI)
+        find_package(Qt6 REQUIRED COMPONENTS Widgets Charts)
+    endif()
+    if (ALP_ENABLE_POSITIONING)
+        find_package(Qt6 REQUIRED COMPONENTS Positioning)
+    endif()
+    add_subdirectory(gl_engine)
+    add_subdirectory(plain_renderer)
+    add_subdirectory(app)
+endif()
 
+if (ALP_GL_ENGINE)
+    add_subdirectory(gl_engine)
+endif()
+if (ALP_PLAIN_RENDERER)
+    add_subdirectory(plain_renderer)
+endif()
+if (ALP_QML_APP)
+    add_subdirectory(app)
+endif()
 if (ALP_UNITTESTS)
     add_subdirectory(unittests)
+endif()
+if (ALP_WEBGPU_APP OR ALP_WEBGPU_ENGINE)
+    add_subdirectory(webgpu)
+    if (ALP_WEBGPU_ENGINE)
+        add_subdirectory(webgpu_engine)
+    endif()
+    if (ALP_WEBGPU_APP)
+        add_subdirectory(webgpu_app)
+    endif()
 endif()

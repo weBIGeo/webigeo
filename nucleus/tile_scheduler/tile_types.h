@@ -24,6 +24,10 @@
 #include "nucleus/utils/ColourTexture.h"
 #include <radix/tile.h>
 
+#ifdef ALP_ENABLE_LABELS
+#include <nucleus/vector_tiles/VectorTileFeature.h>
+#endif
+
 class QImage;
 namespace nucleus {
 template <typename T>
@@ -53,7 +57,6 @@ struct NetworkInfo {
         }
         return {status, timestamp};
     }
-
 };
 
 template <typename T>
@@ -80,6 +83,9 @@ struct LayeredTile {
     NetworkInfo network_info;
     std::shared_ptr<QByteArray> ortho;
     std::shared_ptr<QByteArray> height;
+#ifdef ALP_ENABLE_LABELS
+    std::shared_ptr<QByteArray> vector_tile;
+#endif
 };
 static_assert(NamedTile<LayeredTile>);
 
@@ -105,6 +111,10 @@ struct GpuLayeredTile {
     tile::SrsAndHeightBounds bounds = {};
     std::shared_ptr<const nucleus::utils::ColourTexture> ortho;
     std::shared_ptr<const nucleus::Raster<uint16_t>> height;
+
+#ifdef ALP_ENABLE_LABELS
+    std::shared_ptr<const nucleus::vectortile::VectorTile> vector_tile;
+#endif
 };
 static_assert(NamedTile<GpuLayeredTile>);
 
