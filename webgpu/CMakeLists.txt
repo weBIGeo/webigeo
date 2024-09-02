@@ -54,7 +54,7 @@ set(SOURCES
 add_library(webgpu STATIC ${SOURCES})
 
 if (EMSCRIPTEN)
-
+    target_link_options(webgpu PUBLIC -sUSE_WEBGPU=1)
 else()
     # add dawn libraries to webgpu library
     include(${CMAKE_SOURCE_DIR}/cmake/alp_target_add_dawn.cmake)
