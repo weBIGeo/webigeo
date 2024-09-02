@@ -25,7 +25,9 @@
 #include <imnodes.h>
 #endif
 #include "webgpu_engine/Window.h"
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
 #include <IconsFontAwesome5.h>
+#endif
 #include <QDebug>
 #include <QFile>
 #include <nucleus/camera/PositionStorage.h>
