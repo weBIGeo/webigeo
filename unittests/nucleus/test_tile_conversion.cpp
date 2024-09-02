@@ -20,6 +20,7 @@
 #include <QFile>
 #include <catch2/catch_test_macros.hpp>
 
+#include "nucleus/utils/image_loader.h"
 #include "nucleus/utils/tile_conversion.h"
 #include "nucleus/stb/stb_image_loader.h"
 
@@ -104,14 +105,9 @@ TEST_CASE("nucleus/utils/tile_conversion")
 
     SECTION("byte array to raster unsigned short")
     {
-        QString filepath = QString("%1%2").arg(ALP_TEST_DATA_DIR, "test-tile.png");
-        QFile file(filepath);
-        file.open(QIODevice::ReadOnly);
-        QByteArray ba = file.readAll();
-        REQUIRE(ba.size() > 0);
-
-        const auto u8vec4_raster = nucleus::stb::load_8bit_rgba_image_from_memory(ba);
-        const auto u16_raster = nucleus::utils::tile_conversion::u8vec4raster_to_u16raster(u8vec4_raster);
+        const QString filepath = QString("%1%2").arg(ALP_TEST_DATA_DIR, "test-tile.png");
+        const auto u8vec4_raster = nucleus::utils::image_loader::rgba8(filepath);
+        const auto u16_raster = nucleus::utils::tile_conversion::to_u16raster(u8vec4_raster);
         CHECK(u16_raster.width() == 64);
         CHECK(u16_raster.height() == 64);
         CHECK(u16_raster.buffer()[0] == 23 * 256 + 216);

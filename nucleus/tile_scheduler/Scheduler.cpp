@@ -1,6 +1,7 @@
 /*****************************************************************************
  * Alpine Terrain Renderer
  * Copyright (C) 2023 Adam Celarek
+ * Copyright (C) 2024 Lucas Dworschak
  * Copyright (C) 2024 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
@@ -27,10 +28,16 @@
 #include <QStandardPaths>
 #include <QTimer>
 
+#include "nucleus/DataQuerier.h"
 #include "nucleus/tile_scheduler/utils.h"
+#include "nucleus/utils/image_loader.h"
 #include "nucleus/utils/tile_conversion.h"
 #include "radix/quad_tree.h"
 #include "nucleus/stb/stb_image_loader.h"
+
+#ifdef ALP_ENABLE_LABELS
+#include "nucleus/vector_tiles/VectorTileManager.h"
+#endif
 
 using namespace nucleus::tile_scheduler;
 
@@ -56,8 +63,8 @@ Scheduler::Scheduler(QObject* parent)
 Scheduler::Scheduler(const QByteArray& default_ortho_tile, const QByteArray& default_height_tile, QObject* parent)
     : Scheduler(parent)
 {
-    m_default_ortho_raster = stb::load_8bit_rgba_image_from_memory(default_ortho_tile);
-    m_default_height_raster = stb::load_8bit_rgba_image_from_memory(default_height_tile);
+    m_default_ortho_raster = nucleus::utils::image_loader::rgba8(default_ortho_tile);
+    m_default_height_raster = nucleus::utils::image_loader::rgba8(default_height_tile);
 }
 
 Scheduler::~Scheduler() = default;
@@ -175,7 +182,7 @@ void Scheduler::update_gpu_quads()
 
                            if (quad.tiles[i].ortho->size()) {
                                // Ortho image is available
-                               Raster<glm::u8vec4> ortho_raster = stb::load_8bit_rgba_image_from_memory(*quad.tiles[i].ortho.get());
+                               Raster<glm::u8vec4> ortho_raster = nucleus::utils::image_loader::rgba8(*quad.tiles[i].ortho.get());
                                gpu_quad.tiles[i].ortho = std::make_shared<nucleus::utils::ColourTexture>(ortho_raster, m_ortho_tile_compression_algorithm);
                            } else {
                                // Ortho image is not available (use white default tile)
@@ -184,14 +191,22 @@ void Scheduler::update_gpu_quads()
 
                            if (quad.tiles[i].height->size()) {
                                // Height image is available
-                               Raster<glm::u8vec4> height_image = stb::load_8bit_rgba_image_from_memory(*quad.tiles[i].height.get());
-                               auto heightraster = nucleus::utils::tile_conversion::u8vec4raster_to_u16raster(height_image);
+                               Raster<glm::u8vec4> height_image = nucleus::utils::image_loader::rgba8(*quad.tiles[i].height.get());
+                               auto heightraster = nucleus::utils::tile_conversion::to_u16raster(height_image);
                                gpu_quad.tiles[i].height = std::make_shared<nucleus::Raster<uint16_t>>(std::move(heightraster));
                            } else {
                                // Height image is not available (use black default tile)
-                               auto heightraster = nucleus::utils::tile_conversion::u8vec4raster_to_u16raster(m_default_height_raster);
+                               auto heightraster = nucleus::utils::tile_conversion::to_u16raster(m_default_height_raster);
                                gpu_quad.tiles[i].height = std::make_shared<nucleus::Raster<uint16_t>>(std::move(heightraster));
                            }
+
+#ifdef ALP_ENABLE_LABELS
+                           const auto* vectortile_data = m_default_vector_tile.get();
+                           vectortile_data = quad.tiles[i].vector_tile.get();
+                           // moved into this if -> since vector_tile might be empty
+                           auto vectortile = nucleus::vectortile::VectorTileManager::to_vector_tile(quad.tiles[i].id, *vectortile_data, m_dataquerier);
+                           gpu_quad.tiles[i].vector_tile = vectortile;
+#endif
                        }
                        return gpu_quad;
                    });
@@ -399,3 +414,5 @@ void Scheduler::set_update_timeout(unsigned new_update_timeout)
         m_update_timer->start(m_update_timeout);
     }
 }
+
+void Scheduler::set_dataquerier(std::shared_ptr<DataQuerier> dataquerier) { m_dataquerier = dataquerier; }

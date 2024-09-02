@@ -39,6 +39,8 @@
 @group(3) @binding(1) var<storage> map_value_buffer: array<u32>; // hash map value buffer, contains texture array indices
 @group(3) @binding(2) var overlay_texture: texture_2d_array<f32>; // overlay tiles
 
+@group(3) @binding(3) var overlay_texture_2: texture_2d_array<f32>; // overlay tiles
+
 struct VertexIn {
     @location(0) bounds: vec4f,
     @location(1) texture_layer: i32,
@@ -174,10 +176,10 @@ fn vertexMain(@builtin(vertex_index) vertex_index: u32, vertex_in: VertexIn) -> 
 @fragment
 fn fragmentMain(vertex_out: VertexOut) -> FragOut {
     var albedo = textureSample(ortho_texture, ortho_sampler, vertex_out.uv, vertex_out.texture_layer).rgb;
-    let dist = length(vertex_out.pos_cws);
+    var dist = length(vertex_out.pos_cws);
 
     var frag_out: FragOut;
-    frag_out.position = vec4f(vertex_out.pos_cws, dist);
+    
 
     let tile_id = TileId(vertex_out.tile_id.x, vertex_out.tile_id.y, vertex_out.tile_id.z, 4294967295u);
     var normal = vertex_out.normal;
@@ -197,6 +199,7 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
 
         if (found && normal_texture_texel_value.w != 0.0f) {
             normal = normal_texture_texel_value.xyz * 2.0 - 1.0;
+            dist = -1.0; // temporary such that we know in compose if we are inside the precalculated area
         }
 
         frag_out.normal_enc = octNormalEncode2u16(normal);
@@ -216,10 +219,11 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
 
             // textureSample needs to happen in uniform control flow
             // therefore: if texture was found, sample correct texture array index, otherwise sample from texture 0
-            let sampled_overlay_color = textureSample(overlay_texture, ortho_sampler, vertex_out.uv, texure_array_index).rgba;
+            let sampled_overlay_color = textureSample(overlay_texture_2, ortho_sampler, vertex_out.uv, texure_array_index).rgba;
             
             if (found) {
-                overlay_color = sampled_overlay_color;
+                overlay_color = vec4f(1.0, 1.0, 1.0, sampled_overlay_color.a);
+                
             } else {
                 overlay_color = vec4f(albedo, 1.0); //kind of ugly
             }
@@ -229,6 +233,8 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
         albedo = mix(albedo, overlay_color.xyz, config.overlay_strength * overlay_color.w);
     }
     frag_out.albedo = vec4f(albedo, 1.0);
+
+    frag_out.position = vec4f(vertex_out.pos_cws, dist);
 
     return frag_out;
 }

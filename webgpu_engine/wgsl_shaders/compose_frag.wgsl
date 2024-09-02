@@ -93,7 +93,8 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
     let encoded_normal = textureLoad(normal_texture, tci, 0).xy;
 
     let pos_cws = pos_dist.xyz;
-    let dist = pos_dist.w;
+    let dist = length(pos_cws); // pos_dist.w
+    let tile_dist = pos_dist.w;
     var alpha = 0.0;
     if (dist > 0) {
         alpha = calculate_falloff(dist, 300000.0, 600000.0);
@@ -129,9 +130,12 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         }
 
         if (bool(conf.snow_settings_angle.x)) {
-            let overlay_color: vec4f = overlay_snow(normal, pos_ws, conf.snow_settings_angle, conf.snow_settings_alt);
-            material_light_response.z += conf.snow_settings_alt.w * overlay_color.a;
-            albedo = mix(albedo, overlay_color.rgb, overlay_color.a);
+            if (tile_dist >= 0.0f) { // -1 if snow is already calculated in tile stage
+                let overlay_color: vec4f = overlay_snow(normal, pos_ws, conf.snow_settings_angle, conf.snow_settings_alt);
+                material_light_response.z += conf.snow_settings_alt.w * overlay_color.a;
+                albedo = mix(albedo, overlay_color.rgb, overlay_color.a);
+            }
+
         }
 
         // NOTE: PRESHADING OVERLAY ONLY APPLIED ON TILES NOT ON BACKGROUND!!!

@@ -16,14 +16,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "UnittestGLContext.h"
 #include <QPainter>
 #include <catch2/catch_test_macros.hpp>
+
+#include "UnittestGLContext.h"
 #include <gl_engine/Framebuffer.h>
 #include <gl_engine/ShaderProgram.h>
 #include <gl_engine/Texture.h>
 #include <gl_engine/helpers.h>
 #include <nucleus/utils/ColourTexture.h>
+#include <nucleus/utils/tile_conversion.h>
 
 using gl_engine::Framebuffer;
 using gl_engine::ShaderProgram;
@@ -140,8 +142,7 @@ TEST_CASE("gl texture")
         test_texture.save("test_texture.png");
     }
 
-    const auto test_raster = nucleus::Raster<glm::u8vec4>::fromQImage(test_texture);
-
+    const auto test_raster = nucleus::utils::tile_conversion::to_rgba8raster(test_texture);
 
     SECTION("compression")
     {
@@ -231,7 +232,7 @@ TEST_CASE("gl texture")
         gl_engine::helpers::create_screen_quad_geometry().draw();
 
         const QImage render_result = b.read_colour_attachment(0);
-        // render_result.save("render_result.png");
+        render_result.save("render_result.png");
         Framebuffer::unbind();
         double diff = 0;
         for (int i = 0; i < render_result.width(); ++i) {

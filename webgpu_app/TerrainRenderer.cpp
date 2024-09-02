@@ -27,7 +27,7 @@
 #include "WebInterop.h"
 #include <emscripten/emscripten.h>
 #else
-#include "nucleus/stb/stb_image_loader.h"
+#include "nucleus/utils/image_loader.h"
 #endif
 
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
@@ -35,6 +35,7 @@
 #endif
 #include "util/error_logging.h"
 
+#include <nucleus/camera/PositionStorage.h>
 #include <nucleus/timing/CpuTimer.h>
 
 namespace webgpu_app {
@@ -100,7 +101,7 @@ void TerrainRenderer::init_window() {
 
 #ifndef __EMSCRIPTEN__
     // Load Icon for Window
-    auto icon = nucleus::stb::load_8bit_rgba_image_from_file(":/icons/logo32.png");
+    auto icon = nucleus::utils::image_loader::rgba8(":/icons/logo32.png");
     GLFWimage image = { int(icon.width()), int(icon.height()), icon.bytes() };
     glfwSetWindowIcon(m_window, 1, &image);
 #endif
@@ -193,6 +194,10 @@ void TerrainRenderer::start() {
     // TODO: THIS TAKES FOREVER ON FIRST LOAD. LETS CHECK OUT WHY!
     m_controller = std::make_unique<nucleus::Controller>(m_webgpu_window.get());
 
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
+    m_gui_manager = std::make_unique<GuiManager>(this);
+#endif
+
     nucleus::camera::Controller* camera_controller = m_controller->camera_controller();
     m_input_mapper = std::make_unique<InputMapper>(this, camera_controller, m_gui_manager.get());
 
@@ -207,6 +212,12 @@ void TerrainRenderer::start() {
     m_webgpu_window->initialise_gpu();
     // Creates the swapchain
     this->on_window_resize(m_viewport_size.x, m_viewport_size.y);
+
+    { // load first camera definition without changing preset in nucleus
+        auto new_definition = nucleus::camera::stored_positions::heiligenblut_popping();
+        new_definition.set_viewport_size(camera_controller->definition().viewport_size());
+        camera_controller->set_definition(new_definition);
+    }
 
     qDebug() << "Create GUI Pipeline...";
     m_gui_ubo
@@ -276,7 +287,6 @@ void TerrainRenderer::start() {
 
     m_timer_manager = std::make_unique<webgpu::timing::GuiTimerManager>();
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-    m_gui_manager = std::make_unique<GuiManager>(this);
     m_gui_manager->init(m_window, m_device, m_swapchain_format, WGPUTextureFormat_Undefined);
 #endif
 
@@ -311,7 +321,7 @@ void TerrainRenderer::start() {
     m_gui_manager->shutdown();
 #endif
     webgpu_release_context();
-    m_webgpu_window->deinit_gpu();
+    m_webgpu_window->destroy();
 
     glfwDestroyWindow(m_window);
     glfwTerminate();

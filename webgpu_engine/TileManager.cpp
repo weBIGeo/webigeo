@@ -388,11 +388,18 @@ void TileRendererInstancedSingleArrayMultiCall::init(glm::uvec2 height_resolutio
     }
 
     // bindings for compute graph output
-    WGPUBindGroupEntry input_hash_map_key_buffer_entry = m_compute_graph->output_hash_map().key_buffer().create_bind_group_entry(0);
-    WGPUBindGroupEntry input_hash_map_value_buffer_entry = m_compute_graph->output_hash_map().value_buffer().create_bind_group_entry(1);
-    WGPUBindGroupEntry input_texture_array_entry = m_compute_graph->output_texture_storage().texture().texture_view().create_bind_group_entry(2);
-    std::vector<WGPUBindGroupEntry> entries { input_hash_map_key_buffer_entry, input_hash_map_value_buffer_entry, input_texture_array_entry };
-    m_overlay_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->overlay_bind_group_layout(), entries, "overlay bind group");
+    {
+        WGPUBindGroupEntry input_hash_map_key_buffer_entry = m_compute_graph->output_hash_map().key_buffer().create_bind_group_entry(0);
+        WGPUBindGroupEntry input_hash_map_value_buffer_entry = m_compute_graph->output_hash_map().value_buffer().create_bind_group_entry(1);
+        WGPUBindGroupEntry input_texture_array_entry = m_compute_graph->output_texture_storage().texture().texture_view().create_bind_group_entry(2);
+
+        WGPUBindGroupEntry input_texture_array_entry_2 = m_compute_graph->output_texture_storage_2().texture().texture_view().create_bind_group_entry(3);
+
+        std::vector<WGPUBindGroupEntry> entries { input_hash_map_key_buffer_entry, input_hash_map_value_buffer_entry, input_texture_array_entry,
+            input_texture_array_entry_2 };
+        m_overlay_bind_group
+            = std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->overlay_bind_group_layout(), entries, "overlay bind group");
+    }
 }
 
 void TileRendererInstancedSingleArrayMultiCall::write_tile(
