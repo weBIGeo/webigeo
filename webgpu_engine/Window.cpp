@@ -118,7 +118,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
 
     // ONLY ON CAMERA CHANGE!
     // update_camera(m_camera);
-    // emit update_camera_requested();
+    emit update_camera_requested();
 
     // TODO remove, debugging
     // uboSharedConfig* sc = &m_shared_config_ubo->data;
@@ -236,12 +236,12 @@ void Window::paint_gui()
         }
     }
 
-    if (ImGui::CollapsingHeader("Compute pipeline")) {
-        if (ImGui::Button("Run pipeline", ImVec2(280, 20))) {
+    if (ImGui::CollapsingHeader("Compute pipeline", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::Button("Run pipeline", ImVec2(350, 20))) {
             m_compute_graph->run();
         }
 
-        if (ImGui::Button("Clear output", ImVec2(280, 20))) {
+        if (ImGui::Button("Clear output", ImVec2(350, 20))) {
             m_compute_graph->output_hash_map().clear();
             m_compute_graph->output_hash_map().update_gpu_data();
             m_needs_redraw = true;

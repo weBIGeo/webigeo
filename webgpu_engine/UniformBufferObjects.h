@@ -56,18 +56,18 @@ public:
     // amb, diff, spec, shininess
     glm::vec4 m_material_light_response = glm::vec4(1.5, 3.0, 0.0, 32.0);
     // enabled, min angle, max angle, angle blend space
-    glm::vec4 m_snow_settings_angle = glm::vec4(0.0, 0.0, 30.0, 5.0);
+    glm::vec4 m_snow_settings_angle = glm::vec4(1.0, 0.0, 30.0, 5.0);
     // min altitude (snowline), variating altitude, altitude blend space, spec addition
     glm::vec4 m_snow_settings_alt = glm::vec4(1000.0, 200.0, 200.0, 1.0);
 
-    float m_overlay_strength = 0.5f;
+    float m_overlay_strength = 1.0f;
     float m_ssao_falloff_to_value = 0.5f;
     float padf1 = 0.0f;
     float padf2 = 0.0f;
 
-    uint32_t m_phong_enabled = false;
-    uint32_t m_normal_mode = 0;                       // 0...none, 1...per fragment, 2...FDM
-    uint32_t m_overlay_mode = 0;                      // see GlSettings.qml for list of modes
+    uint32_t m_phong_enabled = true;
+    uint32_t m_normal_mode = 2; // 0...none, 1...per fragment, 2...FDM
+    uint32_t m_overlay_mode = 0; // see GlSettings.qml for list of modes
     uint32_t m_overlay_postshading_enabled = false;   // see GlSettings.qml for more details
 
     uint32_t m_ssao_enabled = false;
