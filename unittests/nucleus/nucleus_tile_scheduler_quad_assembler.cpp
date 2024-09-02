@@ -27,12 +27,21 @@ using namespace tile_types;
 namespace {
 tile_types::LayeredTile good_tile(const tile::Id& id, const char* ortho_bytes, const char* height_bytes, const char* vector_bytes)
 {
+#ifdef ALP_ENABLE_LABELS
     return { id, { NetworkInfo::Status::Good, utils::time_since_epoch() }, std::make_shared<QByteArray>(ortho_bytes),
         std::make_shared<QByteArray>(height_bytes), std::make_shared<QByteArray>(vector_bytes) };
+#else
+    return { id, { NetworkInfo::Status::Good, utils::time_since_epoch() }, std::make_shared<QByteArray>(ortho_bytes),
+        std::make_shared<QByteArray>(height_bytes) };
+#endif
 }
 tile_types::LayeredTile missing_tile(const tile::Id& id) {
+#ifdef ALP_ENABLE_LABELS
     return { id, { NetworkInfo::Status::NotFound, utils::time_since_epoch() }, std::make_shared<QByteArray>(), std::make_shared<QByteArray>(),
         std::make_shared<QByteArray>() };
+#else
+    return { id, { NetworkInfo::Status::NotFound, utils::time_since_epoch() }, std::make_shared<QByteArray>(), std::make_shared<QByteArray>() };
+#endif
 }
 }
 
@@ -88,13 +97,17 @@ TEST_CASE("nucleus/tile_scheduler/quad assembler")
         for (unsigned i = 0; i < 4; ++i) {
             REQUIRE(loaded_tile.tiles[i].height);
             REQUIRE(loaded_tile.tiles[i].ortho);
+#ifdef ALP_ENABLE_LABELS
             REQUIRE(loaded_tile.tiles[i].vector_tile);
+#endif
 
             const auto tile = loaded_tile.tiles[i];
             const auto number = std::to_string(tile.id.zoom_level) + std::to_string(tile.id.coords.x) + std::to_string(tile.id.coords.y);
             CHECK(*tile.height == QByteArray((std::string("height ") + number).c_str()));
             CHECK(*tile.ortho == QByteArray((std::string("ortho ") + number).c_str()));
+#ifdef ALP_ENABLE_LABELS
             CHECK(*tile.vector_tile == QByteArray((std::string("vector ") + number).c_str()));
+#endif
         }
     }
 
@@ -128,13 +141,17 @@ TEST_CASE("nucleus/tile_scheduler/quad assembler")
         for (unsigned i = 0; i < 4; ++i) {
             REQUIRE(loaded_tile.tiles[i].height);
             REQUIRE(loaded_tile.tiles[i].ortho);
+#ifdef ALP_ENABLE_LABELS
             REQUIRE(loaded_tile.tiles[i].vector_tile);
+#endif
 
             const auto tile = loaded_tile.tiles[i];
             const auto number = std::to_string(tile.id.zoom_level) + std::to_string(tile.id.coords.x) + std::to_string(tile.id.coords.y);
             CHECK(*tile.height == QByteArray((std::string("height ") + number).c_str()));
             CHECK(*tile.ortho == QByteArray((std::string("ortho ") + number).c_str()));
+#ifdef ALP_ENABLE_LABELS
             CHECK(*tile.vector_tile == QByteArray((std::string("vector ") + number).c_str()));
+#endif
         }
     }
 
@@ -184,13 +201,17 @@ TEST_CASE("nucleus/tile_scheduler/quad assembler")
             for (unsigned i = 0; i < 4; ++i) {
                 REQUIRE(loaded_tile.tiles[i].height);
                 REQUIRE(loaded_tile.tiles[i].ortho);
+#ifdef ALP_ENABLE_LABELS
                 REQUIRE(loaded_tile.tiles[i].vector_tile);
+#endif
 
                 const auto tile = loaded_tile.tiles[i];
                 const auto number = std::to_string(tile.id.zoom_level) + std::to_string(tile.id.coords.x) + std::to_string(tile.id.coords.y);
                 CHECK(*tile.height == QByteArray((std::string("height ") + number).c_str()));
                 CHECK(*tile.ortho == QByteArray((std::string("ortho ") + number).c_str()));
+#ifdef ALP_ENABLE_LABELS
                 CHECK(*tile.vector_tile == QByteArray((std::string("vector ") + number).c_str()));
+#endif
             }
         }
 
@@ -205,13 +226,17 @@ TEST_CASE("nucleus/tile_scheduler/quad assembler")
             for (unsigned i = 0; i < 4; ++i) {
                 REQUIRE(loaded_tile.tiles[i].height);
                 REQUIRE(loaded_tile.tiles[i].ortho);
+#ifdef ALP_ENABLE_LABELS
                 REQUIRE(loaded_tile.tiles[i].vector_tile);
+#endif
 
                 const auto tile = loaded_tile.tiles[i];
                 const auto number = std::to_string(tile.id.zoom_level) + std::to_string(tile.id.coords.x) + std::to_string(tile.id.coords.y);
                 CHECK(*tile.height == QByteArray((std::string("height ") + number).c_str()));
                 CHECK(*tile.ortho == QByteArray((std::string("ortho ") + number).c_str()));
+#ifdef ALP_ENABLE_LABELS
                 CHECK(*tile.vector_tile == QByteArray((std::string("vector ") + number).c_str()));
+#endif
             }
         }
     }
