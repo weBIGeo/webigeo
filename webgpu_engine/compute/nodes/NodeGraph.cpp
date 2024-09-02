@@ -75,7 +75,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_compute_graph(const Pipeline
 {
     glm::uvec2 min = { 140288 + 100, 169984 };
     RectangularTileRegion region { .min = min,
-        .max = min + glm::uvec2 { 26, 26 }, // inclusive, so this region has 13x13 tiles
+        .max = min + glm::uvec2 { 26, 26 }, // inclusive, so this region has 27x27 tiles
         .zoom_level = 18,
         .scheme = tile::Scheme::Tms };
     auto tile_id_generator_func = [region]() { return region.get_tiles(); };
@@ -144,7 +144,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_with_snow_compute_graph(cons
 {
     glm::uvec2 min = { 140288 + 100, 169984 };
     RectangularTileRegion region { .min = min,
-        .max = min + glm::uvec2 { 26, 26 }, // inclusive, so this region has 13x13 tiles
+        .max = min + glm::uvec2 { 26, 26 }, // inclusive, so this region has 27x27 tiles
         .zoom_level = 18,
         .scheme = tile::Scheme::Tms };
     auto tile_id_generator_func = [region]() { return region.get_tiles(); };
