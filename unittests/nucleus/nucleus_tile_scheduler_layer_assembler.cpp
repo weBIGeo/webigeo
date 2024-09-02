@@ -208,7 +208,7 @@ TEST_CASE("nucleus/tile_scheduler/layer assembler")
         QSignalSpy spy_loaded(&assembler, &LayerAssembler::tile_loaded);
         assembler.load(tile::Id { 0, { 0, 0 } });
 
-        assembler.deliver_ortho(good_tile({ 0, { 0, 0 } }, "orthgo"));
+        assembler.deliver_ortho(good_tile({ 0, { 0, 0 } }, "ortho"));
         assembler.deliver_height(missing_tile({ 0, { 0, 0 } }));
         assembler.deliver_vectortile(good_tile({ 0, { 0, 0 } }, "vector"));
 
@@ -226,7 +226,7 @@ TEST_CASE("nucleus/tile_scheduler/layer assembler")
         QSignalSpy spy_loaded(&assembler, &LayerAssembler::tile_loaded);
         assembler.load(tile::Id { 0, { 0, 0 } });
 
-        assembler.deliver_ortho(good_tile({ 0, { 0, 0 } }, "orthgo"));
+        assembler.deliver_ortho(good_tile({ 0, { 0, 0 } }, "ortho"));
         assembler.deliver_height(good_tile({ 0, { 0, 0 } }, "height"));
         assembler.deliver_vectortile(missing_tile({ 0, { 0, 0 } }));
 
@@ -390,7 +390,7 @@ TEST_CASE("nucleus/tile_scheduler/layer assembler (no labels)")
         QSignalSpy spy_loaded(&assembler, &LayerAssembler::tile_loaded);
         assembler.load(tile::Id { 0, { 0, 0 } });
 
-        assembler.deliver_ortho(good_tile({ 0, { 0, 0 } }, "orthgo"));
+        assembler.deliver_ortho(good_tile({ 0, { 0, 0 } }, "ortho"));
         assembler.deliver_height(missing_tile({ 0, { 0, 0 } }));
 
         REQUIRE(spy_loaded.size() == 1);
