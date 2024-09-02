@@ -267,9 +267,9 @@ void GuiManager::draw()
         }
     }
 
-    if (ImGui::Button(!m_show_nodeeditor ? ICON_FA_NETWORK_WIRED "  Show Node Editor" : ICON_FA_NETWORK_WIRED "  Hide Node Editor")) {
+    /*if (ImGui::Button(!m_show_nodeeditor ? ICON_FA_NETWORK_WIRED "  Show Node Editor" : ICON_FA_NETWORK_WIRED "  Hide Node Editor")) {
         m_show_nodeeditor = !m_show_nodeeditor;
-    }
+    }*/
     ImGui::End();
 
     if (first_frame) {
