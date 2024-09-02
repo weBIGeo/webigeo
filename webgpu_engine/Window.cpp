@@ -18,6 +18,7 @@
  *****************************************************************************/
 
 #include "Window.h"
+#include <nucleus/track/GPX.h>
 #include <webgpu/raii/RenderPassEncoder.h>
 
 #ifdef __EMSCRIPTEN__
@@ -71,14 +72,7 @@ void Window::initialise_gpu()
     m_tile_manager->init(m_device, m_queue, *m_pipeline_manager, *m_compute_graph);
 
     m_track_renderer = std::make_unique<TrackRenderer>(m_device, *m_pipeline_manager);
-
-    // TODO add track loading
-    std::vector<glm::dvec3> m_points = {
-        { 47.07386676653372, 12.694470292406267, 3798 }, // grossglockner
-        { 47.767163598, 15.804663448, 2076 }, // schneeberg
-        { 48.20851144787232, 16.373082444395656, 300 } // stephansdom
-    };
-    m_track_renderer->add_track(m_points);
+    load_test_track();
 
     qInfo() << "gpu_ready_changed";
     emit gpu_ready_changed(true);
@@ -273,6 +267,21 @@ glm::vec4 Window::synchronous_position_readback(const glm::dvec2& ndc) {
     return m_last_position_readback;
 }
 
+void Window::load_test_track()
+{
+    const double elevation_offset = 10.0;
+    std::vector<glm::dvec3> points;
+    std::unique_ptr<nucleus::track::Gpx> gpx_track
+        = nucleus::track::parse(":/tracks/2024-02-03_11-36-26_winterwandern_12775448_Trofaiach__Estiria_Austria.gpx");
+    for (const auto& segment : gpx_track->track) {
+        points.reserve(points.size() + segment.size());
+        for (const auto& point : segment) {
+            points.push_back({ point.latitude, point.longitude, point.elevation + elevation_offset });
+        }
+    }
+
+    m_track_renderer->add_track(points);
+}
 
 float Window::depth([[maybe_unused]] const glm::dvec2& normalised_device_coordinates)
 {

@@ -73,6 +73,14 @@ qt_add_resources(webgpu_engine "shaders"
         "wgsl_shaders/line_render.wgsl"
 )
 
+# test gpx file, this is to be removed once file selection/upload is available
+qt_add_resources(webgpu_engine "tracks"
+    PREFIX "/tracks"
+    BASE "tracks/"
+    FILES
+        "tracks/2024-02-03_11-36-26_winterwandern_12775448_Trofaiach__Estiria_Austria.gpx"
+)
+
 # Note: This has to go into the webgpu_app as soon as we don't use ImGui in the engine anymore!!!
 # We can't do it right now as the engine is not dependent on the app. so we dont have acess in this case.
 if (ALP_WEBGPU_APP_ENABLE_IMGUI)

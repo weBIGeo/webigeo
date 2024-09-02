@@ -82,6 +82,9 @@ private:
     // buffer anymore. May actually increase performance as we don't need to fill the seperate buffer.
     glm::vec4 synchronous_position_readback(const glm::dvec2& normalised_device_coordinates);
 
+    // loads test gpx track from hardcoded path - this is to be removed in the future when file selection/upload is available
+    void load_test_track();
+
 private:
     WGPUInstance m_instance = nullptr;
     WGPUDevice m_device = nullptr;
