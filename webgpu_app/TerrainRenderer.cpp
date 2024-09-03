@@ -202,6 +202,7 @@ void TerrainRenderer::start() {
     m_input_mapper = std::make_unique<InputMapper>(this, camera_controller, m_gui_manager.get());
 
     connect(this, &TerrainRenderer::update_camera_requested, camera_controller, &nucleus::camera::Controller::update_camera_request);
+    connect(m_webgpu_window.get(), &webgpu_engine::Window::set_camera_definition_requested, camera_controller, &nucleus::camera::Controller::set_definition);
 
 #ifdef __EMSCRIPTEN__
     connect(&WebInterop::instance(), &WebInterop::mouse_button_event, m_input_mapper.get(), &InputMapper::on_mouse_button_callback);

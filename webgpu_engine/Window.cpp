@@ -30,6 +30,7 @@
 #include <glm/gtx/string_cast.hpp>
 
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
+#include "ImGuiFileDialog.h"
 #include "imgui.h"
 #endif
 
@@ -72,7 +73,6 @@ void Window::initialise_gpu()
     m_tile_manager->init(m_device, m_queue, *m_pipeline_manager, *m_compute_graph);
 
     m_track_renderer = std::make_unique<TrackRenderer>(m_device, *m_pipeline_manager);
-    load_test_track();
 
     qInfo() << "gpu_ready_changed";
     emit gpu_ready_changed(true);
@@ -197,10 +197,6 @@ void Window::paint_gui()
             m_needs_redraw = true;
         }
 
-        if (ImGui::Checkbox("Tracks", (bool*)&m_shared_config_ubo->data.m_render_tracks_enabled)) {
-            m_needs_redraw = true;
-        }
-
         bool snow_on = (m_shared_config_ubo->data.m_snow_settings_angle.x == 1.0f);
         if (ImGui::Checkbox("Snow", &snow_on)) {
             m_needs_redraw = true;
@@ -241,6 +237,29 @@ void Window::paint_gui()
             m_needs_redraw = true;
         }
     }
+
+    if (ImGui::CollapsingHeader("Track", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::Checkbox("Render tracks", (bool*)&m_shared_config_ubo->data.m_render_tracks_enabled)) {
+            m_needs_redraw = true;
+        }
+
+        if (ImGui::Button("Open GPX file ...", ImVec2(350, 20))) {
+            IGFD::FileDialogConfig config;
+            config.path = ".";
+            ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".gpx,*", config);
+        }
+    }
+
+    if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey")) {
+        if (ImGuiFileDialog::Instance()->IsOk()) { // action if OK
+            std::string file_path = ImGuiFileDialog::Instance()->GetFilePathName();
+            load_track_and_focus(QString::fromStdString(file_path));
+            m_shared_config_ubo->data.m_render_tracks_enabled = true;
+            m_needs_redraw = true;
+        }
+        ImGuiFileDialog::Instance()->Close();
+    }
+
 #endif
 }
 
@@ -267,20 +286,26 @@ glm::vec4 Window::synchronous_position_readback(const glm::dvec2& ndc) {
     return m_last_position_readback;
 }
 
-void Window::load_test_track()
+void Window::load_track_and_focus(const QString& path)
 {
     const double elevation_offset = 10.0;
     std::vector<glm::dvec3> points;
-    std::unique_ptr<nucleus::track::Gpx> gpx_track
-        = nucleus::track::parse(":/tracks/2024-02-03_11-36-26_winterwandern_12775448_Trofaiach__Estiria_Austria.gpx");
+    std::unique_ptr<nucleus::track::Gpx> gpx_track = nucleus::track::parse(path);
     for (const auto& segment : gpx_track->track) {
         points.reserve(points.size() + segment.size());
         for (const auto& point : segment) {
             points.push_back({ point.latitude, point.longitude, point.elevation + elevation_offset });
         }
     }
-
     m_track_renderer->add_track(points);
+
+    const auto track_aabb = nucleus::track::compute_world_aabb(*gpx_track);
+    const auto aabb_size = track_aabb.size();
+
+    nucleus::camera::Definition new_camera_definition = { track_aabb.centre() + glm::dvec3 { 0, 0, std::max(aabb_size.x, aabb_size.y) }, track_aabb.centre() };
+    new_camera_definition.set_viewport_size(m_camera.viewport_size());
+
+    emit set_camera_definition_requested(new_camera_definition);
 }
 
 float Window::depth([[maybe_unused]] const glm::dvec2& normalised_device_coordinates)

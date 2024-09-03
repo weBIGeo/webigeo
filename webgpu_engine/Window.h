@@ -68,6 +68,9 @@ public slots:
     void update_gpu_quads(const std::vector<nucleus::tile_scheduler::tile_types::GpuTileQuad>& new_quads, const std::vector<tile::Id>& deleted_quads) override;
     void request_redraw();
 
+signals:
+    void set_camera_definition_requested(nucleus::camera::Definition definition);
+
 private:
     std::unique_ptr<webgpu::raii::RawBuffer<glm::vec4>> m_position_readback_buffer;
     glm::vec4 m_last_position_readback;
@@ -82,8 +85,7 @@ private:
     // buffer anymore. May actually increase performance as we don't need to fill the seperate buffer.
     glm::vec4 synchronous_position_readback(const glm::dvec2& normalised_device_coordinates);
 
-    // loads test gpx track from hardcoded path - this is to be removed in the future when file selection/upload is available
-    void load_test_track();
+    void load_track_and_focus(const QString& path);
 
 private:
     WGPUInstance m_instance = nullptr;

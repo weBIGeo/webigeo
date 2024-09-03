@@ -73,14 +73,6 @@ qt_add_resources(webgpu_engine "shaders"
         "wgsl_shaders/line_render.wgsl"
 )
 
-# test gpx file, this is to be removed once file selection/upload is available
-qt_add_resources(webgpu_engine "tracks"
-    PREFIX "/tracks"
-    BASE "tracks/"
-    FILES
-        "tracks/2024-02-03_11-36-26_winterwandern_12775448_Trofaiach__Estiria_Austria.gpx"
-)
-
 # Note: This has to go into the webgpu_app as soon as we don't use ImGui in the engine anymore!!!
 # We can't do it right now as the engine is not dependent on the app. so we dont have acess in this case.
 if (ALP_WEBGPU_APP_ENABLE_IMGUI)
@@ -92,7 +84,11 @@ if (ALP_WEBGPU_APP_ENABLE_IMGUI)
 
     set(IMNODES_IMGUI_TARGET_NAME imgui)
     alp_add_git_repository(imnodes URL https://github.com/AlpineMapsOrgDependencies/imnodes_slim.git COMMITISH 2300279d51bb74ecec9b4e96ba08b1482972051d)
-    target_link_libraries(webgpu_engine PUBLIC imgui imnodes)
+
+    alp_add_git_repository(ImGuiFileDialog URL https://github.com/AlpineMapsOrgDependencies/ImGuiFileDialog_slim.git COMMITISH 517a4a8b9c4a4f662f811e1f9f0e976fac546def)
+    target_link_libraries(ImGuiFileDialog PRIVATE imgui)
+
+    target_link_libraries(webgpu_engine PUBLIC imgui imnodes ImGuiFileDialog)
     target_compile_definitions(webgpu_engine PUBLIC "ALP_WEBGPU_APP_ENABLE_IMGUI")
 endif()
 
