@@ -90,14 +90,13 @@ void Window::resize_framebuffer(int w, int h)
     atmosphere_framebuffer_format.size = glm::uvec2(1, h);
     m_atmosphere_framebuffer = std::make_unique<webgpu::Framebuffer>(m_device, atmosphere_framebuffer_format);
 
-    m_track_renderer->resize_render_target_texture(w, h);
-
     m_compose_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->compose_bind_group_layout(),
-        std::initializer_list<WGPUBindGroupEntry> { m_gbuffer->color_texture_view(0).create_bind_group_entry(0), // albedo texture
+        std::initializer_list<WGPUBindGroupEntry> {
+            m_gbuffer->color_texture_view(0).create_bind_group_entry(0), // albedo texture
             m_gbuffer->color_texture_view(1).create_bind_group_entry(1), // position texture
             m_gbuffer->color_texture_view(2).create_bind_group_entry(2), // normal texture
-            m_atmosphere_framebuffer->color_texture_view(0).create_bind_group_entry(3), // atmosphere texture
-            m_track_renderer->render_target_texture().texture_view().create_bind_group_entry(4) });
+            m_atmosphere_framebuffer->color_texture_view(0).create_bind_group_entry(3) // atmosphere texture
+        });
 }
 
 std::unique_ptr<webgpu::raii::RenderPassEncoder> begin_render_pass(
@@ -139,11 +138,6 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         m_tile_manager->draw(render_pass->handle(), m_camera, tile_set, true, m_camera.position());
     }
 
-    // render lines to color buffer
-    if (m_shared_config_ubo->data.m_render_tracks_enabled) {
-        m_track_renderer->render(command_encoder, *m_shared_config_bind_group, *m_camera_bind_group, m_gbuffer->depth_texture_view());
-    }
-
     // render geometry buffers to target framebuffer
     {
         std::unique_ptr<webgpu::raii::RenderPassEncoder> render_pass = framebuffer->begin_render_pass(command_encoder);
@@ -152,6 +146,12 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 1, m_camera_bind_group->handle(), 0, nullptr);
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 2, m_compose_bind_group->handle(), 0, nullptr);
         wgpuRenderPassEncoderDraw(render_pass->handle(), 3, 1, 0, 0);
+    }
+
+    // render lines to color buffer
+    if (m_shared_config_ubo->data.m_render_tracks_enabled) {
+        m_track_renderer->render(
+            command_encoder, *m_shared_config_bind_group, *m_camera_bind_group, m_gbuffer->depth_texture_view(), framebuffer->color_texture_view(0));
     }
 
     m_needs_redraw = false;

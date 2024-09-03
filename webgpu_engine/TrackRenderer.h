@@ -37,11 +37,7 @@ public:
     void add_track(Track track);
 
     void render(WGPUCommandEncoder command_encoder, const webgpu::raii::BindGroup& shared_config, const webgpu::raii::BindGroup& camera_config,
-        const webgpu::raii::TextureView& depth_texture);
-
-    void resize_render_target_texture(int width, int height);
-
-    const webgpu::raii::TextureWithSampler& render_target_texture() const;
+        const webgpu::raii::TextureView& depth_texture, const webgpu::raii::TextureView& color_texture);
 
 private:
     WGPUDevice m_device;
@@ -50,8 +46,6 @@ private:
 
     std::vector<std::unique_ptr<webgpu::raii::RawBuffer<glm::fvec4>>> m_position_buffers;
     std::vector<std::unique_ptr<webgpu::raii::BindGroup>> m_bind_groups;
-
-    std::unique_ptr<webgpu::raii::TextureWithSampler> m_render_target_texture;
 };
 
 } // namespace webgpu_engine

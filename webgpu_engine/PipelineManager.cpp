@@ -193,14 +193,10 @@ void PipelineManager::create_upsample_textures_compute_pipeline()
 
 void PipelineManager::create_lines_render_pipeline()
 {
-    webgpu::FramebufferFormat framebuffer_format {};
-    framebuffer_format.depth_format = WGPUTextureFormat_Depth24Plus;
-    framebuffer_format.color_formats.emplace_back(WGPUTextureFormat_RGBA8Unorm);
-
     WGPUColorTargetState color_target_state {};
     color_target_state.blend = nullptr;
     color_target_state.writeMask = WGPUColorWriteMask_All;
-    color_target_state.format = WGPUTextureFormat_RGBA8Unorm;
+    color_target_state.format = WGPUTextureFormat_BGRA8Unorm;
 
     WGPUFragmentState fragment_state {};
     fragment_state.module = m_shader_manager->line_render().handle();
@@ -215,6 +211,7 @@ void PipelineManager::create_lines_render_pipeline()
     webgpu::raii::PipelineLayout layout(m_device, bind_group_layout_handles);
 
     WGPURenderPipelineDescriptor pipeline_desc {};
+    pipeline_desc.label = "line render pipeline";
     pipeline_desc.vertex.module = m_shader_manager->line_render().handle();
     pipeline_desc.vertex.entryPoint = "vertexMain";
     pipeline_desc.vertex.bufferCount = 0;
@@ -240,7 +237,7 @@ void PipelineManager::create_lines_render_pipeline()
     depth_stencil_state.stencilWriteMask = 0;
     depth_stencil_state.stencilFront = stencil_face_state;
     depth_stencil_state.stencilBack = stencil_face_state;
-    depth_stencil_state.format = framebuffer_format.depth_format;
+    depth_stencil_state.format = WGPUTextureFormat_Depth24Plus;
 
     pipeline_desc.depthStencil = &depth_stencil_state;
     pipeline_desc.multisample.count = 1;
@@ -335,15 +332,8 @@ void PipelineManager::create_compose_bind_group_layout()
     atmosphere_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
     atmosphere_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
-    WGPUBindGroupLayoutEntry lines_texture_entry {};
-    lines_texture_entry.binding = 4;
-    lines_texture_entry.visibility = WGPUShaderStage_Fragment;
-    lines_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
-    lines_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
-
     m_compose_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
-        std::vector<WGPUBindGroupLayoutEntry> {
-            albedo_texture_entry, position_texture_entry, normal_texture_entry, atmosphere_texture_entry, lines_texture_entry },
+        std::vector<WGPUBindGroupLayoutEntry> { albedo_texture_entry, position_texture_entry, normal_texture_entry, atmosphere_texture_entry },
         "compose bind group layout");
 }
 

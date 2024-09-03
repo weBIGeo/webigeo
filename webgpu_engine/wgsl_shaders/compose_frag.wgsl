@@ -220,13 +220,5 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
 
     */
 
-    if (bool(conf.render_tracks_enabled)) {
-        // for now, just render lines on top of everything else
-        let lines_color = textureLoad(lines_texture, tci, 0).rgb;
-        if (any(lines_color > vec3f(0))) {
-            out_Color = vec4f(lines_color, 1);
-        }
-    }
-
     return out_Color;
 }

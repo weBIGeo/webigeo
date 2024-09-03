@@ -47,12 +47,12 @@ void TrackRenderer::add_track(Track track)
 }
 
 void TrackRenderer::render(WGPUCommandEncoder command_encoder, const webgpu::raii::BindGroup& shared_config, const webgpu::raii::BindGroup& camera_config,
-    const webgpu::raii::TextureView& depth_texture_view)
+    const webgpu::raii::TextureView& depth_texture_view, const webgpu::raii::TextureView& color_texture)
 {
     WGPURenderPassColorAttachment color_attachment {};
-    color_attachment.view = m_render_target_texture->texture_view().handle();
+    color_attachment.view = color_texture.handle();
     color_attachment.resolveTarget = nullptr;
-    color_attachment.loadOp = WGPULoadOp::WGPULoadOp_Clear;
+    color_attachment.loadOp = WGPULoadOp::WGPULoadOp_Load;
     color_attachment.storeOp = WGPUStoreOp::WGPUStoreOp_Store;
     color_attachment.clearValue = WGPUColor { 0.0, 0.0, 0.0, 0.0 };
     // depthSlice field for RenderPassColorAttachment (https://github.com/gpuweb/gpuweb/issues/4251)
@@ -87,35 +87,5 @@ void TrackRenderer::render(WGPUCommandEncoder command_encoder, const webgpu::rai
         wgpuRenderPassEncoderDraw(render_pass.handle(), uint32_t(m_position_buffers.at(i)->size()), 1, 0, 0);
     }
 }
-
-void TrackRenderer::resize_render_target_texture(int width, int height)
-{
-    // TODO move somewhere else
-    WGPUTextureDescriptor lines_texture_desc {};
-    lines_texture_desc.label = "lines render texture";
-    lines_texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
-    lines_texture_desc.size = { uint32_t(width), uint32_t(height), 1 };
-    lines_texture_desc.mipLevelCount = 1;
-    lines_texture_desc.sampleCount = 1;
-    lines_texture_desc.format = WGPUTextureFormat::WGPUTextureFormat_RGBA8Unorm;
-    lines_texture_desc.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding;
-
-    WGPUSamplerDescriptor lines_sampler_desc {};
-    lines_sampler_desc.label = "lines render sampler";
-    lines_sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    lines_sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    lines_sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    lines_sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Linear;
-    lines_sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Linear;
-    lines_sampler_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Linear;
-    lines_sampler_desc.lodMinClamp = 0.0f;
-    lines_sampler_desc.lodMaxClamp = 1.0f;
-    lines_sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
-    lines_sampler_desc.maxAnisotropy = 1;
-
-    m_render_target_texture = std::make_unique<webgpu::raii::TextureWithSampler>(m_device, lines_texture_desc, lines_sampler_desc);
-}
-
-const webgpu::raii::TextureWithSampler& TrackRenderer::render_target_texture() const { return *m_render_target_texture; }
 
 } // namespace webgpu_engine
