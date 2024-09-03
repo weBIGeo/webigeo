@@ -31,6 +31,8 @@ TrackRenderer::TrackRenderer(WGPUDevice device, const PipelineManager& pipeline_
 
 void TrackRenderer::add_track(Track track)
 {
+    assert(!track.empty());
+
     m_position_buffers.emplace_back(std::make_unique<webgpu::raii::RawBuffer<glm::fvec4>>(
         m_device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst, track.size(), "track renderer, storage buffer for points"));
     std::vector<glm::fvec4> gpu_points;
