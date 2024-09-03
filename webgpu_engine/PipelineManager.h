@@ -51,6 +51,7 @@ public:
     const webgpu::raii::BindGroupLayout& downsample_compute_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& upsample_textures_compute_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& lines_bind_group_layout() const;
+    const webgpu::raii::BindGroupLayout& depth_texture_bind_group_layout() const;
 
     void create_pipelines();
     void create_bind_group_layouts();
@@ -78,6 +79,7 @@ private:
     void create_downsample_compute_bind_group_layout();
     void create_upsample_textures_compute_bind_group_layout();
     void create_lines_bind_group_layout();
+    void create_depth_texture_bind_group_layout();
 
 private:
     WGPUDevice m_device;
@@ -103,6 +105,7 @@ private:
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_snow_compute_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_upsample_textures_compute_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_lines_bind_group_layout;
+    std::unique_ptr<webgpu::raii::BindGroupLayout> m_depth_texture_bind_group_layout;
 
     bool m_pipelines_created = false;
 };

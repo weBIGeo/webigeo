@@ -103,6 +103,7 @@ private:
     std::unique_ptr<webgpu::raii::BindGroup> m_shared_config_bind_group;
     std::unique_ptr<webgpu::raii::BindGroup> m_camera_bind_group;
     std::unique_ptr<webgpu::raii::BindGroup> m_compose_bind_group;
+    std::unique_ptr<webgpu::raii::BindGroup> m_depth_texture_bind_group;
 
     nucleus::camera::Definition m_camera;
 

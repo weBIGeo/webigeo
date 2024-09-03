@@ -20,12 +20,18 @@
 #include "camera_config.wgsl"
 
 @group(0) @binding(0) var<uniform> config: shared_config;
-
 @group(1) @binding(0) var<uniform> camera: camera_config;
+@group(2) @binding(0) var depth_texture: texture_2d<f32>;
+@group(3) @binding(0) var<storage> positions: array<vec4f>;
 
-@group(2) @binding(0) var<storage> positions: array<vec4f>;
+const line_color = vec3f(1, 0, 0);
+const behind_alpha = 0.35;
 
 struct VertexOut {
+    @builtin(position) position: vec4f,
+}
+
+struct FragIn {
     @builtin(position) position: vec4f,
 }
 
@@ -35,17 +41,27 @@ struct FragOut {
 
 @vertex
 fn vertexMain(@builtin(vertex_index) vertex_index: u32) -> VertexOut {
-    
     var vertex_out: VertexOut;
     let pos = positions[vertex_index];
-    
     vertex_out.position = camera.view_proj_matrix * vec4f(pos.xyz - camera.position.xyz, 1);
     return vertex_out;
 }
 
 @fragment
-fn fragmentMain(vertex_out: VertexOut) -> FragOut {
+fn fragmentMain(frag_in: FragIn) -> FragOut {
     var frag_out: FragOut;
-    frag_out.color = vec4f(1, 0, 0, 1);
+
+    let depth_buffer_position = vec2u(frag_in.position.xy);
+    let tile_fragment_depth = textureLoad(depth_texture, depth_buffer_position, 0).x;
+    let line_fragment_depth = frag_in.position.z;
+
+    if (tile_fragment_depth < line_fragment_depth) {
+        frag_out.color = vec4f(line_color * behind_alpha, behind_alpha);
+        //TODO: add options for depth-test, non-depth test and transparent  
+        //discard;
+    } else {
+        frag_out.color = vec4f(line_color, 1.0);
+    }
+
     return frag_out;
 }

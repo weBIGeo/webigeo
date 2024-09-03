@@ -97,6 +97,11 @@ void Window::resize_framebuffer(int w, int h)
             m_gbuffer->color_texture_view(2).create_bind_group_entry(2), // normal texture
             m_atmosphere_framebuffer->color_texture_view(0).create_bind_group_entry(3) // atmosphere texture
         });
+
+    m_depth_texture_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->depth_texture_bind_group_layout(),
+        std::initializer_list<WGPUBindGroupEntry> {
+            m_gbuffer->depth_texture_view().create_bind_group_entry(0) // depth
+        });
 }
 
 std::unique_ptr<webgpu::raii::RenderPassEncoder> begin_render_pass(
@@ -151,7 +156,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
     // render lines to color buffer
     if (m_shared_config_ubo->data.m_render_tracks_enabled) {
         m_track_renderer->render(
-            command_encoder, *m_shared_config_bind_group, *m_camera_bind_group, m_gbuffer->depth_texture_view(), framebuffer->color_texture_view(0));
+            command_encoder, *m_shared_config_bind_group, *m_camera_bind_group, *m_depth_texture_bind_group, framebuffer->color_texture_view(0));
     }
 
     m_needs_redraw = false;

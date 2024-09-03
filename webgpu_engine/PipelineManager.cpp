@@ -70,6 +70,8 @@ const webgpu::raii::BindGroupLayout& PipelineManager::upsample_textures_compute_
 
 const webgpu::raii::BindGroupLayout& PipelineManager::lines_bind_group_layout() const { return *m_lines_bind_group_layout; }
 
+const webgpu::raii::BindGroupLayout& PipelineManager::depth_texture_bind_group_layout() const { return *m_depth_texture_bind_group_layout; }
+
 void PipelineManager::create_pipelines()
 {
     create_bind_group_layouts();
@@ -96,6 +98,7 @@ void PipelineManager::create_bind_group_layouts()
     create_downsample_compute_bind_group_layout();
     create_upsample_textures_compute_bind_group_layout();
     create_lines_bind_group_layout();
+    create_depth_texture_bind_group_layout();
 }
 
 void PipelineManager::release_pipelines()
@@ -193,8 +196,16 @@ void PipelineManager::create_upsample_textures_compute_pipeline()
 
 void PipelineManager::create_lines_render_pipeline()
 {
+    WGPUBlendState blend_state {};
+    blend_state.color.operation = WGPUBlendOperation_Add;
+    blend_state.color.srcFactor = WGPUBlendFactor_One;
+    blend_state.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
+    blend_state.alpha.operation = WGPUBlendOperation_Add;
+    blend_state.alpha.srcFactor = WGPUBlendFactor_Zero;
+    blend_state.alpha.dstFactor = WGPUBlendFactor_One;
+
     WGPUColorTargetState color_target_state {};
-    color_target_state.blend = nullptr;
+    color_target_state.blend = &blend_state;
     color_target_state.writeMask = WGPUColorWriteMask_All;
     color_target_state.format = WGPUTextureFormat_BGRA8Unorm;
 
@@ -207,7 +218,7 @@ void PipelineManager::create_lines_render_pipeline()
     fragment_state.targets = &color_target_state;
 
     std::vector<WGPUBindGroupLayout> bind_group_layout_handles { m_shared_config_bind_group_layout->handle(), m_camera_bind_group_layout->handle(),
-        m_lines_bind_group_layout->handle() };
+        m_depth_texture_bind_group_layout->handle(), m_lines_bind_group_layout->handle() };
     webgpu::raii::PipelineLayout layout(m_device, bind_group_layout_handles);
 
     WGPURenderPipelineDescriptor pipeline_desc {};
@@ -224,22 +235,7 @@ void PipelineManager::create_lines_render_pipeline()
     pipeline_desc.primitive.cullMode = WGPUCullMode::WGPUCullMode_None;
     pipeline_desc.fragment = &fragment_state;
 
-    WGPUStencilFaceState stencil_face_state {};
-    stencil_face_state.compare = WGPUCompareFunction::WGPUCompareFunction_Always;
-    stencil_face_state.depthFailOp = WGPUStencilOperation::WGPUStencilOperation_Keep;
-    stencil_face_state.failOp = WGPUStencilOperation::WGPUStencilOperation_Keep;
-    stencil_face_state.passOp = WGPUStencilOperation::WGPUStencilOperation_Keep;
-
-    WGPUDepthStencilState depth_stencil_state {};
-    depth_stencil_state.depthCompare = WGPUCompareFunction::WGPUCompareFunction_Less;
-    depth_stencil_state.depthWriteEnabled = false;
-    depth_stencil_state.stencilReadMask = 0;
-    depth_stencil_state.stencilWriteMask = 0;
-    depth_stencil_state.stencilFront = stencil_face_state;
-    depth_stencil_state.stencilBack = stencil_face_state;
-    depth_stencil_state.format = WGPUTextureFormat_Depth24Plus;
-
-    pipeline_desc.depthStencil = &depth_stencil_state;
+    pipeline_desc.depthStencil = nullptr;
     pipeline_desc.multisample.count = 1;
     pipeline_desc.multisample.mask = ~0u;
     pipeline_desc.multisample.alphaToCoverageEnabled = false;
@@ -555,5 +551,17 @@ void PipelineManager::create_lines_bind_group_layout()
 
     m_lines_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(
         m_device, std::vector<WGPUBindGroupLayoutEntry> { input_positions_entry }, "line renderer, bind group layout");
+}
+
+void PipelineManager::create_depth_texture_bind_group_layout()
+{
+    WGPUBindGroupLayoutEntry depth_texture_entry {};
+    depth_texture_entry.binding = 0;
+    depth_texture_entry.visibility = WGPUShaderStage_Fragment;
+    depth_texture_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
+    depth_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+    m_depth_texture_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(
+        m_device, std::vector<WGPUBindGroupLayoutEntry> { depth_texture_entry }, "depth texture bind group layout");
 }
 }

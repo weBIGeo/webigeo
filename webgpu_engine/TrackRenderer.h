@@ -37,7 +37,7 @@ public:
     void add_track(Track track);
 
     void render(WGPUCommandEncoder command_encoder, const webgpu::raii::BindGroup& shared_config, const webgpu::raii::BindGroup& camera_config,
-        const webgpu::raii::TextureView& depth_texture, const webgpu::raii::TextureView& color_texture);
+        const webgpu::raii::BindGroup& depth_texture, const webgpu::raii::TextureView& color_texture);
 
 private:
     WGPUDevice m_device;
