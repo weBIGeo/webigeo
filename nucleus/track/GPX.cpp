@@ -301,4 +301,15 @@ void reduce_point_count(std::vector<glm::vec4>& points, float threshold)
     }
 }
 
+geometry::Aabb<3, double> compute_world_aabb(const Gpx& gpx)
+{
+    geometry::Aabb<3, double> aabb;
+    for (const auto& segment : gpx.track) {
+        for (const auto& point : segment) {
+            aabb.expand_by(srs::lat_long_alt_to_world({ point.latitude, point.longitude, point.elevation }));
+        }
+    }
+    return aabb;
+}
+
 } // namespace nucleus::track
