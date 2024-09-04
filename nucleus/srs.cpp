@@ -37,6 +37,16 @@ tile::SrsBounds tile_bounds(const tile::Id& tile)
     return { min, max };
 }
 
+tile::Id world_xy_to_tile_id(const glm::dvec2 world_xy, unsigned int zoomlevel)
+{
+    const double width_of_a_tile = cEarthCircumference / number_of_horizontal_tiles_for_zoom_level(zoomlevel);
+    const double height_of_a_tile = cEarthCircumference / number_of_vertical_tiles_for_zoom_level(zoomlevel);
+    const glm::dvec2 absolute_min = { -cOriginShift, -cOriginShift };
+    const glm::dvec2 tile_size = { width_of_a_tile, height_of_a_tile };
+    const glm::dvec2 tile_coords = glm::floor((world_xy - absolute_min) / tile_size);
+    return { zoomlevel, glm::uvec2(tile_coords) };
+}
+
 bool overlap(const tile::Id& a, const tile::Id& b)
 {
     const auto& smaller_zoom_tile = (a.zoom_level < b.zoom_level) ? a : b;
