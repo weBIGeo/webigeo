@@ -32,7 +32,6 @@
 @group(2) @binding(1) var position_texture : texture_2d<f32>;
 @group(2) @binding(2) var normal_texture : texture_2d<u32>;
 @group(2) @binding(3) var atmosphere_texture : texture_2d<f32>;
-@group(2) @binding(4) var lines_texture : texture_2d<f32>;
 
 // Calculates the diffuse and specular illumination contribution for the given
 // parameters according to the Blinn-Phong lighting model.
