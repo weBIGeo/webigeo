@@ -78,7 +78,7 @@ public:
     uint32_t m_height_lines_enabled = false;
     uint32_t m_csm_enabled = false;
     uint32_t m_overlay_shadowmaps_enabled = false;
-    uint32_t m_render_tracks_enabled = false;
+    uint32_t m_track_render_mode = 0; // 0...none, 1...without depth test, 2...with depth test, 3 semi-transparent if behind terrain
 };
 
 struct uboCameraConfig {

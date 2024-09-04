@@ -44,5 +44,5 @@ struct shared_config {
     height_lines_enabled: u32,
     csm_enabled: u32,
     overlay_shadowmaps_enabled: u32,
-    render_tracks_enabled: u32,
+    track_render_mode: u32,
 };

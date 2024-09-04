@@ -51,14 +51,21 @@ fn vertexMain(@builtin(vertex_index) vertex_index: u32) -> VertexOut {
 fn fragmentMain(frag_in: FragIn) -> FragOut {
     var frag_out: FragOut;
 
+    if (config.track_render_mode == 1) { // no depth test
+        frag_out.color = vec4f(line_color, 1.0);
+        return frag_out;
+    }
+
     let depth_buffer_position = vec2u(frag_in.position.xy);
     let tile_fragment_depth = textureLoad(depth_texture, depth_buffer_position, 0).x;
     let line_fragment_depth = frag_in.position.z;
 
     if (tile_fragment_depth < line_fragment_depth) {
-        frag_out.color = vec4f(line_color * behind_alpha, behind_alpha);
-        //TODO: add options for depth-test, non-depth test and transparent  
-        //discard;
+        if (config.track_render_mode == 2) { // depth test
+            discard;
+        } else if (config.track_render_mode == 3) { // semi-transparent if depth test failed
+            frag_out.color = vec4f(line_color * behind_alpha, behind_alpha);
+        }
     } else {
         frag_out.color = vec4f(line_color, 1.0);
     }

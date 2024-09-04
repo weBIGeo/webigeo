@@ -154,7 +154,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
     }
 
     // render lines to color buffer
-    if (m_shared_config_ubo->data.m_render_tracks_enabled) {
+    if (m_shared_config_ubo->data.m_track_render_mode > 0) {
         m_track_renderer->render(
             command_encoder, *m_shared_config_bind_group, *m_camera_bind_group, *m_depth_texture_bind_group, framebuffer->color_texture_view(0));
     }
@@ -244,14 +244,16 @@ void Window::paint_gui()
     }
 
     if (ImGui::CollapsingHeader("Track", ImGuiTreeNodeFlags_DefaultOpen)) {
-        if (ImGui::Checkbox("Render tracks", (bool*)&m_shared_config_ubo->data.m_render_tracks_enabled)) {
-            m_needs_redraw = true;
-        }
 
         if (ImGui::Button("Open GPX file ...", ImVec2(350, 20))) {
             IGFD::FileDialogConfig config;
             config.path = ".";
             ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".gpx,*", config);
+        }
+
+        const char* items = "none\0without depth test\0with depth test\0semi-transparent\0";
+        if (ImGui::Combo("Line render mode", (int*)&(m_shared_config_ubo->data.m_track_render_mode), items)) {
+            m_needs_redraw = true;
         }
     }
 
@@ -259,7 +261,9 @@ void Window::paint_gui()
         if (ImGuiFileDialog::Instance()->IsOk()) { // action if OK
             std::string file_path = ImGuiFileDialog::Instance()->GetFilePathName();
             load_track_and_focus(QString::fromStdString(file_path));
-            m_shared_config_ubo->data.m_render_tracks_enabled = true;
+            if (m_shared_config_ubo->data.m_track_render_mode == 0) {
+                m_shared_config_ubo->data.m_track_render_mode = 1;
+            }
             m_needs_redraw = true;
         }
         ImGuiFileDialog::Instance()->Close();
