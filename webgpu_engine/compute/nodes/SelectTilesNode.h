@@ -31,7 +31,11 @@ public:
     enum Input {};
     enum Output { TILE_ID_LIST = 0 };
 
-    SelectTilesNode(const TileIdGenerator& tile_id_generator);
+    SelectTilesNode();
+    SelectTilesNode(TileIdGenerator tile_id_generator);
+
+    void set_tile_id_generator(TileIdGenerator tile_id_generator);
+    void select_tiles_in_world_aabb(const geometry::Aabb<3, double>& aabb);
 
 public slots:
     void run_impl() override;

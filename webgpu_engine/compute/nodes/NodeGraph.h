@@ -34,10 +34,10 @@ class NodeGraph : public QObject {
 public:
     NodeGraph() = default;
 
-    Node* add_node(std::unique_ptr<Node> node);
+    Node* add_node(const std::string& name, std::unique_ptr<Node> node);
 
-    Node& get_node(size_t node_index);
-    const Node& get_node(size_t node_index) const;
+    Node& get_node(const std::string& node_name);
+    const Node& get_node(const std::string& node_name) const;
 
     void connect_sockets(Node* from_node, SocketIndex output_socket, Node* to_node, SocketIndex input_socket);
 
@@ -66,7 +66,7 @@ public:
     static std::unique_ptr<NodeGraph> create_normal_with_snow_compute_graph(const PipelineManager& manager, WGPUDevice device);
 
 private:
-    std::vector<std::unique_ptr<Node>> m_nodes;
+    std::unordered_map<std::string, std::unique_ptr<Node>> m_nodes;
     GpuHashMap<tile::Id, uint32_t, GpuTileId>* m_output_hash_map_ptr;
     TileStorageTexture* m_output_texture_storage_ptr;
 

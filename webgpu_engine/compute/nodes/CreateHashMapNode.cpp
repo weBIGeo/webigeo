@@ -48,6 +48,12 @@ void CreateHashMapNode::run_impl()
 
     assert(tile_ids.size() == textures.size());
 
+    if (tile_ids.size() > m_output_tile_textures.capacity()) {
+        qCritical() << "failed to store textures in GPU hash map: trying to store " << tile_ids.size() << " textures, but hash map capacity is "
+                    << m_output_tile_textures.capacity() << ". Aborting node execution.";
+        return;
+    }
+
     // store each texture in texture array and store resulting index in hashmap
     for (size_t i = 0; i < tile_ids.size(); i++) {
         auto index = m_output_tile_textures.store(textures[i]);

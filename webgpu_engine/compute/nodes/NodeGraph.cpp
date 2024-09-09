@@ -32,15 +32,16 @@
 
 namespace webgpu_engine::compute::nodes {
 
-Node* NodeGraph::add_node(std::unique_ptr<Node> node)
+Node* NodeGraph::add_node(const std::string& name, std::unique_ptr<Node> node)
 {
-    m_nodes.emplace_back(std::move(node));
-    return m_nodes.back().get();
+    assert(!m_nodes.contains(name));
+    m_nodes.emplace(name, std::move(node));
+    return m_nodes.at(name).get();
 }
 
-Node& NodeGraph::get_node(size_t node_index) { return *m_nodes.at(node_index); }
+Node& NodeGraph::get_node(const std::string& node_name) { return *m_nodes.at(node_name); }
 
-const Node& NodeGraph::get_node(size_t node_index) const { return *m_nodes.at(node_index); }
+const Node& NodeGraph::get_node(const std::string& node_name) const { return *m_nodes.at(node_name); }
 
 void NodeGraph::connect_sockets(Node* from_node, SocketIndex output_socket, Node* to_node, SocketIndex input_socket)
 {
@@ -67,7 +68,7 @@ TileStorageTexture& NodeGraph::output_texture_storage_2() { return *m_output_tex
 void NodeGraph::run()
 {
     qDebug() << "running node graph ...";
-    Node* tile_select_node = m_nodes[0].get();
+    Node* tile_select_node = m_nodes.at("select_tiles_node").get();
     tile_select_node->run();
 }
 
@@ -86,19 +87,16 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_compute_graph(const Pipeline
     glm::uvec2 upsample_output_resolution = { 256, 256 };
 
     auto node_graph = std::make_unique<NodeGraph>();
-    node_graph->add_node(std::make_unique<SelectTilesNode>(tile_id_generator_func));
-    node_graph->add_node(std::make_unique<RequestTilesNode>());
-    node_graph->add_node(std::make_unique<CreateHashMapNode>(device, input_resolution, capacity, WGPUTextureFormat_R16Uint));
-    node_graph->add_node(std::make_unique<ComputeNormalsNode>(manager, device, normal_output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm));
-    node_graph->add_node(std::make_unique<UpsampleTexturesNode>(manager, device, upsample_output_resolution, capacity));
-    node_graph->add_node(std::make_unique<DownsampleTilesNode>(manager, device, capacity, 5));
-
-    Node* tile_select_node = node_graph->m_nodes[0].get();
-    Node* height_request_node = node_graph->m_nodes[1].get();
-    Node* hash_map_node = node_graph->m_nodes[2].get();
-    Node* normal_compute_node = node_graph->m_nodes[3].get();
-    Node* upsample_textures_node = node_graph->m_nodes[4].get();
-    DownsampleTilesNode* downsample_tiles_node = static_cast<DownsampleTilesNode*>(node_graph->m_nodes[5].get());
+    Node* tile_select_node = node_graph->add_node("select_tiles_node", std::make_unique<SelectTilesNode>(tile_id_generator_func));
+    Node* height_request_node = node_graph->add_node("request_height_node", std::make_unique<RequestTilesNode>());
+    Node* hash_map_node
+        = node_graph->add_node("hashmap_node", std::make_unique<CreateHashMapNode>(device, input_resolution, capacity, WGPUTextureFormat_R16Uint));
+    Node* normal_compute_node = node_graph->add_node(
+        "compute_normals_node", std::make_unique<ComputeNormalsNode>(manager, device, normal_output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm));
+    Node* upsample_textures_node
+        = node_graph->add_node("upsample_textures_node", std::make_unique<UpsampleTexturesNode>(manager, device, upsample_output_resolution, capacity));
+    DownsampleTilesNode* downsample_tiles_node
+        = static_cast<DownsampleTilesNode*>(node_graph->add_node("downsample_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity, 5)));
 
     // connect tile request node inputs
     node_graph->connect_sockets(tile_select_node, SelectTilesNode::Output::TILE_ID_LIST, height_request_node, RequestTilesNode::Input::TILE_ID_LIST);
@@ -155,19 +153,22 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_with_snow_compute_graph(cons
     glm::uvec2 upsample_output_resolution = { 256, 256 };
 
     auto node_graph = std::make_unique<NodeGraph>();
-    Node* tile_select_node = node_graph->add_node(std::make_unique<SelectTilesNode>(tile_id_generator_func));
-    Node* height_request_node = node_graph->add_node(std::make_unique<RequestTilesNode>());
-    Node* hash_map_node = node_graph->add_node(std::make_unique<CreateHashMapNode>(device, input_resolution, capacity, WGPUTextureFormat_R16Uint));
-    Node* normal_compute_node
-        = node_graph->add_node(std::make_unique<ComputeNormalsNode>(manager, device, normal_output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm));
-    Node* snow_compute_node
-        = node_graph->add_node(std::make_unique<ComputeSnowNode>(manager, device, normal_output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm));
-    Node* upsample_textures_node = node_graph->add_node(std::make_unique<UpsampleTexturesNode>(manager, device, upsample_output_resolution, capacity));
-    Node* upsample_snow_textures_node = node_graph->add_node(std::make_unique<UpsampleTexturesNode>(manager, device, upsample_output_resolution, capacity));
+    Node* tile_select_node = node_graph->add_node("select_tiles_node", std::make_unique<SelectTilesNode>(tile_id_generator_func));
+    Node* height_request_node = node_graph->add_node("request_height_node", std::make_unique<RequestTilesNode>());
+    Node* hash_map_node
+        = node_graph->add_node("create_hashmap_node", std::make_unique<CreateHashMapNode>(device, input_resolution, capacity, WGPUTextureFormat_R16Uint));
+    Node* normal_compute_node = node_graph->add_node(
+        "compute_normals_node", std::make_unique<ComputeNormalsNode>(manager, device, normal_output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm));
+    Node* snow_compute_node = node_graph->add_node(
+        "compute_snow_node", std::make_unique<ComputeSnowNode>(manager, device, normal_output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm));
+    Node* upsample_textures_node
+        = node_graph->add_node("upsample_textures_node", std::make_unique<UpsampleTexturesNode>(manager, device, upsample_output_resolution, capacity));
+    Node* upsample_snow_textures_node
+        = node_graph->add_node("upsample_snow_textures_node", std::make_unique<UpsampleTexturesNode>(manager, device, upsample_output_resolution, capacity));
     DownsampleTilesNode* downsample_snow_tiles_node
-        = static_cast<DownsampleTilesNode*>(node_graph->add_node(std::make_unique<DownsampleTilesNode>(manager, device, capacity, 5)));
-    DownsampleTilesNode* downsample_tiles_node
-        = static_cast<DownsampleTilesNode*>(node_graph->add_node(std::make_unique<DownsampleTilesNode>(manager, device, capacity, 5)));
+        = static_cast<DownsampleTilesNode*>(node_graph->add_node("downsample_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity, 5)));
+    DownsampleTilesNode* downsample_tiles_node = static_cast<DownsampleTilesNode*>(
+        node_graph->add_node("downsample_snow_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity, 5)));
 
     // connect tile request node inputs
     node_graph->connect_sockets(tile_select_node, SelectTilesNode::Output::TILE_ID_LIST, height_request_node, RequestTilesNode::Input::TILE_ID_LIST);
@@ -251,13 +252,14 @@ std::unique_ptr<NodeGraph> NodeGraph::create_snow_compute_graph(const PipelineMa
     glm::uvec2 output_resolution = { 65, 65 };
 
     auto node_graph = std::make_unique<NodeGraph>();
-    Node* tile_select_node = node_graph->add_node(std::make_unique<SelectTilesNode>(tile_id_generator_func));
-    Node* height_request_node = node_graph->add_node(std::make_unique<RequestTilesNode>());
-    Node* hash_map_node = node_graph->add_node(std::make_unique<CreateHashMapNode>(device, input_resolution, capacity, WGPUTextureFormat_R16Uint));
-    Node* snow_compute_node
-        = node_graph->add_node(std::make_unique<ComputeSnowNode>(manager, device, output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm));
+    Node* tile_select_node = node_graph->add_node("select_tiles_node", std::make_unique<SelectTilesNode>(tile_id_generator_func));
+    Node* height_request_node = node_graph->add_node("request_height_node", std::make_unique<RequestTilesNode>());
+    Node* hash_map_node
+        = node_graph->add_node("hashmap_node", std::make_unique<CreateHashMapNode>(device, input_resolution, capacity, WGPUTextureFormat_R16Uint));
+    Node* snow_compute_node = node_graph->add_node(
+        "snow_compute_node", std::make_unique<ComputeSnowNode>(manager, device, output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm));
     DownsampleTilesNode* downsample_tiles_node
-        = static_cast<DownsampleTilesNode*>(node_graph->add_node(std::make_unique<DownsampleTilesNode>(manager, device, capacity, 3)));
+        = static_cast<DownsampleTilesNode*>(node_graph->add_node("downsample_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity, 3)));
 
     node_graph->connect_sockets(tile_select_node, SelectTilesNode::Output::TILE_ID_LIST, height_request_node, RequestTilesNode::Input::TILE_ID_LIST);
     

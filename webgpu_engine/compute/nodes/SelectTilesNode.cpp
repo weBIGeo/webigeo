@@ -18,15 +18,34 @@
 
 #include "SelectTilesNode.h"
 
-#include "../RectangularTileRegion.h"
+#include "webgpu_engine/compute/RectangularTileRegion.h"
 #include <QDebug>
+#include <nucleus/srs.h>
 
 namespace webgpu_engine::compute::nodes {
 
-SelectTilesNode::SelectTilesNode(const TileIdGenerator& tile_id_generator)
+SelectTilesNode::SelectTilesNode()
+    : SelectTilesNode([]() { return std::vector<tile::Id> {}; })
+{
+}
+
+SelectTilesNode::SelectTilesNode(TileIdGenerator tile_id_generator)
     : Node({}, { data_type<const std::vector<tile::Id>*>() })
     , m_tile_id_generator(tile_id_generator)
 {
+}
+
+void SelectTilesNode::set_tile_id_generator(TileIdGenerator tile_id_generator) { m_tile_id_generator = tile_id_generator; }
+
+void SelectTilesNode::select_tiles_in_world_aabb(const geometry::Aabb<3, double>& aabb)
+{
+    const auto lower_left_tile = nucleus::srs::world_xy_to_tile_id(glm::dvec2(aabb.min), 18);
+    const auto upper_right_tile = nucleus::srs::world_xy_to_tile_id(glm::dvec2(aabb.max), 18);
+
+    set_tile_id_generator([lower_left_tile, upper_right_tile]() {
+        compute::RectangularTileRegion region { .min = lower_left_tile.coords, .max = upper_right_tile.coords, .zoom_level = 18, .scheme = tile::Scheme::Tms };
+        return region.get_tiles();
+    });
 }
 
 void SelectTilesNode::run_impl()

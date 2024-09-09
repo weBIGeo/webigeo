@@ -18,6 +18,8 @@
  *****************************************************************************/
 
 #include "Window.h"
+#include "compute/RectangularTileRegion.h"
+#include "compute/nodes/SelectTilesNode.h"
 #include <nucleus/track/GPX.h>
 #include <webgpu/raii/RenderPassEncoder.h>
 
@@ -313,6 +315,9 @@ void Window::load_track_and_focus(const QString& path)
 
     nucleus::camera::Definition new_camera_definition = { track_aabb.centre() + glm::dvec3 { 0, 0, std::max(aabb_size.x, aabb_size.y) }, track_aabb.centre() };
     new_camera_definition.set_viewport_size(m_camera.viewport_size());
+
+    auto& select_tiles_node = static_cast<compute::nodes::SelectTilesNode&>(m_compute_graph->get_node("select_tiles_node"));
+    select_tiles_node.select_tiles_in_world_aabb(track_aabb);
 
     emit set_camera_definition_requested(new_camera_definition);
 }
