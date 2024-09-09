@@ -40,6 +40,7 @@ public:
     const webgpu::raii::CombinedComputePipeline& snow_compute_pipeline() const;
     const webgpu::raii::CombinedComputePipeline& downsample_compute_pipeline() const;
     const webgpu::raii::CombinedComputePipeline& upsample_textures_compute_pipeline() const;
+    const webgpu::raii::CombinedComputePipeline& area_of_influence_compute_pipeline() const;
 
     const webgpu::raii::BindGroupLayout& shared_config_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& camera_bind_group_layout() const;
@@ -52,6 +53,7 @@ public:
     const webgpu::raii::BindGroupLayout& upsample_textures_compute_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& lines_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& depth_texture_bind_group_layout() const;
+    const webgpu::raii::BindGroupLayout& area_of_influence_bind_group_layout() const;
 
     void create_pipelines();
     void create_bind_group_layouts();
@@ -68,6 +70,7 @@ private:
     void create_downsample_compute_pipeline();
     void create_upsample_textures_compute_pipeline();
     void create_lines_render_pipeline();
+    void create_area_of_influence_compute_pipeline();
 
     void create_shared_config_bind_group_layout();
     void create_camera_bind_group_layout();
@@ -80,6 +83,7 @@ private:
     void create_upsample_textures_compute_bind_group_layout();
     void create_lines_bind_group_layout();
     void create_depth_texture_bind_group_layout();
+    void create_area_of_influence_bind_group_layout();
 
 private:
     WGPUDevice m_device;
@@ -94,6 +98,7 @@ private:
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_snow_compute_pipeline;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_downsample_compute_pipeline;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_upsample_textures_compute_pipeline;
+    std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_area_of_influence_compute_pipeline;
 
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_shared_config_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_camera_bind_group_layout;
@@ -106,6 +111,7 @@ private:
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_upsample_textures_compute_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_lines_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_depth_texture_bind_group_layout;
+    std::unique_ptr<webgpu::raii::BindGroupLayout> m_area_of_influence_bind_group_layout;
 
     bool m_pipelines_created = false;
 };

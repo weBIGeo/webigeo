@@ -222,8 +222,7 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
             let sampled_overlay_color = textureSample(overlay_texture_2, ortho_sampler, vertex_out.uv, texure_array_index).rgba;
             
             if (found) {
-                overlay_color = vec4f(1.0, 1.0, 1.0, sampled_overlay_color.a);
-                
+                overlay_color = sampled_overlay_color;
             } else {
                 overlay_color = vec4f(albedo, 1.0); //kind of ugly
             }

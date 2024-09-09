@@ -19,12 +19,13 @@
 #pragma once
 
 #include "Node.h"
-#include "webgpu_engine/PipelineManager.h"
+
+#include "Buffer.h"
+#include "PipelineManager.h"
 
 namespace webgpu_engine::compute::nodes {
 
-/// GPU compute node, calling run executes code on the GPU
-class ComputeNormalsNode : public Node {
+class ComputeAreaOfInfluenceNode : public Node {
     Q_OBJECT
 
 public:
@@ -33,13 +34,20 @@ public:
 
     static glm::uvec3 SHADER_WORKGROUP_SIZE; // TODO currently hardcoded in shader! can we somehow not hardcode it? maybe using overrides
 
-    ComputeNormalsNode(
+    struct AreaOfInfluenceSettings {
+        glm::uvec4 tile_id;
+        glm::vec4 uv;
+    };
+
+    ComputeAreaOfInfluenceNode(
         const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity, WGPUTextureFormat output_format);
 
     const GpuHashMap<tile::Id, uint32_t, GpuTileId>& hash_map() const { return m_output_tile_map; }
     GpuHashMap<tile::Id, uint32_t, GpuTileId>& hash_map() { return m_output_tile_map; }
     const TileStorageTexture& texture_storage() const { return m_output_texture; }
     TileStorageTexture& texture_storage() { return m_output_texture; }
+
+    void set_coords(const glm::dvec2& coords);
 
 public slots:
     void run_impl() override;
@@ -52,12 +60,16 @@ private:
     WGPUDevice m_device;
     WGPUQueue m_queue;
     size_t m_capacity;
+    bool m_should_output_files;
+
+    glm::dvec2 m_coords = {};
 
     // calculated on cpu-side before each invocation
     webgpu::raii::RawBuffer<glm::vec4> m_tile_bounds; // aabb per tile
 
     // input
-    webgpu::raii::RawBuffer<GpuTileId> m_input_tile_ids; // tile ids for which to calculate normals
+    webgpu::raii::RawBuffer<GpuTileId> m_input_tile_ids; // tile ids for which to calculate overlays
+    webgpu_engine::Buffer<AreaOfInfluenceSettings> m_input_settings; // settings for area of influence calculation
 
     // output
     GpuHashMap<tile::Id, uint32_t, GpuTileId> m_output_tile_map; // hash map

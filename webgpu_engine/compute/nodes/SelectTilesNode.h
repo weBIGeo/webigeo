@@ -35,7 +35,7 @@ public:
     SelectTilesNode(TileIdGenerator tile_id_generator);
 
     void set_tile_id_generator(TileIdGenerator tile_id_generator);
-    void select_tiles_in_world_aabb(const geometry::Aabb<3, double>& aabb);
+    void select_tiles_in_world_aabb(const geometry::Aabb<3, double>& aabb, unsigned int zoomlevel);
 
 public slots:
     void run_impl() override;

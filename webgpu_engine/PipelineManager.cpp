@@ -47,6 +47,8 @@ const webgpu::raii::CombinedComputePipeline& PipelineManager::downsample_compute
 
 const webgpu::raii::CombinedComputePipeline& PipelineManager::upsample_textures_compute_pipeline() const { return *m_upsample_textures_compute_pipeline; }
 
+const webgpu::raii::CombinedComputePipeline& PipelineManager::area_of_influence_compute_pipeline() const { return *m_area_of_influence_compute_pipeline; }
+
 const webgpu::raii::BindGroupLayout& PipelineManager::shared_config_bind_group_layout() const { return *m_shared_config_bind_group_layout; }
 
 const webgpu::raii::BindGroupLayout& PipelineManager::camera_bind_group_layout() const { return *m_camera_bind_group_layout; }
@@ -72,6 +74,8 @@ const webgpu::raii::BindGroupLayout& PipelineManager::lines_bind_group_layout() 
 
 const webgpu::raii::BindGroupLayout& PipelineManager::depth_texture_bind_group_layout() const { return *m_depth_texture_bind_group_layout; }
 
+const webgpu::raii::BindGroupLayout& PipelineManager::area_of_influence_bind_group_layout() const { return *m_area_of_influence_bind_group_layout; }
+
 void PipelineManager::create_pipelines()
 {
     create_bind_group_layouts();
@@ -83,6 +87,7 @@ void PipelineManager::create_pipelines()
     create_downsample_compute_pipeline();
     create_upsample_textures_compute_pipeline();
     create_lines_render_pipeline();
+    create_area_of_influence_compute_pipeline();
     m_pipelines_created = true;
 }
 
@@ -99,6 +104,7 @@ void PipelineManager::create_bind_group_layouts()
     create_upsample_textures_compute_bind_group_layout();
     create_lines_bind_group_layout();
     create_depth_texture_bind_group_layout();
+    create_area_of_influence_bind_group_layout();
 }
 
 void PipelineManager::release_pipelines()
@@ -111,6 +117,7 @@ void PipelineManager::release_pipelines()
     m_downsample_compute_pipeline.release();
     m_upsample_textures_compute_pipeline.release();
     m_lines_render_pipeline.release();
+    m_area_of_influence_compute_pipeline.release();
     m_pipelines_created = false;
 }
 
@@ -242,6 +249,12 @@ void PipelineManager::create_lines_render_pipeline()
     pipeline_desc.layout = layout.handle();
 
     m_lines_render_pipeline = std::make_unique<webgpu::raii::RenderPipeline>(m_device, pipeline_desc);
+}
+
+void PipelineManager::create_area_of_influence_compute_pipeline()
+{
+    m_area_of_influence_compute_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(m_device, m_shader_manager->area_of_influence_compute(),
+        std::vector<const webgpu::raii::BindGroupLayout*> { m_area_of_influence_bind_group_layout.get() });
 }
 
 void PipelineManager::create_shared_config_bind_group_layout()
@@ -563,5 +576,61 @@ void PipelineManager::create_depth_texture_bind_group_layout()
 
     m_depth_texture_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(
         m_device, std::vector<WGPUBindGroupLayoutEntry> { depth_texture_entry }, "depth texture bind group layout");
+}
+
+void PipelineManager::create_area_of_influence_bind_group_layout()
+{
+    WGPUBindGroupLayoutEntry input_tile_ids_entry {};
+    input_tile_ids_entry.binding = 0;
+    input_tile_ids_entry.visibility = WGPUShaderStage_Compute;
+    input_tile_ids_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    input_tile_ids_entry.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry input_bounds_entry {};
+    input_bounds_entry.binding = 1;
+    input_bounds_entry.visibility = WGPUShaderStage_Compute;
+    input_bounds_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    input_bounds_entry.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry input_settings {};
+    input_settings.binding = 2;
+    input_settings.visibility = WGPUShaderStage_Compute;
+    input_settings.buffer.type = WGPUBufferBindingType_Uniform;
+    input_settings.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry key_buffer_entry {};
+    key_buffer_entry.binding = 3;
+    key_buffer_entry.visibility = WGPUShaderStage_Compute;
+    key_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    key_buffer_entry.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry value_buffer_entry {};
+    value_buffer_entry.binding = 4;
+    value_buffer_entry.visibility = WGPUShaderStage_Compute;
+    value_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    value_buffer_entry.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry input_normal_textures_entry {};
+    input_normal_textures_entry.binding = 5;
+    input_normal_textures_entry.visibility = WGPUShaderStage_Compute;
+    input_normal_textures_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
+    input_normal_textures_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
+
+    WGPUBindGroupLayoutEntry input_normal_texture_sampler {};
+    input_normal_texture_sampler.binding = 6;
+    input_normal_texture_sampler.visibility = WGPUShaderStage_Compute;
+    input_normal_texture_sampler.sampler.type = WGPUSamplerBindingType_NonFiltering;
+
+    WGPUBindGroupLayoutEntry output_tiles_entry {};
+    output_tiles_entry.binding = 7;
+    output_tiles_entry.visibility = WGPUShaderStage_Compute;
+    output_tiles_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2DArray;
+    output_tiles_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
+    output_tiles_entry.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
+
+    m_area_of_influence_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
+        std::vector<WGPUBindGroupLayoutEntry> { input_tile_ids_entry, input_bounds_entry, input_settings, key_buffer_entry, value_buffer_entry,
+            input_normal_textures_entry, input_normal_texture_sampler, output_tiles_entry },
+        "area of influence bind group layout");
 }
 }

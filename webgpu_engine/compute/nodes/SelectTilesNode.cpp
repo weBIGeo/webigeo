@@ -37,10 +37,10 @@ SelectTilesNode::SelectTilesNode(TileIdGenerator tile_id_generator)
 
 void SelectTilesNode::set_tile_id_generator(TileIdGenerator tile_id_generator) { m_tile_id_generator = tile_id_generator; }
 
-void SelectTilesNode::select_tiles_in_world_aabb(const geometry::Aabb<3, double>& aabb)
+void SelectTilesNode::select_tiles_in_world_aabb(const geometry::Aabb<3, double>& aabb, unsigned int zoomlevel)
 {
-    const auto lower_left_tile = nucleus::srs::world_xy_to_tile_id(glm::dvec2(aabb.min), 18);
-    const auto upper_right_tile = nucleus::srs::world_xy_to_tile_id(glm::dvec2(aabb.max), 18);
+    const auto lower_left_tile = nucleus::srs::world_xy_to_tile_id(glm::dvec2(aabb.min), zoomlevel);
+    const auto upper_right_tile = nucleus::srs::world_xy_to_tile_id(glm::dvec2(aabb.max), zoomlevel);
 
     set_tile_id_generator([lower_left_tile, upper_right_tile]() {
         compute::RectangularTileRegion region { .min = lower_left_tile.coords, .max = upper_right_tile.coords, .zoom_level = 18, .scheme = tile::Scheme::Tms };

@@ -42,6 +42,7 @@ void ShaderModuleManager::create_shader_modules()
     m_downsample_compute_module = create_shader_module("downsample_compute.wgsl");
     m_upsample_textures_compute_module = create_shader_module("upsample_textures_compute.wgsl");
     m_line_render_module = create_shader_module("line_render.wgsl");
+    m_area_of_influence_compute_module = create_shader_module("area_of_influence_compute.wgsl");
 }
 
 void ShaderModuleManager::release_shader_modules()
@@ -55,6 +56,7 @@ void ShaderModuleManager::release_shader_modules()
     m_downsample_compute_module.release();
     m_upsample_textures_compute_module.release();
     m_line_render_module.release();
+    m_area_of_influence_compute_module.release();
 }
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::tile() const { return *m_tile_shader_module; }
@@ -75,7 +77,10 @@ const webgpu::raii::ShaderModule& ShaderModuleManager::upsample_textures_compute
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::line_render() const { return *m_line_render_module; }
 
-std::string ShaderModuleManager::read_file_contents(const std::string& name) const {
+const webgpu::raii::ShaderModule& ShaderModuleManager::area_of_influence_compute() const { return *m_area_of_influence_compute_module; }
+
+std::string ShaderModuleManager::read_file_contents(const std::string& name) const
+{
     const auto path = m_prefix / name; // operator/ concats paths
     auto file = QFile(path);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {

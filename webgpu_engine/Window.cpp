@@ -18,7 +18,7 @@
  *****************************************************************************/
 
 #include "Window.h"
-#include "compute/RectangularTileRegion.h"
+#include "compute/nodes/ComputeAreaOfInfluenceNode.h"
 #include "compute/nodes/SelectTilesNode.h"
 #include <nucleus/track/GPX.h>
 #include <webgpu/raii/RenderPassEncoder.h>
@@ -69,7 +69,8 @@ void Window::initialise_gpu()
     m_pipeline_manager->create_pipelines();
     create_bind_groups();
 
-    m_compute_graph = compute::nodes::NodeGraph::create_normal_with_snow_compute_graph(*m_pipeline_manager, m_device);
+    // m_compute_graph = compute::nodes::NodeGraph::create_normal_with_snow_compute_graph(*m_pipeline_manager, m_device);
+    m_compute_graph = compute::nodes::NodeGraph::create_normal_with_area_of_influence_compute_graph(*m_pipeline_manager, m_device);
     connect(m_compute_graph.get(), &compute::nodes::NodeGraph::run_finished, this, &Window::request_redraw);
 
     m_tile_manager->init(m_device, m_queue, *m_pipeline_manager, *m_compute_graph);
@@ -315,8 +316,16 @@ void Window::load_track_and_focus(const QString& path)
     nucleus::camera::Definition new_camera_definition = { track_aabb.centre() + glm::dvec3 { 0, 0, std::max(aabb_size.x, aabb_size.y) }, track_aabb.centre() };
     new_camera_definition.set_viewport_size(m_camera.viewport_size());
 
+    const unsigned select_zoomlevel = 18;
     auto& select_tiles_node = static_cast<compute::nodes::SelectTilesNode&>(m_compute_graph->get_node("select_tiles_node"));
-    select_tiles_node.select_tiles_in_world_aabb(track_aabb);
+    select_tiles_node.select_tiles_in_world_aabb(track_aabb, select_zoomlevel);
+
+    if (m_compute_graph->exists_node("compute_area_of_influence_node")) {
+        auto& area_of_influence_node = static_cast<compute::nodes::ComputeAreaOfInfluenceNode&>(m_compute_graph->get_node("compute_area_of_influence_node"));
+        // for now simply always select point in middle of first segment
+        const auto& coords = gpx_track->track.at(0).at(gpx_track->track.at(0).size() / 2);
+        area_of_influence_node.set_coords({ coords.latitude, coords.longitude });
+    }
 
     emit set_camera_definition_requested(new_camera_definition);
 }
