@@ -299,13 +299,12 @@ glm::vec4 Window::synchronous_position_readback(const glm::dvec2& ndc) {
 
 void Window::load_track_and_focus(const QString& path)
 {
-    const double elevation_offset = 10.0;
     std::vector<glm::dvec3> points;
     std::unique_ptr<nucleus::track::Gpx> gpx_track = nucleus::track::parse(path);
     for (const auto& segment : gpx_track->track) {
         points.reserve(points.size() + segment.size());
         for (const auto& point : segment) {
-            points.push_back({ point.latitude, point.longitude, point.elevation + elevation_offset });
+            points.push_back({ point.latitude, point.longitude, point.elevation });
         }
     }
     m_track_renderer->add_track(points);
