@@ -35,6 +35,7 @@ public:
     static glm::uvec3 SHADER_WORKGROUP_SIZE; // TODO currently hardcoded in shader! can we somehow not hardcode it? maybe using overrides
 
     struct AreaOfInfluenceSettings {
+        glm::vec4 coords;
         glm::uvec4 tile_id;
         glm::vec4 uv;
     };

@@ -72,8 +72,9 @@ void ComputeAreaOfInfluenceNode::run_impl()
     glm::dvec2 world_pos = nucleus::srs::lat_long_to_world(m_coords);
     tile::Id tile_id = nucleus::srs::world_xy_to_tile_id({ world_pos.x, world_pos.y }, 18);
     glm::dvec2 uv = nucleus::srs::world_xy_to_tile_uv({ world_pos.x, world_pos.y }, 18);
-    m_input_settings.data.tile_id = glm::uvec4(tile_id.coords.x, tile_id.coords.y, tile_id.zoom_level, 0);
-    m_input_settings.data.uv = glm::vec4(uv.x, uv.y, 0.0, 0.0);
+    m_input_settings.data.coords = glm::vec4 { world_pos.x, world_pos.y, 0, 0 };
+    m_input_settings.data.tile_id = glm::uvec4 { tile_id.coords.x, tile_id.coords.y, tile_id.zoom_level, 0 };
+    m_input_settings.data.uv = glm::vec4 { uv.x, uv.y, 0.0, 0.0 };
     m_input_settings.update_gpu_data(m_queue);
 
     // create bind group

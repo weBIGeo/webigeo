@@ -23,6 +23,7 @@
 #include "tile_hashmap.wgsl"
 
 struct AreaOfInfluenceSettings {
+    coords: vec4f,
     tile_id: vec4u,
     uv: vec4f,
 }
@@ -55,19 +56,31 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     let tile_id = input_tile_ids[id.x];
     let bounds = input_tile_bounds[id.x];
     let input_texture_size = textureDimensions(input_normal_tiles);
-    let quad_width: f32 = (bounds.z - bounds.x) / f32(input_texture_size.x - 1);
-    let quad_height: f32 = (bounds.w - bounds.y) / f32(input_texture_size.y - 1);
+    let tile_width: f32 = (bounds.z - bounds.x);
+    let tile_height: f32 = (bounds.w - bounds.y);
 
     let col = id.y; // in [0, texture_dimension(output_tiles).x - 1]
     let row = id.z; // in [0, texture_dimension(output_tiles).y - 1]
-    let uv = vec2f(f32(col), f32(input_texture_size.y - 1 - row)) / vec2f(output_texture_size - 1);
+    let uv = vec2f(f32(col), f32(row)) / vec2f(output_texture_size - 1);
+
+    //let uv = vec2f(f32(col), f32(row)) / vec2f(output_texture_size - 1);
+
     
-    let to_target_tile = vec2f(vec2i(settings.tile_id.xy) - vec2i(i32(tile_id.x), i32(tile_id.y)));
+    // uses tile coordinates
+    /*let to_target_tile = vec2f(vec2i(settings.tile_id.xy) - vec2i(i32(tile_id.x), i32(tile_id.y)));
     let to_target_uv = settings.uv.xy - uv;
     let to_target_total = to_target_tile + to_target_uv;
     let total_distance = length(to_target_total);
-    
     let overlay = select(0.0, 1.0, total_distance < 1.0);
+    */
+
+    // uses world coordinates
+    let pos_x = uv.x * f32(tile_width) + bounds.x;
+    let pos_y = (1 - uv.y) * f32(tile_height) + bounds.y;
+    let to_target = vec2f(settings.coords.x, settings.coords.y) - vec2f(pos_x, pos_y);
+    let distance_to_target = length(to_target);
+    let overlay = select(0.0, 1.0, distance_to_target < 100.0);
     
-    textureStore(output_tiles, vec2(col, row), id.x, vec4f(1.0, 0.0, 0.0, f32(overlay))); // incorrect
+    //textureStore(output_tiles, vec2(col, row), id.x, vec4f(1.0, 0.0, 0.0, f32(overlay))); // incorrect
+    textureStore(output_tiles, vec2(col, row), id.x, vec4f(1.0, 0.0, 0.0, f32(overlay)));
 }
