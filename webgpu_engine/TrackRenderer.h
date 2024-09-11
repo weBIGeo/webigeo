@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include "Buffer.h"
 #include "PipelineManager.h"
 #include "webgpu/raii/BindGroup.h"
 #include "webgpu/raii/RawBuffer.h"
@@ -31,10 +32,15 @@ using Track = std::vector<Coordinates>;
 
 class TrackRenderer {
 public:
+    struct LineConfig {
+        glm::vec4 line_color = { 1.0f, 0.0, 0.0, 1.0f };
+    };
+
+public:
     TrackRenderer(WGPUDevice device, const PipelineManager& pipeline_manager);
 
-    void add_track(const Track& track);
-    void add_world_positions(const std::vector<glm::vec4>& world_positions);
+    void add_track(const Track& track, const glm::vec4& color = { 1.0f, 0.0f, 0.0f, 1.0f });
+    void add_world_positions(const std::vector<glm::vec4>& world_positions, const glm::vec4& color = { 1.0f, 0.0f, 0.0f, 1.0f });
 
     void render(WGPUCommandEncoder command_encoder, const webgpu::raii::BindGroup& shared_config, const webgpu::raii::BindGroup& camera_config,
         const webgpu::raii::BindGroup& depth_texture, const webgpu::raii::TextureView& color_texture);
@@ -45,6 +51,7 @@ private:
     const PipelineManager* m_pipeline_manager;
 
     std::vector<std::unique_ptr<webgpu::raii::RawBuffer<glm::fvec4>>> m_position_buffers;
+    std::vector<std::unique_ptr<webgpu_engine::Buffer<TrackRenderer::LineConfig>>> m_line_config_buffers;
     std::vector<std::unique_ptr<webgpu::raii::BindGroup>> m_bind_groups;
 };
 

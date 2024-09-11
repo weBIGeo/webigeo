@@ -18,6 +18,7 @@
  *****************************************************************************/
 
 #include "Buffer.h"
+#include "TrackRenderer.h"
 #include "UniformBufferObjects.h"
 #include "compute/nodes/ComputeAreaOfInfluenceNode.h"
 #include "compute/nodes/ComputeSnowNode.h"
@@ -50,6 +51,7 @@ template class Buffer<uboSharedConfig>;
 template class Buffer<uboCameraConfig>;
 template class Buffer<compute::nodes::ComputeSnowNode::SnowSettings>;
 template class Buffer<compute::nodes::ComputeAreaOfInfluenceNode::AreaOfInfluenceSettings>;
+template class Buffer<TrackRenderer::LineConfig>;
 // TODO
 // template class UniformBuffer<uboShadowConfig>;
 

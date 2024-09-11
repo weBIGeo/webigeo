@@ -23,8 +23,12 @@
 @group(1) @binding(0) var<uniform> camera: camera_config;
 @group(2) @binding(0) var depth_texture: texture_2d<f32>;
 @group(3) @binding(0) var<storage> positions: array<vec4f>;
+@group(3) @binding(1) var<uniform> line_config: LineConfig;
 
-const line_color = vec3f(1, 0, 0);
+struct LineConfig {
+    color: vec4f,
+}
+
 const behind_alpha = 0.35;
 
 struct VertexOut {
@@ -52,7 +56,7 @@ fn fragmentMain(frag_in: FragIn) -> FragOut {
     var frag_out: FragOut;
 
     if (config.track_render_mode == 1) { // no depth test
-        frag_out.color = vec4f(line_color, 1.0);
+        frag_out.color = line_config.color;
         return frag_out;
     }
 
@@ -64,10 +68,10 @@ fn fragmentMain(frag_in: FragIn) -> FragOut {
         if (config.track_render_mode == 2) { // depth test
             discard;
         } else if (config.track_render_mode == 3) { // semi-transparent if depth test failed
-            frag_out.color = vec4f(line_color * behind_alpha, behind_alpha);
+            frag_out.color = vec4f(line_config.color.xyz * behind_alpha * line_config.color.a, behind_alpha * line_config.color.a);
         }
     } else {
-        frag_out.color = vec4f(line_color, 1.0);
+        frag_out.color = line_config.color;
     }
 
     return frag_out;

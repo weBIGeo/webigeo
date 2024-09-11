@@ -562,8 +562,14 @@ void PipelineManager::create_lines_bind_group_layout()
     input_positions_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
     input_positions_entry.buffer.minBindingSize = 0;
 
+    WGPUBindGroupLayoutEntry input_config_entry {};
+    input_config_entry.binding = 1;
+    input_config_entry.visibility = WGPUShaderStage_Fragment;
+    input_config_entry.buffer.type = WGPUBufferBindingType_Uniform;
+    input_config_entry.buffer.minBindingSize = 0;
+
     m_lines_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(
-        m_device, std::vector<WGPUBindGroupLayoutEntry> { input_positions_entry }, "line renderer, bind group layout");
+        m_device, std::vector<WGPUBindGroupLayoutEntry> { input_positions_entry, input_config_entry }, "line renderer, bind group layout");
 }
 
 void PipelineManager::create_depth_texture_bind_group_layout()

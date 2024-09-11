@@ -29,25 +29,31 @@ TrackRenderer::TrackRenderer(WGPUDevice device, const PipelineManager& pipeline_
 {
 }
 
-void TrackRenderer::add_track(const Track& track)
+void TrackRenderer::add_track(const Track& track, const glm::vec4& color)
 {
     std::vector<glm::fvec4> gpu_points;
     gpu_points.reserve(track.size());
     for (const glm::dvec3& coords : track) {
         gpu_points.push_back(glm::fvec4(nucleus::srs::lat_long_alt_to_world(coords), 1));
     }
-    add_world_positions(gpu_points);
+    add_world_positions(gpu_points, color);
 }
 
-void TrackRenderer::add_world_positions(const std::vector<glm::vec4>& world_positions)
+void TrackRenderer::add_world_positions(const std::vector<glm::vec4>& world_positions, const glm::vec4& color)
 {
     assert(!world_positions.empty());
 
     m_position_buffers.emplace_back(std::make_unique<webgpu::raii::RawBuffer<glm::fvec4>>(
         m_device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst, world_positions.size(), "track renderer, storage buffer for points"));
     m_position_buffers.back()->write(m_queue, world_positions.data(), world_positions.size());
+
+    m_line_config_buffers.emplace_back(std::make_unique<webgpu_engine::Buffer<LineConfig>>(m_device, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst));
+    m_line_config_buffers.back()->data.line_color = color;
+    m_line_config_buffers.back()->update_gpu_data(m_queue);
+
     m_bind_groups.emplace_back(std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->lines_bind_group_layout(),
-        std::initializer_list<WGPUBindGroupEntry> { m_position_buffers.back()->create_bind_group_entry(0) }));
+        std::initializer_list<WGPUBindGroupEntry> {
+            m_position_buffers.back()->create_bind_group_entry(0), m_line_config_buffers.back()->raw_buffer().create_bind_group_entry(1) }));
 }
 
 void TrackRenderer::render(WGPUCommandEncoder command_encoder, const webgpu::raii::BindGroup& shared_config, const webgpu::raii::BindGroup& camera_config,
