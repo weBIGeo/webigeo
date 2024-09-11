@@ -21,7 +21,6 @@
 #include "PipelineManager.h"
 #include "webgpu/raii/BindGroup.h"
 #include "webgpu/raii/RawBuffer.h"
-#include "webgpu/raii/TextureWithSampler.h"
 #include <glm/glm.hpp>
 #include <vector>
 
@@ -34,7 +33,8 @@ class TrackRenderer {
 public:
     TrackRenderer(WGPUDevice device, const PipelineManager& pipeline_manager);
 
-    void add_track(Track track);
+    void add_track(const Track& track);
+    void add_world_positions(const std::vector<glm::vec4>& world_positions);
 
     void render(WGPUCommandEncoder command_encoder, const webgpu::raii::BindGroup& shared_config, const webgpu::raii::BindGroup& camera_config,
         const webgpu::raii::BindGroup& depth_texture, const webgpu::raii::TextureView& color_texture);
