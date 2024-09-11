@@ -44,7 +44,19 @@ ComputeAreaOfInfluenceNode::ComputeAreaOfInfluenceNode(
     m_output_tile_map.update_gpu_data();
 }
 
-void ComputeAreaOfInfluenceNode::set_coords(const glm::dvec2& coords) { m_coords = coords; }
+void ComputeAreaOfInfluenceNode::set_target_point_lat_lon(const glm::dvec2& target_point_lat_lon)
+{
+    set_target_point_world(nucleus::srs::lat_long_to_world(target_point_lat_lon));
+}
+
+void ComputeAreaOfInfluenceNode::set_target_point_world(const glm::dvec2& target_point_world) { m_target_point = target_point_world; }
+
+void ComputeAreaOfInfluenceNode::set_reference_point_lat_lon_alt(const glm::dvec3& reference_point_lat_lon_alt)
+{
+    set_reference_point_world(nucleus::srs::lat_long_alt_to_world(reference_point_lat_lon_alt));
+}
+
+void ComputeAreaOfInfluenceNode::set_reference_point_world(const glm::dvec3& reference_point_world) { m_reference_point = reference_point_world; }
 
 void ComputeAreaOfInfluenceNode::run_impl()
 {
@@ -63,18 +75,16 @@ void ComputeAreaOfInfluenceNode::run_impl()
     for (size_t i = 0; i < gpu_tile_ids.size(); i++) {
         gpu_tile_ids[i] = { tile_ids[i].coords.x, tile_ids[i].coords.y, tile_ids[i].zoom_level };
         tile::SrsBounds bounds = nucleus::srs::tile_bounds(tile_ids[i]);
-        tile_bounds[i] = { bounds.min.x, bounds.min.y, bounds.max.x, bounds.max.y };
+        tile_bounds[i] = { bounds.min.x - m_reference_point.x, bounds.min.y - m_reference_point.y, bounds.max.x - m_reference_point.x,
+            bounds.max.y - m_reference_point.y };
     }
     m_input_tile_ids.write(m_queue, gpu_tile_ids.data(), gpu_tile_ids.size());
     m_tile_bounds.write(m_queue, tile_bounds.data(), tile_bounds.size());
 
     // update input settings on GPU side
-    glm::dvec2 world_pos = nucleus::srs::lat_long_to_world(m_coords);
-    tile::Id tile_id = nucleus::srs::world_xy_to_tile_id({ world_pos.x, world_pos.y }, 18);
-    glm::dvec2 uv = nucleus::srs::world_xy_to_tile_uv({ world_pos.x, world_pos.y }, 18);
-    m_input_settings.data.coords = glm::vec4 { world_pos.x, world_pos.y, 0, 0 };
-    m_input_settings.data.tile_id = glm::uvec4 { tile_id.coords.x, tile_id.coords.y, tile_id.zoom_level, 0 };
-    m_input_settings.data.uv = glm::vec4 { uv.x, uv.y, 0.0, 0.0 };
+    m_input_settings.data.target_point = glm::vec4(m_target_point - glm::dvec2(m_reference_point), 0.0f, 0.0f);
+    m_input_settings.data.reference_point = glm::vec4(m_reference_point, 0.0f);
+    m_input_settings.data.radius = 50.0f;
     m_input_settings.update_gpu_data(m_queue);
 
     // create bind group

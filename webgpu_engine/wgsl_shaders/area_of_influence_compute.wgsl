@@ -23,20 +23,23 @@
 #include "tile_hashmap.wgsl"
 
 struct AreaOfInfluenceSettings {
-    coords: vec4f,
-    tile_id: vec4u,
-    uv: vec4f,
+    target_point: vec4f,
+    reference_point: vec4f,
+    radius: f32,
+    padding1: f32,
+    padding2: f32,
+    padding3: f32,
 }
 
 // input
-@group(0) @binding(0) var<storage> input_tile_ids: array<TileId>;
-@group(0) @binding(1) var<storage> input_tile_bounds: array<vec4<f32>>;
+@group(0) @binding(0) var<storage> input_tile_ids: array<TileId>; // tiles ids to process
+@group(0) @binding(1) var<storage> input_tile_bounds: array<vec4<f32>>; // pre-computed tile bounds per tile id (in world space, relative to reference point)
 @group(0) @binding(2) var<uniform> settings: AreaOfInfluenceSettings;
 
 @group(0) @binding(3) var<storage> map_key_buffer: array<TileId>; // hash map key buffer
 @group(0) @binding(4) var<storage> map_value_buffer: array<u32>; // hash map value buffer, contains texture array indices
 @group(0) @binding(5) var input_normal_tiles: texture_2d_array<f32>; // normal tiles
-@group(0) @binding(6) var input_normal_tiles_sampler: sampler;
+@group(0) @binding(6) var input_normal_tiles_sampler: sampler; // normal sampler
 
 // output
 @group(0) @binding(7) var output_tiles: texture_storage_2d_array<rgba8unorm, write>; // influence tiles (output)
@@ -63,24 +66,12 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     let row = id.z; // in [0, texture_dimension(output_tiles).y - 1]
     let uv = vec2f(f32(col), f32(row)) / vec2f(output_texture_size - 1);
 
-    //let uv = vec2f(f32(col), f32(row)) / vec2f(output_texture_size - 1);
-
-    
-    // uses tile coordinates
-    /*let to_target_tile = vec2f(vec2i(settings.tile_id.xy) - vec2i(i32(tile_id.x), i32(tile_id.y)));
-    let to_target_uv = settings.uv.xy - uv;
-    let to_target_total = to_target_tile + to_target_uv;
-    let total_distance = length(to_target_total);
-    let overlay = select(0.0, 1.0, total_distance < 1.0);
-    */
-
-    // uses world coordinates
+    // calculate distance in world coordinates
     let pos_x = uv.x * f32(tile_width) + bounds.x;
     let pos_y = (1 - uv.y) * f32(tile_height) + bounds.y;
-    let to_target = vec2f(settings.coords.x, settings.coords.y) - vec2f(pos_x, pos_y);
+    let to_target = settings.target_point.xy - vec2f(pos_x, pos_y);
     let distance_to_target = length(to_target);
-    let overlay = select(0.0, 1.0, distance_to_target < 100.0);
+    let overlay = select(0.0, 1.0, distance_to_target < settings.radius);
     
-    //textureStore(output_tiles, vec2(col, row), id.x, vec4f(1.0, 0.0, 0.0, f32(overlay))); // incorrect
     textureStore(output_tiles, vec2(col, row), id.x, vec4f(1.0, 0.0, 0.0, f32(overlay)));
 }

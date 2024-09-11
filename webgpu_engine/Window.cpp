@@ -324,7 +324,8 @@ void Window::load_track_and_focus(const QString& path)
         auto& area_of_influence_node = static_cast<compute::nodes::ComputeAreaOfInfluenceNode&>(m_compute_graph->get_node("compute_area_of_influence_node"));
         // for now simply always select point in middle of first segment
         const auto& coords = gpx_track->track.at(0).at(gpx_track->track.at(0).size() / 2);
-        area_of_influence_node.set_coords({ coords.latitude, coords.longitude });
+        area_of_influence_node.set_target_point_lat_lon({ coords.latitude, coords.longitude });
+        area_of_influence_node.set_reference_point_world(track_aabb.min);
     }
 
     emit set_camera_definition_requested(new_camera_definition);

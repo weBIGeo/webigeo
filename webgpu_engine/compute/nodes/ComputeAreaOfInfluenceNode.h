@@ -35,9 +35,12 @@ public:
     static glm::uvec3 SHADER_WORKGROUP_SIZE; // TODO currently hardcoded in shader! can we somehow not hardcode it? maybe using overrides
 
     struct AreaOfInfluenceSettings {
-        glm::vec4 coords;
-        glm::uvec4 tile_id;
-        glm::vec4 uv;
+        glm::vec4 target_point;
+        glm::vec4 reference_point;
+        float radius;
+        float padding1;
+        float padding2;
+        float padding3;
     };
 
     ComputeAreaOfInfluenceNode(
@@ -48,7 +51,10 @@ public:
     const TileStorageTexture& texture_storage() const { return m_output_texture; }
     TileStorageTexture& texture_storage() { return m_output_texture; }
 
-    void set_coords(const glm::dvec2& coords);
+    void set_target_point_lat_lon(const glm::dvec2& target_point_lat_lon);
+    void set_target_point_world(const glm::dvec2& target_point_world);
+    void set_reference_point_lat_lon_alt(const glm::dvec3& reference_point_lat_lon_alt);
+    void set_reference_point_world(const glm::dvec3& reference_point_world);
 
 public slots:
     void run_impl() override;
@@ -63,7 +69,8 @@ private:
     size_t m_capacity;
     bool m_should_output_files;
 
-    glm::dvec2 m_coords = {};
+    glm::dvec2 m_target_point;
+    glm::dvec3 m_reference_point;
 
     // calculated on cpu-side before each invocation
     webgpu::raii::RawBuffer<glm::vec4> m_tile_bounds; // aabb per tile
