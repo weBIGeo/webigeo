@@ -627,8 +627,19 @@ void PipelineManager::create_area_of_influence_bind_group_layout()
     input_normal_texture_sampler.visibility = WGPUShaderStage_Compute;
     input_normal_texture_sampler.sampler.type = WGPUSamplerBindingType_NonFiltering;
 
+    WGPUBindGroupLayoutEntry input_height_textures_entry {};
+    input_height_textures_entry.binding = 7;
+    input_height_textures_entry.visibility = WGPUShaderStage_Compute;
+    input_height_textures_entry.texture.sampleType = WGPUTextureSampleType_Uint;
+    input_height_textures_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
+
+    WGPUBindGroupLayoutEntry input_height_texture_sampler {};
+    input_height_texture_sampler.binding = 8;
+    input_height_texture_sampler.visibility = WGPUShaderStage_Compute;
+    input_height_texture_sampler.sampler.type = WGPUSamplerBindingType_NonFiltering;
+
     WGPUBindGroupLayoutEntry output_tiles_entry {};
-    output_tiles_entry.binding = 7;
+    output_tiles_entry.binding = 9;
     output_tiles_entry.visibility = WGPUShaderStage_Compute;
     output_tiles_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2DArray;
     output_tiles_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
@@ -636,7 +647,7 @@ void PipelineManager::create_area_of_influence_bind_group_layout()
 
     m_area_of_influence_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
         std::vector<WGPUBindGroupLayoutEntry> { input_tile_ids_entry, input_bounds_entry, input_settings, key_buffer_entry, value_buffer_entry,
-            input_normal_textures_entry, input_normal_texture_sampler, output_tiles_entry },
+            input_normal_textures_entry, input_normal_texture_sampler, input_height_textures_entry, input_height_texture_sampler, output_tiles_entry },
         "area of influence bind group layout");
 }
 }

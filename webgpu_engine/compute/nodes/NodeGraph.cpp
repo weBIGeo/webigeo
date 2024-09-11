@@ -341,7 +341,9 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_with_area_of_influence_compu
     node_graph->connect_sockets(normal_compute_node, ComputeNormalsNode::Output::OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP, area_of_influence_compute_node,
         ComputeAreaOfInfluenceNode::Input::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP);
     node_graph->connect_sockets(normal_compute_node, ComputeNormalsNode::Output::OUTPUT_TEXTURE_ARRAY, area_of_influence_compute_node,
-        ComputeAreaOfInfluenceNode::Input::TEXTURE_ARRAY);
+        ComputeAreaOfInfluenceNode::Input::NORMAL_TEXTURE_ARRAY);
+    node_graph->connect_sockets(
+        hash_map_node, CreateHashMapNode::Output::TEXTURE_ARRAY, area_of_influence_compute_node, ComputeAreaOfInfluenceNode::Input::HEIGHT_TEXTURE_ARRAY);
 
     // downsample area of influence texture
     // node_graph->connect_sockets(

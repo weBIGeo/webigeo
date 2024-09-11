@@ -40,9 +40,11 @@ struct AreaOfInfluenceSettings {
 @group(0) @binding(4) var<storage> map_value_buffer: array<u32>; // hash map value buffer, contains texture array indices
 @group(0) @binding(5) var input_normal_tiles: texture_2d_array<f32>; // normal tiles
 @group(0) @binding(6) var input_normal_tiles_sampler: sampler; // normal sampler
+@group(0) @binding(7) var input_height_tiles: texture_2d_array<f32>; // height tiles
+@group(0) @binding(8) var input_height_tiles_sampler: sampler; // height sampler
 
 // output
-@group(0) @binding(7) var output_tiles: texture_storage_2d_array<rgba8unorm, write>; // influence tiles (output)
+@group(0) @binding(9) var output_tiles: texture_storage_2d_array<rgba8unorm, write>; // influence tiles (output)
 
 @compute @workgroup_size(1, 16, 16)
 fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {

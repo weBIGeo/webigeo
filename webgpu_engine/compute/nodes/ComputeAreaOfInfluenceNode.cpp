@@ -27,7 +27,8 @@ glm::uvec3 ComputeAreaOfInfluenceNode::SHADER_WORKGROUP_SIZE = { 1, 16, 16 };
 
 ComputeAreaOfInfluenceNode::ComputeAreaOfInfluenceNode(
     const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity, WGPUTextureFormat output_format)
-    : Node({ data_type<const std::vector<tile::Id>*>(), data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>() },
+    : Node({ data_type<const std::vector<tile::Id>*>(), data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>(),
+               data_type<TileStorageTexture*>() },
           { data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>() })
     , m_pipeline_manager { &pipeline_manager }
     , m_device { device }
@@ -63,9 +64,11 @@ void ComputeAreaOfInfluenceNode::run_impl()
     qDebug() << "running AreaOfInfluenceNode ...";
 
     // get tile ids to process
-    const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(get_input_data(0)); // list of tile ids to process
-    const auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(get_input_data(1)); // hash map for normal lookup
-    const auto& normal_textures = *std::get<data_type<TileStorageTexture*>()>(get_input_data(2)); // hash map for lookup
+    const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(get_input_data(Input::TILE_ID_LIST_TO_PROCESS)); // list of tile ids to process
+    const auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(
+        get_input_data(Input::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP)); // hash map for normal lookup
+    const auto& normal_textures = *std::get<data_type<TileStorageTexture*>()>(get_input_data(Input::NORMAL_TEXTURE_ARRAY)); // normal textures
+    const auto& height_textures = *std::get<data_type<TileStorageTexture*>()>(get_input_data(Input::HEIGHT_TEXTURE_ARRAY)); // height textures
 
     assert(tile_ids.size() <= m_capacity);
 
@@ -98,9 +101,21 @@ void ComputeAreaOfInfluenceNode::run_impl()
     WGPUBindGroupEntry input_hash_map_value_buffer_entry = hash_map.value_buffer().create_bind_group_entry(4);
     WGPUBindGroupEntry input_normals_texture_array_entry = normal_textures.texture().texture_view().create_bind_group_entry(5);
     WGPUBindGroupEntry input_normals_texture_sampler_entry = normal_textures.texture().sampler().create_bind_group_entry(6);
-    WGPUBindGroupEntry output_texture_array_entry = m_output_texture.texture().texture_view().create_bind_group_entry(7);
-    std::vector<WGPUBindGroupEntry> entries { input_tile_ids_entry, input_bounds_entry, input_settings_buffer_entry, input_hash_map_key_buffer_entry,
-        input_hash_map_value_buffer_entry, input_normals_texture_array_entry, input_normals_texture_sampler_entry, output_texture_array_entry };
+    WGPUBindGroupEntry input_heights_texture_array_entry = height_textures.texture().texture_view().create_bind_group_entry(7);
+    WGPUBindGroupEntry input_heights_texture_sampler_entry = height_textures.texture().sampler().create_bind_group_entry(8);
+    WGPUBindGroupEntry output_texture_array_entry = m_output_texture.texture().texture_view().create_bind_group_entry(9);
+    std::vector<WGPUBindGroupEntry> entries {
+        input_tile_ids_entry,
+        input_bounds_entry,
+        input_settings_buffer_entry,
+        input_hash_map_key_buffer_entry,
+        input_hash_map_value_buffer_entry,
+        input_normals_texture_array_entry,
+        input_normals_texture_sampler_entry,
+        input_heights_texture_array_entry,
+        input_heights_texture_sampler_entry,
+        output_texture_array_entry,
+    };
     webgpu::raii::BindGroup compute_bind_group(
         m_device, m_pipeline_manager->area_of_influence_bind_group_layout(), entries, "area of influence compute bind group");
 
