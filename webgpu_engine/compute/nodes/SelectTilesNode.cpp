@@ -46,6 +46,7 @@ void SelectTilesNode::select_tiles_in_world_aabb(const geometry::Aabb<3, double>
         compute::RectangularTileRegion region { .min = lower_left_tile.coords, .max = upper_right_tile.coords, .zoom_level = 18, .scheme = tile::Scheme::Tms };
         return region.get_tiles();
     });
+    qDebug() << "lower left tile coords x=" << lower_left_tile.coords.x << ", y=" << lower_left_tile.coords.y;
 }
 
 void SelectTilesNode::run_impl()

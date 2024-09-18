@@ -90,6 +90,16 @@ void ComputeAreaOfInfluenceNode::run_impl()
     m_input_settings.data.radius = 50.0f;
     m_input_settings.update_gpu_data(m_queue);
 
+    // write hashmap
+    // since the compute pass stores textures at indices [0, num_tile_ids), we can just write those indices into the hashmap
+    m_output_tile_map.clear();
+    m_output_texture.clear();
+    for (uint16_t i = 0; i < tile_ids.size(); i++) {
+        m_output_texture.reserve(i);
+        m_output_tile_map.store(tile_ids[i], i);
+    }
+    m_output_tile_map.update_gpu_data();
+
     // create bind group
     // TODO re-create bind groups only when input handles change
     // TODO adapter shader code
@@ -103,7 +113,9 @@ void ComputeAreaOfInfluenceNode::run_impl()
     WGPUBindGroupEntry input_normals_texture_sampler_entry = normal_textures.texture().sampler().create_bind_group_entry(6);
     WGPUBindGroupEntry input_heights_texture_array_entry = height_textures.texture().texture_view().create_bind_group_entry(7);
     WGPUBindGroupEntry input_heights_texture_sampler_entry = height_textures.texture().sampler().create_bind_group_entry(8);
-    WGPUBindGroupEntry output_texture_array_entry = m_output_texture.texture().texture_view().create_bind_group_entry(9);
+    WGPUBindGroupEntry output_hash_map_key_buffer_entry = m_output_tile_map.key_buffer().create_bind_group_entry(9);
+    WGPUBindGroupEntry output_hash_map_value_buffer_entry = m_output_tile_map.value_buffer().create_bind_group_entry(10);
+    WGPUBindGroupEntry output_texture_array_entry = m_output_texture.texture().texture_view().create_bind_group_entry(11);
     std::vector<WGPUBindGroupEntry> entries {
         input_tile_ids_entry,
         input_bounds_entry,
@@ -114,6 +126,8 @@ void ComputeAreaOfInfluenceNode::run_impl()
         input_normals_texture_sampler_entry,
         input_heights_texture_array_entry,
         input_heights_texture_sampler_entry,
+        output_hash_map_key_buffer_entry,
+        output_hash_map_value_buffer_entry,
         output_texture_array_entry,
     };
     webgpu::raii::BindGroup compute_bind_group(
@@ -144,17 +158,6 @@ void ComputeAreaOfInfluenceNode::run_impl()
         wgpuQueueSubmit(m_queue, 1, &command);
         wgpuCommandBufferRelease(command);
     }
-
-    // write hashmap
-    // since the compute pass stores textures at indices [0, num_tile_ids), we can just write those indices into the hashmap
-    m_output_tile_map.clear();
-    m_output_texture.clear();
-    for (uint16_t i = 0; i < tile_ids.size(); i++) {
-        m_output_texture.reserve(i);
-        m_output_tile_map.store(tile_ids[i], i);
-    }
-    m_output_tile_map.update_gpu_data();
-
     wgpuQueueOnSubmittedWorkDone(
         m_queue,
         []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {

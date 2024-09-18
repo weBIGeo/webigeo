@@ -217,10 +217,14 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
             var texure_array_index: u32;
             let found = get_texture_array_index(tile_id, &texure_array_index, &map_key_buffer, &map_value_buffer);
 
+             // remap texture coordinates to skip first and last half texel (so uv grid spans only texel centers)
+            let overlay_texture_size = textureDimensions(overlay_texture_2);
+            let overlay_uv = vertex_out.uv * (vec2f(overlay_texture_size - 1) / vec2f(overlay_texture_size)) + 1f / (2f * vec2f(overlay_texture_size));
+
             // textureSample needs to happen in uniform control flow
             // therefore: if texture was found, sample correct texture array index, otherwise sample from texture 0
             let sampled_overlay_color = textureSample(overlay_texture_2, ortho_sampler, vertex_out.uv, texure_array_index).rgba;
-            
+    
             if (found) {
                 overlay_color = sampled_overlay_color;
             } else {
