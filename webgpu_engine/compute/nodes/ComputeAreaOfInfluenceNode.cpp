@@ -87,7 +87,7 @@ void ComputeAreaOfInfluenceNode::run_impl()
     // update input settings on GPU side
     m_input_settings.data.target_point = glm::vec4(m_target_point - glm::dvec2(m_reference_point), 0.0f, 0.0f);
     m_input_settings.data.reference_point = glm::vec4(m_reference_point, 0.0f);
-    m_input_settings.data.radius = 50.0f;
+    m_input_settings.data.radius = 20.0f;
     m_input_settings.update_gpu_data(m_queue);
 
     // write hashmap

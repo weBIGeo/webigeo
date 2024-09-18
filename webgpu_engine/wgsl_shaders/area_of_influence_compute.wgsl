@@ -194,46 +194,51 @@ fn area_of_influence_overlay(id: vec3<u32>) {
     //textureStore(output_tiles, vec2(col, row), id.x, overlay);
     //return;
 
-    // for max number of steps
-    let STEP_LENGTH: f32 = 1 / f32(input_texture_size.x - 1);
-    let MAX_NUM_STEPS: i32 = 128;
+    let STEP_LENGTH: f32 = 1.0 / f32(input_texture_size.x - 1);
+    let MAX_NUM_STEPS: i32 = 256;
 
     var overlay = vec4f(0);
-    var uv_offset = vec2f(0, 0);
+    var uv_space_offset = vec2f(0, 0); // offset from original world position in uv coords
     for (var i: i32 = 0; i < MAX_NUM_STEPS; i++) {
-        // calculate tile id and uv coordinates and look up normal
-        let new_uv = fract(uv + vec2f(uv_offset.x, -uv_offset.y));
-        var tile_offset = vec2i(floor(uv + uv_offset));
-        let new_tile_coords = vec2i(i32(tile_id.x), i32(tile_id.y)) + vec2i(tile_offset.x, tile_offset.y);
+        // calculate tile id and uv coordinates
+        let new_uv = fract(uv + uv_space_offset); //TODO this is actually never 1; also we might need some offset because of tile overlap (i think)
+        let uv_space_tile_offset = vec2i(floor(uv + uv_space_offset));
+        let world_space_tile_offset = vec2i(uv_space_tile_offset.x, -uv_space_tile_offset.y); // world space y is opposite to uv space y, therefore invert y
+        let new_tile_coords = vec2i(i32(tile_id.x), i32(tile_id.y)) + world_space_tile_offset;
         let new_tile_id = TileId(u32(new_tile_coords.x), u32(new_tile_coords.y), tile_id.zoomlevel, 0);
 
         // check if target reached
-        let new_pos_x = pos_x + uv_offset.x * f32(tile_width);
-        let new_pos_y = pos_y + uv_offset.y * f32(tile_height);
+        let new_pos_x = pos_x + uv_space_offset.x * f32(tile_width);
+        let new_pos_y = pos_y - uv_space_offset.y * f32(tile_height);
         let to_target = settings.target_point.xy - vec2f(new_pos_x, new_pos_y);
-        /*if (length(to_target) < settings.radius) {
+        if (length(to_target) < settings.radius) {
             overlay = vec4f(1, 0, 0, 1);
             break;
-        }*/
+        }
 
         // read normal
         var texture_array_index: u32;
         let found = get_texture_array_index(new_tile_id, &texture_array_index, &map_key_buffer, &map_value_buffer);
         if (!found) {
-            // moved to a tile where we don't have any data, discard
-            //overlay = vec4f(0, 1, 0, 1);
+            // moved to a tile where we don't have any input data, discard
+            overlay = vec4f(0, 1, 0, 1);
             break;
         }
         let normal = bilinear_sample_vec4f(input_normal_tiles, input_normal_tiles_sampler, new_uv, texture_array_index).xyz * 2 - 1;
         let gradient = get_gradient(normal);
 
         // step along gradient
-        uv_offset = uv_offset + STEP_LENGTH * gradient.xy;
+        let uv_space_gradient = normalize(vec2f(gradient.x, -gradient.y));
+        uv_space_offset = uv_space_offset + STEP_LENGTH * uv_space_gradient;
     }
+
+    textureStore(output_tiles, vec2u(col, row), id.x, overlay);
+
 }
 
 @compute @workgroup_size(1, 16, 16)
 fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
-    traces_overlay(id);
     //gradient_overlay(id);
+    traces_overlay(id);
+    //area_of_influence_overlay(id);
 }
