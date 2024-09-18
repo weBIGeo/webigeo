@@ -57,7 +57,10 @@ fn get_gradient(normal: vec3f) -> vec3f {
 }
 
 fn should_paint(col: u32, row: u32, tile_id: TileId) -> bool {
-    return (col % 16 == 0) && (row % 16 == 0) && (tile_id.x == 140386 + 1) && (tile_id.y == 169805 + 1);
+    return (col % 16 == 0) && (row % 16 == 0);
+    //return (col % 16 == 0) && (row % 16 == 0) && (tile_id.x == 140386 + 1) && (tile_id.y == 169805 + 1);
+    //return (col == 0) && (row == 0) && (tile_id.x == 140386 + 1) && (tile_id.y == 169805 + 1);
+    //return (col == 64) && (row == 64) && (tile_id.x == 140386 + 1) && (tile_id.y == 169805 + 1);
 }
 
 fn gradient_overlay(id: vec3<u32>) {
@@ -121,12 +124,13 @@ fn traces_overlay(id: vec3<u32>) {
     let STEP_LENGTH: f32 = 1.0 / f32(input_texture_size.x - 1);
     let MAX_NUM_STEPS: i32 = 64;
 
-    var uv_offset = vec2f(0, 0); // offset from original world position in uv coords
+    var uv_space_offset = vec2f(0, 0); // offset from original world position in uv coords
     for (var i: i32 = 0; i < MAX_NUM_STEPS; i++) {
         // calculate tile id and uv coordinates
-        let new_uv = fract(uv + vec2f(uv_offset.x, -uv_offset.y)); //TODO this is actually never 1; also we might need some offset because of tile overlap (i think)
-        let tile_offset = vec2i(floor(uv + vec2(uv_offset.x, uv_offset.y)));
-        let new_tile_coords = vec2i(i32(tile_id.x), i32(tile_id.y)) + vec2i(tile_offset.x, tile_offset.y);
+        let new_uv = fract(uv + uv_space_offset); //TODO this is actually never 1; also we might need some offset because of tile overlap (i think)
+        let uv_space_tile_offset = vec2i(floor(uv + uv_space_offset));
+        let world_space_tile_offset = vec2i(uv_space_tile_offset.x, -uv_space_tile_offset.y); // world space y is opposite to uv space y, therefore invert y
+        let new_tile_coords = vec2i(i32(tile_id.x), i32(tile_id.y)) + world_space_tile_offset;
         let new_tile_id = TileId(u32(new_tile_coords.x), u32(new_tile_coords.y), tile_id.zoomlevel, 0);
 
         // paint trace point
@@ -150,7 +154,8 @@ fn traces_overlay(id: vec3<u32>) {
         let gradient = get_gradient(normal);
 
         // step along gradient
-        uv_offset = uv_offset + STEP_LENGTH * normalize(gradient.xy);
+        let uv_space_gradient = normalize(vec2f(gradient.x, -gradient.y));
+        uv_space_offset = uv_space_offset + STEP_LENGTH * uv_space_gradient;
     }
 
     // overpaint start point
