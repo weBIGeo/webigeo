@@ -26,9 +26,8 @@
 
 namespace webgpu_engine {
 
-ShaderModuleManager::ShaderModuleManager(WGPUDevice device, const std::filesystem::path& prefix)
+ShaderModuleManager::ShaderModuleManager(WGPUDevice device)
     : m_device(device)
-    , m_prefix(prefix)
 {}
 
 void ShaderModuleManager::create_shader_modules()
@@ -47,6 +46,7 @@ void ShaderModuleManager::create_shader_modules()
 
 void ShaderModuleManager::release_shader_modules()
 {
+    m_shader_name_to_code.clear();
     m_tile_shader_module.release();
     m_screen_pass_vert_shader_module.release();
     m_compose_frag_shader_module.release();
@@ -81,7 +81,11 @@ const webgpu::raii::ShaderModule& ShaderModuleManager::area_of_influence_compute
 
 std::string ShaderModuleManager::read_file_contents(const std::string& name) const
 {
-    const auto path = m_prefix / name; // operator/ concats paths
+#ifdef __EMSCRIPTEN__
+    const auto path = QRC_PREFIX / name; // use qrc file prefix for emscripten builds
+#else
+    const auto path = LOCAL_PREFIX / name; // use external (local) file path for native builds
+#endif
     auto file = QFile(path);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         std::cerr << "could not open shader file " << path << std::endl;

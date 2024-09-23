@@ -98,4 +98,4 @@ endif()
 target_link_libraries(webgpu_engine PUBLIC nucleus Qt::Core webgpu)
 target_include_directories(webgpu_engine PRIVATE .)
 
-target_compile_definitions(webgpu_engine PUBLIC ALP_RESOURCES_PREFIX="${CMAKE_CURRENT_SOURCE_DIR}/shaders/")
+target_compile_definitions(webgpu_engine PUBLIC ALP_RESOURCES_PREFIX="${CMAKE_CURRENT_SOURCE_DIR}/wgsl_shaders/")

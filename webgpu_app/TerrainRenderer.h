@@ -63,6 +63,7 @@ signals:
 
 private slots:
     void set_glfw_window_size(int width, int height);
+    void handle_shortcuts(QKeyCombination key);
 
 private:
     GLFWwindow* m_window;

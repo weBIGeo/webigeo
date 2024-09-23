@@ -28,10 +28,11 @@ namespace webgpu_engine {
 
 class ShaderModuleManager {
 public:
-    const static inline std::filesystem::path DEFAULT_PREFIX = ":/wgsl_shaders/";
+    const static inline std::filesystem::path QRC_PREFIX = ":/wgsl_shaders/";
+    const static inline std::filesystem::path LOCAL_PREFIX = ALP_RESOURCES_PREFIX;
 
 public:
-    ShaderModuleManager(WGPUDevice device, const std::filesystem::path& prefix = DEFAULT_PREFIX);
+    ShaderModuleManager(WGPUDevice device);
     ~ShaderModuleManager() = default;
 
     void create_shader_modules();
@@ -58,7 +59,6 @@ private:
 
 private:
     WGPUDevice m_device;
-    std::filesystem::path m_prefix;
 
     std::map<std::string, std::string> m_shader_name_to_code;
 

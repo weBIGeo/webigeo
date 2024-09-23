@@ -415,6 +415,17 @@ void Window::update_gpu_quads([[maybe_unused]] const std::vector<nucleus::tile_s
 
 void Window::request_redraw() { m_needs_redraw = true; }
 
+void Window::reload_shaders()
+{
+    qDebug() << "reloading shaders...";
+    m_shader_manager->release_shader_modules();
+    m_shader_manager->create_shader_modules();
+    m_pipeline_manager->release_pipelines();
+    m_pipeline_manager->create_pipelines();
+    qDebug() << "reloading shaders done";
+    request_redraw();
+}
+
 void Window::create_buffers()
 {
     m_shared_config_ubo = std::make_unique<Buffer<uboSharedConfig>>(m_device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);

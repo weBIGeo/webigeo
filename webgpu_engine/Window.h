@@ -67,6 +67,7 @@ public slots:
     void update_debug_scheduler_stats(const QString& stats) override;
     void update_gpu_quads(const std::vector<nucleus::tile_scheduler::tile_types::GpuTileQuad>& new_quads, const std::vector<tile::Id>& deleted_quads) override;
     void request_redraw();
+    void reload_shaders();
 
 signals:
     void set_camera_definition_requested(nucleus::camera::Definition definition);
