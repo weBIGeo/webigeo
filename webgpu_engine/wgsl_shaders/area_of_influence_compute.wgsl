@@ -122,12 +122,12 @@ fn traces_overlay(id: vec3<u32>) {
     }
 
     let STEP_LENGTH: f32 = 1.0;
-    let MAX_NUM_STEPS: i32 = 64;
+    let MAX_NUM_STEPS: i32 = 128;
 
     var world_space_offset = vec2f(0, 0); // offset from original world position
     for (var i: i32 = 0; i < MAX_NUM_STEPS; i++) {
         // calculate tile id and uv coordinates
-        let uv_space_offset = vec2f(world_space_offset.x, -world_space_offset.y) / f32(input_texture_size.x - 1);
+        let uv_space_offset = vec2f(world_space_offset.x, -world_space_offset.y) / vec2f(tile_width, tile_height);
         let new_uv = fract(uv + uv_space_offset); //TODO this is actually never 1; also we might need some offset because of tile overlap (i think)
         let uv_space_tile_offset = vec2i(floor(uv + uv_space_offset));
         let world_space_tile_offset = vec2i(uv_space_tile_offset.x, -uv_space_tile_offset.y); // world space y is opposite to uv space y, therefore invert y
@@ -150,10 +150,10 @@ fn traces_overlay(id: vec3<u32>) {
         let found_output_tile = get_texture_array_index(new_tile_id, &output_texture_array_index, &output_tiles_map_key_buffer, &output_tiles_map_value_buffer);
         if (found_output_tile) {
             // color by distinct starting point
-            //let color = vec3(f32(col) / f32(output_texture_size.x), f32(row) / f32(output_texture_size.y), 0.0);
+            let color = vec3(f32(col) / f32(output_texture_size.x), f32(row) / f32(output_texture_size.y), 0.0);
 
             // color by steepness
-            let color = vec3f(-gradient.z, 0, 0);
+            //let color = vec3f(-gradient.z, 0, 0);
 
             // color by num steps
             //let color = vec3(1.0 - f32(i) / f32(MAX_NUM_STEPS), 0.0, 0.0);
@@ -161,7 +161,7 @@ fn traces_overlay(id: vec3<u32>) {
         }
 
         // step along gradient
-        world_space_offset = world_space_offset + STEP_LENGTH * gradient;        
+        world_space_offset = world_space_offset + STEP_LENGTH * normalize(gradient.xy);        
     }
 
     // overpaint start point
