@@ -121,12 +121,13 @@ fn traces_overlay(id: vec3<u32>) {
         return;
     }
 
-    let STEP_LENGTH: f32 = 1.0 / f32(input_texture_size.x - 1);
+    let STEP_LENGTH: f32 = 1.0;
     let MAX_NUM_STEPS: i32 = 64;
 
-    var uv_space_offset = vec2f(0, 0); // offset from original world position in uv coords
+    var world_space_offset = vec2f(0, 0); // offset from original world position
     for (var i: i32 = 0; i < MAX_NUM_STEPS; i++) {
         // calculate tile id and uv coordinates
+        let uv_space_offset = vec2f(world_space_offset.x, -world_space_offset.y) / f32(input_texture_size.x - 1);
         let new_uv = fract(uv + uv_space_offset); //TODO this is actually never 1; also we might need some offset because of tile overlap (i think)
         let uv_space_tile_offset = vec2i(floor(uv + uv_space_offset));
         let world_space_tile_offset = vec2i(uv_space_tile_offset.x, -uv_space_tile_offset.y); // world space y is opposite to uv space y, therefore invert y
@@ -160,8 +161,7 @@ fn traces_overlay(id: vec3<u32>) {
         }
 
         // step along gradient
-        let uv_space_gradient = normalize(vec2f(gradient.x, -gradient.y));
-        uv_space_offset = uv_space_offset + STEP_LENGTH * uv_space_gradient;
+        world_space_offset = world_space_offset + STEP_LENGTH * gradient;        
     }
 
     // overpaint start point
