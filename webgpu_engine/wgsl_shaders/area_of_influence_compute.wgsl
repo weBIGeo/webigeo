@@ -49,7 +49,9 @@ struct AreaOfInfluenceSettings {
 // output
 @group(0) @binding(11) var output_tiles: texture_storage_2d_array<rgba8unorm, write>; // influence tiles (output)
 
-const SAMPLING_DENSITY = 16; // sampling a trail starting at every nth-texel (in both x/y direction) 
+const STEP_LENGTH: f32 = 0.5; // length of one simulation step in world space
+const MAX_NUM_STEPS: i32 = 128; // number of steps to take
+const SAMPLING_DENSITY = 16; // traces only: grid frequency in xy direction in (output texture) texels 
 
 fn get_gradient(normal: vec3f) -> vec3f {
     let up = vec3f(0, 0, 1);
@@ -123,9 +125,6 @@ fn traces_overlay(id: vec3<u32>) {
         return;
     }
 
-    let STEP_LENGTH: f32 = 0.5;
-    let MAX_NUM_STEPS: i32 = 128;
-
     var world_space_offset = vec2f(0, 0); // offset from original world position
     for (var i: i32 = 0; i < MAX_NUM_STEPS; i++) {
         // calculate tile id and uv coordinates
@@ -180,7 +179,7 @@ fn traces_overlay(id: vec3<u32>) {
         }
 
         // step along gradient
-        world_space_offset = world_space_offset + STEP_LENGTH * normalize(gradient.xy);        
+        world_space_offset = world_space_offset + STEP_LENGTH * normalize(gradient.xy);
     }
 
     // overpaint start point
@@ -219,13 +218,11 @@ fn area_of_influence_overlay(id: vec3<u32>) {
     //textureStore(output_tiles, vec2(col, row), id.x, overlay);
     //return;
 
-    let STEP_LENGTH: f32 = 1.0 / f32(input_texture_size.x - 1);
-    let MAX_NUM_STEPS: i32 = 256;
-
     var overlay = vec4f(0);
-    var uv_space_offset = vec2f(0, 0); // offset from original world position in uv coords
+    var world_space_offset = vec2f(0, 0); // offset from original world position
     for (var i: i32 = 0; i < MAX_NUM_STEPS; i++) {
         // calculate tile id and uv coordinates
+        let uv_space_offset = vec2f(world_space_offset.x, -world_space_offset.y) / vec2f(tile_width, tile_height);
         let new_uv = fract(uv + uv_space_offset); //TODO this is actually never 1; also we might need some offset because of tile overlap (i think)
         let uv_space_tile_offset = vec2i(floor(uv + uv_space_offset));
         let world_space_tile_offset = vec2i(uv_space_tile_offset.x, -uv_space_tile_offset.y); // world space y is opposite to uv space y, therefore invert y
@@ -253,8 +250,7 @@ fn area_of_influence_overlay(id: vec3<u32>) {
         let gradient = get_gradient(normal);
 
         // step along gradient
-        let uv_space_gradient = normalize(vec2f(gradient.x, -gradient.y));
-        uv_space_offset = uv_space_offset + STEP_LENGTH * uv_space_gradient;
+        world_space_offset = world_space_offset + STEP_LENGTH * normalize(gradient.xy);
     }
 
     textureStore(output_tiles, vec2u(col, row), id.x, overlay);
