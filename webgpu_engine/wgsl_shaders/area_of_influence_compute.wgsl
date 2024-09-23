@@ -49,6 +49,8 @@ struct AreaOfInfluenceSettings {
 // output
 @group(0) @binding(11) var output_tiles: texture_storage_2d_array<rgba8unorm, write>; // influence tiles (output)
 
+const SAMPLING_DENSITY = 16; // sampling a trail starting at every nth-texel (in both x/y direction) 
+
 fn get_gradient(normal: vec3f) -> vec3f {
     let up = vec3f(0, 0, 1);
     let right = cross(up, normal);
@@ -57,7 +59,7 @@ fn get_gradient(normal: vec3f) -> vec3f {
 }
 
 fn should_paint(col: u32, row: u32, tile_id: TileId) -> bool {
-    return (col % 16 == 0) && (row % 16 == 0);
+    return (col % SAMPLING_DENSITY == 0) && (row % SAMPLING_DENSITY == 0);
     //return (col % 16 == 0) && (row % 16 == 0) && (tile_id.x == 140386 + 1) && (tile_id.y == 169805 + 1);
     //return (col == 0) && (row == 0) && (tile_id.x == 140386 + 1) && (tile_id.y == 169805 + 1);
     //return (col == 64) && (row == 64) && (tile_id.x == 140386 + 1) && (tile_id.y == 169805 + 1);
@@ -121,7 +123,7 @@ fn traces_overlay(id: vec3<u32>) {
         return;
     }
 
-    let STEP_LENGTH: f32 = 1.0;
+    let STEP_LENGTH: f32 = 0.5;
     let MAX_NUM_STEPS: i32 = 128;
 
     var world_space_offset = vec2f(0, 0); // offset from original world position
@@ -145,18 +147,35 @@ fn traces_overlay(id: vec3<u32>) {
         let gradient = get_gradient(normal);
 
         // paint trace point
-        let output_coords = vec2u(new_uv * vec2f(output_texture_size));
+        let output_coords = vec2u(new_uv * vec2f(output_texture_size) + 0.5);
         var output_texture_array_index: u32;
         let found_output_tile = get_texture_array_index(new_tile_id, &output_texture_array_index, &output_tiles_map_key_buffer, &output_tiles_map_value_buffer);
         if (found_output_tile) {
             // color by distinct starting point
-            let color = vec3(f32(col) / f32(output_texture_size.x), f32(row) / f32(output_texture_size.y), 0.0);
+            //let color = vec3(f32(col) / f32(output_texture_size.x), f32(row) / f32(output_texture_size.y), 0.0);
 
             // color by steepness
-            //let color = vec3f(-gradient.z, 0, 0);
+            const NUM_STEEPNESS_BINS = 9;
+            const STEEPNESS_COLOR_MAP = array<vec3f, NUM_STEEPNESS_BINS>(
+                vec3f(254.0/255.0, 249.0/255.0, 249.0/255.0),
+                vec3f(51.0/255.0, 249.0/255.0, 49.0/255.0),
+                vec3f(242.0/255.0, 228.0/255.0, 44.0/255.0),
+                vec3f(255.0/255.0, 169.0/255.0, 45.0/255.0),
+                vec3f(255.0/255.0, 48.0/255.0, 45.0/255.0),
+                vec3f(255.0/255.0, 79.0/255.0, 249.0/255.0),
+                vec3f(183.0/255.0, 69.0/255.0, 253.0/255.0),
+                vec3f(135.0/255.0, 44.0/255.0, 253.0/255.0),
+                vec3f(49.0/255.0, 49.0/255.0, 253.0/255.0),
+            );
+            let steepness = 1.0 - normal.z;
+            let steepness_index = u32(steepness * f32(NUM_STEEPNESS_BINS - 1) + 0.5);
+            let color = STEEPNESS_COLOR_MAP[steepness_index];
+            //let color = vec3f(steepness, 0, 0);
+            
 
             // color by num steps
             //let color = vec3(1.0 - f32(i) / f32(MAX_NUM_STEPS), 0.0, 0.0);
+
             textureStore(output_tiles, output_coords, output_texture_array_index, vec4f(color, 1.0));
         }
 

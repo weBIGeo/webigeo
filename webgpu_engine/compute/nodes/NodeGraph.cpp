@@ -300,6 +300,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_with_area_of_influence_compu
     size_t capacity = 1024;
     glm::uvec2 input_resolution = { 65, 65 };
     glm::uvec2 normal_output_resolution = { 65, 65 };
+    glm::uvec2 area_of_influence_output_resolution = { 256, 256 };
     glm::uvec2 upsample_output_resolution = { 256, 256 };
 
     auto node_graph = std::make_unique<NodeGraph>();
@@ -310,7 +311,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_with_area_of_influence_compu
     ComputeNormalsNode* normal_compute_node = static_cast<ComputeNormalsNode*>(node_graph->add_node(
         "compute_normals_node", std::make_unique<ComputeNormalsNode>(manager, device, normal_output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm)));
     ComputeAreaOfInfluenceNode* area_of_influence_compute_node = static_cast<ComputeAreaOfInfluenceNode*>(node_graph->add_node("compute_area_of_influence_node",
-        std::make_unique<ComputeAreaOfInfluenceNode>(manager, device, normal_output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm)));
+        std::make_unique<ComputeAreaOfInfluenceNode>(manager, device, area_of_influence_output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm)));
     Node* upsample_normals_textures_node
         = node_graph->add_node("upsample_textures_node", std::make_unique<UpsampleTexturesNode>(manager, device, upsample_output_resolution, capacity));
     //  Node* upsample_snow_textures_node
