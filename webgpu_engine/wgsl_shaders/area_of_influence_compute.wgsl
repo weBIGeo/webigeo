@@ -133,16 +133,6 @@ fn traces_overlay(id: vec3<u32>) {
         let new_tile_coords = vec2i(i32(tile_id.x), i32(tile_id.y)) + world_space_tile_offset;
         let new_tile_id = TileId(u32(new_tile_coords.x), u32(new_tile_coords.y), tile_id.zoomlevel, 0);
 
-        // paint trace point
-        let output_coords = vec2u(new_uv * vec2f(output_texture_size));
-        var output_texture_array_index: u32;
-        let found_output_tile = get_texture_array_index(new_tile_id, &output_texture_array_index, &output_tiles_map_key_buffer, &output_tiles_map_value_buffer);
-        if (found_output_tile) {
-            let color = vec3(f32(col) / f32(output_texture_size.x), f32(row) / f32(output_texture_size.y), 0.0);
-            //let color = vec3(1.0 - f32(i) / f32(MAX_NUM_STEPS), 0.0, 0.0);
-            textureStore(output_tiles, output_coords, output_texture_array_index, vec4f(color, 1.0));
-        }
-
         // read normal
         var texture_array_index: u32;
         let found = get_texture_array_index(new_tile_id, &texture_array_index, &map_key_buffer, &map_value_buffer);
@@ -152,6 +142,22 @@ fn traces_overlay(id: vec3<u32>) {
         }
         let normal = bilinear_sample_vec4f(input_normal_tiles, input_normal_tiles_sampler, new_uv, texture_array_index).xyz * 2 - 1;
         let gradient = get_gradient(normal);
+
+        // paint trace point
+        let output_coords = vec2u(new_uv * vec2f(output_texture_size));
+        var output_texture_array_index: u32;
+        let found_output_tile = get_texture_array_index(new_tile_id, &output_texture_array_index, &output_tiles_map_key_buffer, &output_tiles_map_value_buffer);
+        if (found_output_tile) {
+            // color by distinct starting point
+            //let color = vec3(f32(col) / f32(output_texture_size.x), f32(row) / f32(output_texture_size.y), 0.0);
+
+            // color by steepness
+            let color = vec3f(-gradient.z, 0, 0);
+
+            // color by num steps
+            //let color = vec3(1.0 - f32(i) / f32(MAX_NUM_STEPS), 0.0, 0.0);
+            textureStore(output_tiles, output_coords, output_texture_array_index, vec4f(color, 1.0));
+        }
 
         // step along gradient
         let uv_space_gradient = normalize(vec2f(gradient.x, -gradient.y));
