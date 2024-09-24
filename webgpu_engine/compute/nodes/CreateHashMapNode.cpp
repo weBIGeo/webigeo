@@ -37,14 +37,11 @@ void CreateHashMapNode::run_impl()
 {
     qDebug() << "running ConvertToHashMapNode ...";
 
-    // clear hash map and storage texture
-    m_output_tile_id_to_index.clear();
-    m_output_tile_textures.clear();
-
     // get input data
     // TODO maybe make get_input_data a template (so usage would become get_input_data<type>(socket_index))
-    const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(get_input_data(0)); // input 1, list of tile ids
-    const auto& textures = *std::get<data_type<const std::vector<QByteArray>*>()>(get_input_data(1)); // input 2, list of tile corresponding textures
+    const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(get_input_data(Input::TILE_ID_LIST)); // input 1, list of tile ids
+    const auto& textures
+        = *std::get<data_type<const std::vector<QByteArray>*>()>(get_input_data(Input::TILE_TEXTURE_LIST)); // input 2, list of tile corresponding textures
 
     assert(tile_ids.size() == textures.size());
 
@@ -55,6 +52,8 @@ void CreateHashMapNode::run_impl()
     }
 
     // store each texture in texture array and store resulting index in hashmap
+    m_output_tile_id_to_index.clear();
+    m_output_tile_textures.clear();
     for (size_t i = 0; i < tile_ids.size(); i++) {
         auto index = m_output_tile_textures.store(textures[i]);
         m_output_tile_id_to_index.store(tile_ids[i], uint32_t(index));
