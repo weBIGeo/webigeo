@@ -53,7 +53,7 @@ public:
 
 private:
     std::string read_file_contents(const std::string& name) const;
-    std::string get_contents(const std::string& name);
+    std::string get_file_contents_with_cache(const std::string& name);
     std::string preprocess(const std::string& code);
     std::unique_ptr<webgpu::raii::ShaderModule> create_shader_module(const std::string& filename);
 
