@@ -51,6 +51,7 @@ public:
     virtual void init(glm::uvec2 height_resolution, glm::uvec2 ortho_resolution, size_t num_layers, size_t n_edge_vertices) = 0;
     virtual void write_tile(const nucleus::utils::ColourTexture& ortho_texture, const nucleus::Raster<uint16_t>& height_map, size_t layer) = 0;
     virtual void draw(WGPURenderPassEncoder render_pass, const nucleus::camera::Definition& camera, const std::vector<const TileSet*>& tile_list) = 0;
+    virtual void set_node_graph(const compute::nodes::NodeGraph& node_graph) = 0;
 };
 
 /// Draws tiles by instancing with a single draw call.
@@ -61,6 +62,7 @@ public:
     void init(glm::uvec2 height_resolution, glm::uvec2 ortho_resolution, size_t num_layers, size_t n_edge_vertices) override;
     void write_tile(const nucleus::utils::ColourTexture& ortho_texture, const nucleus::Raster<uint16_t>& height_map, size_t layer) override;
     void draw(WGPURenderPassEncoder render_pass, const nucleus::camera::Definition& camera, const std::vector<const TileSet*>& tile_list) override;
+    void set_node_graph(const compute::nodes::NodeGraph& node_graph) override;
 
 private:
     size_t m_index_buffer_size;
@@ -86,14 +88,13 @@ private:
 class TileRendererInstancedSingleArrayMultiCall : public TileRenderer {
 public:
     // uses device limit for number of array layers
-    TileRendererInstancedSingleArrayMultiCall(
-        WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager, const compute::nodes::NodeGraph& compute_graph);
-    TileRendererInstancedSingleArrayMultiCall(WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager,
-        const compute::nodes::NodeGraph& compute_graph, size_t num_layers_per_texture);
+    TileRendererInstancedSingleArrayMultiCall(WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager);
+    TileRendererInstancedSingleArrayMultiCall(WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager, size_t num_layers_per_texture);
 
     void init(glm::uvec2 height_resolution, glm::uvec2 ortho_resolution, size_t num_layers, size_t n_edge_vertices) override;
     void write_tile(const nucleus::utils::ColourTexture& ortho_texture, const nucleus::Raster<uint16_t>& height_map, size_t layer) override;
     void draw(WGPURenderPassEncoder render_pass, const nucleus::camera::Definition& camera, const std::vector<const TileSet*>& tile_list) override;
+    void set_node_graph(const compute::nodes::NodeGraph& node_graph) override;
 
 private:
     size_t m_index_buffer_size;
@@ -114,7 +115,6 @@ private:
     WGPUDevice m_device = 0;
     WGPUQueue m_queue = 0;
     const PipelineManager* m_pipeline_manager;
-    const compute::nodes::NodeGraph* m_compute_graph;
 
     size_t m_num_layers_per_texture;
 };
@@ -123,11 +123,12 @@ class TileManager : public QObject {
     Q_OBJECT
 public:
     explicit TileManager(QObject* parent = nullptr);
-    void init(
-        WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager, const compute::nodes::NodeGraph& compute_graph); // needs OpenGL context
+    void init(WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager); // needs OpenGL context
     [[nodiscard]] const std::vector<TileSet>& tiles() const;
     void draw(WGPURenderPassEncoder render_pass, const nucleus::camera::Definition& camera,
         const nucleus::tile_scheduler::DrawListGenerator::TileSet& draw_tiles, bool sort_tiles, glm::dvec3 sort_position) const;
+
+    void set_node_graph(const compute::nodes::NodeGraph& node_graph);
 
     const nucleus::tile_scheduler::DrawListGenerator::TileSet generate_tilelist(const nucleus::camera::Definition& camera) const;
     const nucleus::tile_scheduler::DrawListGenerator::TileSet cull(const nucleus::tile_scheduler::DrawListGenerator::TileSet& tileset, const nucleus::camera::Frustum& frustum) const;

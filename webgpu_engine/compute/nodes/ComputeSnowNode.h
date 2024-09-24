@@ -35,8 +35,19 @@ public:
     static glm::uvec3 SHADER_WORKGROUP_SIZE; // TODO currently hardcoded in shader! can we somehow not hardcode it? maybe using overrides
 
     struct SnowSettings {
-        glm::vec4 angle;
-        glm::vec4 alt;
+        glm::vec4 angle = {
+            1, // snow enabled
+            0, // angle lower limit// angle lower limit
+            30, // angle upper limit
+            0, // angle blend
+        };
+
+        glm::vec4 alt = {
+            1000, // min altitude
+            200, // variation
+            200, // blend
+            1, // specular
+        };
     };
 
     ComputeSnowNode(
@@ -44,6 +55,7 @@ public:
 
     const GpuHashMap<tile::Id, uint32_t, GpuTileId>& hash_map() const { return m_output_tile_map; }
     const TileStorageTexture& texture_storage() const { return m_output_texture; }
+    void set_snow_settings(const SnowSettings& snow_settings) { m_input_snow_settings.data = snow_settings; }
 
 public slots:
     void run_impl() override;

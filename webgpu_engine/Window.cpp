@@ -19,9 +19,10 @@
 
 #include "Window.h"
 #include "compute/nodes/ComputeAreaOfInfluenceNode.h"
+#include "compute/nodes/ComputeSnowNode.h"
 #include "compute/nodes/SelectTilesNode.h"
-#include <nucleus/track/GPX.h>
-#include <webgpu/raii/RenderPassEncoder.h>
+#include "nucleus/track/GPX.h"
+#include "webgpu/raii/RenderPassEncoder.h"
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
@@ -69,11 +70,9 @@ void Window::initialise_gpu()
     m_pipeline_manager->create_pipelines();
     create_bind_groups();
 
-    // m_compute_graph = compute::nodes::NodeGraph::create_normal_with_snow_compute_graph(*m_pipeline_manager, m_device);
-    m_compute_graph = compute::nodes::NodeGraph::create_normal_with_area_of_influence_compute_graph(*m_pipeline_manager, m_device);
-    connect(m_compute_graph.get(), &compute::nodes::NodeGraph::run_finished, this, &Window::request_redraw);
+    m_tile_manager->init(m_device, m_queue, *m_pipeline_manager);
 
-    m_tile_manager->init(m_device, m_queue, *m_pipeline_manager, *m_compute_graph);
+    create_and_set_compute_pipeline(ComputePipelineType::AREA_OF_INFLUENCE);
 
     m_track_renderer = std::make_unique<TrackRenderer>(m_device, *m_pipeline_manager);
 
@@ -215,34 +214,28 @@ void Window::paint_gui()
             if (ImGui::DragFloatRange2("Angle limit", &m_shared_config_ubo->data.m_snow_settings_angle.y, &m_shared_config_ubo->data.m_snow_settings_angle.z,
                     0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp)) {
                 m_needs_redraw = true;
+                update_compute_pipeline_settings();
             }
             if (ImGui::SliderFloat("Angle blend", &m_shared_config_ubo->data.m_snow_settings_angle.w, 0.0f, 90.0f, "%.1f°")) {
                 m_needs_redraw = true;
+                update_compute_pipeline_settings();
             }
             if (ImGui::SliderFloat("Altitude limit", &m_shared_config_ubo->data.m_snow_settings_alt.x, 0.0f, 4000.0f, "%.1fm")) {
                 m_needs_redraw = true;
+                update_compute_pipeline_settings();
             }
             if (ImGui::SliderFloat("Altitude variation", &m_shared_config_ubo->data.m_snow_settings_alt.y, 0.0f, 1000.0f, "%.1f°")) {
                 m_needs_redraw = true;
+                update_compute_pipeline_settings();
             }
             if (ImGui::SliderFloat("Altitude blend", &m_shared_config_ubo->data.m_snow_settings_alt.z, 0.0f, 1000.0f)) {
                 m_needs_redraw = true;
+                update_compute_pipeline_settings();
             }
             if (ImGui::SliderFloat("Specular", &m_shared_config_ubo->data.m_snow_settings_alt.w, 0.0f, 5.0f)) {
                 m_needs_redraw = true;
+                update_compute_pipeline_settings();
             }
-        }
-    }
-
-    if (ImGui::CollapsingHeader("Compute pipeline", ImGuiTreeNodeFlags_DefaultOpen)) {
-        if (ImGui::Button("Run pipeline", ImVec2(350, 20))) {
-            m_compute_graph->run();
-        }
-
-        if (ImGui::Button("Clear output", ImVec2(350, 20))) {
-            m_compute_graph->output_hash_map().clear();
-            m_compute_graph->output_hash_map().update_gpu_data();
-            m_needs_redraw = true;
         }
     }
 
@@ -272,10 +265,91 @@ void Window::paint_gui()
         ImGuiFileDialog::Instance()->Close();
     }
 
+    paint_compute_pipeline_gui();
+
 #endif
 }
 
-glm::vec4 Window::synchronous_position_readback(const glm::dvec2& ndc) {
+void Window::paint_compute_pipeline_gui()
+{
+    if (ImGui::CollapsingHeader("Compute pipeline", ImGuiTreeNodeFlags_DefaultOpen)) {
+
+        if (ImGui::Button("Run", ImVec2(150, 20))) {
+            m_compute_graph->run();
+        }
+
+        ImGui::SameLine();
+
+        if (ImGui::Button("Clear", ImVec2(150, 20))) {
+            m_compute_graph->output_hash_map().clear();
+            m_compute_graph->output_hash_map().update_gpu_data();
+            m_needs_redraw = true;
+        }
+
+        static int current_item = 2;
+        const std::vector<std::pair<std::string, ComputePipelineType>> overlays = { { "Normals", ComputePipelineType::NORMALS },
+            { "Snow + Normals", ComputePipelineType::NORMALS_AND_SNOW }, { "Area of influence + Normals", ComputePipelineType::AREA_OF_INFLUENCE } };
+        const char* current_item_label = overlays[current_item].first.c_str();
+        if (ImGui::BeginCombo("Type", current_item_label)) {
+            for (size_t i = 0; i < overlays.size(); i++) {
+                bool is_selected = ((size_t)current_item == i);
+                if (ImGui::Selectable(overlays[i].first.c_str(), is_selected)) {
+                    current_item = i;
+                    create_and_set_compute_pipeline(overlays[i].second);
+                }
+                if (is_selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+
+        if (m_active_compute_pipeline_type == ComputePipelineType::AREA_OF_INFLUENCE) {
+            uint32_t min_steps = 1;
+            uint32_t max_steps = 1024;
+            if (ImGui::SliderScalar("Num steps", ImGuiDataType_U32, &m_compute_pipeline_settings.num_steps, &min_steps, &max_steps, "%u")) {
+                update_compute_pipeline_settings();
+            }
+
+            if (ImGui::SliderFloat("Step length", &m_compute_pipeline_settings.steps_length, 0.01, 5.0, "%.1f")) {
+                update_compute_pipeline_settings();
+            }
+
+            if (ImGui::SliderFloat("Radius", &m_compute_pipeline_settings.radius, 0.0f, 100.0f, "%.1fm")) {
+                update_compute_pipeline_settings();
+            }
+        } else if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS_AND_SNOW) {
+
+            if (ImGui::Checkbox("Sync with render settings", &m_compute_pipeline_settings.sync_snow_settings_with_render_settings)) {
+                update_compute_pipeline_settings();
+            }
+
+            if (!m_compute_pipeline_settings.sync_snow_settings_with_render_settings) {
+                if (ImGui::DragFloatRange2("Angle limit##compute", &m_compute_pipeline_settings.snow_settings.angle.y,
+                        &m_compute_pipeline_settings.snow_settings.angle.z, 0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp)) {
+                    update_compute_pipeline_settings();
+                }
+                if (ImGui::SliderFloat("Angle blend##compute", &m_compute_pipeline_settings.snow_settings.angle.w, 0.0f, 90.0f, "%.1f°")) {
+                    update_compute_pipeline_settings();
+                }
+                if (ImGui::SliderFloat("Altitude limit##compute", &m_compute_pipeline_settings.snow_settings.alt.x, 0.0f, 4000.0f, "%.1fm")) {
+                    update_compute_pipeline_settings();
+                }
+                if (ImGui::SliderFloat("Altitude variation##compute", &m_compute_pipeline_settings.snow_settings.alt.y, 0.0f, 1000.0f, "%.1f°")) {
+                    update_compute_pipeline_settings();
+                }
+                if (ImGui::SliderFloat("Altitude blend##compute", &m_compute_pipeline_settings.snow_settings.alt.z, 0.0f, 1000.0f)) {
+                    update_compute_pipeline_settings();
+                }
+                if (ImGui::SliderFloat("Specular##compute", &m_compute_pipeline_settings.snow_settings.alt.w, 0.0f, 5.0f)) {
+                    update_compute_pipeline_settings();
+                }
+            }
+        }
+    }
+}
+
+glm::vec4 Window::synchronous_position_readback(const glm::dvec2& ndc)
+{
     if (m_position_readback_buffer->map_state() == WGPUBufferMapState_Unmapped) {
         // A little bit silly, but we have to transform it back to device coordinates
         glm::uvec2 device_coordinates = { (ndc.x + 1) * 0.5 * m_swapchain_size.x, (1 - (ndc.y + 1) * 0.5) * m_swapchain_size.y };
@@ -324,19 +398,69 @@ void Window::load_track_and_focus(const QString& path)
     nucleus::camera::Definition new_camera_definition = { track_aabb.centre() + glm::dvec3 { 0, 0, std::max(aabb_size.x, aabb_size.y) }, track_aabb.centre() };
     new_camera_definition.set_viewport_size(m_camera.viewport_size());
 
-    const unsigned select_zoomlevel = 18;
-    auto& select_tiles_node = static_cast<compute::nodes::SelectTilesNode&>(m_compute_graph->get_node("select_tiles_node"));
-    select_tiles_node.select_tiles_in_world_aabb(track_aabb, select_zoomlevel);
-
+    // update pipeline settings
+    m_compute_pipeline_settings.input_zoomlevel = 18;
+    m_compute_pipeline_settings.input_region = track_aabb;
     if (m_compute_graph->exists_node("compute_area_of_influence_node")) {
-        auto& area_of_influence_node = static_cast<compute::nodes::ComputeAreaOfInfluenceNode&>(m_compute_graph->get_node("compute_area_of_influence_node"));
+        m_compute_pipeline_settings.reference_point = track_aabb.min;
+
         // for now simply always select point in middle of first segment
         const auto& coords = gpx_track->track.at(0).at(gpx_track->track.at(0).size() / 2);
-        area_of_influence_node.set_target_point_lat_lon({ coords.latitude, coords.longitude });
-        area_of_influence_node.set_reference_point_world(track_aabb.min);
+        m_compute_pipeline_settings.target_point = nucleus::srs::lat_long_to_world({ coords.latitude, coords.longitude });
     }
+    update_compute_pipeline_settings();
 
     emit set_camera_definition_requested(new_camera_definition);
+}
+
+void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type)
+{
+    qDebug() << "setting new compute pipeline " << static_cast<int>(pipeline_type);
+    m_active_compute_pipeline_type = pipeline_type;
+
+    if (pipeline_type == ComputePipelineType::NORMALS) {
+        m_compute_graph = compute::nodes::NodeGraph::create_normal_compute_graph(*m_pipeline_manager, m_device);
+    } else if (pipeline_type == ComputePipelineType::NORMALS_AND_SNOW) {
+        m_compute_graph = compute::nodes::NodeGraph::create_normal_with_snow_compute_graph(*m_pipeline_manager, m_device);
+    } else if (pipeline_type == ComputePipelineType::AREA_OF_INFLUENCE) {
+        m_compute_graph = compute::nodes::NodeGraph::create_normal_with_area_of_influence_compute_graph(*m_pipeline_manager, m_device);
+    }
+
+    update_compute_pipeline_settings();
+
+    connect(m_compute_graph.get(), &compute::nodes::NodeGraph::run_finished, this, &Window::request_redraw);
+    m_tile_manager->set_node_graph(*m_compute_graph);
+}
+
+void Window::update_compute_pipeline_settings()
+{
+    const std::string SELECT_TILES_NODE_NAME = "select_tiles_node";
+    const std::string COMPUTE_SNOW_NODE_NAME = "compute_snow_node";
+    const std::string COMPUTE_AREA_OF_INFLUENCE_NODE_NAME = "compute_area_of_influence_node";
+
+    if (m_compute_graph->exists_node(SELECT_TILES_NODE_NAME)) {
+        m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>(SELECT_TILES_NODE_NAME)
+            .select_tiles_in_world_aabb(m_compute_pipeline_settings.input_region, m_compute_pipeline_settings.input_zoomlevel);
+    }
+
+    if (m_compute_graph->exists_node(COMPUTE_SNOW_NODE_NAME)) {
+        // TODO update snow settings
+        if (m_compute_pipeline_settings.sync_snow_settings_with_render_settings) {
+            m_compute_pipeline_settings.snow_settings.alt = m_shared_config_ubo->data.m_snow_settings_alt;
+            m_compute_pipeline_settings.snow_settings.angle = m_shared_config_ubo->data.m_snow_settings_angle;
+        }
+
+        m_compute_graph->get_node_as<compute::nodes::ComputeSnowNode>(COMPUTE_SNOW_NODE_NAME).set_snow_settings(m_compute_pipeline_settings.snow_settings);
+    }
+
+    if (m_compute_graph->exists_node(COMPUTE_AREA_OF_INFLUENCE_NODE_NAME)) {
+        auto& area_of_influence_node = m_compute_graph->get_node_as<compute::nodes::ComputeAreaOfInfluenceNode>(COMPUTE_AREA_OF_INFLUENCE_NODE_NAME);
+        area_of_influence_node.set_reference_point_world(m_compute_pipeline_settings.reference_point);
+        area_of_influence_node.set_target_point_world(m_compute_pipeline_settings.target_point);
+        area_of_influence_node.set_num_steps(m_compute_pipeline_settings.num_steps);
+        area_of_influence_node.set_step_length(m_compute_pipeline_settings.steps_length);
+        area_of_influence_node.set_radius(m_compute_pipeline_settings.radius);
+    }
 }
 
 float Window::depth([[maybe_unused]] const glm::dvec2& normalised_device_coordinates)

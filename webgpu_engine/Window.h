@@ -23,10 +23,12 @@
 #include "TileManager.h"
 #include "TrackRenderer.h"
 #include "UniformBufferObjects.h"
+#include "compute/nodes/ComputeSnowNode.h"
 #include "compute/nodes/NodeGraph.h"
 #include "nucleus/AbstractRenderWindow.h"
 #include "nucleus/camera/AbstractDepthTester.h"
 #include "nucleus/camera/Controller.h"
+#include "nucleus/track/GPX.h"
 #include "nucleus/utils/ColourTexture.h"
 #include <webgpu/raii/BindGroup.h>
 #include <webgpu/webgpu.h>
@@ -35,8 +37,25 @@ class QOpenGLFramebufferObject;
 
 namespace webgpu_engine {
 
+// for preserving settings upon switching graph
+// TODO quite ugly solution
+struct ComputePipelineSettings {
+    geometry::Aabb<3, double> input_region = {}; // select tiles node
+    unsigned int input_zoomlevel = 18; // select tiles node
+    glm::dvec3 reference_point = {}; // area of influence node
+    glm::dvec2 target_point = {}; // area of influence node
+    uint32_t num_steps = 128u; // area of influence node
+    float steps_length = 0.5f; // area of influence node
+    float radius = 20.0f; // area of influence node
+    bool sync_snow_settings_with_render_settings = true;
+    compute::nodes::ComputeSnowNode::SnowSettings snow_settings; // snow node
+};
+
 class Window : public nucleus::AbstractRenderWindow, public nucleus::camera::AbstractDepthTester {
     Q_OBJECT
+public:
+    enum class ComputePipelineType { NORMALS = 0, NORMALS_AND_SNOW = 1, AREA_OF_INFLUENCE = 2 };
+
 public:
     Window();
 
@@ -61,6 +80,7 @@ public:
 
     void update_required_gpu_limits(WGPULimits& limits, const WGPULimits& supported_limits);
     void paint_gui();
+    void paint_compute_pipeline_gui();
 
 public slots:
     void update_camera(const nucleus::camera::Definition& new_definition) override;
@@ -87,6 +107,10 @@ private:
     glm::vec4 synchronous_position_readback(const glm::dvec2& normalised_device_coordinates);
 
     void load_track_and_focus(const QString& path);
+    void select_last_loaded_track_region();
+    void refresh_compute_pipeline_settings(const geometry::Aabb3d& world_aabb, const nucleus::track::Point& focused_track_point_coords);
+    void create_and_set_compute_pipeline(ComputePipelineType pipeline_type);
+    void update_compute_pipeline_settings();
 
 private:
     WGPUInstance m_instance = nullptr;
@@ -121,9 +145,11 @@ private:
 
     bool m_needs_redraw = true;
 
-    std::unique_ptr<compute::nodes::NodeGraph> m_compute_graph;
-
     std::unique_ptr<TrackRenderer> m_track_renderer;
+
+    std::unique_ptr<compute::nodes::NodeGraph> m_compute_graph;
+    ComputePipelineType m_active_compute_pipeline_type;
+    ComputePipelineSettings m_compute_pipeline_settings;
 };
 
 } // namespace webgpu_engine
