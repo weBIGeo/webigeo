@@ -128,6 +128,8 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_compute_graph(const Pipeline
 
     node_graph->m_output_hash_map_ptr = &downsample_tiles_node->hash_map();
     node_graph->m_output_texture_storage_ptr = &downsample_tiles_node->texture_storage();
+    node_graph->m_output_hash_map_ptr_2 = &downsample_tiles_node->hash_map();
+    node_graph->m_output_texture_storage_ptr_2 = &downsample_tiles_node->texture_storage();
 
     // connect signals
     // TODO do dynamically based on graph
@@ -260,7 +262,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_snow_compute_graph(const PipelineMa
     Node* hash_map_node
         = node_graph->add_node("hashmap_node", std::make_unique<CreateHashMapNode>(device, input_resolution, capacity, WGPUTextureFormat_R16Uint));
     Node* snow_compute_node = node_graph->add_node(
-        "snow_compute_node", std::make_unique<ComputeSnowNode>(manager, device, output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm));
+        "compute_snow_node", std::make_unique<ComputeSnowNode>(manager, device, output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm));
     DownsampleTilesNode* downsample_tiles_node
         = static_cast<DownsampleTilesNode*>(node_graph->add_node("downsample_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity, 3)));
 
