@@ -37,10 +37,10 @@ public:
     struct AreaOfInfluenceSettings {
         glm::vec4 target_point;
         glm::vec4 reference_point;
-        float radius;
+        uint32_t num_steps = 128;
+        float step_length = 0.5;
+        float radius = 20.0f;
         float padding1;
-        float padding2;
-        float padding3;
     };
 
     ComputeAreaOfInfluenceNode(
@@ -51,10 +51,19 @@ public:
     const TileStorageTexture& texture_storage() const { return m_output_texture; }
     TileStorageTexture& texture_storage() { return m_output_texture; }
 
+    void set_area_of_influence_settings(const AreaOfInfluenceSettings& settings) { m_input_settings.data = settings; }
+    const AreaOfInfluenceSettings& get_area_of_influence_settings() const { return m_input_settings.data; }
+
     void set_target_point_lat_lon(const glm::dvec2& target_point_lat_lon);
     void set_target_point_world(const glm::dvec2& target_point_world);
     void set_reference_point_lat_lon_alt(const glm::dvec3& reference_point_lat_lon_alt);
     void set_reference_point_world(const glm::dvec3& reference_point_world);
+    void set_num_steps(uint32_t num_steps) { m_input_settings.data.num_steps = num_steps; }
+    void set_step_length(float step_length) { m_input_settings.data.step_length = step_length; }
+    void set_radius(float radius);
+
+    const glm::dvec3& get_reference_point_world() const { return m_reference_point; }
+    const glm::dvec2& get_target_point_world() const { return m_target_point; }
 
 public slots:
     void run_impl() override;

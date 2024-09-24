@@ -59,6 +59,8 @@ void ComputeAreaOfInfluenceNode::set_reference_point_lat_lon_alt(const glm::dvec
 
 void ComputeAreaOfInfluenceNode::set_reference_point_world(const glm::dvec3& reference_point_world) { m_reference_point = reference_point_world; }
 
+void ComputeAreaOfInfluenceNode::set_radius(float radius) { m_input_settings.data.radius = radius; }
+
 void ComputeAreaOfInfluenceNode::run_impl()
 {
     qDebug() << "running AreaOfInfluenceNode ...";
@@ -85,9 +87,8 @@ void ComputeAreaOfInfluenceNode::run_impl()
     m_tile_bounds.write(m_queue, tile_bounds.data(), tile_bounds.size());
 
     // update input settings on GPU side
-    m_input_settings.data.target_point = glm::vec4(m_target_point - glm::dvec2(m_reference_point), 0.0f, 0.0f);
     m_input_settings.data.reference_point = glm::vec4(m_reference_point, 0.0f);
-    m_input_settings.data.radius = 20.0f;
+    m_input_settings.data.target_point = glm::vec4(m_target_point - glm::dvec2(m_reference_point), 0.0f, 0.0f);
     m_input_settings.update_gpu_data(m_queue);
 
     // write hashmap

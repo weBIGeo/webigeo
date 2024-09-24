@@ -25,10 +25,10 @@
 struct AreaOfInfluenceSettings {
     target_point: vec4f,
     reference_point: vec4f,
+    num_steps: u32, // maximum number of steps (along gradient)
+    step_length: f32, // length of one simulation step in world space
     radius: f32,
     padding1: f32,
-    padding2: f32,
-    padding3: f32,
 }
 
 // input
@@ -49,8 +49,6 @@ struct AreaOfInfluenceSettings {
 // output
 @group(0) @binding(11) var output_tiles: texture_storage_2d_array<rgba8unorm, write>; // influence tiles (output)
 
-const STEP_LENGTH: f32 = 0.5; // length of one simulation step in world space
-const MAX_NUM_STEPS: i32 = 128; // number of steps to take
 const SAMPLING_DENSITY = 16; // traces only: grid frequency in xy direction in (output texture) texels 
 
 fn get_gradient(normal: vec3f) -> vec3f {
@@ -126,7 +124,7 @@ fn traces_overlay(id: vec3<u32>) {
     }
 
     var world_space_offset = vec2f(0, 0); // offset from original world position
-    for (var i: i32 = 0; i < MAX_NUM_STEPS; i++) {
+    for (var i: u32 = 0; i < settings.num_steps; i++) {
         // calculate tile id and uv coordinates
         let uv_space_offset = vec2f(world_space_offset.x, -world_space_offset.y) / vec2f(tile_width, tile_height);
         let new_uv = fract(uv + uv_space_offset); //TODO this is actually never 1; also we might need some offset because of tile overlap (i think)
@@ -173,13 +171,13 @@ fn traces_overlay(id: vec3<u32>) {
             
 
             // color by num steps
-            //let color = vec3(1.0 - f32(i) / f32(MAX_NUM_STEPS), 0.0, 0.0);
+            //let color = vec3(1.0 - f32(i) / f32(settings.num_steps), 0.0, 0.0);
 
             textureStore(output_tiles, output_coords, output_texture_array_index, vec4f(color, 1.0));
         }
 
         // step along gradient
-        world_space_offset = world_space_offset + STEP_LENGTH * normalize(gradient.xy);
+        world_space_offset = world_space_offset + settings.step_length * normalize(gradient.xy);
     }
 
     // overpaint start point
@@ -220,7 +218,7 @@ fn area_of_influence_overlay(id: vec3<u32>) {
 
     var overlay = vec4f(0);
     var world_space_offset = vec2f(0, 0); // offset from original world position
-    for (var i: i32 = 0; i < MAX_NUM_STEPS; i++) {
+    for (var i: u32 = 0; i < settings.num_steps; i++) {
         // calculate tile id and uv coordinates
         let uv_space_offset = vec2f(world_space_offset.x, -world_space_offset.y) / vec2f(tile_width, tile_height);
         let new_uv = fract(uv + uv_space_offset); //TODO this is actually never 1; also we might need some offset because of tile overlap (i think)
@@ -250,7 +248,7 @@ fn area_of_influence_overlay(id: vec3<u32>) {
         let gradient = get_gradient(normal);
 
         // step along gradient
-        world_space_offset = world_space_offset + STEP_LENGTH * normalize(gradient.xy);
+        world_space_offset = world_space_offset + settings.step_length * normalize(gradient.xy);
     }
 
     textureStore(output_tiles, vec2u(col, row), id.x, overlay);
