@@ -438,22 +438,28 @@ void Window::update_compute_pipeline_settings()
     const std::string COMPUTE_SNOW_NODE_NAME = "compute_snow_node";
     const std::string COMPUTE_AREA_OF_INFLUENCE_NODE_NAME = "compute_area_of_influence_node";
 
-    if (m_compute_graph->exists_node(SELECT_TILES_NODE_NAME)) {
+    if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS) {
+        // tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>(SELECT_TILES_NODE_NAME)
             .select_tiles_in_world_aabb(m_compute_pipeline_settings.input_region, m_compute_pipeline_settings.input_zoomlevel);
-    }
+    } else if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS_AND_SNOW) {
+        // tile selection
+        m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>(SELECT_TILES_NODE_NAME)
+            .select_tiles_in_world_aabb(m_compute_pipeline_settings.input_region, m_compute_pipeline_settings.input_zoomlevel);
 
-    if (m_compute_graph->exists_node(COMPUTE_SNOW_NODE_NAME)) {
-        // TODO update snow settings
+        // snow settings
         if (m_compute_pipeline_settings.sync_snow_settings_with_render_settings) {
             m_compute_pipeline_settings.snow_settings.alt = m_shared_config_ubo->data.m_snow_settings_alt;
             m_compute_pipeline_settings.snow_settings.angle = m_shared_config_ubo->data.m_snow_settings_angle;
         }
 
         m_compute_graph->get_node_as<compute::nodes::ComputeSnowNode>(COMPUTE_SNOW_NODE_NAME).set_snow_settings(m_compute_pipeline_settings.snow_settings);
-    }
+    } else if (m_active_compute_pipeline_type == ComputePipelineType::AREA_OF_INFLUENCE) {
+        // tile selection
+        m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>(SELECT_TILES_NODE_NAME)
+            .select_tiles_in_world_aabb(m_compute_pipeline_settings.input_region, m_compute_pipeline_settings.input_zoomlevel);
 
-    if (m_compute_graph->exists_node(COMPUTE_AREA_OF_INFLUENCE_NODE_NAME)) {
+        // area of influence settings
         auto& area_of_influence_node = m_compute_graph->get_node_as<compute::nodes::ComputeAreaOfInfluenceNode>(COMPUTE_AREA_OF_INFLUENCE_NODE_NAME);
         area_of_influence_node.set_reference_point_world(m_compute_pipeline_settings.reference_point);
         area_of_influence_node.set_target_point_world(m_compute_pipeline_settings.target_point);
