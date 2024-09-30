@@ -320,9 +320,6 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_with_area_of_influence_compu
         std::make_unique<ComputeAreaOfInfluenceNode>(manager, device, area_of_influence_output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm)));
     Node* upsample_normals_textures_node
         = node_graph->add_node("upsample_textures_node", std::make_unique<UpsampleTexturesNode>(manager, device, upsample_output_resolution, capacity));
-    //  Node* upsample_snow_textures_node
-    //      = node_graph->add_node("upsample_snow_textures_node", std::make_unique<UpsampleTexturesNode>(manager, device, upsample_output_resolution,
-    //      capacity));
     DownsampleTilesNode* downsample_area_of_influence_tiles_node = static_cast<DownsampleTilesNode*>(
         node_graph->add_node("downsample_area_of_influence_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity, 5)));
     DownsampleTilesNode* downsample_normals_tiles_node = static_cast<DownsampleTilesNode*>(
@@ -351,11 +348,6 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_with_area_of_influence_compu
         ComputeAreaOfInfluenceNode::Input::NORMAL_TEXTURE_ARRAY);
     node_graph->connect_sockets(
         hash_map_node, CreateHashMapNode::Output::TEXTURE_ARRAY, area_of_influence_compute_node, ComputeAreaOfInfluenceNode::Input::HEIGHT_TEXTURE_ARRAY);
-
-    // downsample area of influence texture
-    // node_graph->connect_sockets(
-    //    area_of_influence_compute_node, ComputeSnowNode::Output::OUTPUT_TEXTURE_ARRAY, upsample_snow_textures_node,
-    //    UpsampleTexturesNode::Input::TEXTURE_ARRAY);
 
     // create downsampled area of influence tiles
     node_graph->connect_sockets(target_tile_select_node, SelectTilesNode::Output::TILE_ID_LIST, downsample_area_of_influence_tiles_node,
