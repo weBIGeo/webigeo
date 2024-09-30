@@ -93,3 +93,10 @@ fn normal_by_finite_difference_method_with_neighbors(
 
     return normalize(vec3<f32>(hL - hR, hD - hU, height));
 }
+
+fn get_gradient(normal: vec3f) -> vec3f {
+    let up = vec3f(0, 0, 1);
+    let right = cross(up, normal);
+    let gradient = cross(right, normal);
+    return gradient;
+}

@@ -21,6 +21,7 @@
 #include "filtering.wgsl"
 #include "tile_util.wgsl"
 #include "tile_hashmap.wgsl"
+#include "normals_util.wgsl"
 
 struct AreaOfInfluenceSettings {
     target_point: vec4f,
@@ -49,14 +50,7 @@ struct AreaOfInfluenceSettings {
 // output
 @group(0) @binding(11) var output_tiles: texture_storage_2d_array<rgba8unorm, write>; // influence tiles (output)
 
-const SAMPLING_DENSITY = 64; // traces only: grid frequency in xy direction in (output texture) texels 
-
-fn get_gradient(normal: vec3f) -> vec3f {
-    let up = vec3f(0, 0, 1);
-    let right = cross(up, normal);
-    let gradient = cross(right, normal);
-    return gradient;
-}
+const SAMPLING_DENSITY = 64; // traces only: grid frequency in xy direction in (output texture) texels
 
 fn should_paint(col: u32, row: u32, tile_id: TileId) -> bool {
     return (col % SAMPLING_DENSITY == 0) && (row % SAMPLING_DENSITY == 0);
