@@ -64,42 +64,6 @@ fn calculate_bounds(tile_id: TileId) -> vec4<f32> {
     return vec4f(min.x, min.y, max.x, max.y);
 }
 
-fn normal_by_finite_difference_method(
-    uv: vec2<f32>,
-    quad_width: f32,
-    quad_height: f32,
-    altitude_correction_factor: f32,
-    texture_layer: i32,
-    texture_array: texture_2d_array<u32>) -> vec3<f32>
-{
-    let height_texture_size = textureDimensions(texture_array);
-    // from here: https://stackoverflow.com/questions/6656358/calculating-normals-in-a-triangle-mesh/21660173#21660173
-    let height = quad_width + quad_height;
-    
-    // 0 is texel center of first texel, 1 is texel center of last texel
-    let uv_tex = vec2i(floor(uv * vec2f(height_texture_size - 1) + 0.5));
-    
-    let upper_bounds = vec2<i32>(height_texture_size - 1);
-    let lower_bounds = vec2<i32>(0, 0);
-    let hL_uv = clamp(uv_tex - vec2<i32>(1, 0), lower_bounds, upper_bounds);
-    let hL_sample = textureLoad(texture_array, hL_uv, texture_layer, 0);
-    let hL = f32(hL_sample.r) * altitude_correction_factor;
-
-    let hR_uv = clamp(uv_tex + vec2<i32>(1, 0), lower_bounds, upper_bounds);
-    let hR_sample = textureLoad(texture_array, hR_uv, texture_layer, 0);
-    let hR = f32(hR_sample.r) * altitude_correction_factor;
-
-    let hD_uv = clamp(uv_tex + vec2<i32>(0, 1), lower_bounds, upper_bounds);
-    let hD_sample = textureLoad(texture_array, hD_uv, texture_layer, 0);
-    let hD = f32(hD_sample.r) * altitude_correction_factor;
-
-    let hU_uv = clamp(uv_tex - vec2<i32>(0, 1), lower_bounds, upper_bounds);
-    let hU_sample = textureLoad(texture_array, hU_uv, texture_layer, 0);
-    let hU = f32(hU_sample.r) * altitude_correction_factor;
-
-    return normalize(vec3<f32>(hL - hR, hD - hU, height));
-}
-
 fn world_to_lat_long_alt(pos_ws: vec3f) -> vec3f {
     let mercN = pos_ws.y * PI / ORIGIN_SHIFT;
     let latRad = 2.0 * (atan(exp(mercN)) - (PI / 4.0));
@@ -137,9 +101,9 @@ fn decrease_zoom_level_until(
     zoomlevel: u32,
     output_tile_id: ptr<function, TileId>,
     output_uv: ptr<function, vec2f>,
-) {
+) -> bool {
     if (input_tile_id.zoomlevel <= zoomlevel) {
-        return;
+        return false;
     }
 
     let z_delta = input_tile_id.zoomlevel - zoomlevel;
@@ -149,4 +113,6 @@ fn decrease_zoom_level_until(
 
     *output_tile_id = TileId(input_tile_id.x >> z_delta, input_tile_id.y >> z_delta, input_tile_id.zoomlevel - z_delta, 0);
     *output_uv = input_uv / f32(1u << z_delta) + vec2f(x_border, y_border);
+
+    return true;
 }

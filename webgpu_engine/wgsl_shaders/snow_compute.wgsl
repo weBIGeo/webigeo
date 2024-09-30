@@ -20,6 +20,7 @@
 
 #include "tile_util.wgsl"
 #include "tile_hashmap.wgsl"
+#include "normals_util.wgsl"
 #include "snow.wgsl"
 
 struct SnowSettings {
