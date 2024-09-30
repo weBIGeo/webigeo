@@ -28,7 +28,7 @@ struct AreaOfInfluenceSettings {
     num_steps: u32, // maximum number of steps (along gradient)
     step_length: f32, // length of one simulation step in world space
     radius: f32,
-    padding1: f32,
+    source_zoomlevel: u32,
 }
 
 // input
@@ -86,13 +86,17 @@ fn gradient_overlay(id: vec3<u32>) {
     let row = id.z; // in [0, texture_dimension(output_tiles).y - 1]
     let uv = vec2f(f32(col), f32(row)) / vec2f(output_texture_size - 1);
 
+    var source_tile_id: TileId = tile_id;
+    var source_uv: vec2f = uv;
+    decrease_zoom_level_until(tile_id, uv, settings.source_zoomlevel, &source_tile_id, &source_uv);
+
     // read normal
     var texture_array_index: u32;
-    let found = get_texture_array_index(tile_id, &texture_array_index, &map_key_buffer, &map_value_buffer);
+    let found = get_texture_array_index(source_tile_id, &texture_array_index, &map_key_buffer, &map_value_buffer);
     if (!found) {
         return;
     }
-    let normal = bilinear_sample_vec4f(input_normal_tiles, input_normal_tiles_sampler, uv, texture_array_index).xyz * 2 - 1;
+    let normal = bilinear_sample_vec4f(input_normal_tiles, input_normal_tiles_sampler, source_uv, texture_array_index).xyz * 2 - 1;
     let gradient = get_gradient(normal);
     textureStore(output_tiles, vec2u(col, row), id.x, vec4f(gradient, 1));
 }
@@ -171,13 +175,16 @@ fn traces_overlay(id: vec3<u32>) {
         let new_tile_id = TileId(u32(new_tile_coords.x), u32(new_tile_coords.y), tile_id.zoomlevel, 0);
 
         // read normal
+        var source_tile_id: TileId = new_tile_id;
+        var source_uv: vec2f = new_uv;
+        decrease_zoom_level_until(new_tile_id, new_uv, settings.source_zoomlevel, &source_tile_id, &source_uv);
         var texture_array_index: u32;
-        let found = get_texture_array_index(new_tile_id, &texture_array_index, &map_key_buffer, &map_value_buffer);
+        let found = get_texture_array_index(source_tile_id, &texture_array_index, &map_key_buffer, &map_value_buffer);
         if (!found) {
             // moved to a tile where we don't have any input data, discard
             break;
         }
-        let normal = bilinear_sample_vec4f(input_normal_tiles, input_normal_tiles_sampler, new_uv, texture_array_index).xyz * 2 - 1;
+        let normal = bilinear_sample_vec4f(input_normal_tiles, input_normal_tiles_sampler, source_uv, texture_array_index).xyz * 2 - 1;
 
         let a = model2(normal, speed);
         // update speed
@@ -278,14 +285,18 @@ fn area_of_influence_overlay(id: vec3<u32>) {
         }
 
         // read normal
+        var source_tile_id: TileId = new_tile_id;
+        var source_uv: vec2f = new_uv;
+        decrease_zoom_level_until(new_tile_id, new_uv, settings.source_zoomlevel, &source_tile_id, &source_uv);
+       
         var texture_array_index: u32;
-        let found = get_texture_array_index(new_tile_id, &texture_array_index, &map_key_buffer, &map_value_buffer);
+        let found = get_texture_array_index(source_tile_id, &texture_array_index, &map_key_buffer, &map_value_buffer);
         if (!found) {
             // moved to a tile where we don't have any input data, discard
             overlay = vec4f(0, 1, 0, 1);
             break;
         }
-        let normal = bilinear_sample_vec4f(input_normal_tiles, input_normal_tiles_sampler, new_uv, texture_array_index).xyz * 2 - 1;
+        let normal = bilinear_sample_vec4f(input_normal_tiles, input_normal_tiles_sampler, source_uv, texture_array_index).xyz * 2 - 1;
         let gradient = get_gradient(normal);
 
         // step along gradient

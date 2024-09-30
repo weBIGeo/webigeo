@@ -71,8 +71,7 @@ TileStorageTexture& NodeGraph::output_texture_storage_2() { return *m_output_tex
 void NodeGraph::run()
 {
     qDebug() << "running node graph ...";
-    Node* tile_select_node = m_nodes.at("select_tiles_node").get();
-    tile_select_node->run();
+    m_start_node->run();
 }
 
 std::unique_ptr<NodeGraph> NodeGraph::create_normal_compute_graph(const PipelineManager& manager, WGPUDevice device)
@@ -133,6 +132,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_compute_graph(const Pipeline
 
     // connect signals
     // TODO do dynamically based on graph
+    node_graph->m_start_node = tile_select_node;
     connect(tile_select_node, &Node::run_finished, height_request_node, &Node::run);
     connect(height_request_node, &Node::run_finished, hash_map_node, &Node::run);
     connect(hash_map_node, &Node::run_finished, normal_compute_node, &Node::run);
@@ -227,6 +227,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_with_snow_compute_graph(cons
 
     // connect signals
     // TODO do dynamically based on graph
+    node_graph->m_start_node = tile_select_node;
     connect(tile_select_node, &Node::run_finished, height_request_node, &Node::run);
     connect(height_request_node, &Node::run_finished, hash_map_node, &Node::run);
     connect(hash_map_node, &Node::run_finished, normal_compute_node, &Node::run);
@@ -288,6 +289,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_snow_compute_graph(const PipelineMa
 
     // connect signals
     // TODO do dynamically based on graph
+    node_graph->m_start_node = tile_select_node;
     connect(tile_select_node, &Node::run_finished, height_request_node, &Node::run);
     connect(height_request_node, &Node::run_finished, hash_map_node, &Node::run);
     connect(hash_map_node, &Node::run_finished, snow_compute_node, &Node::run);
@@ -306,7 +308,9 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_with_area_of_influence_compu
     glm::uvec2 upsample_output_resolution = { 256, 256 };
 
     auto node_graph = std::make_unique<NodeGraph>();
-    Node* tile_select_node = node_graph->add_node("select_tiles_node", std::make_unique<SelectTilesNode>());
+    Node* target_tile_select_node = node_graph->add_node("select_target_tiles_node", std::make_unique<SelectTilesNode>());
+    Node* source_tile_select_node = node_graph->add_node("select_source_tiles_node", std::make_unique<SelectTilesNode>());
+
     Node* height_request_node = node_graph->add_node("request_height_node", std::make_unique<RequestTilesNode>());
     Node* hash_map_node
         = node_graph->add_node("create_hashmap_node", std::make_unique<CreateHashMapNode>(device, input_resolution, capacity, WGPUTextureFormat_R16Uint));
@@ -325,22 +329,22 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_with_area_of_influence_compu
         node_graph->add_node("downsample_normals_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity, 5)));
 
     // connect tile request node inputs
-    node_graph->connect_sockets(tile_select_node, SelectTilesNode::Output::TILE_ID_LIST, height_request_node, RequestTilesNode::Input::TILE_ID_LIST);
+    node_graph->connect_sockets(source_tile_select_node, SelectTilesNode::Output::TILE_ID_LIST, height_request_node, RequestTilesNode::Input::TILE_ID_LIST);
 
     // connect hash map node inputs
-    node_graph->connect_sockets(tile_select_node, SelectTilesNode::Output::TILE_ID_LIST, hash_map_node, CreateHashMapNode::Input::TILE_ID_LIST);
+    node_graph->connect_sockets(source_tile_select_node, SelectTilesNode::Output::TILE_ID_LIST, hash_map_node, CreateHashMapNode::Input::TILE_ID_LIST);
     node_graph->connect_sockets(height_request_node, RequestTilesNode::Output::TILE_TEXTURE_LIST, hash_map_node, CreateHashMapNode::Input::TILE_TEXTURE_LIST);
 
     // connect normal node inputs
     node_graph->connect_sockets(
-        tile_select_node, SelectTilesNode::Output::TILE_ID_LIST, normal_compute_node, ComputeNormalsNode::Input::TILE_ID_LIST_TO_PROCESS);
+        source_tile_select_node, SelectTilesNode::Output::TILE_ID_LIST, normal_compute_node, ComputeNormalsNode::Input::TILE_ID_LIST_TO_PROCESS);
     node_graph->connect_sockets(hash_map_node, CreateHashMapNode::Output::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP, normal_compute_node,
         ComputeNormalsNode::Input::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP);
     node_graph->connect_sockets(hash_map_node, CreateHashMapNode::Output::TEXTURE_ARRAY, normal_compute_node, ComputeNormalsNode::Input::TEXTURE_ARRAY);
 
     // connect area of influence compute node inputs
-    node_graph->connect_sockets(
-        tile_select_node, SelectTilesNode::Output::TILE_ID_LIST, area_of_influence_compute_node, ComputeAreaOfInfluenceNode::Input::TILE_ID_LIST_TO_PROCESS);
+    node_graph->connect_sockets(target_tile_select_node, SelectTilesNode::Output::TILE_ID_LIST, area_of_influence_compute_node,
+        ComputeAreaOfInfluenceNode::Input::TILE_ID_LIST_TO_PROCESS);
     node_graph->connect_sockets(normal_compute_node, ComputeNormalsNode::Output::OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP, area_of_influence_compute_node,
         ComputeAreaOfInfluenceNode::Input::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP);
     node_graph->connect_sockets(normal_compute_node, ComputeNormalsNode::Output::OUTPUT_TEXTURE_ARRAY, area_of_influence_compute_node,
@@ -354,8 +358,8 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_with_area_of_influence_compu
     //    UpsampleTexturesNode::Input::TEXTURE_ARRAY);
 
     // create downsampled area of influence tiles
-    node_graph->connect_sockets(
-        tile_select_node, SelectTilesNode::Output::TILE_ID_LIST, downsample_area_of_influence_tiles_node, DownsampleTilesNode::Input::TILE_ID_LIST_TO_PROCESS);
+    node_graph->connect_sockets(target_tile_select_node, SelectTilesNode::Output::TILE_ID_LIST, downsample_area_of_influence_tiles_node,
+        DownsampleTilesNode::Input::TILE_ID_LIST_TO_PROCESS);
     node_graph->connect_sockets(area_of_influence_compute_node, ComputeNormalsNode::Output::OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP,
         downsample_area_of_influence_tiles_node, DownsampleTilesNode::Input::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP);
     node_graph->connect_sockets(area_of_influence_compute_node, ComputeAreaOfInfluenceNode::Output::OUTPUT_TEXTURE_ARRAY,
@@ -367,7 +371,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_with_area_of_influence_compu
 
     // connect downsample normal tiles node inputs
     node_graph->connect_sockets(
-        tile_select_node, SelectTilesNode::Output::TILE_ID_LIST, downsample_normals_tiles_node, DownsampleTilesNode::Input::TILE_ID_LIST_TO_PROCESS);
+        source_tile_select_node, SelectTilesNode::Output::TILE_ID_LIST, downsample_normals_tiles_node, DownsampleTilesNode::Input::TILE_ID_LIST_TO_PROCESS);
     node_graph->connect_sockets(normal_compute_node, ComputeNormalsNode::Output::OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP, downsample_normals_tiles_node,
         DownsampleTilesNode::Input::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP);
     node_graph->connect_sockets(upsample_normals_textures_node, UpsampleTexturesNode::Output::OUTPUT_TEXTURE_ARRAY, downsample_normals_tiles_node,
@@ -381,7 +385,9 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_with_area_of_influence_compu
 
     // connect signals
     // TODO do dynamically based on graph
-    connect(tile_select_node, &Node::run_finished, height_request_node, &Node::run);
+    node_graph->m_start_node = source_tile_select_node;
+    connect(source_tile_select_node, &Node::run_finished, target_tile_select_node, &Node::run);
+    connect(target_tile_select_node, &Node::run_finished, height_request_node, &Node::run);
     connect(height_request_node, &Node::run_finished, hash_map_node, &Node::run);
     connect(hash_map_node, &Node::run_finished, normal_compute_node, &Node::run);
     connect(normal_compute_node, &Node::run_finished, area_of_influence_compute_node, &Node::run);

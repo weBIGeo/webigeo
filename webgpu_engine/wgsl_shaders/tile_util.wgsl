@@ -108,3 +108,45 @@ fn world_to_lat_long_alt(pos_ws: vec3f) -> vec3f {
     let altitude = pos_ws.z * cos(latitude * PI / 180.0);
     return vec3f(latitude, longitude, altitude);
 }
+
+
+// ported from alpine maps
+fn decrease_zoom_level_by_one(
+    input_tile_id: TileId,
+    input_uv: vec2f,
+    output_tile_id: ptr<function, TileId>,
+    output_uv: ptr<function, vec2f>,
+) -> bool {
+    if (input_tile_id.zoomlevel == 0u) {
+        return false;
+    }
+
+    let x_border = f32(input_tile_id.x & 1u) / 2.0;
+    let y_border = f32((input_tile_id.y & 1u) == 0u) / 2.0;
+    
+    *output_tile_id = TileId( input_tile_id.x / 2u, input_tile_id.y / 2u, input_tile_id.zoomlevel - 1u, 0);
+    *output_uv = input_uv / 2.0 + vec2f(x_border, y_border);
+
+    return true;
+}
+
+// ported from alpine maps
+fn decrease_zoom_level_until(
+    input_tile_id: TileId,
+    input_uv: vec2f,
+    zoomlevel: u32,
+    output_tile_id: ptr<function, TileId>,
+    output_uv: ptr<function, vec2f>,
+) {
+    if (input_tile_id.zoomlevel <= zoomlevel) {
+        return;
+    }
+
+    let z_delta = input_tile_id.zoomlevel - zoomlevel;
+    let border_mask = (1u << z_delta) - 1u;
+    let x_border = f32(input_tile_id.x & border_mask) / f32(1u << z_delta);
+    let y_border = f32((input_tile_id.y ^ border_mask) & border_mask) / f32(1u << z_delta);
+
+    *output_tile_id = TileId(input_tile_id.x >> z_delta, input_tile_id.y >> z_delta, input_tile_id.zoomlevel - z_delta, 0);
+    *output_uv = input_uv / f32(1u << z_delta) + vec2f(x_border, y_border);
+}

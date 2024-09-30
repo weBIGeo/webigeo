@@ -72,6 +72,8 @@ public:
 
 private:
     std::unordered_map<std::string, std::unique_ptr<Node>> m_nodes;
+    Node* m_start_node;
+
     GpuHashMap<tile::Id, uint32_t, GpuTileId>* m_output_hash_map_ptr;
     TileStorageTexture* m_output_texture_storage_ptr;
 

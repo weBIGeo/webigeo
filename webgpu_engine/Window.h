@@ -40,14 +40,15 @@ namespace webgpu_engine {
 // for preserving settings upon switching graph
 // TODO quite ugly solution
 struct ComputePipelineSettings {
-    geometry::Aabb<3, double> input_region = {}; // select tiles node
-    unsigned int input_zoomlevel = 18; // select tiles node
+    geometry::Aabb<3, double> target_region = {}; // select tiles node
+    unsigned int target_zoomlevel = 18; // select tiles node
     glm::dvec3 reference_point = {}; // area of influence node
     glm::dvec2 target_point = {}; // area of influence node
     uint32_t num_steps = 128u; // area of influence node
     float steps_length = 0.5f; // area of influence node
     float radius = 20.0f; // area of influence node
-    bool sync_snow_settings_with_render_settings = true;
+    uint32_t source_zoomlevel = 17; // area of influence node
+    bool sync_snow_settings_with_render_settings = true; // snow node
     compute::nodes::ComputeSnowNode::SnowSettings snow_settings; // snow node
 };
 
