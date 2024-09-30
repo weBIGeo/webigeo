@@ -281,8 +281,7 @@ void Window::paint_compute_pipeline_gui()
         ImGui::SameLine();
 
         if (ImGui::Button("Clear", ImVec2(150, 20))) {
-            m_compute_graph->output_hash_map().clear();
-            m_compute_graph->output_hash_map().update_gpu_data();
+            create_and_set_compute_pipeline(m_active_compute_pipeline_type);
             m_needs_redraw = true;
         }
 
