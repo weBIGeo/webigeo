@@ -139,7 +139,7 @@ std::string ShaderModuleManager::preprocess(const std::string& code)
             const std::string included_file_contents = get_file_contents_with_cache(included_filename);
             preprocessed_code.replace(search_start_pos + include_match.position(), include_match.length(), included_file_contents);
         }
-        search_start_pos += include_match.position() + include_match.length();
+        search_start_pos += include_match.position();
         already_included.insert(included_filename);
     }
     return preprocessed_code;
