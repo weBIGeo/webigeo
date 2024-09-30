@@ -49,7 +49,7 @@ struct AreaOfInfluenceSettings {
 // output
 @group(0) @binding(11) var output_tiles: texture_storage_2d_array<rgba8unorm, write>; // influence tiles (output)
 
-const SAMPLING_DENSITY = 16; // traces only: grid frequency in xy direction in (output texture) texels 
+const SAMPLING_DENSITY = 64; // traces only: grid frequency in xy direction in (output texture) texels 
 
 fn get_gradient(normal: vec3f) -> vec3f {
     let up = vec3f(0, 0, 1);
@@ -97,6 +97,42 @@ fn gradient_overlay(id: vec3<u32>) {
     textureStore(output_tiles, vec2u(col, row), id.x, vec4f(gradient, 1));
 }
 
+fn model1(normal: vec3f, velocity: vec3f) -> vec3f {
+    // simple model: slows down by a constant factor of the velocity, speeds up by constant factor of normalized gradient
+    const velocity_coeff = 0.02;
+    const gradient_coeff = 0.07;
+
+    let gradient = get_gradient(normal);
+
+    let a = -velocity_coeff * velocity + gradient_coeff * gradient;
+    return a;
+}
+
+fn model2(normal: vec3f, velocity: vec3f) -> vec3f {
+    // trying to come up with a more realistic model with tunable parameters
+    //   Fw = m * g * (0,0,-1)                  ... weight force
+    //   Fn = (-Fw . normal) * normal           ... normal force (Fw + Fn is the part of the weight force acting along gradient)
+    //   Ff = friction_coeff * |N| * (-v / |v|) ... friction force, acting against direction of current velocity
+    //   Fd = drag_coeff * |v|^2 * (-v / |v|)   ... drag force, acting against direction of current velocity
+    // TODO need to convert between world space and meters
+    const gravity = vec3f(0, 0, -9.81);
+    const mass = 5.0;
+    const friction_coefficient = 0.01;
+    const drag_coefficient = 0.2;
+    
+    let velocity_magnitude = length(velocity);
+    let against_motion_dir = -normalize(velocity);
+
+    const f_weight = mass * gravity;
+    let f_normal = dot(-f_weight, normal) * normal;
+    let f_friction = friction_coefficient * length(f_normal) * select(vec3f(0), against_motion_dir, velocity_magnitude > 0);
+    let f_drag = drag_coefficient * pow(velocity_magnitude, 2) * select(vec3f(0), against_motion_dir, velocity_magnitude > 0);
+    let f_net = f_weight + f_normal + f_friction + f_drag;
+    
+    let a = f_net / mass;
+    return a;
+}
+
 // draws traces within a single tile
 fn traces_overlay(id: vec3<u32>) {
     // id.x  in [0, num_tiles]
@@ -123,6 +159,7 @@ fn traces_overlay(id: vec3<u32>) {
         return;
     }
 
+    var speed = vec3f(0, 0, 0);
     var world_space_offset = vec2f(0, 0); // offset from original world position
     for (var i: u32 = 0; i < settings.num_steps; i++) {
         // calculate tile id and uv coordinates
@@ -141,7 +178,10 @@ fn traces_overlay(id: vec3<u32>) {
             break;
         }
         let normal = bilinear_sample_vec4f(input_normal_tiles, input_normal_tiles_sampler, new_uv, texture_array_index).xyz * 2 - 1;
-        let gradient = get_gradient(normal);
+
+        let a = model2(normal, speed);
+        // update speed
+        speed = speed + settings.step_length * a;
 
         // paint trace point
         let output_coords = vec2u(new_uv * vec2f(output_texture_size) + 0.5);
@@ -152,7 +192,7 @@ fn traces_overlay(id: vec3<u32>) {
             //let color = vec3(f32(col) / f32(output_texture_size.x), f32(row) / f32(output_texture_size.y), 0.0);
 
             // color by steepness
-            const NUM_STEEPNESS_BINS = 9;
+            /*const NUM_STEEPNESS_BINS = 9;
             const STEEPNESS_COLOR_MAP = array<vec3f, NUM_STEEPNESS_BINS>(
                 vec3f(254.0/255.0, 249.0/255.0, 249.0/255.0),
                 vec3f(51.0/255.0, 249.0/255.0, 49.0/255.0),
@@ -167,8 +207,9 @@ fn traces_overlay(id: vec3<u32>) {
             let steepness = 1.0 - normal.z;
             let steepness_index = u32(steepness * f32(NUM_STEEPNESS_BINS - 1) + 0.5);
             let color = STEEPNESS_COLOR_MAP[steepness_index];
-            //let color = vec3f(steepness, 0, 0);
+            //let color = vec3f(steepness, 0, 0);*/
             
+            let color = vec3f(length(speed) * 0.5, 0, 0);
 
             // color by num steps
             //let color = vec3(1.0 - f32(i) / f32(settings.num_steps), 0.0, 0.0);
@@ -176,8 +217,8 @@ fn traces_overlay(id: vec3<u32>) {
             textureStore(output_tiles, output_coords, output_texture_array_index, vec4f(color, 1.0));
         }
 
-        // step along gradient
-        world_space_offset = world_space_offset + settings.step_length * normalize(gradient.xy);
+        // update position
+        world_space_offset = world_space_offset + settings.step_length * speed.xy;
     }
 
     // overpaint start point
