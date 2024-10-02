@@ -324,6 +324,48 @@ void Window::paint_compute_pipeline_gui()
                 update_compute_pipeline_settings();
             }
 
+            static int current_physics_model_item = 0;
+            const std::vector<std::pair<std::string, compute::nodes::ComputeAreaOfInfluenceNode::PhysicsModelType>> physics_model_types
+                = { { "Momentum (simple)", compute::nodes::ComputeAreaOfInfluenceNode::PhysicsModelType::MODEL1 },
+                      { "Momentum (less simple)", compute::nodes::ComputeAreaOfInfluenceNode::PhysicsModelType::MODEL2 },
+                      { "Gradients", compute::nodes::ComputeAreaOfInfluenceNode::PhysicsModelType::MODEL3 } };
+            const char* current_item_label = physics_model_types[current_physics_model_item].first.c_str();
+            if (ImGui::BeginCombo("Physics model", current_item_label)) {
+                for (size_t i = 0; i < physics_model_types.size(); i++) {
+                    bool is_selected = ((size_t)current_physics_model_item == i);
+                    if (ImGui::Selectable(physics_model_types[i].first.c_str(), is_selected)) {
+                        current_physics_model_item = i;
+                        m_compute_pipeline_settings.model_type = physics_model_types[i].second;
+                        update_compute_pipeline_settings();
+                    }
+                    if (is_selected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+
+            if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAreaOfInfluenceNode::PhysicsModelType::MODEL1) {
+                if (ImGui::SliderFloat("Linear drag coeff##model1", &m_compute_pipeline_settings.model1_velocity_coeff, 0.0f, 1.0f, "%.2f")) {
+                    update_compute_pipeline_settings();
+                }
+                if (ImGui::SliderFloat("Speedup coeff##model1", &m_compute_pipeline_settings.model1_gradient_coeff, 0.0f, 1.0f, "%.2f")) {
+                    update_compute_pipeline_settings();
+                }
+            } else if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAreaOfInfluenceNode::PhysicsModelType::MODEL2) {
+                if (ImGui::SliderFloat("Gravity##model2", &m_compute_pipeline_settings.model2_gravity, 0.0f, 15.0f, "%.2f")) {
+                    update_compute_pipeline_settings();
+                }
+                if (ImGui::SliderFloat("Mass##model2", &m_compute_pipeline_settings.model2_mass, 0.0f, 10.0f, "%.2f")) {
+                    update_compute_pipeline_settings();
+                }
+                if (ImGui::SliderFloat("Drag coeff##model2", &m_compute_pipeline_settings.model2_drag_coeff, 0.0f, 1.0f, "%.2f")) {
+                    update_compute_pipeline_settings();
+                }
+                if (ImGui::SliderFloat("Friction coeff##model2", &m_compute_pipeline_settings.model2_friction_coeff, 0.0f, 1.0f, "%.2f")) {
+                    update_compute_pipeline_settings();
+                }
+            }
+
         } else if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS_AND_SNOW) {
 
             if (ImGui::Checkbox("Sync with render settings", &m_compute_pipeline_settings.sync_snow_settings_with_render_settings)) {
@@ -473,6 +515,13 @@ void Window::update_compute_pipeline_settings()
         area_of_influence_node.set_step_length(m_compute_pipeline_settings.steps_length);
         area_of_influence_node.set_radius(m_compute_pipeline_settings.radius);
         area_of_influence_node.set_source_zoomlevel(m_compute_pipeline_settings.source_zoomlevel);
+        area_of_influence_node.set_physics_model_type(m_compute_pipeline_settings.model_type);
+        area_of_influence_node.set_model1_downward_acceleration_coeff(m_compute_pipeline_settings.model1_gradient_coeff);
+        area_of_influence_node.set_model1_linear_drag_coeff(m_compute_pipeline_settings.model1_velocity_coeff);
+        area_of_influence_node.set_model2_gravity(m_compute_pipeline_settings.model2_gravity);
+        area_of_influence_node.set_model2_mass(m_compute_pipeline_settings.model2_mass);
+        area_of_influence_node.set_model2_friction_coeff(m_compute_pipeline_settings.model2_friction_coeff);
+        area_of_influence_node.set_model2_drag_coeff(m_compute_pipeline_settings.model2_drag_coeff);
     }
 }
 

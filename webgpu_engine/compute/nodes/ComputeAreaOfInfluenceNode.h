@@ -34,6 +34,12 @@ public:
 
     static glm::uvec3 SHADER_WORKGROUP_SIZE; // TODO currently hardcoded in shader! can we somehow not hardcode it? maybe using overrides
 
+    enum PhysicsModelType : uint32_t {
+        MODEL1 = 0,
+        MODEL2 = 1,
+        MODEL3 = 2,
+    };
+
     struct AreaOfInfluenceSettings {
         glm::vec4 target_point;
         glm::vec4 reference_point;
@@ -41,6 +47,15 @@ public:
         float step_length = 0.5;
         float radius = 20.0f;
         uint32_t source_zoomlevel;
+
+        PhysicsModelType physics_model_type;
+        float model1_linear_drag_coeff;
+        float model1_downward_acceleration_coeff;
+        float model2_gravity;
+        float model2_mass;
+        float model2_friction_coeff;
+        float model2_drag_coeff;
+        float padding1;
     };
 
     ComputeAreaOfInfluenceNode(
@@ -62,6 +77,18 @@ public:
     void set_step_length(float step_length) { m_input_settings.data.step_length = step_length; }
     void set_radius(float radius);
     void set_source_zoomlevel(uint32_t source_zoomlevel) { m_input_settings.data.source_zoomlevel = source_zoomlevel; }
+
+    void set_physics_model_type(PhysicsModelType physics_model_type) { this->m_input_settings.data.physics_model_type = physics_model_type; }
+    void set_model1_linear_drag_coeff(float model1_linear_drag_coeff) { this->m_input_settings.data.model1_linear_drag_coeff = model1_linear_drag_coeff; }
+    void set_model1_downward_acceleration_coeff(float model1_downward_acceleration_coeff)
+    {
+        this->m_input_settings.data.model1_downward_acceleration_coeff = model1_downward_acceleration_coeff;
+    }
+
+    void set_model2_gravity(float model2_gravity) { this->m_input_settings.data.model2_gravity = model2_gravity; }
+    void set_model2_mass(float model2_mass) { this->m_input_settings.data.model2_mass = model2_mass; }
+    void set_model2_friction_coeff(float model2_friction_coeff) { this->m_input_settings.data.model2_friction_coeff = model2_friction_coeff; }
+    void set_model2_drag_coeff(float model2_drag_coeff) { this->m_input_settings.data.model2_drag_coeff = model2_drag_coeff; }
 
     const glm::dvec3& get_reference_point_world() const { return m_reference_point; }
     const glm::dvec2& get_target_point_world() const { return m_target_point; }
