@@ -305,23 +305,26 @@ void Window::paint_compute_pipeline_gui()
         if (m_active_compute_pipeline_type == ComputePipelineType::AREA_OF_INFLUENCE) {
             uint32_t min_steps = 1;
             uint32_t max_steps = 1024;
-            if (ImGui::SliderScalar("Num steps", ImGuiDataType_U32, &m_compute_pipeline_settings.num_steps, &min_steps, &max_steps, "%u")) {
-                update_compute_pipeline_settings();
+            ImGui::SliderScalar("Num steps", ImGuiDataType_U32, &m_compute_pipeline_settings.num_steps, &min_steps, &max_steps, "%u");
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
+                recreate_and_rerun_compute_pipeline();
             }
 
-            if (ImGui::SliderFloat("Step length", &m_compute_pipeline_settings.steps_length, 0.01, 5.0, "%.1f")) {
-                update_compute_pipeline_settings();
+            ImGui::SliderFloat("Step length", &m_compute_pipeline_settings.steps_length, 0.01, 5.0, "%.1f");
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
+                recreate_and_rerun_compute_pipeline();
             }
 
-            if (ImGui::SliderFloat("Radius", &m_compute_pipeline_settings.radius, 0.0f, 100.0f, "%.1fm")) {
-                update_compute_pipeline_settings();
+            ImGui::SliderFloat("Radius", &m_compute_pipeline_settings.radius, 0.0f, 100.0f, "%.1fm");
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
+                recreate_and_rerun_compute_pipeline();
             }
 
             uint32_t min_zoomlevel = 1;
             uint32_t max_zoomlevel = 18;
-            if (ImGui::SliderScalar(
-                    "Source zoomlevel", ImGuiDataType_U32, &m_compute_pipeline_settings.source_zoomlevel, &min_zoomlevel, &max_zoomlevel, "%u")) {
-                update_compute_pipeline_settings();
+            ImGui::SliderScalar("Source zoomlevel", ImGuiDataType_U32, &m_compute_pipeline_settings.source_zoomlevel, &min_zoomlevel, &max_zoomlevel, "%u");
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
+                recreate_and_rerun_compute_pipeline();
             }
 
             static int current_physics_model_item = 0;
@@ -336,7 +339,7 @@ void Window::paint_compute_pipeline_gui()
                     if (ImGui::Selectable(physics_model_types[i].first.c_str(), is_selected)) {
                         current_physics_model_item = i;
                         m_compute_pipeline_settings.model_type = physics_model_types[i].second;
-                        update_compute_pipeline_settings();
+                        recreate_and_rerun_compute_pipeline();
                     }
                     if (is_selected)
                         ImGui::SetItemDefaultFocus();
@@ -345,27 +348,32 @@ void Window::paint_compute_pipeline_gui()
             }
 
             if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAreaOfInfluenceNode::PhysicsModelType::MODEL1) {
-                if (ImGui::SliderFloat("Linear drag coeff##model1", &m_compute_pipeline_settings.model1_velocity_coeff, 0.0f, 1.0f, "%.2f")) {
-                    update_compute_pipeline_settings();
+                ImGui::SliderFloat("Linear drag coeff##model1", &m_compute_pipeline_settings.model1_velocity_coeff, 0.0f, 1.0f, "%.2f");
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    recreate_and_rerun_compute_pipeline();
                 }
-                if (ImGui::SliderFloat("Speedup coeff##model1", &m_compute_pipeline_settings.model1_gradient_coeff, 0.0f, 1.0f, "%.2f")) {
-                    update_compute_pipeline_settings();
+                ImGui::SliderFloat("Speedup coeff##model1", &m_compute_pipeline_settings.model1_gradient_coeff, 0.0f, 1.0f, "%.2f");
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    recreate_and_rerun_compute_pipeline();
                 }
             } else if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAreaOfInfluenceNode::PhysicsModelType::MODEL2) {
-                if (ImGui::SliderFloat("Gravity##model2", &m_compute_pipeline_settings.model2_gravity, 0.0f, 15.0f, "%.2f")) {
-                    update_compute_pipeline_settings();
+                ImGui::SliderFloat("Gravity##model2", &m_compute_pipeline_settings.model2_gravity, 0.0f, 15.0f, "%.2f");
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    recreate_and_rerun_compute_pipeline();
                 }
-                if (ImGui::SliderFloat("Mass##model2", &m_compute_pipeline_settings.model2_mass, 0.0f, 10.0f, "%.2f")) {
-                    update_compute_pipeline_settings();
+                ImGui::SliderFloat("Mass##model2", &m_compute_pipeline_settings.model2_mass, 0.0f, 10.0f, "%.2f");
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    recreate_and_rerun_compute_pipeline();
                 }
-                if (ImGui::SliderFloat("Drag coeff##model2", &m_compute_pipeline_settings.model2_drag_coeff, 0.0f, 1.0f, "%.2f")) {
-                    update_compute_pipeline_settings();
+                ImGui::SliderFloat("Drag coeff##model2", &m_compute_pipeline_settings.model2_drag_coeff, 0.0f, 1.0f, "%.2f");
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    recreate_and_rerun_compute_pipeline();
                 }
-                if (ImGui::SliderFloat("Friction coeff##model2", &m_compute_pipeline_settings.model2_friction_coeff, 0.0f, 1.0f, "%.2f")) {
-                    update_compute_pipeline_settings();
+                ImGui::SliderFloat("Friction coeff##model2", &m_compute_pipeline_settings.model2_friction_coeff, 0.0f, 1.0f, "%.2f");
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    recreate_and_rerun_compute_pipeline();
                 }
             }
-
         } else if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS_AND_SNOW) {
 
             if (ImGui::Checkbox("Sync with render settings", &m_compute_pipeline_settings.sync_snow_settings_with_render_settings)) {
@@ -523,6 +531,13 @@ void Window::update_compute_pipeline_settings()
         area_of_influence_node.set_model2_friction_coeff(m_compute_pipeline_settings.model2_friction_coeff);
         area_of_influence_node.set_model2_drag_coeff(m_compute_pipeline_settings.model2_drag_coeff);
     }
+}
+
+void Window::recreate_and_rerun_compute_pipeline()
+{
+    create_and_set_compute_pipeline(m_active_compute_pipeline_type);
+    update_compute_pipeline_settings();
+    m_compute_graph->run();
 }
 
 float Window::depth([[maybe_unused]] const glm::dvec2& normalised_device_coordinates)

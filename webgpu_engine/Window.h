@@ -121,6 +121,7 @@ private:
     void refresh_compute_pipeline_settings(const geometry::Aabb3d& world_aabb, const nucleus::track::Point& focused_track_point_coords);
     void create_and_set_compute_pipeline(ComputePipelineType pipeline_type);
     void update_compute_pipeline_settings();
+    void recreate_and_rerun_compute_pipeline();
 
 private:
     WGPUInstance m_instance = nullptr;
