@@ -200,6 +200,7 @@ WGPUSurface glfwGetWGPUSurface(WGPUInstance instance, GLFWwindow* window) {
 namespace webgpu {
 
 bool timerSupportFlag = false;
+std::atomic_int sleeping_counter = 0;
 
 void platformInit()
 {
@@ -215,13 +216,17 @@ void platformInit()
 // NOTE: USE WITH CAUTION!
 void sleep([[maybe_unused]] const WGPUDevice& device, [[maybe_unused]] int milliseconds)
 {
+    sleeping_counter++;
 #ifdef __EMSCRIPTEN__
     emscripten_sleep(1); // using asyncify to return to js event loop
 #else
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
     wgpuDeviceTick(device); // polling events for DAWN
 #endif
+    sleeping_counter--;
 }
+
+bool isSleeping() { return sleeping_counter > 0; }
 
 void waitForFlag(const WGPUDevice& device, bool* flag, int sleepInterval, int timeout)
 {

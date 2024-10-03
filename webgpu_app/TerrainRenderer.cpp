@@ -47,6 +47,12 @@ static void window_resize_callback(GLFWwindow* window, int width, int height)
 }
 
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+#if __EMSCRIPTEN__
+    if (webgpu::isSleeping()) {
+        qWarning() << "Key event while sleeping will be ignored";
+        return;
+    }
+#endif
     auto renderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
     renderer->get_input_mapper()->on_key_callback(key, scancode, action, mods);
 }
@@ -66,6 +72,12 @@ static void mouse_button_callback(GLFWwindow* window, int button, int action, in
 #endif
 static void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
+#if __EMSCRIPTEN__
+    if (webgpu::isSleeping()) {
+        qWarning() << "Scroll event while sleeping will be ignored";
+        return;
+    }
+#endif
     auto renderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
     double xpos, ypos;
     glfwGetCursorPos(window, &xpos, &ypos);

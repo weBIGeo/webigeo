@@ -92,6 +92,13 @@ void waitForFlag(const WGPUDevice& device, bool* flag, int sleepInterval = 1, in
 [[nodiscard]] bool isTimingSupported();
 void checkForTimingSupport(const WGPUAdapter& adapter, const WGPUDevice& device);
 
+/**
+ * Returns true if the application is currently in a sleeping state. This is possible
+ * if the javascript event loop calls c++ callbacks.
+ * @return returns true if the application is currently sleeping
+ */
+bool isSleeping();
+
 WGPUAdapter requestAdapterSync(WGPUInstance instance, const WGPURequestAdapterOptions& options);
 WGPUDevice requestDeviceSync(WGPUAdapter adapter, const WGPUDeviceDescriptor& descriptor);
 } // namespace webgpu

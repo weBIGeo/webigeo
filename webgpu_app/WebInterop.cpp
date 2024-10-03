@@ -17,7 +17,9 @@
  *****************************************************************************/
 
 #include "WebInterop.h"
+#include "webgpu/webgpu_interface.hpp"
 #include <array>
+#include <qdebug.h>
 
 void global_canvas_size_changed(int width, int height) { WebInterop::_canvas_size_changed(width, height); }
 
@@ -47,15 +49,30 @@ void global_mouse_position_event(int button, double xpos, double ypos) { WebInte
 void WebInterop::_canvas_size_changed(int width, int height) { emit instance().canvas_size_changed(width, height); }
 
 void WebInterop::_touch_event(const JsTouchEvent& event) {
+    if (webgpu::isSleeping()) {
+        qWarning() << "Touch event while sleeping will be ignored";
+        return;
+    }
     emit instance().touch_event(event);
 }
 
 void WebInterop::_mouse_button_event(int button, int action, int mods, double xpos, double ypos)
 {
+    if (webgpu::isSleeping()) {
+        qWarning() << "Mouse button event while sleeping will be ignored";
+        return;
+    }
     emit instance().mouse_button_event(button, action, mods, xpos, ypos);
 }
 
-void WebInterop::_mouse_position_event([[maybe_unused]] int button, double xpos, double ypos) { emit instance().mouse_position_event(xpos, ypos); }
+void WebInterop::_mouse_position_event([[maybe_unused]] int button, double xpos, double ypos)
+{
+    if (webgpu::isSleeping()) {
+        qWarning() << "Mouse position event while sleeping will be ignored";
+        return;
+    }
+    emit instance().mouse_position_event(xpos, ypos);
+}
 
 // Emscripten binding
 EMSCRIPTEN_BINDINGS(webinterop_module) {
