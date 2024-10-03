@@ -23,7 +23,7 @@
 #include "TileManager.h"
 #include "TrackRenderer.h"
 #include "UniformBufferObjects.h"
-#include "compute/nodes/ComputeAreaOfInfluenceNode.h"
+#include "compute/nodes/ComputeAvalancheTrajectories.h"
 #include "compute/nodes/ComputeSnowNode.h"
 #include "compute/nodes/NodeGraph.h"
 #include "nucleus/AbstractRenderWindow.h"
@@ -52,7 +52,7 @@ struct ComputePipelineSettings {
     bool sync_snow_settings_with_render_settings = true; // snow node
     compute::nodes::ComputeSnowNode::SnowSettings snow_settings; // snow node
 
-    compute::nodes::ComputeAreaOfInfluenceNode::PhysicsModelType model_type = compute::nodes::ComputeAreaOfInfluenceNode::PhysicsModelType::MODEL1;
+    compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType model_type = compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL1;
     float model1_velocity_coeff = 0.02f;
     float model1_gradient_coeff = 0.07f;
     float model2_gravity = 9.81f;

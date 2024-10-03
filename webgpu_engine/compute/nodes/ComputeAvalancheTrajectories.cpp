@@ -16,16 +16,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "ComputeAreaOfInfluenceNode.h"
+#include "ComputeAvalancheTrajectories.h"
 
 #include "nucleus/srs.h"
 #include <QDebug>
 
 namespace webgpu_engine::compute::nodes {
 
-glm::uvec3 ComputeAreaOfInfluenceNode::SHADER_WORKGROUP_SIZE = { 1, 16, 16 };
+glm::uvec3 ComputeAvalancheTrajectoriesNode::SHADER_WORKGROUP_SIZE = { 1, 16, 16 };
 
-ComputeAreaOfInfluenceNode::ComputeAreaOfInfluenceNode(
+ComputeAvalancheTrajectoriesNode::ComputeAvalancheTrajectoriesNode(
     const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity, WGPUTextureFormat output_format)
     : Node({ data_type<const std::vector<tile::Id>*>(), data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>(),
                data_type<TileStorageTexture*>() },
@@ -45,23 +45,23 @@ ComputeAreaOfInfluenceNode::ComputeAreaOfInfluenceNode(
     m_output_tile_map.update_gpu_data();
 }
 
-void ComputeAreaOfInfluenceNode::set_target_point_lat_lon(const glm::dvec2& target_point_lat_lon)
+void ComputeAvalancheTrajectoriesNode::set_target_point_lat_lon(const glm::dvec2& target_point_lat_lon)
 {
     set_target_point_world(nucleus::srs::lat_long_to_world(target_point_lat_lon));
 }
 
-void ComputeAreaOfInfluenceNode::set_target_point_world(const glm::dvec2& target_point_world) { m_target_point = target_point_world; }
+void ComputeAvalancheTrajectoriesNode::set_target_point_world(const glm::dvec2& target_point_world) { m_target_point = target_point_world; }
 
-void ComputeAreaOfInfluenceNode::set_reference_point_lat_lon_alt(const glm::dvec3& reference_point_lat_lon_alt)
+void ComputeAvalancheTrajectoriesNode::set_reference_point_lat_lon_alt(const glm::dvec3& reference_point_lat_lon_alt)
 {
     set_reference_point_world(nucleus::srs::lat_long_alt_to_world(reference_point_lat_lon_alt));
 }
 
-void ComputeAreaOfInfluenceNode::set_reference_point_world(const glm::dvec3& reference_point_world) { m_reference_point = reference_point_world; }
+void ComputeAvalancheTrajectoriesNode::set_reference_point_world(const glm::dvec3& reference_point_world) { m_reference_point = reference_point_world; }
 
-void ComputeAreaOfInfluenceNode::set_radius(float radius) { m_input_settings.data.radius = radius; }
+void ComputeAvalancheTrajectoriesNode::set_radius(float radius) { m_input_settings.data.radius = radius; }
 
-void ComputeAreaOfInfluenceNode::run_impl()
+void ComputeAvalancheTrajectoriesNode::run_impl()
 {
     qDebug() << "running AreaOfInfluenceNode ...";
 
@@ -132,7 +132,7 @@ void ComputeAreaOfInfluenceNode::run_impl()
         output_texture_array_entry,
     };
     webgpu::raii::BindGroup compute_bind_group(
-        m_device, m_pipeline_manager->area_of_influence_bind_group_layout(), entries, "area of influence compute bind group");
+        m_device, m_pipeline_manager->avalanche_trajectories_bind_group_layout(), entries, "area of influence compute bind group");
 
     // bind GPU resources and run pipeline
     // the result is a texture array with the calculated overlays, and a hashmap that maps id to texture array index
@@ -150,7 +150,7 @@ void ComputeAreaOfInfluenceNode::run_impl()
             glm::uvec3 workgroup_counts
                 = glm::ceil(glm::vec3(tile_ids.size(), m_output_texture.width(), m_output_texture.height()) / glm::vec3(SHADER_WORKGROUP_SIZE));
             wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, compute_bind_group.handle(), 0, nullptr);
-            m_pipeline_manager->area_of_influence_compute_pipeline().run(compute_pass, workgroup_counts);
+            m_pipeline_manager->avalanche_trajectories_compute_pipeline().run(compute_pass, workgroup_counts);
         }
 
         WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
@@ -162,13 +162,13 @@ void ComputeAreaOfInfluenceNode::run_impl()
     wgpuQueueOnSubmittedWorkDone(
         m_queue,
         []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
-            ComputeAreaOfInfluenceNode* _this = reinterpret_cast<ComputeAreaOfInfluenceNode*>(user_data);
+            ComputeAvalancheTrajectoriesNode* _this = reinterpret_cast<ComputeAvalancheTrajectoriesNode*>(user_data);
             _this->run_finished(); // emits signal run_finished()
         },
         this);
 }
 
-Data ComputeAreaOfInfluenceNode::get_output_data_impl(SocketIndex output_index)
+Data ComputeAvalancheTrajectoriesNode::get_output_data_impl(SocketIndex output_index)
 {
     switch (output_index) {
     case Output::OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP:

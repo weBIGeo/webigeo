@@ -25,7 +25,7 @@
 
 namespace webgpu_engine::compute::nodes {
 
-class ComputeAreaOfInfluenceNode : public Node {
+class ComputeAvalancheTrajectoriesNode : public Node {
     Q_OBJECT
 
 public:
@@ -40,7 +40,7 @@ public:
         MODEL3 = 2,
     };
 
-    struct AreaOfInfluenceSettings {
+    struct AvalancheTrajectoriesSettings {
         glm::vec4 target_point;
         glm::vec4 reference_point;
         uint32_t num_steps = 128;
@@ -58,7 +58,7 @@ public:
         float padding1;
     };
 
-    ComputeAreaOfInfluenceNode(
+    ComputeAvalancheTrajectoriesNode(
         const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity, WGPUTextureFormat output_format);
 
     const GpuHashMap<tile::Id, uint32_t, GpuTileId>& hash_map() const { return m_output_tile_map; }
@@ -66,8 +66,8 @@ public:
     const TileStorageTexture& texture_storage() const { return m_output_texture; }
     TileStorageTexture& texture_storage() { return m_output_texture; }
 
-    void set_area_of_influence_settings(const AreaOfInfluenceSettings& settings) { m_input_settings.data = settings; }
-    const AreaOfInfluenceSettings& get_area_of_influence_settings() const { return m_input_settings.data; }
+    void set_area_of_influence_settings(const AvalancheTrajectoriesSettings& settings) { m_input_settings.data = settings; }
+    const AvalancheTrajectoriesSettings& get_area_of_influence_settings() const { return m_input_settings.data; }
 
     void set_target_point_lat_lon(const glm::dvec2& target_point_lat_lon);
     void set_target_point_world(const glm::dvec2& target_point_world);
@@ -114,7 +114,7 @@ private:
 
     // input
     webgpu::raii::RawBuffer<GpuTileId> m_input_tile_ids; // tile ids for which to calculate overlays
-    webgpu_engine::Buffer<AreaOfInfluenceSettings> m_input_settings; // settings for area of influence calculation
+    webgpu_engine::Buffer<AvalancheTrajectoriesSettings> m_input_settings; // settings for area of influence calculation
 
     // output
     GpuHashMap<tile::Id, uint32_t, GpuTileId> m_output_tile_map; // hash map

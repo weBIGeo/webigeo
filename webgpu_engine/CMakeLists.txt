@@ -44,7 +44,7 @@ set(SOURCES
     compute/nodes/NodeGraph.h compute/nodes/NodeGraph.cpp
     compute/nodes/ComputeSnowNode.h compute/nodes/ComputeSnowNode.cpp
     compute/nodes/UpsampleTexturesNode.h compute/nodes/UpsampleTexturesNode.cpp
-    compute/nodes/ComputeAreaOfInfluenceNode.h compute/nodes/ComputeAreaOfInfluenceNode.cpp
+    compute/nodes/ComputeAvalancheTrajectories.h compute/nodes/ComputeAvalancheTrajectories.cpp
 )
 
 qt_add_library(webgpu_engine STATIC ${SOURCES})
@@ -72,7 +72,7 @@ qt_add_resources(webgpu_engine "shaders"
         "wgsl_shaders/snow_compute.wgsl"
         "wgsl_shaders/upsample_textures_compute.wgsl"
         "wgsl_shaders/line_render.wgsl"
-        "wgsl_shaders/area_of_influence_compute.wgsl"
+        "wgsl_shaders/avalanche_trajectories_compute.wgsl"
         "wgsl_shaders/filtering.wgsl"
         "wgsl_shaders/normals_util.wgsl"
     )

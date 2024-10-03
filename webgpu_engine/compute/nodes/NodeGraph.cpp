@@ -19,7 +19,7 @@
 
 #include "NodeGraph.h"
 
-#include "ComputeAreaOfInfluenceNode.h"
+#include "ComputeAvalancheTrajectories.h"
 #include "ComputeNormalsNode.h"
 #include "ComputeSnowNode.h"
 #include "CreateHashMapNode.h"
@@ -316,8 +316,9 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_with_area_of_influence_compu
         = node_graph->add_node("create_hashmap_node", std::make_unique<CreateHashMapNode>(device, input_resolution, capacity, WGPUTextureFormat_R16Uint));
     ComputeNormalsNode* normal_compute_node = static_cast<ComputeNormalsNode*>(node_graph->add_node(
         "compute_normals_node", std::make_unique<ComputeNormalsNode>(manager, device, normal_output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm)));
-    ComputeAreaOfInfluenceNode* area_of_influence_compute_node = static_cast<ComputeAreaOfInfluenceNode*>(node_graph->add_node("compute_area_of_influence_node",
-        std::make_unique<ComputeAreaOfInfluenceNode>(manager, device, area_of_influence_output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm)));
+    ComputeAvalancheTrajectoriesNode* avalanche_trajectories_compute_node
+        = static_cast<ComputeAvalancheTrajectoriesNode*>(node_graph->add_node("compute_area_of_influence_node",
+            std::make_unique<ComputeAvalancheTrajectoriesNode>(manager, device, area_of_influence_output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm)));
     Node* upsample_normals_textures_node
         = node_graph->add_node("upsample_textures_node", std::make_unique<UpsampleTexturesNode>(manager, device, upsample_output_resolution, capacity));
     DownsampleTilesNode* downsample_area_of_influence_tiles_node = static_cast<DownsampleTilesNode*>(
@@ -340,21 +341,21 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_with_area_of_influence_compu
     node_graph->connect_sockets(hash_map_node, CreateHashMapNode::Output::TEXTURE_ARRAY, normal_compute_node, ComputeNormalsNode::Input::TEXTURE_ARRAY);
 
     // connect area of influence compute node inputs
-    node_graph->connect_sockets(target_tile_select_node, SelectTilesNode::Output::TILE_ID_LIST, area_of_influence_compute_node,
-        ComputeAreaOfInfluenceNode::Input::TILE_ID_LIST_TO_PROCESS);
-    node_graph->connect_sockets(normal_compute_node, ComputeNormalsNode::Output::OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP, area_of_influence_compute_node,
-        ComputeAreaOfInfluenceNode::Input::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP);
-    node_graph->connect_sockets(normal_compute_node, ComputeNormalsNode::Output::OUTPUT_TEXTURE_ARRAY, area_of_influence_compute_node,
-        ComputeAreaOfInfluenceNode::Input::NORMAL_TEXTURE_ARRAY);
-    node_graph->connect_sockets(
-        hash_map_node, CreateHashMapNode::Output::TEXTURE_ARRAY, area_of_influence_compute_node, ComputeAreaOfInfluenceNode::Input::HEIGHT_TEXTURE_ARRAY);
+    node_graph->connect_sockets(target_tile_select_node, SelectTilesNode::Output::TILE_ID_LIST, avalanche_trajectories_compute_node,
+        ComputeAvalancheTrajectoriesNode::Input::TILE_ID_LIST_TO_PROCESS);
+    node_graph->connect_sockets(normal_compute_node, ComputeNormalsNode::Output::OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP, avalanche_trajectories_compute_node,
+        ComputeAvalancheTrajectoriesNode::Input::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP);
+    node_graph->connect_sockets(normal_compute_node, ComputeNormalsNode::Output::OUTPUT_TEXTURE_ARRAY, avalanche_trajectories_compute_node,
+        ComputeAvalancheTrajectoriesNode::Input::NORMAL_TEXTURE_ARRAY);
+    node_graph->connect_sockets(hash_map_node, CreateHashMapNode::Output::TEXTURE_ARRAY, avalanche_trajectories_compute_node,
+        ComputeAvalancheTrajectoriesNode::Input::HEIGHT_TEXTURE_ARRAY);
 
     // create downsampled area of influence tiles
     node_graph->connect_sockets(target_tile_select_node, SelectTilesNode::Output::TILE_ID_LIST, downsample_area_of_influence_tiles_node,
         DownsampleTilesNode::Input::TILE_ID_LIST_TO_PROCESS);
-    node_graph->connect_sockets(area_of_influence_compute_node, ComputeNormalsNode::Output::OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP,
+    node_graph->connect_sockets(avalanche_trajectories_compute_node, ComputeNormalsNode::Output::OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP,
         downsample_area_of_influence_tiles_node, DownsampleTilesNode::Input::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP);
-    node_graph->connect_sockets(area_of_influence_compute_node, ComputeAreaOfInfluenceNode::Output::OUTPUT_TEXTURE_ARRAY,
+    node_graph->connect_sockets(avalanche_trajectories_compute_node, ComputeAvalancheTrajectoriesNode::Output::OUTPUT_TEXTURE_ARRAY,
         downsample_area_of_influence_tiles_node, DownsampleTilesNode::Input::TEXTURE_ARRAY);
 
     // connect upsample textures node inputs
@@ -382,10 +383,10 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_with_area_of_influence_compu
     connect(target_tile_select_node, &Node::run_finished, height_request_node, &Node::run);
     connect(height_request_node, &Node::run_finished, hash_map_node, &Node::run);
     connect(hash_map_node, &Node::run_finished, normal_compute_node, &Node::run);
-    connect(normal_compute_node, &Node::run_finished, area_of_influence_compute_node, &Node::run);
+    connect(normal_compute_node, &Node::run_finished, avalanche_trajectories_compute_node, &Node::run);
     connect(normal_compute_node, &Node::run_finished, upsample_normals_textures_node, &Node::run);
     connect(upsample_normals_textures_node, &Node::run_finished, downsample_normals_tiles_node, &Node::run);
-    connect(area_of_influence_compute_node, &Node::run_finished, downsample_area_of_influence_tiles_node, &Node::run);
+    connect(avalanche_trajectories_compute_node, &Node::run_finished, downsample_area_of_influence_tiles_node, &Node::run);
     // TODO NodeGraph should keep track of all the currently running nodes and emit run_finished when all of them are done. Currently run_finished gets executed
     // twice which in our setup is okay (for now)
     connect(downsample_area_of_influence_tiles_node, &Node::run_finished, node_graph.get(), &NodeGraph::run_finished);

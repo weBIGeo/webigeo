@@ -20,7 +20,7 @@
 #include "Buffer.h"
 #include "TrackRenderer.h"
 #include "UniformBufferObjects.h"
-#include "compute/nodes/ComputeAreaOfInfluenceNode.h"
+#include "compute/nodes/ComputeAvalancheTrajectories.h"
 #include "compute/nodes/ComputeSnowNode.h"
 
 namespace webgpu_engine {
@@ -50,7 +50,7 @@ template <typename T> const webgpu::raii::RawBuffer<T>& Buffer<T>::raw_buffer() 
 template class Buffer<uboSharedConfig>;
 template class Buffer<uboCameraConfig>;
 template class Buffer<compute::nodes::ComputeSnowNode::SnowSettings>;
-template class Buffer<compute::nodes::ComputeAreaOfInfluenceNode::AreaOfInfluenceSettings>;
+template class Buffer<compute::nodes::ComputeAvalancheTrajectoriesNode::AvalancheTrajectoriesSettings>;
 template class Buffer<TrackRenderer::LineConfig>;
 // TODO
 // template class UniformBuffer<uboShadowConfig>;

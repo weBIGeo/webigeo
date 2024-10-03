@@ -18,7 +18,7 @@
  *****************************************************************************/
 
 #include "Window.h"
-#include "compute/nodes/ComputeAreaOfInfluenceNode.h"
+#include "compute/nodes/ComputeAvalancheTrajectories.h"
 #include "compute/nodes/ComputeSnowNode.h"
 #include "compute/nodes/SelectTilesNode.h"
 #include "nucleus/track/GPX.h"
@@ -328,10 +328,10 @@ void Window::paint_compute_pipeline_gui()
             }
 
             static int current_physics_model_item = 0;
-            const std::vector<std::pair<std::string, compute::nodes::ComputeAreaOfInfluenceNode::PhysicsModelType>> physics_model_types
-                = { { "Momentum (simple)", compute::nodes::ComputeAreaOfInfluenceNode::PhysicsModelType::MODEL1 },
-                      { "Momentum (less simple)", compute::nodes::ComputeAreaOfInfluenceNode::PhysicsModelType::MODEL2 },
-                      { "Gradients", compute::nodes::ComputeAreaOfInfluenceNode::PhysicsModelType::MODEL3 } };
+            const std::vector<std::pair<std::string, compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType>> physics_model_types
+                = { { "Momentum (simple)", compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL1 },
+                      { "Momentum (less simple)", compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL2 },
+                      { "Gradients", compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL3 } };
             const char* current_item_label = physics_model_types[current_physics_model_item].first.c_str();
             if (ImGui::BeginCombo("Physics model", current_item_label)) {
                 for (size_t i = 0; i < physics_model_types.size(); i++) {
@@ -347,7 +347,7 @@ void Window::paint_compute_pipeline_gui()
                 ImGui::EndCombo();
             }
 
-            if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAreaOfInfluenceNode::PhysicsModelType::MODEL1) {
+            if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL1) {
                 ImGui::SliderFloat("Linear drag coeff##model1", &m_compute_pipeline_settings.model1_velocity_coeff, 0.0f, 1.0f, "%.2f");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     recreate_and_rerun_compute_pipeline();
@@ -356,7 +356,7 @@ void Window::paint_compute_pipeline_gui()
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     recreate_and_rerun_compute_pipeline();
                 }
-            } else if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAreaOfInfluenceNode::PhysicsModelType::MODEL2) {
+            } else if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL2) {
                 ImGui::SliderFloat("Gravity##model2", &m_compute_pipeline_settings.model2_gravity, 0.0f, 15.0f, "%.2f");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     recreate_and_rerun_compute_pipeline();
@@ -516,7 +516,7 @@ void Window::update_compute_pipeline_settings()
             .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.source_zoomlevel);
 
         // area of influence settings
-        auto& area_of_influence_node = m_compute_graph->get_node_as<compute::nodes::ComputeAreaOfInfluenceNode>("compute_area_of_influence_node");
+        auto& area_of_influence_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("compute_area_of_influence_node");
         area_of_influence_node.set_reference_point_world(m_compute_pipeline_settings.reference_point);
         area_of_influence_node.set_target_point_world(m_compute_pipeline_settings.target_point);
         area_of_influence_node.set_num_steps(m_compute_pipeline_settings.num_steps);
