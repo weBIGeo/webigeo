@@ -61,6 +61,9 @@ if (EMSCRIPTEN)
         _global_mouse_button_event
         _global_mouse_position_event
         _global_touch_event
+        _global_file_uploaded
+        _malloc
+        _free
     )
 
     # Conditionally add threading-related functions

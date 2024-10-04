@@ -97,6 +97,7 @@
 
         await hacks.setEminstance(eminstance);
         if (hacks.debugBuild) hacks.showLog();
+        eminstance.hacks = hacks; // expose hacks to the emscripten instance
 
       } catch (e) {
         console.error(e);

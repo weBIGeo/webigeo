@@ -25,6 +25,7 @@
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
+#include <webgpu_app/WebInterop.h>
 #endif
 #include <webgpu/webgpu.h>
 #include <webgpu/webgpu_interface.hpp>
@@ -32,7 +33,10 @@
 #include <glm/gtx/string_cast.hpp>
 
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
+#ifndef __EMSCRIPTEN__
 #include "ImGuiFileDialog.h"
+#endif
+// TODO: Remove ImGuiFileDialog dependency on Web-build
 #include "imgui.h"
 #endif
 
@@ -41,6 +45,9 @@ namespace webgpu_engine {
 Window::Window()
     : m_tile_manager { std::make_unique<TileManager>() }
 {
+#ifdef __EMSCRIPTEN__
+    connect(&WebInterop::instance(), &WebInterop::file_uploaded, this, &Window::load_track_and_focus);
+#endif
 }
 
 Window::~Window()
@@ -247,11 +254,14 @@ void Window::paint_gui()
     }
 
     if (ImGui::CollapsingHeader("Track", ImGuiTreeNodeFlags_DefaultOpen)) {
-
         if (ImGui::Button("Open GPX file ...", ImVec2(350, 20))) {
+#ifdef __EMSCRIPTEN__
+            WebInterop::instance().open_file_dialog(".gpx");
+#else
             IGFD::FileDialogConfig config;
             config.path = ".";
-            ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".gpx,*", config);
+            ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".gpx,.*", config);
+#endif
         }
 
         const char* items = "none\0without depth test\0with depth test\0semi-transparent\0";
@@ -260,18 +270,15 @@ void Window::paint_gui()
         }
     }
 
+#ifndef __EMSCRIPTEN__
     if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey")) {
         if (ImGuiFileDialog::Instance()->IsOk()) { // action if OK
             std::string file_path = ImGuiFileDialog::Instance()->GetFilePathName();
             load_track_and_focus(QString::fromStdString(file_path));
-            if (m_shared_config_ubo->data.m_track_render_mode == 0) {
-                m_shared_config_ubo->data.m_track_render_mode = 1;
-            }
-            m_needs_redraw = true;
         }
         ImGuiFileDialog::Instance()->Close();
     }
-
+#endif
 #endif
 }
 
@@ -296,47 +303,6 @@ glm::vec4 Window::synchronous_position_readback(const glm::dvec2& ndc) {
 
     // qDebug() << "Position:" << glm::to_string(m_last_position_readback);
     return m_last_position_readback;
-}
-
-void Window::load_track_and_focus(const QString& path)
-{
-    std::vector<glm::dvec3> points;
-    std::unique_ptr<nucleus::track::Gpx> gpx_track = nucleus::track::parse(path);
-    for (const auto& segment : gpx_track->track) {
-        points.reserve(points.size() + segment.size());
-        for (const auto& point : segment) {
-            points.push_back({ point.latitude, point.longitude, point.elevation });
-        }
-    }
-    m_track_renderer->add_track(points);
-
-    const auto track_aabb = nucleus::track::compute_world_aabb(*gpx_track);
-    const auto aabb_size = track_aabb.size();
-
-    // add debug axis
-    std::vector<glm::vec4> x_axis = { glm::vec4(track_aabb.min, 1), glm::vec4(track_aabb.max.x, track_aabb.min.y, track_aabb.min.z, 1) };
-    std::vector<glm::vec4> y_axis = { glm::vec4(track_aabb.min, 1), glm::vec4(track_aabb.min.x, track_aabb.max.y, track_aabb.min.z, 1) };
-    std::vector<glm::vec4> z_axis = { glm::vec4(track_aabb.min, 1), glm::vec4(track_aabb.min.x, track_aabb.min.y, track_aabb.max.z, 1) };
-    m_track_renderer->add_world_positions(x_axis, { 1.0f, 0.0f, 0.0f, 1.0f });
-    m_track_renderer->add_world_positions(y_axis, { 0.0f, 1.0f, 0.0f, 1.0f });
-    m_track_renderer->add_world_positions(z_axis, { 0.0f, 0.0f, 1.0f, 1.0f });
-
-    nucleus::camera::Definition new_camera_definition = { track_aabb.centre() + glm::dvec3 { 0, 0, std::max(aabb_size.x, aabb_size.y) }, track_aabb.centre() };
-    new_camera_definition.set_viewport_size(m_camera.viewport_size());
-
-    const unsigned select_zoomlevel = 18;
-    auto& select_tiles_node = static_cast<compute::nodes::SelectTilesNode&>(m_compute_graph->get_node("select_tiles_node"));
-    select_tiles_node.select_tiles_in_world_aabb(track_aabb, select_zoomlevel);
-
-    if (m_compute_graph->exists_node("compute_area_of_influence_node")) {
-        auto& area_of_influence_node = static_cast<compute::nodes::ComputeAreaOfInfluenceNode&>(m_compute_graph->get_node("compute_area_of_influence_node"));
-        // for now simply always select point in middle of first segment
-        const auto& coords = gpx_track->track.at(0).at(gpx_track->track.at(0).size() / 2);
-        area_of_influence_node.set_target_point_lat_lon({ coords.latitude, coords.longitude });
-        area_of_influence_node.set_reference_point_world(track_aabb.min);
-    }
-
-    emit set_camera_definition_requested(new_camera_definition);
 }
 
 float Window::depth([[maybe_unused]] const glm::dvec2& normalised_device_coordinates)
@@ -414,6 +380,53 @@ void Window::update_gpu_quads([[maybe_unused]] const std::vector<nucleus::tile_s
 }
 
 void Window::request_redraw() { m_needs_redraw = true; }
+
+void Window::load_track_and_focus(const std::string& path)
+{
+    std::vector<glm::dvec3> points;
+    QString qpath = QString::fromStdString(path);
+    std::unique_ptr<nucleus::track::Gpx> gpx_track = nucleus::track::parse(qpath);
+    for (const auto& segment : gpx_track->track) {
+        points.reserve(points.size() + segment.size());
+        for (const auto& point : segment) {
+            points.push_back({ point.latitude, point.longitude, point.elevation });
+        }
+    }
+    m_track_renderer->add_track(points);
+
+    const auto track_aabb = nucleus::track::compute_world_aabb(*gpx_track);
+    const auto aabb_size = track_aabb.size();
+
+    // add debug axis
+    std::vector<glm::vec4> x_axis = { glm::vec4(track_aabb.min, 1), glm::vec4(track_aabb.max.x, track_aabb.min.y, track_aabb.min.z, 1) };
+    std::vector<glm::vec4> y_axis = { glm::vec4(track_aabb.min, 1), glm::vec4(track_aabb.min.x, track_aabb.max.y, track_aabb.min.z, 1) };
+    std::vector<glm::vec4> z_axis = { glm::vec4(track_aabb.min, 1), glm::vec4(track_aabb.min.x, track_aabb.min.y, track_aabb.max.z, 1) };
+    m_track_renderer->add_world_positions(x_axis, { 1.0f, 0.0f, 0.0f, 1.0f });
+    m_track_renderer->add_world_positions(y_axis, { 0.0f, 1.0f, 0.0f, 1.0f });
+    m_track_renderer->add_world_positions(z_axis, { 0.0f, 0.0f, 1.0f, 1.0f });
+
+    nucleus::camera::Definition new_camera_definition = { track_aabb.centre() + glm::dvec3 { 0, 0, std::max(aabb_size.x, aabb_size.y) }, track_aabb.centre() };
+    new_camera_definition.set_viewport_size(m_camera.viewport_size());
+
+    const unsigned select_zoomlevel = 18;
+    auto& select_tiles_node = static_cast<compute::nodes::SelectTilesNode&>(m_compute_graph->get_node("select_tiles_node"));
+    select_tiles_node.select_tiles_in_world_aabb(track_aabb, select_zoomlevel);
+
+    if (m_compute_graph->exists_node("compute_area_of_influence_node")) {
+        auto& area_of_influence_node = static_cast<compute::nodes::ComputeAreaOfInfluenceNode&>(m_compute_graph->get_node("compute_area_of_influence_node"));
+        // for now simply always select point in middle of first segment
+        const auto& coords = gpx_track->track.at(0).at(gpx_track->track.at(0).size() / 2);
+        area_of_influence_node.set_target_point_lat_lon({ coords.latitude, coords.longitude });
+        area_of_influence_node.set_reference_point_world(track_aabb.min);
+    }
+
+    emit set_camera_definition_requested(new_camera_definition);
+
+    if (m_shared_config_ubo->data.m_track_render_mode == 0) {
+        m_shared_config_ubo->data.m_track_render_mode = 1;
+    }
+    m_needs_redraw = true;
+}
 
 void Window::create_buffers()
 {

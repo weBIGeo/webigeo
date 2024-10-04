@@ -67,6 +67,7 @@ public slots:
     void update_debug_scheduler_stats(const QString& stats) override;
     void update_gpu_quads(const std::vector<nucleus::tile_scheduler::tile_types::GpuTileQuad>& new_quads, const std::vector<tile::Id>& deleted_quads) override;
     void request_redraw();
+    void load_track_and_focus(const std::string& path);
 
 signals:
     void set_camera_definition_requested(nucleus::camera::Definition definition);
@@ -84,8 +85,6 @@ private:
     // we can directly readback the content of the position buffer and don't need the readback depth
     // buffer anymore. May actually increase performance as we don't need to fill the seperate buffer.
     glm::vec4 synchronous_position_readback(const glm::dvec2& normalised_device_coordinates);
-
-    void load_track_and_focus(const QString& path);
 
 private:
     WGPUInstance m_instance = nullptr;

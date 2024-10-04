@@ -128,6 +128,44 @@ class WeBIGeoHacks {
     this.webgpuTimingsAvailable = true;
   }
 
+  uploadFileWithDialog(filter) {
+    // Create a file input element if not already created
+    var fileInput = document.getElementById('fileInputDialog');
+    if (!fileInput) {
+      var fileInput = document.createElement('input');
+      fileInput.id = "fileInputDialog";
+      fileInput.type = 'file';
+
+      fileInput.addEventListener('change', function (event) {
+        var file = event.target.files[0];  // Get the selected file
+        var reader = new FileReader();
+
+        reader.onload = async function (e) {
+          var data = new Uint8Array(e.target.result);
+          let dstFileName = "/upload/" + file.name;
+
+          // Create the upload directory if not existing yet
+          try {
+            eminstance.FS.mkdir('/upload');
+          } catch (e) { }
+          // Write file to Emscripten's virtual file system
+          eminstance.FS.writeFile(dstFileName, data);
+
+          // Call the global_file_uploaded function in the Emscripten module (WebInterop)
+          await eminstance.ccall("global_file_uploaded", null, ["string"], [dstFileName], { async: true });
+
+          fileInput.remove();
+        };
+
+        reader.readAsArrayBuffer(file);  // Read file as ArrayBuffer
+      });
+    }
+    if (typeof filter === 'string') {
+      fileInput.accept = filter;
+    }
+    fileInput.click();
+  }
+
   log(text) {
     if (this.debug) console.log(text);
     if (this.logElement) {

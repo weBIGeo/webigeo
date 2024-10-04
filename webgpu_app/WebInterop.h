@@ -21,8 +21,11 @@
 #include <emscripten/bind.h>
 #include <webgpu/webgpu.h>
 
-#define JS_MAX_TOUCHES 3 // also needs changes in WebInterop.cpp and the shell!
+#define JS_MAX_TOUCHES 3 // also needs changes in WebInterop.cpp and the shell and global_touch_event!
 
+// NOTE: We switched from emscripten bindings to ccall because those can be called asynchronously.
+// Otherwise we ended up with issues when functions are called from js event loop inside the WASM core.
+// https://github.com/weBIGeo/webigeo/issues/25
 extern "C" {
 [[maybe_unused]] void global_canvas_size_changed(int width, int height);
 [[maybe_unused]] void global_touch_event(int32_t changed_client_x1, int32_t changed_client_y1, int32_t changed_identifier1, int32_t changed_client_x2,
@@ -31,6 +34,7 @@ extern "C" {
     int32_t identifier3, int32_t js_touch_type_int);
 [[maybe_unused]] void global_mouse_button_event(int button, int action, int mods, double xpos, double ypos);
 [[maybe_unused]] void global_mouse_position_event(int button, double xpos, double ypos);
+[[maybe_unused]] void global_file_uploaded(const char* filename);
 }
 
 // The WebInterop class acts as bridge between the C++ code and the JavaScript code.
@@ -71,12 +75,18 @@ public:
     static void _mouse_button_event(int button, int action, int mods, double xpos, double ypos);
     static void _mouse_position_event(int button, double xpos, double ypos);
 
+    static void _file_uploaded(const char* filename);
+
+    void open_file_dialog(const std::string& filter);
+
 signals:
     void canvas_size_changed(int width, int height);
     void touch_event(const JsTouchEvent& event);
 
     void mouse_button_event(int button, int action, int mods, double xpos, double ypos);
     void mouse_position_event(double xpos, double ypos);
+
+    void file_uploaded(const std::string& filename);
 
 private:
     // Private constructor

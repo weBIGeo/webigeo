@@ -18,7 +18,7 @@
 
 #include "WebInterop.h"
 #include "webgpu/webgpu_interface.hpp"
-#include <array>
+#include <emscripten/em_asm.h>
 #include <qdebug.h>
 
 void global_canvas_size_changed(int width, int height) { WebInterop::_canvas_size_changed(width, height); }
@@ -45,6 +45,8 @@ void global_mouse_button_event(int button, int action, int mods, double xpos, do
 }
 
 void global_mouse_position_event(int button, double xpos, double ypos) { WebInterop::_mouse_position_event(button, xpos, ypos); }
+
+void global_file_uploaded(const char* filename) { WebInterop::_file_uploaded(filename); }
 
 void WebInterop::_canvas_size_changed(int width, int height) { emit instance().canvas_size_changed(width, height); }
 
@@ -74,26 +76,14 @@ void WebInterop::_mouse_position_event([[maybe_unused]] int button, double xpos,
     emit instance().mouse_position_event(xpos, ypos);
 }
 
-// Emscripten binding
-EMSCRIPTEN_BINDINGS(webinterop_module) {
-    emscripten::function("canvas_size_changed", &WebInterop::_canvas_size_changed);
-    emscripten::function("touch_event", &WebInterop::_touch_event);
-    emscripten::function("mouse_button_event", &WebInterop::_mouse_button_event);
-    emscripten::function("mouse_position_event", &WebInterop::_mouse_position_event);
+void WebInterop::_file_uploaded(const char* filename)
+{
+    std::string file(filename);
+    qDebug() << "File uploaded: " << file;
+    emit instance().file_uploaded(file);
+}
 
-    emscripten::value_object<WebInterop::JsTouch>("JsTouch")
-        .field("clientX", &WebInterop::JsTouch::clientX)
-        .field("clientY", &WebInterop::JsTouch::clientY)
-        .field("identifier", &WebInterop::JsTouch::identifier);
-
-    emscripten::value_object<WebInterop::JsTouchEvent>("JsTouchEvent")
-        .field("changedTouches", &WebInterop::JsTouchEvent::changedTouches)
-        .field("touches", &WebInterop::JsTouchEvent::touches)
-        .field("type", &WebInterop::JsTouchEvent::typeint);
-
-    emscripten::value_array<std::array<WebInterop::JsTouch, JS_MAX_TOUCHES>>("arrayJsTouch")
-        .element(emscripten::index<0>())
-        .element(emscripten::index<1>())
-        .element(emscripten::index<2>());
-    // NOTE: add/remove elements if JS_MAX_TOUCHES is changed
+void WebInterop::open_file_dialog(const std::string& filter)
+{
+    EM_ASM_({ eminstance.hacks.uploadFileWithDialog(UTF8ToString($0)); }, filter.c_str());
 }
