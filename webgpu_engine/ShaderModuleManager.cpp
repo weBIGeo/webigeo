@@ -43,6 +43,7 @@ void ShaderModuleManager::create_shader_modules()
     m_upsample_textures_compute_module = create_shader_module("upsample_textures_compute.wgsl");
     m_line_render_module = create_shader_module("line_render.wgsl");
     m_avalanche_trajectories_compute_module = create_shader_module("avalanche_trajectories_compute.wgsl");
+    m_avalanche_influence_area_compute_module = create_shader_module("avalanche_influence_area_compute.wgsl");
 }
 
 void ShaderModuleManager::release_shader_modules()
@@ -58,6 +59,7 @@ void ShaderModuleManager::release_shader_modules()
     m_upsample_textures_compute_module.release();
     m_line_render_module.release();
     m_avalanche_trajectories_compute_module.release();
+    m_avalanche_influence_area_compute_module.release();
 }
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::tile() const { return *m_tile_shader_module; }
@@ -79,6 +81,8 @@ const webgpu::raii::ShaderModule& ShaderModuleManager::upsample_textures_compute
 const webgpu::raii::ShaderModule& ShaderModuleManager::line_render() const { return *m_line_render_module; }
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::avalanche_trajectories_compute() const { return *m_avalanche_trajectories_compute_module; }
+
+const webgpu::raii::ShaderModule& ShaderModuleManager::avalanche_influence_area_compute() const { return *m_avalanche_influence_area_compute_module; }
 
 std::string ShaderModuleManager::read_file_contents(const std::string& name) const
 {

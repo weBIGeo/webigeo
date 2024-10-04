@@ -68,7 +68,8 @@ public:
     static std::unique_ptr<NodeGraph> create_normal_compute_graph(const PipelineManager& manager, WGPUDevice device);
     static std::unique_ptr<NodeGraph> create_snow_compute_graph(const PipelineManager& manager, WGPUDevice device);
     static std::unique_ptr<NodeGraph> create_normal_with_snow_compute_graph(const PipelineManager& manager, WGPUDevice device);
-    static std::unique_ptr<NodeGraph> create_normal_with_area_of_influence_compute_graph(const PipelineManager& manager, WGPUDevice device);
+    static std::unique_ptr<NodeGraph> create_area_of_influence_compute_graph(const PipelineManager& manager, WGPUDevice device);
+    static std::unique_ptr<NodeGraph> create_avalanche_influence_area_compute_graph(const PipelineManager& manager, WGPUDevice device);
 
 private:
     std::unordered_map<std::string, std::unique_ptr<Node>> m_nodes;

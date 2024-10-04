@@ -44,7 +44,8 @@ set(SOURCES
     compute/nodes/NodeGraph.h compute/nodes/NodeGraph.cpp
     compute/nodes/ComputeSnowNode.h compute/nodes/ComputeSnowNode.cpp
     compute/nodes/UpsampleTexturesNode.h compute/nodes/UpsampleTexturesNode.cpp
-    compute/nodes/ComputeAvalancheTrajectories.h compute/nodes/ComputeAvalancheTrajectories.cpp
+    compute/nodes/ComputeAvalancheTrajectoriesNode.h compute/nodes/ComputeAvalancheTrajectoriesNode.cpp
+    compute/nodes/ComputeAvalancheInfluenceAreaNode.h compute/nodes/ComputeAvalancheInfluenceAreaNode.cpp
 )
 
 qt_add_library(webgpu_engine STATIC ${SOURCES})

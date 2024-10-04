@@ -6,7 +6,7 @@
 namespace webgpu::raii {
 
 CombinedComputePipeline::CombinedComputePipeline(
-    WGPUDevice device, const raii::ShaderModule& shader_module, const std::vector<const raii::BindGroupLayout*>& bind_group_layouts)
+    WGPUDevice device, const raii::ShaderModule& shader_module, const std::vector<const raii::BindGroupLayout*>& bind_group_layouts, const std::string& label)
 {
     std::vector<WGPUBindGroupLayout> bind_group_layout_handles;
     std::transform(bind_group_layouts.begin(), bind_group_layouts.end(), std::back_insert_iterator(bind_group_layout_handles),
@@ -14,7 +14,7 @@ CombinedComputePipeline::CombinedComputePipeline(
     m_layout = std::make_unique<raii::PipelineLayout>(device, bind_group_layout_handles);
 
     WGPUComputePipelineDescriptor desc {};
-    desc.label = "test"; // TODO
+    desc.label = label.c_str();
     desc.compute = {};
     desc.compute.entryPoint = "computeMain"; // TODO
     desc.compute.module = shader_module.handle();

@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "ComputeAvalancheTrajectories.h"
+#include "ComputeAvalancheTrajectoriesNode.h"
 
 #include "nucleus/srs.h"
 #include <QDebug>
@@ -35,9 +35,9 @@ ComputeAvalancheTrajectoriesNode::ComputeAvalancheTrajectoriesNode(
     , m_queue(wgpuDeviceGetQueue(m_device))
     , m_capacity { capacity }
     , m_tile_bounds(
-          device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc, capacity, "area of influence compute, tile bounds buffer")
+          device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc, capacity, "avalanche trajectories compute, tile bounds buffer")
     , m_input_tile_ids(
-          device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc, capacity, "area of influence compute, tile id buffer")
+          device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc, capacity, "avalanche trajectories compute, tile id buffer")
     , m_input_settings(device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
     , m_output_tile_map(device, tile::Id { unsigned(-1), {} }, -1)
     , m_output_texture(device, output_resolution, capacity, output_format)
@@ -63,7 +63,7 @@ void ComputeAvalancheTrajectoriesNode::set_radius(float radius) { m_input_settin
 
 void ComputeAvalancheTrajectoriesNode::run_impl()
 {
-    qDebug() << "running AreaOfInfluenceNode ...";
+    qDebug() << "running ComputeAvalancheTrajectoriesNode ...";
 
     // get tile ids to process
     const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(get_input_data(Input::TILE_ID_LIST_TO_PROCESS)); // list of tile ids to process
@@ -132,19 +132,19 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
         output_texture_array_entry,
     };
     webgpu::raii::BindGroup compute_bind_group(
-        m_device, m_pipeline_manager->avalanche_trajectories_bind_group_layout(), entries, "area of influence compute bind group");
+        m_device, m_pipeline_manager->avalanche_trajectories_bind_group_layout(), entries, "avalanche trajectories compute bind group");
 
     // bind GPU resources and run pipeline
     // the result is a texture array with the calculated overlays, and a hashmap that maps id to texture array index
     // the shader will only writes into texture array, the hashmap is written on cpu side
     {
         WGPUCommandEncoderDescriptor descriptor {};
-        descriptor.label = "area of influence compute command encoder";
+        descriptor.label = "avalanche trajectories compute command encoder";
         webgpu::raii::CommandEncoder encoder(m_device, descriptor);
 
         {
             WGPUComputePassDescriptor compute_pass_desc {};
-            compute_pass_desc.label = "area of influence compute pass";
+            compute_pass_desc.label = "avalanche trajectories compute pass";
             webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
 
             glm::uvec3 workgroup_counts
@@ -154,7 +154,7 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
         }
 
         WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
-        cmd_buffer_descriptor.label = "area of influence compute command buffer";
+        cmd_buffer_descriptor.label = "avalanche trajectories compute command buffer";
         WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder.handle(), &cmd_buffer_descriptor);
         wgpuQueueSubmit(m_queue, 1, &command);
         wgpuCommandBufferRelease(command);

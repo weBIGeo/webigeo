@@ -18,7 +18,7 @@
  *****************************************************************************/
 
 #include "Window.h"
-#include "compute/nodes/ComputeAvalancheTrajectories.h"
+#include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
 #include "compute/nodes/ComputeSnowNode.h"
 #include "compute/nodes/SelectTilesNode.h"
 #include "nucleus/track/GPX.h"
@@ -72,7 +72,7 @@ void Window::initialise_gpu()
 
     m_tile_manager->init(m_device, m_queue, *m_pipeline_manager);
 
-    create_and_set_compute_pipeline(ComputePipelineType::AREA_OF_INFLUENCE);
+    create_and_set_compute_pipeline(ComputePipelineType::AVALANCHE_TRAJECTORIES);
 
     m_track_renderer = std::make_unique<TrackRenderer>(m_device, *m_pipeline_manager);
 
@@ -286,8 +286,12 @@ void Window::paint_compute_pipeline_gui()
         }
 
         static int current_item = 2;
-        const std::vector<std::pair<std::string, ComputePipelineType>> overlays = { { "Normals", ComputePipelineType::NORMALS },
-            { "Snow + Normals", ComputePipelineType::NORMALS_AND_SNOW }, { "Area of influence + Normals", ComputePipelineType::AREA_OF_INFLUENCE } };
+        const std::vector<std::pair<std::string, ComputePipelineType>> overlays = {
+            { "Normals", ComputePipelineType::NORMALS },
+            { "Snow + Normals", ComputePipelineType::NORMALS_AND_SNOW },
+            { "Avalanche trajectories + Normals", ComputePipelineType::AVALANCHE_TRAJECTORIES },
+            { "Avalanche influence area + Normals", ComputePipelineType::AVALANCHE_INFLUENCE_AREA },
+        };
         const char* current_item_label = overlays[current_item].first.c_str();
         if (ImGui::BeginCombo("Type", current_item_label)) {
             for (size_t i = 0; i < overlays.size(); i++) {
@@ -302,7 +306,8 @@ void Window::paint_compute_pipeline_gui()
             ImGui::EndCombo();
         }
 
-        if (m_active_compute_pipeline_type == ComputePipelineType::AREA_OF_INFLUENCE) {
+        if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES
+            || m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_INFLUENCE_AREA) {
             uint32_t min_steps = 1;
             uint32_t max_steps = 1024;
             ImGui::SliderScalar("Num steps", ImGuiDataType_U32, &m_compute_pipeline_settings.num_steps, &min_steps, &max_steps, "%u");
@@ -479,8 +484,10 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type)
         m_compute_graph = compute::nodes::NodeGraph::create_normal_compute_graph(*m_pipeline_manager, m_device);
     } else if (pipeline_type == ComputePipelineType::NORMALS_AND_SNOW) {
         m_compute_graph = compute::nodes::NodeGraph::create_normal_with_snow_compute_graph(*m_pipeline_manager, m_device);
-    } else if (pipeline_type == ComputePipelineType::AREA_OF_INFLUENCE) {
-        m_compute_graph = compute::nodes::NodeGraph::create_normal_with_area_of_influence_compute_graph(*m_pipeline_manager, m_device);
+    } else if (pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
+        m_compute_graph = compute::nodes::NodeGraph::create_area_of_influence_compute_graph(*m_pipeline_manager, m_device);
+    } else if (pipeline_type == ComputePipelineType::AVALANCHE_INFLUENCE_AREA) {
+        m_compute_graph = compute::nodes::NodeGraph::create_avalanche_influence_area_compute_graph(*m_pipeline_manager, m_device);
     }
 
     update_compute_pipeline_settings();
@@ -506,7 +513,32 @@ void Window::update_compute_pipeline_settings()
             m_compute_pipeline_settings.snow_settings.angle = m_shared_config_ubo->data.m_snow_settings_angle;
         }
         m_compute_graph->get_node_as<compute::nodes::ComputeSnowNode>("compute_snow_node").set_snow_settings(m_compute_pipeline_settings.snow_settings);
-    } else if (m_active_compute_pipeline_type == ComputePipelineType::AREA_OF_INFLUENCE) {
+    } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES
+        || m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_INFLUENCE_AREA) {
+        // tile selection
+        m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_target_tiles_node")
+            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.target_zoomlevel);
+
+        // data source tile selection
+        m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_source_tiles_node")
+            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.source_zoomlevel);
+
+        // area of influence settings
+        auto& area_of_influence_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("compute_area_of_influence_node");
+        area_of_influence_node.set_reference_point_world(m_compute_pipeline_settings.reference_point);
+        area_of_influence_node.set_target_point_world(m_compute_pipeline_settings.target_point);
+        area_of_influence_node.set_num_steps(m_compute_pipeline_settings.num_steps);
+        area_of_influence_node.set_step_length(m_compute_pipeline_settings.steps_length);
+        area_of_influence_node.set_radius(m_compute_pipeline_settings.radius);
+        area_of_influence_node.set_source_zoomlevel(m_compute_pipeline_settings.source_zoomlevel);
+        area_of_influence_node.set_physics_model_type(m_compute_pipeline_settings.model_type);
+        area_of_influence_node.set_model1_downward_acceleration_coeff(m_compute_pipeline_settings.model1_gradient_coeff);
+        area_of_influence_node.set_model1_linear_drag_coeff(m_compute_pipeline_settings.model1_velocity_coeff);
+        area_of_influence_node.set_model2_gravity(m_compute_pipeline_settings.model2_gravity);
+        area_of_influence_node.set_model2_mass(m_compute_pipeline_settings.model2_mass);
+        area_of_influence_node.set_model2_friction_coeff(m_compute_pipeline_settings.model2_friction_coeff);
+        area_of_influence_node.set_model2_drag_coeff(m_compute_pipeline_settings.model2_drag_coeff);
+    } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_INFLUENCE_AREA) {
         // tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_target_tiles_node")
             .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.target_zoomlevel);

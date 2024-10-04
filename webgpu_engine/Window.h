@@ -23,7 +23,7 @@
 #include "TileManager.h"
 #include "TrackRenderer.h"
 #include "UniformBufferObjects.h"
-#include "compute/nodes/ComputeAvalancheTrajectories.h"
+#include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
 #include "compute/nodes/ComputeSnowNode.h"
 #include "compute/nodes/NodeGraph.h"
 #include "nucleus/AbstractRenderWindow.h"
@@ -64,7 +64,12 @@ struct ComputePipelineSettings {
 class Window : public nucleus::AbstractRenderWindow, public nucleus::camera::AbstractDepthTester {
     Q_OBJECT
 public:
-    enum class ComputePipelineType { NORMALS = 0, NORMALS_AND_SNOW = 1, AREA_OF_INFLUENCE = 2 };
+    enum class ComputePipelineType {
+        NORMALS = 0,
+        NORMALS_AND_SNOW = 1,
+        AVALANCHE_TRAJECTORIES = 2,
+        AVALANCHE_INFLUENCE_AREA = 3,
+    };
 
 public:
     Window();
