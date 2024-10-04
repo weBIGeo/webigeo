@@ -163,6 +163,7 @@ fn traces_overlay(id: vec3<u32>) {
         return;
     }
 
+    var max_steepness = 0.0;
     var velocity = vec3f(0, 0, 0);
     var world_space_offset = vec2f(0, 0); // offset from original world position
     for (var i: u32 = 0; i < settings.num_steps; i++) {
@@ -185,6 +186,10 @@ fn traces_overlay(id: vec3<u32>) {
             break;
         }
         let normal = bilinear_sample_vec4f(input_normal_tiles, input_normal_tiles_sampler, source_uv, texture_array_index).xyz * 2 - 1;
+
+
+        let new_steepness = 1.0 - normal.z;
+        max_steepness = max(max_steepness, new_steepness);
 
         var velocity_change: vec3f;
         if (settings.model_type == 0) {
@@ -224,7 +229,11 @@ fn traces_overlay(id: vec3<u32>) {
             let color = STEEPNESS_COLOR_MAP[steepness_index];
             //let color = vec3f(steepness, 0, 0);*/
             
-            let color = vec3f(length(velocity) * 0.5, 0, 0);
+            // color by max steepness
+            let color = vec3f(max_steepness, 0, 0);
+
+            // color by velocity
+            //let color = vec3f(length(velocity) * 0.5, 0, 0);
 
             // color by num steps
             //let color = vec3(1.0 - f32(i) / f32(settings.num_steps), 0.0, 0.0);
