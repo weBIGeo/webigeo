@@ -20,8 +20,8 @@
 
 #include "Node.h"
 
-#include "Buffer.h"
-#include "PipelineManager.h"
+#include "webgpu_engine/Buffer.h"
+#include "webgpu_engine/PipelineManager.h"
 
 namespace webgpu_engine::compute::nodes {
 
