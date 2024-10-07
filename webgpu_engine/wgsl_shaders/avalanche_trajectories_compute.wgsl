@@ -91,7 +91,7 @@ fn gradient_overlay(id: vec3<u32>) {
 
     var source_tile_id: TileId = tile_id;
     var source_uv: vec2f = uv;
-    decrease_zoom_level_until(tile_id, uv, settings.source_zoomlevel, &source_tile_id, &source_uv);
+    calc_tile_id_and_uv_for_zoom_level(tile_id, uv, settings.source_zoomlevel, &source_tile_id, &source_uv);
 
     // read normal
     var texture_array_index: u32;
@@ -178,7 +178,7 @@ fn traces_overlay(id: vec3<u32>) {
         // read normal
         var source_tile_id: TileId = new_tile_id;
         var source_uv: vec2f = new_uv;
-        decrease_zoom_level_until(new_tile_id, new_uv, settings.source_zoomlevel, &source_tile_id, &source_uv);
+        calc_tile_id_and_uv_for_zoom_level(new_tile_id, new_uv, settings.source_zoomlevel, &source_tile_id, &source_uv);
         var texture_array_index: u32;
         let found = get_texture_array_index(source_tile_id, &texture_array_index, &map_key_buffer, &map_value_buffer);
         if (!found) {

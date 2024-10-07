@@ -116,3 +116,64 @@ fn decrease_zoom_level_until(
 
     return true;
 }
+
+
+fn increase_zoom_level_by_one(
+    input_tile_id: TileId,
+    input_uv: vec2f,
+    output_tile_id: ptr<function, TileId>,
+    output_uv: ptr<function, vec2f>,
+) -> bool {
+    if (input_tile_id.zoomlevel == 18u) {
+        return false;
+    }
+
+    let x_border = select(0u, 1u, input_uv.x >= 0.5);
+    let y_border = select(0u, 1u, input_uv.y >= 0.5);
+
+    var higher_zoomlevel_tile_id: TileId;
+    higher_zoomlevel_tile_id.x = 2u * input_tile_id.x + x_border;
+    higher_zoomlevel_tile_id.y = 2u * input_tile_id.y - y_border + 1;
+    higher_zoomlevel_tile_id.zoomlevel = input_tile_id.zoomlevel + 1u;
+    *output_tile_id = higher_zoomlevel_tile_id;
+    *output_uv = 2.0 * input_uv - vec2f(f32(x_border), f32(y_border));
+    return true;
+}
+
+//TODO optimize similarly to decrease_zoom_level_until
+fn increase_zoom_level_until(
+    input_tile_id: TileId,
+    input_uv: vec2f,
+    zoomlevel: u32,
+    output_tile_id: ptr<function, TileId>,
+    output_uv: ptr<function, vec2f>,
+) -> bool {
+    if (input_tile_id.zoomlevel >= zoomlevel) {
+        return false;
+    }
+
+
+    var output_zoomlevel = input_tile_id.zoomlevel;
+    while (output_zoomlevel < zoomlevel) {
+        increase_zoom_level_by_one(input_tile_id, input_uv, output_tile_id, output_uv);
+        output_zoomlevel++;
+    }
+    return true;
+}
+
+fn calc_tile_id_and_uv_for_zoom_level(
+    input_tile_id: TileId,
+    input_uv: vec2f,
+    zoomlevel: u32,
+    output_tile_id: ptr<function, TileId>,
+    output_uv: ptr<function, vec2f>,
+) {
+    if (input_tile_id.zoomlevel == zoomlevel) {
+        *output_tile_id = input_tile_id;
+        *output_uv = input_uv;
+    } else if (input_tile_id.zoomlevel < zoomlevel) {
+        increase_zoom_level_until(input_tile_id, input_uv, zoomlevel, output_tile_id, output_uv);
+    } else {
+        decrease_zoom_level_until(input_tile_id, input_uv, zoomlevel, output_tile_id, output_uv);
+    }
+}
