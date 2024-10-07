@@ -274,7 +274,7 @@ void Window::paint_gui()
     if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey")) {
         if (ImGuiFileDialog::Instance()->IsOk()) { // action if OK
             std::string file_path = ImGuiFileDialog::Instance()->GetFilePathName();
-            load_track_and_focus(QString::fromStdString(file_path));
+            load_track_and_focus(file_path);
         }
         ImGuiFileDialog::Instance()->Close();
     }
