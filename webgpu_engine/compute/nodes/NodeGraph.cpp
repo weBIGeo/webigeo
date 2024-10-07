@@ -300,7 +300,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_snow_compute_graph(const PipelineMa
     return node_graph;
 }
 
-std::unique_ptr<NodeGraph> NodeGraph::create_area_of_influence_compute_graph(const PipelineManager& manager, WGPUDevice device)
+std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_trajectories_compute_graph(const PipelineManager& manager, WGPUDevice device)
 {
     size_t capacity = 1024;
     glm::uvec2 input_resolution = { 65, 65 };

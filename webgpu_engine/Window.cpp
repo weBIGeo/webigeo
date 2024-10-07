@@ -452,7 +452,7 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type)
     } else if (pipeline_type == ComputePipelineType::NORMALS_AND_SNOW) {
         m_compute_graph = compute::nodes::NodeGraph::create_normal_with_snow_compute_graph(*m_pipeline_manager, m_device);
     } else if (pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
-        m_compute_graph = compute::nodes::NodeGraph::create_area_of_influence_compute_graph(*m_pipeline_manager, m_device);
+        m_compute_graph = compute::nodes::NodeGraph::create_avalanche_trajectories_compute_graph(*m_pipeline_manager, m_device);
     } else if (pipeline_type == ComputePipelineType::AVALANCHE_INFLUENCE_AREA) {
         m_compute_graph = compute::nodes::NodeGraph::create_avalanche_influence_area_compute_graph(*m_pipeline_manager, m_device);
     }
