@@ -43,9 +43,12 @@ void SelectTilesNode::select_tiles_in_world_aabb(const geometry::Aabb<3, double>
     const auto upper_right_tile = nucleus::srs::world_xy_to_tile_id(glm::dvec2(aabb.max), zoomlevel);
 
     set_tile_id_generator([lower_left_tile, upper_right_tile]() {
-        compute::RectangularTileRegion region { .min = lower_left_tile.coords, .max = upper_right_tile.coords, .zoom_level = 18, .scheme = tile::Scheme::Tms };
+        compute::RectangularTileRegion region {
+            .min = lower_left_tile.coords, .max = upper_right_tile.coords, .zoom_level = upper_right_tile.zoom_level, .scheme = tile::Scheme::Tms
+        };
         return region.get_tiles();
     });
+    qDebug() << "lower left tile coords x=" << lower_left_tile.coords.x << ", y=" << lower_left_tile.coords.y;
 }
 
 void SelectTilesNode::run_impl()

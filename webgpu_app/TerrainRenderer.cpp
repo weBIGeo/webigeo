@@ -132,6 +132,10 @@ void TerrainRenderer::render_gui()
     ImGui::Checkbox("Repaint each frame", &m_force_repaint);
     ImGui::Text("Repaint-Counter: %d", m_repaint_count);
 #endif
+
+    if (ImGui::Button("Reload shaders [F5]", ImVec2(350, 20))) {
+        m_webgpu_window->reload_shaders();
+    }
 }
 
 void TerrainRenderer::render() {
@@ -220,6 +224,8 @@ void TerrainRenderer::start() {
     connect(&WebInterop::instance(), &WebInterop::mouse_button_event, m_input_mapper.get(), &InputMapper::on_mouse_button_callback);
     connect(&WebInterop::instance(), &WebInterop::mouse_position_event, m_input_mapper.get(), &InputMapper::on_cursor_position_callback);
 #endif
+
+    connect(m_input_mapper.get(), &InputMapper::key_pressed, this, &TerrainRenderer::handle_shortcuts);
 
     m_webgpu_window->set_wgpu_context(m_instance, m_device, m_adapter, m_surface, m_queue);
     m_webgpu_window->initialise_gpu();
@@ -346,6 +352,13 @@ void TerrainRenderer::set_glfw_window_size(int width, int height) {
     m_viewport_size = { width, height };
     if (m_initialized) {
         glfwSetWindowSize(m_window, width, height);
+    }
+}
+
+void TerrainRenderer::handle_shortcuts(QKeyCombination key)
+{
+    if (key.key() == Qt::Key_F5) {
+        m_webgpu_window->reload_shaders();
     }
 }
 

@@ -23,10 +23,13 @@
 #include "TileManager.h"
 #include "TrackRenderer.h"
 #include "UniformBufferObjects.h"
+#include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
+#include "compute/nodes/ComputeSnowNode.h"
 #include "compute/nodes/NodeGraph.h"
 #include "nucleus/AbstractRenderWindow.h"
 #include "nucleus/camera/AbstractDepthTester.h"
 #include "nucleus/camera/Controller.h"
+#include "nucleus/track/GPX.h"
 #include "nucleus/utils/ColourTexture.h"
 #include <webgpu/raii/BindGroup.h>
 #include <webgpu/webgpu.h>
@@ -35,8 +38,39 @@ class QOpenGLFramebufferObject;
 
 namespace webgpu_engine {
 
+// for preserving settings upon switching graph
+// TODO quite ugly solution
+struct ComputePipelineSettings {
+    geometry::Aabb<3, double> target_region = {}; // select tiles node
+    unsigned int target_zoomlevel = 18; // select tiles node
+    glm::dvec3 reference_point = {}; // area of influence node
+    glm::dvec2 target_point = {}; // area of influence node
+    uint32_t num_steps = 128u; // area of influence node
+    float steps_length = 0.5f; // area of influence node
+    float radius = 20.0f; // area of influence node
+    uint32_t source_zoomlevel = 17; // area of influence node
+    bool sync_snow_settings_with_render_settings = true; // snow node
+    compute::nodes::ComputeSnowNode::SnowSettings snow_settings; // snow node
+
+    compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType model_type = compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL1;
+    float model1_velocity_coeff = 0.02f;
+    float model1_gradient_coeff = 0.07f;
+    float model2_gravity = 9.81f;
+    float model2_mass = 5.0f;
+    float model2_friction_coeff = 0.01f;
+    float model2_drag_coeff = 0.2f;
+};
+
 class Window : public nucleus::AbstractRenderWindow, public nucleus::camera::AbstractDepthTester {
     Q_OBJECT
+public:
+    enum class ComputePipelineType {
+        NORMALS = 0,
+        NORMALS_AND_SNOW = 1,
+        AVALANCHE_TRAJECTORIES = 2,
+        AVALANCHE_INFLUENCE_AREA = 3,
+    };
+
 public:
     Window();
 
@@ -61,6 +95,7 @@ public:
 
     void update_required_gpu_limits(WGPULimits& limits, const WGPULimits& supported_limits);
     void paint_gui();
+    void paint_compute_pipeline_gui();
 
 public slots:
     void update_camera(const nucleus::camera::Definition& new_definition) override;
@@ -68,6 +103,7 @@ public slots:
     void update_gpu_quads(const std::vector<nucleus::tile_scheduler::tile_types::GpuTileQuad>& new_quads, const std::vector<tile::Id>& deleted_quads) override;
     void request_redraw();
     void load_track_and_focus(const std::string& path);
+    void reload_shaders();
 
 signals:
     void set_camera_definition_requested(nucleus::camera::Definition definition);
@@ -85,6 +121,12 @@ private:
     // we can directly readback the content of the position buffer and don't need the readback depth
     // buffer anymore. May actually increase performance as we don't need to fill the seperate buffer.
     glm::vec4 synchronous_position_readback(const glm::dvec2& normalised_device_coordinates);
+
+    void select_last_loaded_track_region();
+    void refresh_compute_pipeline_settings(const geometry::Aabb3d& world_aabb, const nucleus::track::Point& focused_track_point_coords);
+    void create_and_set_compute_pipeline(ComputePipelineType pipeline_type);
+    void update_compute_pipeline_settings();
+    void recreate_and_rerun_compute_pipeline();
 
 private:
     WGPUInstance m_instance = nullptr;
@@ -119,9 +161,11 @@ private:
 
     bool m_needs_redraw = true;
 
-    std::unique_ptr<compute::nodes::NodeGraph> m_compute_graph;
-
     std::unique_ptr<TrackRenderer> m_track_renderer;
+
+    std::unique_ptr<compute::nodes::NodeGraph> m_compute_graph;
+    ComputePipelineType m_active_compute_pipeline_type;
+    ComputePipelineSettings m_compute_pipeline_settings;
 };
 
 } // namespace webgpu_engine

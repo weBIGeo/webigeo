@@ -38,9 +38,9 @@ TileManager::TileManager(QObject* parent)
 {
 }
 
-void TileManager::init(WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager, const compute::nodes::NodeGraph& compute_graph)
+void TileManager::init(WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager)
 {
-    m_renderer = std::make_unique<TileRendererInstancedSingleArrayMultiCall>(device, queue, pipeline_manager, compute_graph);
+    m_renderer = std::make_unique<TileRendererInstancedSingleArrayMultiCall>(device, queue, pipeline_manager);
     // m_renderer = std::make_unique<TileRendererInstancedSingleArray>(device, queue, pipeline_manager);
     m_renderer->init(glm::uvec2(HEIGHTMAP_RESOLUTION), glm::uvec2(ORTHO_RESOLUTION), m_loaded_tiles.size(), N_EDGE_VERTICES);
 }
@@ -80,6 +80,8 @@ void TileManager::draw(WGPURenderPassEncoder render_pass, const nucleus::camera:
     // implementation with multiple calls currently re-sorts the tiles; tiles passed to draw are not guaranteed to be drawn in any specific order
     m_renderer->draw(render_pass, camera, tile_only_list);
 }
+
+void TileManager::set_node_graph(const compute::nodes::NodeGraph& node_graph) { m_renderer->set_node_graph(node_graph); }
 
 void TileManager::remove_tile(const tile::Id& tile_id)
 {
@@ -285,12 +287,13 @@ void TileRendererInstancedSingleArray::draw(
     wgpuRenderPassEncoderDrawIndexed(render_pass, uint32_t(m_index_buffer_size), uint32_t(tile_list.size()), 0, 0, 0);
 }
 
+void TileRendererInstancedSingleArray::set_node_graph([[maybe_unused]] const compute::nodes::NodeGraph& node_graph) { }
+
 TileRendererInstancedSingleArrayMultiCall::TileRendererInstancedSingleArrayMultiCall(
-    WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager, const compute::nodes::NodeGraph& compute_graph)
+    WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager)
     : m_device { device }
     , m_queue { queue }
     , m_pipeline_manager { &pipeline_manager }
-    , m_compute_graph { &compute_graph }
 {
     WGPUSupportedLimits limits {};
     wgpuDeviceGetLimits(device, &limits);
@@ -298,11 +301,10 @@ TileRendererInstancedSingleArrayMultiCall::TileRendererInstancedSingleArrayMulti
 }
 
 TileRendererInstancedSingleArrayMultiCall::TileRendererInstancedSingleArrayMultiCall(
-    WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager, const compute::nodes::NodeGraph& compute_graph, size_t num_layers_per_texture)
+    WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager, size_t num_layers_per_texture)
     : m_device { device }
     , m_queue { queue }
     , m_pipeline_manager { &pipeline_manager }
-    , m_compute_graph { &compute_graph }
     , m_num_layers_per_texture { num_layers_per_texture }
 {
 }
@@ -386,20 +388,6 @@ void TileRendererInstancedSingleArrayMultiCall::init(glm::uvec2 height_resolutio
                 m_ortho_textures.back()->texture_view().create_bind_group_entry(3), m_ortho_textures.back()->sampler().create_bind_group_entry(4) },
             "tile bind group"));
     }
-
-    // bindings for compute graph output
-    {
-        WGPUBindGroupEntry input_hash_map_key_buffer_entry = m_compute_graph->output_hash_map().key_buffer().create_bind_group_entry(0);
-        WGPUBindGroupEntry input_hash_map_value_buffer_entry = m_compute_graph->output_hash_map().value_buffer().create_bind_group_entry(1);
-        WGPUBindGroupEntry input_texture_array_entry = m_compute_graph->output_texture_storage().texture().texture_view().create_bind_group_entry(2);
-
-        WGPUBindGroupEntry input_texture_array_entry_2 = m_compute_graph->output_texture_storage_2().texture().texture_view().create_bind_group_entry(3);
-
-        std::vector<WGPUBindGroupEntry> entries { input_hash_map_key_buffer_entry, input_hash_map_value_buffer_entry, input_texture_array_entry,
-            input_texture_array_entry_2 };
-        m_overlay_bind_group
-            = std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->overlay_bind_group_layout(), entries, "overlay bind group");
-    }
 }
 
 void TileRendererInstancedSingleArrayMultiCall::write_tile(
@@ -481,6 +469,22 @@ void TileRendererInstancedSingleArrayMultiCall::draw(
         wgpuRenderPassEncoderDrawIndexed(render_pass, uint32_t(m_index_buffer_size), uint32_t(count), 0, 0, start_instance_index);
         start_instance_index += count;
     }
+}
+
+void TileRendererInstancedSingleArrayMultiCall::set_node_graph(const compute::nodes::NodeGraph& node_graph)
+{
+    // create binding group for compute graph output
+    WGPUBindGroupEntry normal_hashmap_key_buffer_entry = node_graph.output_hash_map().key_buffer().create_bind_group_entry(0);
+    WGPUBindGroupEntry normal_hashmap_value_buffer_entry = node_graph.output_hash_map().value_buffer().create_bind_group_entry(1);
+    WGPUBindGroupEntry normal_texture_array_entry = node_graph.output_texture_storage().texture().texture_view().create_bind_group_entry(2);
+
+    WGPUBindGroupEntry overlay_hashmap_key_buffer_entry = node_graph.output_hash_map_2().key_buffer().create_bind_group_entry(3);
+    WGPUBindGroupEntry overlay_hashmap_value_buffer_entry = node_graph.output_hash_map_2().value_buffer().create_bind_group_entry(4);
+    WGPUBindGroupEntry overlay_texture_array_entry = node_graph.output_texture_storage_2().texture().texture_view().create_bind_group_entry(5);
+
+    std::vector<WGPUBindGroupEntry> entries { normal_hashmap_key_buffer_entry, normal_hashmap_value_buffer_entry, normal_texture_array_entry,
+        overlay_hashmap_key_buffer_entry, overlay_hashmap_value_buffer_entry, overlay_texture_array_entry };
+    m_overlay_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->overlay_bind_group_layout(), entries, "overlay bind group");
 }
 
 } // namespace webgpu_engine

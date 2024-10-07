@@ -36,6 +36,15 @@ InputMapper::InputMapper(QObject* parent, nucleus::camera::Controller* camera_co
     m_keymap[GLFW_KEY_LEFT_CONTROL] = Qt::Key_Control;
     m_keymap[GLFW_KEY_LEFT_SHIFT] = Qt::Key_Shift;
     m_keymap[GLFW_KEY_LEFT_ALT] = Qt::Key_Alt;
+    m_keymap[GLFW_KEY_F1] = Qt::Key_F1;
+    m_keymap[GLFW_KEY_F2] = Qt::Key_F2;
+    m_keymap[GLFW_KEY_F3] = Qt::Key_F3;
+    m_keymap[GLFW_KEY_F4] = Qt::Key_F4;
+    m_keymap[GLFW_KEY_F5] = Qt::Key_F5;
+    m_keymap[GLFW_KEY_F6] = Qt::Key_F6;
+    m_keymap[GLFW_KEY_F7] = Qt::Key_F7;
+    m_keymap[GLFW_KEY_F8] = Qt::Key_F8;
+    m_keymap[GLFW_KEY_F9] = Qt::Key_F9;
 
     // Initialize buttonmap
     m_buttonmap.fill(Qt::NoButton);

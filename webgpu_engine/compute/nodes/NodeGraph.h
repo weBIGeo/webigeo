@@ -40,6 +40,9 @@ public:
     const Node& get_node(const std::string& node_name) const;
     bool exists_node(const std::string& node_name) const;
 
+    template <typename NodeType> NodeType& get_node_as(const std::string& node_name) { return static_cast<NodeType&>(get_node(node_name)); }
+    template <typename NodeType> const NodeType& get_node_as(const std::string& node_name) const { return static_cast<const NodeType&>(get_node(node_name)); }
+
     void connect_sockets(Node* from_node, SocketIndex output_socket, Node* to_node, SocketIndex input_socket);
 
     // obtain outputs - for now all node graphs always output
@@ -65,10 +68,13 @@ public:
     static std::unique_ptr<NodeGraph> create_normal_compute_graph(const PipelineManager& manager, WGPUDevice device);
     static std::unique_ptr<NodeGraph> create_snow_compute_graph(const PipelineManager& manager, WGPUDevice device);
     static std::unique_ptr<NodeGraph> create_normal_with_snow_compute_graph(const PipelineManager& manager, WGPUDevice device);
-    static std::unique_ptr<NodeGraph> create_normal_with_area_of_influence_compute_graph(const PipelineManager& manager, WGPUDevice device);
+    static std::unique_ptr<NodeGraph> create_area_of_influence_compute_graph(const PipelineManager& manager, WGPUDevice device);
+    static std::unique_ptr<NodeGraph> create_avalanche_influence_area_compute_graph(const PipelineManager& manager, WGPUDevice device);
 
 private:
     std::unordered_map<std::string, std::unique_ptr<Node>> m_nodes;
+    Node* m_start_node;
+
     GpuHashMap<tile::Id, uint32_t, GpuTileId>* m_output_hash_map_ptr;
     TileStorageTexture* m_output_texture_storage_ptr;
 

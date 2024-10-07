@@ -28,10 +28,11 @@ namespace webgpu_engine {
 
 class ShaderModuleManager {
 public:
-    const static inline std::filesystem::path DEFAULT_PREFIX = ":/wgsl_shaders/";
+    const static inline std::filesystem::path QRC_PREFIX = ":/wgsl_shaders/";
+    const static inline std::filesystem::path LOCAL_PREFIX = ALP_RESOURCES_PREFIX;
 
 public:
-    ShaderModuleManager(WGPUDevice device, const std::filesystem::path& prefix = DEFAULT_PREFIX);
+    ShaderModuleManager(WGPUDevice device);
     ~ShaderModuleManager() = default;
 
     void create_shader_modules();
@@ -46,19 +47,19 @@ public:
     const webgpu::raii::ShaderModule& downsample_compute() const;
     const webgpu::raii::ShaderModule& upsample_textures_compute() const;
     const webgpu::raii::ShaderModule& line_render() const;
-    const webgpu::raii::ShaderModule& area_of_influence_compute() const;
+    const webgpu::raii::ShaderModule& avalanche_trajectories_compute() const;
+    const webgpu::raii::ShaderModule& avalanche_influence_area_compute() const;
 
     std::unique_ptr<webgpu::raii::ShaderModule> create_shader_module(const std::string& name, const std::string& code);
 
 private:
     std::string read_file_contents(const std::string& name) const;
-    std::string get_contents(const std::string& name);
+    std::string get_file_contents_with_cache(const std::string& name);
     std::string preprocess(const std::string& code);
     std::unique_ptr<webgpu::raii::ShaderModule> create_shader_module(const std::string& filename);
 
 private:
     WGPUDevice m_device;
-    std::filesystem::path m_prefix;
 
     std::map<std::string, std::string> m_shader_name_to_code;
 
@@ -71,7 +72,8 @@ private:
     std::unique_ptr<webgpu::raii::ShaderModule> m_downsample_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_upsample_textures_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_line_render_module;
-    std::unique_ptr<webgpu::raii::ShaderModule> m_area_of_influence_compute_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_avalanche_trajectories_compute_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_avalanche_influence_area_compute_module;
 };
 
 } // namespace webgpu_engine

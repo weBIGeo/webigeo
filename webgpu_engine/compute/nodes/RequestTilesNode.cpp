@@ -53,6 +53,11 @@ Data RequestTilesNode::get_output_data_impl([[maybe_unused]] SocketIndex output_
 
 void RequestTilesNode::on_single_tile_received(const nucleus::tile_scheduler::tile_types::TileLayer& tile)
 {
+    if (tile.network_info.status != nucleus::tile_scheduler::tile_types::NetworkInfo::Status::Good) {
+        qFatal() << "failed to load tile id x=" << tile.id.coords.x << ", y=" << tile.id.coords.y << ", zoomlevel=" << tile.id.zoom_level << ": "
+                 << (tile.network_info.status == nucleus::tile_scheduler::tile_types::NetworkInfo::Status::NotFound ? "Not found" : "Network error");
+    }
+
     auto found_it = std::find(m_requested_tile_ids.begin(), m_requested_tile_ids.end(), tile.id);
 
     assert(found_it != m_requested_tile_ids.end()); // cannot receive tile id that was not requested

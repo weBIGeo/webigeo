@@ -68,15 +68,7 @@ void ComputeSnowNode::run_impl()
     m_input_tile_ids.write(m_queue, gpu_tile_ids.data(), gpu_tile_ids.size());
     m_tile_bounds.write(m_queue, tile_bounds.data(), tile_bounds.size());
 
-    // TODO dont hardcode
     m_input_snow_settings.data.angle.x = 1; // enabled
-    m_input_snow_settings.data.angle.y = 0; // angle lower limit
-    m_input_snow_settings.data.angle.z = 30; // angle upper limit
-    m_input_snow_settings.data.angle.w = 0; // angle blend
-    m_input_snow_settings.data.alt.x = 1000; // min altitude
-    m_input_snow_settings.data.alt.y = 200; // variation
-    m_input_snow_settings.data.alt.z = 200; // blend
-    m_input_snow_settings.data.alt.w = 1; // specular
     m_input_snow_settings.update_gpu_data(m_queue);
 
     // create bind group

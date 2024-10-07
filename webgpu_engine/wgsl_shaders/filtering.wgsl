@@ -38,3 +38,10 @@ fn bilinear_sample_vec4f(texture_array: texture_2d_array<f32>, texture_sampler: 
 
     return vec4f(x, y, z, w);
 }
+
+fn bilinear_sample_u32(texture_array: texture_2d_array<u32>, texture_sampler: sampler, uv: vec2f, layer: u32) -> u32 {
+    let texture_dimensions: vec2u = textureDimensions(texture_array);
+    let weights: vec2f = fract(uv * vec2f(texture_dimensions));
+    return u32(dot(vec4f((1.0 - weights.x) * weights.y, weights.x * weights.y, weights.x * (1.0 - weights.y), (1.0 - weights.x) * (1.0 - weights.y)),
+                   vec4f(textureGather(0, texture_array, texture_sampler, uv, layer))));
+}

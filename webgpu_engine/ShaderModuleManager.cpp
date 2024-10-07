@@ -22,13 +22,13 @@
 #include <iostream>
 #include <memory>
 #include <regex>
+#include <unordered_set>
 #include <webgpu/raii/base_types.h>
 
 namespace webgpu_engine {
 
-ShaderModuleManager::ShaderModuleManager(WGPUDevice device, const std::filesystem::path& prefix)
+ShaderModuleManager::ShaderModuleManager(WGPUDevice device)
     : m_device(device)
-    , m_prefix(prefix)
 {}
 
 void ShaderModuleManager::create_shader_modules()
@@ -42,11 +42,13 @@ void ShaderModuleManager::create_shader_modules()
     m_downsample_compute_module = create_shader_module("downsample_compute.wgsl");
     m_upsample_textures_compute_module = create_shader_module("upsample_textures_compute.wgsl");
     m_line_render_module = create_shader_module("line_render.wgsl");
-    m_area_of_influence_compute_module = create_shader_module("area_of_influence_compute.wgsl");
+    m_avalanche_trajectories_compute_module = create_shader_module("avalanche_trajectories_compute.wgsl");
+    m_avalanche_influence_area_compute_module = create_shader_module("avalanche_influence_area_compute.wgsl");
 }
 
 void ShaderModuleManager::release_shader_modules()
 {
+    m_shader_name_to_code.clear();
     m_tile_shader_module.release();
     m_screen_pass_vert_shader_module.release();
     m_compose_frag_shader_module.release();
@@ -56,7 +58,8 @@ void ShaderModuleManager::release_shader_modules()
     m_downsample_compute_module.release();
     m_upsample_textures_compute_module.release();
     m_line_render_module.release();
-    m_area_of_influence_compute_module.release();
+    m_avalanche_trajectories_compute_module.release();
+    m_avalanche_influence_area_compute_module.release();
 }
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::tile() const { return *m_tile_shader_module; }
@@ -77,11 +80,17 @@ const webgpu::raii::ShaderModule& ShaderModuleManager::upsample_textures_compute
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::line_render() const { return *m_line_render_module; }
 
-const webgpu::raii::ShaderModule& ShaderModuleManager::area_of_influence_compute() const { return *m_area_of_influence_compute_module; }
+const webgpu::raii::ShaderModule& ShaderModuleManager::avalanche_trajectories_compute() const { return *m_avalanche_trajectories_compute_module; }
+
+const webgpu::raii::ShaderModule& ShaderModuleManager::avalanche_influence_area_compute() const { return *m_avalanche_influence_area_compute_module; }
 
 std::string ShaderModuleManager::read_file_contents(const std::string& name) const
 {
-    const auto path = m_prefix / name; // operator/ concats paths
+#ifdef __EMSCRIPTEN__
+    const auto path = QRC_PREFIX / name; // use qrc file prefix for emscripten builds
+#else
+    const auto path = LOCAL_PREFIX / name; // use external (local) file path for native builds
+#endif
     auto file = QFile(path);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         std::cerr << "could not open shader file " << path << std::endl;
@@ -90,28 +99,21 @@ std::string ShaderModuleManager::read_file_contents(const std::string& name) con
     return file.readAll().toStdString();
 }
 
-std::string ShaderModuleManager::get_contents(const std::string& name) {
+std::string ShaderModuleManager::get_file_contents_with_cache(const std::string& name)
+{
     const auto found_it = m_shader_name_to_code.find(name);
     if (found_it != m_shader_name_to_code.end()) {
         return found_it->second;
     }
     const auto file_contents = read_file_contents(name);
-    const auto preprocessed_contents = preprocess(file_contents);
-    m_shader_name_to_code[name] = preprocessed_contents;
-    return preprocessed_contents;
+    m_shader_name_to_code[name] = file_contents;
+    return file_contents;
 }
 
 std::unique_ptr<webgpu::raii::ShaderModule> ShaderModuleManager::create_shader_module(const std::string& filename)
 {
-    const std::string code = get_contents(filename);
-    WGPUShaderModuleDescriptor shader_module_desc {};
-    WGPUShaderModuleWGSLDescriptor wgsl_desc {};
-    wgsl_desc.chain.next = nullptr;
-    wgsl_desc.chain.sType = WGPUSType::WGPUSType_ShaderModuleWGSLDescriptor;
-    wgsl_desc.code = code.data();
-    shader_module_desc.label = filename.data();
-    shader_module_desc.nextInChain = &wgsl_desc.chain;
-    return std::make_unique<webgpu::raii::ShaderModule>(m_device, shader_module_desc);
+    const std::string code = get_file_contents_with_cache(filename);
+    return create_shader_module(filename, code);
 }
 
 std::unique_ptr<webgpu::raii::ShaderModule> ShaderModuleManager::create_shader_module(const std::string& name, const std::string& code)
@@ -131,10 +133,18 @@ std::string ShaderModuleManager::preprocess(const std::string& code)
 {
     std::string preprocessed_code = code;
     const std::regex include_regex("#include \"([a-zA-Z0-9 ._-]+)\"");
-    for (std::smatch include_match; std::regex_search(preprocessed_code, include_match, include_regex);) {
+    std::unordered_set<std::string> already_included {};
+    size_t search_start_pos = 0;
+    for (std::cmatch include_match {}; std::regex_search(preprocessed_code.c_str() + search_start_pos, include_match, include_regex);) {
         const std::string included_filename = include_match[1].str(); // first submatch
-        const std::string included_file_contents = get_contents(included_filename);
-        preprocessed_code.replace(include_match.position(), include_match.length(), included_file_contents);
+        if (already_included.contains(included_filename)) {
+            preprocessed_code.replace(search_start_pos + include_match.position(), include_match.length(), "");
+        } else {
+            const std::string included_file_contents = get_file_contents_with_cache(included_filename);
+            preprocessed_code.replace(search_start_pos + include_match.position(), include_match.length(), included_file_contents);
+        }
+        search_start_pos += include_match.position();
+        already_included.insert(included_filename);
     }
     return preprocessed_code;
 }

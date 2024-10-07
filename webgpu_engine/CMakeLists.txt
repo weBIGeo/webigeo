@@ -44,7 +44,8 @@ set(SOURCES
     compute/nodes/NodeGraph.h compute/nodes/NodeGraph.cpp
     compute/nodes/ComputeSnowNode.h compute/nodes/ComputeSnowNode.cpp
     compute/nodes/UpsampleTexturesNode.h compute/nodes/UpsampleTexturesNode.cpp
-    compute/nodes/ComputeAreaOfInfluenceNode.h compute/nodes/ComputeAreaOfInfluenceNode.cpp
+    compute/nodes/ComputeAvalancheTrajectoriesNode.h compute/nodes/ComputeAvalancheTrajectoriesNode.cpp
+    compute/nodes/ComputeAvalancheInfluenceAreaNode.h compute/nodes/ComputeAvalancheInfluenceAreaNode.cpp
 )
 
 qt_add_library(webgpu_engine STATIC ${SOURCES})
@@ -72,8 +73,10 @@ qt_add_resources(webgpu_engine "shaders"
         "wgsl_shaders/snow_compute.wgsl"
         "wgsl_shaders/upsample_textures_compute.wgsl"
         "wgsl_shaders/line_render.wgsl"
-        "wgsl_shaders/area_of_influence_compute.wgsl"
+        "wgsl_shaders/avalanche_trajectories_compute.wgsl"
+        "wgsl_shaders/avalanche_influence_area_compute.wgsl"
         "wgsl_shaders/filtering.wgsl"
+        "wgsl_shaders/normals_util.wgsl"
     )
 
 # Note: This has to go into the webgpu_app as soon as we don't use ImGui in the engine anymore!!!
@@ -98,4 +101,4 @@ endif()
 target_link_libraries(webgpu_engine PUBLIC nucleus Qt::Core webgpu)
 target_include_directories(webgpu_engine PRIVATE .)
 
-target_compile_definitions(webgpu_engine PUBLIC ALP_RESOURCES_PREFIX="${CMAKE_CURRENT_SOURCE_DIR}/shaders/")
+target_compile_definitions(webgpu_engine PUBLIC ALP_RESOURCES_PREFIX="${CMAKE_CURRENT_SOURCE_DIR}/wgsl_shaders/")

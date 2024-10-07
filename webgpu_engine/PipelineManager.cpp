@@ -47,7 +47,15 @@ const webgpu::raii::CombinedComputePipeline& PipelineManager::downsample_compute
 
 const webgpu::raii::CombinedComputePipeline& PipelineManager::upsample_textures_compute_pipeline() const { return *m_upsample_textures_compute_pipeline; }
 
-const webgpu::raii::CombinedComputePipeline& PipelineManager::area_of_influence_compute_pipeline() const { return *m_area_of_influence_compute_pipeline; }
+const webgpu::raii::CombinedComputePipeline& PipelineManager::avalanche_trajectories_compute_pipeline() const
+{
+    return *m_avalanche_trajectories_compute_pipeline;
+}
+
+const webgpu::raii::CombinedComputePipeline& PipelineManager::avalanche_influence_area_compute_pipeline() const
+{
+    return *m_avalanche_influence_area_compute_pipeline;
+}
 
 const webgpu::raii::BindGroupLayout& PipelineManager::shared_config_bind_group_layout() const { return *m_shared_config_bind_group_layout; }
 
@@ -74,7 +82,12 @@ const webgpu::raii::BindGroupLayout& PipelineManager::lines_bind_group_layout() 
 
 const webgpu::raii::BindGroupLayout& PipelineManager::depth_texture_bind_group_layout() const { return *m_depth_texture_bind_group_layout; }
 
-const webgpu::raii::BindGroupLayout& PipelineManager::area_of_influence_bind_group_layout() const { return *m_area_of_influence_bind_group_layout; }
+const webgpu::raii::BindGroupLayout& PipelineManager::avalanche_trajectories_bind_group_layout() const { return *m_avalanche_trajectories_bind_group_layout; }
+
+const webgpu::raii::BindGroupLayout& PipelineManager::avalanche_influence_area_bind_group_layout() const
+{
+    return *m_avalanche_influence_area_bind_group_layout;
+}
 
 void PipelineManager::create_pipelines()
 {
@@ -87,7 +100,8 @@ void PipelineManager::create_pipelines()
     create_downsample_compute_pipeline();
     create_upsample_textures_compute_pipeline();
     create_lines_render_pipeline();
-    create_area_of_influence_compute_pipeline();
+    create_avalanche_trajectories_compute_pipeline();
+    create_avalanche_influence_area_compute_pipeline();
     m_pipelines_created = true;
 }
 
@@ -104,7 +118,8 @@ void PipelineManager::create_bind_group_layouts()
     create_upsample_textures_compute_bind_group_layout();
     create_lines_bind_group_layout();
     create_depth_texture_bind_group_layout();
-    create_area_of_influence_bind_group_layout();
+    create_avalache_trajectory_bind_group_layout();
+    create_avalache_influence_area_bind_group_layout();
 }
 
 void PipelineManager::release_pipelines()
@@ -117,7 +132,7 @@ void PipelineManager::release_pipelines()
     m_downsample_compute_pipeline.release();
     m_upsample_textures_compute_pipeline.release();
     m_lines_render_pipeline.release();
-    m_area_of_influence_compute_pipeline.release();
+    m_avalanche_trajectories_compute_pipeline.release();
     m_pipelines_created = false;
 }
 
@@ -251,10 +266,18 @@ void PipelineManager::create_lines_render_pipeline()
     m_lines_render_pipeline = std::make_unique<webgpu::raii::RenderPipeline>(m_device, pipeline_desc);
 }
 
-void PipelineManager::create_area_of_influence_compute_pipeline()
+void PipelineManager::create_avalanche_trajectories_compute_pipeline()
 {
-    m_area_of_influence_compute_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(m_device, m_shader_manager->area_of_influence_compute(),
-        std::vector<const webgpu::raii::BindGroupLayout*> { m_area_of_influence_bind_group_layout.get() });
+    m_avalanche_trajectories_compute_pipeline
+        = std::make_unique<webgpu::raii::CombinedComputePipeline>(m_device, m_shader_manager->avalanche_trajectories_compute(),
+            std::vector<const webgpu::raii::BindGroupLayout*> { m_avalanche_trajectories_bind_group_layout.get() });
+}
+
+void PipelineManager::create_avalanche_influence_area_compute_pipeline()
+{
+    m_avalanche_influence_area_compute_pipeline
+        = std::make_unique<webgpu::raii::CombinedComputePipeline>(m_device, m_shader_manager->avalanche_influence_area_compute(),
+            std::vector<const webgpu::raii::BindGroupLayout*> { m_avalanche_influence_area_bind_group_layout.get() }, "avalanche influence area");
 }
 
 void PipelineManager::create_shared_config_bind_group_layout()
@@ -466,21 +489,33 @@ void PipelineManager::create_overlay_bind_group_layout()
     overlay_value_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
     overlay_value_buffer_entry.buffer.minBindingSize = 0;
 
-    WGPUBindGroupLayoutEntry overlay_input_overlay_textures_entry {};
-    overlay_input_overlay_textures_entry.binding = 2;
-    overlay_input_overlay_textures_entry.visibility = WGPUShaderStage_Fragment;
-    overlay_input_overlay_textures_entry.texture.sampleType = WGPUTextureSampleType_Float;
-    overlay_input_overlay_textures_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
+    WGPUBindGroupLayoutEntry overlay_textures_entry {};
+    overlay_textures_entry.binding = 2;
+    overlay_textures_entry.visibility = WGPUShaderStage_Fragment;
+    overlay_textures_entry.texture.sampleType = WGPUTextureSampleType_Float;
+    overlay_textures_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
 
-    WGPUBindGroupLayoutEntry overlay_input_overlay_textures_entry_2 {};
-    overlay_input_overlay_textures_entry_2.binding = 3;
-    overlay_input_overlay_textures_entry_2.visibility = WGPUShaderStage_Fragment;
-    overlay_input_overlay_textures_entry_2.texture.sampleType = WGPUTextureSampleType_Float;
-    overlay_input_overlay_textures_entry_2.texture.viewDimension = WGPUTextureViewDimension_2DArray;
+    WGPUBindGroupLayoutEntry normals_key_buffer_entry {};
+    normals_key_buffer_entry.binding = 3;
+    normals_key_buffer_entry.visibility = WGPUShaderStage_Fragment;
+    normals_key_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    normals_key_buffer_entry.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry normals_value_buffer_entry {};
+    normals_value_buffer_entry.binding = 4;
+    normals_value_buffer_entry.visibility = WGPUShaderStage_Fragment;
+    normals_value_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    normals_value_buffer_entry.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry normals_input_textures_entry {};
+    normals_input_textures_entry.binding = 5;
+    normals_input_textures_entry.visibility = WGPUShaderStage_Fragment;
+    normals_input_textures_entry.texture.sampleType = WGPUTextureSampleType_Float;
+    normals_input_textures_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
 
     m_overlay_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
-        std::vector<WGPUBindGroupLayoutEntry> {
-            overlay_key_buffer_entry, overlay_value_buffer_entry, overlay_input_overlay_textures_entry, overlay_input_overlay_textures_entry_2 },
+        std::vector<WGPUBindGroupLayoutEntry> { overlay_key_buffer_entry, overlay_value_buffer_entry, overlay_textures_entry, normals_key_buffer_entry,
+            normals_value_buffer_entry, normals_input_textures_entry },
         "overlay bind group layout");
 }
 
@@ -584,7 +619,7 @@ void PipelineManager::create_depth_texture_bind_group_layout()
         m_device, std::vector<WGPUBindGroupLayoutEntry> { depth_texture_entry }, "depth texture bind group layout");
 }
 
-void PipelineManager::create_area_of_influence_bind_group_layout()
+void PipelineManager::create_avalache_trajectory_bind_group_layout()
 {
     WGPUBindGroupLayoutEntry input_tile_ids_entry {};
     input_tile_ids_entry.binding = 0;
@@ -638,16 +673,109 @@ void PipelineManager::create_area_of_influence_bind_group_layout()
     input_height_texture_sampler.visibility = WGPUShaderStage_Compute;
     input_height_texture_sampler.sampler.type = WGPUSamplerBindingType_NonFiltering;
 
+    WGPUBindGroupLayoutEntry output_key_buffer_entry {};
+    output_key_buffer_entry.binding = 9;
+    output_key_buffer_entry.visibility = WGPUShaderStage_Compute;
+    output_key_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    output_key_buffer_entry.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry output_value_buffer_entry {};
+    output_value_buffer_entry.binding = 10;
+    output_value_buffer_entry.visibility = WGPUShaderStage_Compute;
+    output_value_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    output_value_buffer_entry.buffer.minBindingSize = 0;
+
     WGPUBindGroupLayoutEntry output_tiles_entry {};
-    output_tiles_entry.binding = 9;
+    output_tiles_entry.binding = 11;
     output_tiles_entry.visibility = WGPUShaderStage_Compute;
     output_tiles_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2DArray;
     output_tiles_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
     output_tiles_entry.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
 
-    m_area_of_influence_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
+    m_avalanche_trajectories_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
         std::vector<WGPUBindGroupLayoutEntry> { input_tile_ids_entry, input_bounds_entry, input_settings, key_buffer_entry, value_buffer_entry,
-            input_normal_textures_entry, input_normal_texture_sampler, input_height_textures_entry, input_height_texture_sampler, output_tiles_entry },
-        "area of influence bind group layout");
+            input_normal_textures_entry, input_normal_texture_sampler, input_height_textures_entry, input_height_texture_sampler, output_key_buffer_entry,
+            output_value_buffer_entry, output_tiles_entry },
+        "avalanche trajectories compute bind group layout");
+}
+
+void PipelineManager::create_avalache_influence_area_bind_group_layout()
+{
+    WGPUBindGroupLayoutEntry input_tile_ids_entry {};
+    input_tile_ids_entry.binding = 0;
+    input_tile_ids_entry.visibility = WGPUShaderStage_Compute;
+    input_tile_ids_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    input_tile_ids_entry.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry input_bounds_entry {};
+    input_bounds_entry.binding = 1;
+    input_bounds_entry.visibility = WGPUShaderStage_Compute;
+    input_bounds_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    input_bounds_entry.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry input_settings {};
+    input_settings.binding = 2;
+    input_settings.visibility = WGPUShaderStage_Compute;
+    input_settings.buffer.type = WGPUBufferBindingType_Uniform;
+    input_settings.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry key_buffer_entry {};
+    key_buffer_entry.binding = 3;
+    key_buffer_entry.visibility = WGPUShaderStage_Compute;
+    key_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    key_buffer_entry.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry value_buffer_entry {};
+    value_buffer_entry.binding = 4;
+    value_buffer_entry.visibility = WGPUShaderStage_Compute;
+    value_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    value_buffer_entry.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry input_normal_textures_entry {};
+    input_normal_textures_entry.binding = 5;
+    input_normal_textures_entry.visibility = WGPUShaderStage_Compute;
+    input_normal_textures_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
+    input_normal_textures_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
+
+    WGPUBindGroupLayoutEntry input_normal_texture_sampler {};
+    input_normal_texture_sampler.binding = 6;
+    input_normal_texture_sampler.visibility = WGPUShaderStage_Compute;
+    input_normal_texture_sampler.sampler.type = WGPUSamplerBindingType_NonFiltering;
+
+    WGPUBindGroupLayoutEntry input_height_textures_entry {};
+    input_height_textures_entry.binding = 7;
+    input_height_textures_entry.visibility = WGPUShaderStage_Compute;
+    input_height_textures_entry.texture.sampleType = WGPUTextureSampleType_Uint;
+    input_height_textures_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
+
+    WGPUBindGroupLayoutEntry input_height_texture_sampler {};
+    input_height_texture_sampler.binding = 8;
+    input_height_texture_sampler.visibility = WGPUShaderStage_Compute;
+    input_height_texture_sampler.sampler.type = WGPUSamplerBindingType_NonFiltering;
+
+    WGPUBindGroupLayoutEntry output_key_buffer_entry {};
+    output_key_buffer_entry.binding = 9;
+    output_key_buffer_entry.visibility = WGPUShaderStage_Compute;
+    output_key_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    output_key_buffer_entry.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry output_value_buffer_entry {};
+    output_value_buffer_entry.binding = 10;
+    output_value_buffer_entry.visibility = WGPUShaderStage_Compute;
+    output_value_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    output_value_buffer_entry.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry output_tiles_entry {};
+    output_tiles_entry.binding = 11;
+    output_tiles_entry.visibility = WGPUShaderStage_Compute;
+    output_tiles_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2DArray;
+    output_tiles_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
+    output_tiles_entry.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
+
+    m_avalanche_influence_area_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
+        std::vector<WGPUBindGroupLayoutEntry> { input_tile_ids_entry, input_bounds_entry, input_settings, key_buffer_entry, value_buffer_entry,
+            input_normal_textures_entry, input_normal_texture_sampler, input_height_textures_entry, input_height_texture_sampler, output_key_buffer_entry,
+            output_value_buffer_entry, output_tiles_entry },
+        "avalanche influence area bind group layout");
 }
 }
