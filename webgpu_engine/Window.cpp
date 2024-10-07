@@ -340,6 +340,11 @@ void Window::paint_compute_pipeline_gui()
                 recreate_and_rerun_compute_pipeline();
             }
 
+            ImGui::SliderScalar("Target zoomlevel", ImGuiDataType_U32, &m_compute_pipeline_settings.target_zoomlevel, &min_zoomlevel, &max_zoomlevel, "%u");
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
+                recreate_and_rerun_compute_pipeline();
+            }
+
             static int current_physics_model_item = 0;
             const std::vector<std::pair<std::string, compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType>> physics_model_types
                 = { { "Momentum (simple)", compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL1 },
