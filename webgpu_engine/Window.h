@@ -41,6 +41,7 @@ namespace webgpu_engine {
 // for preserving settings upon switching graph
 // TODO quite ugly solution
 struct ComputePipelineSettings {
+    bool is_region_select = false;
     geometry::Aabb<3, double> target_region = {}; // select tiles node
     unsigned int target_zoomlevel = 18; // select tiles node
     glm::dvec3 reference_point = {}; // area of influence node

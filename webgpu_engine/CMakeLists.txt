@@ -77,6 +77,7 @@ qt_add_resources(webgpu_engine "shaders"
         "wgsl_shaders/avalanche_influence_area_compute.wgsl"
         "wgsl_shaders/filtering.wgsl"
         "wgsl_shaders/normals_util.wgsl"
+        "wgsl_shaders/color_mapping.wgsl"
     )
 
 # Note: This has to go into the webgpu_app as soon as we don't use ImGui in the engine anymore!!!

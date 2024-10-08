@@ -22,6 +22,7 @@
 #include "tile_util.wgsl"
 #include "tile_hashmap.wgsl"
 #include "normals_util.wgsl"
+#include "color_mapping.wgsl"
 
 struct AreaOfInfluenceSettings {
     target_point: vec4f,
@@ -211,26 +212,8 @@ fn traces_overlay(id: vec3<u32>) {
             // color by distinct starting point
             //let color = vec3(f32(col) / f32(output_texture_size.x), f32(row) / f32(output_texture_size.y), 0.0);
 
-            // color by steepness
-            /*const NUM_STEEPNESS_BINS = 9;
-            const STEEPNESS_COLOR_MAP = array<vec3f, NUM_STEEPNESS_BINS>(
-                vec3f(254.0/255.0, 249.0/255.0, 249.0/255.0),
-                vec3f(51.0/255.0, 249.0/255.0, 49.0/255.0),
-                vec3f(242.0/255.0, 228.0/255.0, 44.0/255.0),
-                vec3f(255.0/255.0, 169.0/255.0, 45.0/255.0),
-                vec3f(255.0/255.0, 48.0/255.0, 45.0/255.0),
-                vec3f(255.0/255.0, 79.0/255.0, 249.0/255.0),
-                vec3f(183.0/255.0, 69.0/255.0, 253.0/255.0),
-                vec3f(135.0/255.0, 44.0/255.0, 253.0/255.0),
-                vec3f(49.0/255.0, 49.0/255.0, 253.0/255.0),
-            );
-            let steepness = 1.0 - normal.z;
-            let steepness_index = u32(steepness * f32(NUM_STEEPNESS_BINS - 1) + 0.5);
-            let color = STEEPNESS_COLOR_MAP[steepness_index];
-            //let color = vec3f(steepness, 0, 0);*/
-            
             // color by max steepness
-            let color = vec3f(max_steepness, 0, 0);
+            let color = color_mapping_bergfex(max_steepness);
 
             // color by velocity
             //let color = vec3f(length(velocity) * 0.5, 0, 0);

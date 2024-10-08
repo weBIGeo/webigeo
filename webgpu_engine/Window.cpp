@@ -541,7 +541,9 @@ void Window::recreate_and_rerun_compute_pipeline()
 {
     create_and_set_compute_pipeline(m_active_compute_pipeline_type);
     update_compute_pipeline_settings();
-    m_compute_graph->run();
+    if (m_compute_pipeline_settings.is_region_select) {
+        m_compute_graph->run();
+    }
 }
 
 float Window::depth([[maybe_unused]] const glm::dvec2& normalised_device_coordinates)
@@ -648,6 +650,7 @@ void Window::load_track_and_focus(const std::string& path)
     new_camera_definition.set_viewport_size(m_camera.viewport_size());
 
     // update pipeline settings
+    m_compute_pipeline_settings.is_region_select = true;
     m_compute_pipeline_settings.target_region = track_aabb;
     if (m_compute_graph->exists_node("compute_area_of_influence_node")) {
         m_compute_pipeline_settings.reference_point = track_aabb.min;
