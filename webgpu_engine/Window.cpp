@@ -178,7 +178,7 @@ void Window::paint_gui()
         m_needs_redraw = true;
     }
     {
-        static int currentItem = m_shared_config_ubo->data.m_overlay_mode;
+        static int currentItem = 6;
         static const std::vector<std::pair<std::string, int>> overlays
             = { { "None", 0 }, { "Normals", 1 }, { "Tiles", 2 }, { "Zoomlevel", 3 }, { "Vertex-ID", 4 }, { "Vertex Height-Sample", 5 },
                   { "Compute Output", 99 }, { "Decoded Normals", 100 }, { "Steepness", 101 }, { "SSAO Buffer", 102 }, { "Shadow Cascades", 103 } };
@@ -283,7 +283,9 @@ void Window::paint_compute_pipeline_gui()
     if (ImGui::CollapsingHeader("Compute pipeline", ImGuiTreeNodeFlags_DefaultOpen)) {
 
         if (ImGui::Button("Run", ImVec2(150, 20))) {
-            m_compute_graph->run();
+            if (m_compute_pipeline_settings.is_region_select) {
+                m_compute_graph->run();
+            }
         }
 
         ImGui::SameLine();
@@ -291,6 +293,13 @@ void Window::paint_compute_pipeline_gui()
         if (ImGui::Button("Clear", ImVec2(150, 20))) {
             create_and_set_compute_pipeline(m_active_compute_pipeline_type);
             m_needs_redraw = true;
+        }
+
+        const uint32_t min_zoomlevel = 1;
+        const uint32_t max_zoomlevel = 18;
+        ImGui::SliderScalar("Target zoom level", ImGuiDataType_U32, &m_compute_pipeline_settings.target_zoomlevel, &min_zoomlevel, &max_zoomlevel, "%u");
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
+            recreate_and_rerun_compute_pipeline();
         }
 
         static int current_item = 2;
@@ -314,33 +323,20 @@ void Window::paint_compute_pipeline_gui()
             ImGui::EndCombo();
         }
 
-        if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES
-            || m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_INFLUENCE_AREA) {
-            uint32_t min_steps = 1;
-            uint32_t max_steps = 1024;
+        if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
+            ImGui::SliderScalar("Source zoom level", ImGuiDataType_U32, &m_compute_pipeline_settings.source_zoomlevel, &min_zoomlevel, &max_zoomlevel, "%u");
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
+                recreate_and_rerun_compute_pipeline();
+            }
+
+            const uint32_t min_steps = 1;
+            const uint32_t max_steps = 1024;
             ImGui::SliderScalar("Num steps", ImGuiDataType_U32, &m_compute_pipeline_settings.num_steps, &min_steps, &max_steps, "%u");
             if (ImGui::IsItemDeactivatedAfterEdit()) {
                 recreate_and_rerun_compute_pipeline();
             }
 
             ImGui::SliderFloat("Step length", &m_compute_pipeline_settings.steps_length, 0.01, 5.0, "%.1f");
-            if (ImGui::IsItemDeactivatedAfterEdit()) {
-                recreate_and_rerun_compute_pipeline();
-            }
-
-            ImGui::SliderFloat("Radius", &m_compute_pipeline_settings.radius, 0.0f, 100.0f, "%.1fm");
-            if (ImGui::IsItemDeactivatedAfterEdit()) {
-                recreate_and_rerun_compute_pipeline();
-            }
-
-            uint32_t min_zoomlevel = 1;
-            uint32_t max_zoomlevel = 18;
-            ImGui::SliderScalar("Source zoomlevel", ImGuiDataType_U32, &m_compute_pipeline_settings.source_zoomlevel, &min_zoomlevel, &max_zoomlevel, "%u");
-            if (ImGui::IsItemDeactivatedAfterEdit()) {
-                recreate_and_rerun_compute_pipeline();
-            }
-
-            ImGui::SliderScalar("Target zoomlevel", ImGuiDataType_U32, &m_compute_pipeline_settings.target_zoomlevel, &min_zoomlevel, &max_zoomlevel, "%u");
             if (ImGui::IsItemDeactivatedAfterEdit()) {
                 recreate_and_rerun_compute_pipeline();
             }
@@ -392,6 +388,24 @@ void Window::paint_compute_pipeline_gui()
                     recreate_and_rerun_compute_pipeline();
                 }
             }
+        } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_INFLUENCE_AREA) {
+            const uint32_t min_steps = 1;
+            const uint32_t max_steps = 1024;
+            ImGui::SliderScalar("Num steps", ImGuiDataType_U32, &m_compute_pipeline_settings.num_steps, &min_steps, &max_steps, "%u");
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
+                recreate_and_rerun_compute_pipeline();
+            }
+
+            ImGui::SliderFloat("Step length", &m_compute_pipeline_settings.steps_length, 0.01, 5.0, "%.1f");
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
+                recreate_and_rerun_compute_pipeline();
+            }
+
+            ImGui::SliderFloat("Radius", &m_compute_pipeline_settings.radius, 0.0f, 100.0f, "%.1fm");
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
+                recreate_and_rerun_compute_pipeline();
+            }
+
         } else if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS_AND_SNOW) {
 
             if (ImGui::Checkbox("Sync with render settings", &m_compute_pipeline_settings.sync_snow_settings_with_render_settings)) {

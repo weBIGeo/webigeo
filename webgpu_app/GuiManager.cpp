@@ -185,7 +185,7 @@ void GuiManager::draw()
 
     ImGui::Begin("weBIGeo", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar);
 
-    if (ImGui::CollapsingHeader(ICON_FA_STOPWATCH "  Timing", ImGuiTreeNodeFlags_Leaf)) {
+    if (ImGui::CollapsingHeader(ICON_FA_STOPWATCH "  Timing")) {
 
         const webgpu::timing::GuiTimerWrapper* selected_timer = nullptr;
         if (!m_selected_timer.empty()) {
@@ -236,7 +236,7 @@ void GuiManager::draw()
         }
     }
 
-    if (ImGui::CollapsingHeader(ICON_FA_CAMERA " Camera", ImGuiTreeNodeFlags_Leaf)) {
+    if (ImGui::CollapsingHeader(ICON_FA_CAMERA " Camera")) {
         if (ImGui::BeginCombo("Preset", m_camera_preset_names[m_selected_camera_preset].c_str())) {
             for (size_t n = 0; n < m_camera_preset_names.size(); n++) {
                 bool is_selected = (size_t(m_selected_camera_preset) == n);
@@ -258,11 +258,11 @@ void GuiManager::draw()
         }
     }
 
-    if (ImGui::CollapsingHeader(ICON_FA_COG "  APP Settings", ImGuiTreeNodeFlags_Leaf)) {
+    if (ImGui::CollapsingHeader(ICON_FA_COG "  App Settings")) {
         m_terrain_renderer->render_gui();
     }
 
-    if (ImGui::CollapsingHeader(ICON_FA_COGS "  Engine Settings", ImGuiTreeNodeFlags_Leaf)) {
+    if (ImGui::CollapsingHeader(ICON_FA_COGS "  Engine Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
         auto webgpu_window = m_terrain_renderer->get_webgpu_window();
         if (webgpu_window) {
             webgpu_window->paint_gui();

@@ -54,7 +54,7 @@ private:
     std::vector<std::string> m_camera_preset_names;
     int m_selected_camera_preset = 0;
 
-    std::set<uint32_t> m_selected_timer = { 0 };
+    std::set<uint32_t> m_selected_timer = {};
 
     void draw();
 
