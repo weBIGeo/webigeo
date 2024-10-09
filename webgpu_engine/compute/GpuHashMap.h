@@ -81,6 +81,8 @@ public:
     /// Need to call update_gpu_data for effects to be visible on GPU side.
     void clear() { m_stored_map.clear(); }
 
+    const ValueType& value_at(const KeyType& id) const { return m_stored_map.at(id); }
+
     /// Update GPU buffers.
     void update_gpu_data()
     {

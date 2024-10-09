@@ -27,9 +27,18 @@ glm::uvec3 ComputeAvalancheTrajectoriesNode::SHADER_WORKGROUP_SIZE = { 1, 16, 16
 
 ComputeAvalancheTrajectoriesNode::ComputeAvalancheTrajectoriesNode(
     const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity, WGPUTextureFormat output_format)
-    : Node({ data_type<const std::vector<tile::Id>*>(), data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>(),
-               data_type<TileStorageTexture*>() },
-          { data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>() })
+    : Node(
+          {
+              data_type<const std::vector<tile::Id>*>(),
+              data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(),
+              data_type<TileStorageTexture*>(),
+              data_type<TileStorageTexture*>(),
+          },
+          {
+              data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(),
+              data_type<TileStorageTexture*>(),
+              data_type<webgpu::raii::RawBuffer<uint32_t>*>(),
+          })
     , m_pipeline_manager { &pipeline_manager }
     , m_device { device }
     , m_queue(wgpuDeviceGetQueue(m_device))
@@ -41,6 +50,8 @@ ComputeAvalancheTrajectoriesNode::ComputeAvalancheTrajectoriesNode(
     , m_input_settings(device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
     , m_output_tile_map(device, tile::Id { unsigned(-1), {} }, -1)
     , m_output_texture(device, output_resolution, capacity, output_format)
+    , m_output_storage_buffer(device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc,
+          capacity * output_resolution.x * output_resolution.y, "avalanche trajectories compute output storage")
 {
     m_output_tile_map.update_gpu_data();
 }
@@ -117,6 +128,8 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
     WGPUBindGroupEntry output_hash_map_key_buffer_entry = m_output_tile_map.key_buffer().create_bind_group_entry(9);
     WGPUBindGroupEntry output_hash_map_value_buffer_entry = m_output_tile_map.value_buffer().create_bind_group_entry(10);
     WGPUBindGroupEntry output_texture_array_entry = m_output_texture.texture().texture_view().create_bind_group_entry(11);
+    WGPUBindGroupEntry output_storage_buffer_entry = m_output_storage_buffer.create_bind_group_entry(12);
+
     std::vector<WGPUBindGroupEntry> entries {
         input_tile_ids_entry,
         input_bounds_entry,
@@ -130,6 +143,7 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
         output_hash_map_key_buffer_entry,
         output_hash_map_value_buffer_entry,
         output_texture_array_entry,
+        output_storage_buffer_entry,
     };
     webgpu::raii::BindGroup compute_bind_group(
         m_device, m_pipeline_manager->avalanche_trajectories_bind_group_layout(), entries, "avalanche trajectories compute bind group");
@@ -141,6 +155,9 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
         WGPUCommandEncoderDescriptor descriptor {};
         descriptor.label = "avalanche trajectories compute command encoder";
         webgpu::raii::CommandEncoder encoder(m_device, descriptor);
+
+        // TODO idk if necessary?
+        wgpuCommandEncoderClearBuffer(encoder.handle(), m_output_storage_buffer.handle(), 0, m_output_storage_buffer.size_in_byte());
 
         {
             WGPUComputePassDescriptor compute_pass_desc {};
@@ -175,7 +192,109 @@ Data ComputeAvalancheTrajectoriesNode::get_output_data_impl(SocketIndex output_i
         return { &m_output_tile_map };
     case Output::OUTPUT_TEXTURE_ARRAY:
         return { &m_output_texture };
+    case Output::OUTPUT_STORAGE_BUFFER:
+        return { &m_output_storage_buffer };
     }
+
+    exit(-1);
+}
+
+glm::uvec3 ComputeAvalancheTrajectoriesBufferToTextureNode::SHADER_WORKGROUP_SIZE = { 1, 16, 16 };
+
+ComputeAvalancheTrajectoriesBufferToTextureNode::ComputeAvalancheTrajectoriesBufferToTextureNode(
+    const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity, WGPUTextureFormat output_format)
+    : Node(
+          {
+              data_type<const std::vector<tile::Id>*>(),
+              data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(),
+              data_type<webgpu::raii::RawBuffer<uint32_t>*>(),
+          },
+          {
+              data_type<TileStorageTexture*>(),
+          })
+    , m_pipeline_manager { &pipeline_manager }
+    , m_device { device }
+    , m_queue { wgpuDeviceGetQueue(device) }
+    , m_input_tile_ids(
+          device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc, capacity, "avalanche trajectories compute, tile ids")
+    , m_output_texture(device, output_resolution, capacity, output_format)
+{
+}
+
+void ComputeAvalancheTrajectoriesBufferToTextureNode::run_impl()
+{
+    qDebug() << "running ComputeAvalancheTrajectoriesBufferToTextureNode ...";
+    const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(get_input_data(Input::TILE_ID_LIST_TO_PROCESS)); // list of tile ids to process
+    const auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(get_input_data(Input::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP));
+    const auto& input_storage_buffer = *std::get<data_type<webgpu::raii::RawBuffer<uint32_t>*>()>(get_input_data(Input::INPUT_STORAGE_BUFFER));
+
+    std::vector<GpuTileId> gpu_tile_ids(tile_ids.size());
+    std::vector<glm::vec4> tile_bounds(tile_ids.size());
+    for (size_t i = 0; i < gpu_tile_ids.size(); i++) {
+        gpu_tile_ids[i] = { tile_ids[i].coords.x, tile_ids[i].coords.y, tile_ids[i].zoom_level };
+    }
+    m_input_tile_ids.write(m_queue, gpu_tile_ids.data(), gpu_tile_ids.size());
+
+    // mark texture array elements as used
+    for (const auto& tile_id : tile_ids) {
+        m_output_texture.reserve(hash_map.value_at(tile_id));
+    }
+
+    // create bind group
+    // TODO re-create bind groups only when input handles change
+    // TODO adapter shader code
+    // TODO compute bounds in other node!
+    std::vector<WGPUBindGroupEntry> entries {
+        m_input_tile_ids.create_bind_group_entry(0),
+        hash_map.key_buffer().create_bind_group_entry(1),
+        hash_map.value_buffer().create_bind_group_entry(2),
+        input_storage_buffer.create_bind_group_entry(3),
+        m_output_texture.texture().texture_view().create_bind_group_entry(4),
+    };
+    webgpu::raii::BindGroup compute_bind_group(m_device, m_pipeline_manager->avalanche_trajectories_buffer_to_texture_bind_group_layout(), entries,
+        "avalanche trajectories buffer to texture compute bind group");
+
+    // bind GPU resources and run pipeline
+    {
+        WGPUCommandEncoderDescriptor descriptor {};
+        descriptor.label = "avalanche trajectories buffer to texture compute command encoder";
+        webgpu::raii::CommandEncoder encoder(m_device, descriptor);
+
+        {
+            WGPUComputePassDescriptor compute_pass_desc {};
+            compute_pass_desc.label = "avalanche trajectories buffer to texture compute pass";
+            webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
+
+            glm::uvec3 workgroup_counts
+                = glm::ceil(glm::vec3(m_output_texture.capacity(), m_output_texture.width(), m_output_texture.height()) / glm::vec3(SHADER_WORKGROUP_SIZE));
+            wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, compute_bind_group.handle(), 0, nullptr);
+            m_pipeline_manager->avalanche_trajectories_buffer_to_texture_compute_pipeline().run(compute_pass, workgroup_counts);
+        }
+
+        WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
+        cmd_buffer_descriptor.label = "avalanche trajectories buffer to texture compute command buffer";
+        WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder.handle(), &cmd_buffer_descriptor);
+        wgpuQueueSubmit(m_queue, 1, &command);
+        wgpuCommandBufferRelease(command);
+    }
+    wgpuQueueOnSubmittedWorkDone(
+        m_queue,
+        []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
+            ComputeAvalancheTrajectoriesBufferToTextureNode* _this = reinterpret_cast<ComputeAvalancheTrajectoriesBufferToTextureNode*>(user_data);
+            _this->run_finished(); // emits signal run_finished()
+        },
+        this);
+
+    // TODO
+}
+
+Data ComputeAvalancheTrajectoriesBufferToTextureNode::get_output_data_impl(SocketIndex output_index)
+{
+    switch (output_index) {
+    case Output::OUTPUT_TEXTURE_ARRAY:
+        return { &m_output_texture };
+    }
+
     exit(-1);
 }
 

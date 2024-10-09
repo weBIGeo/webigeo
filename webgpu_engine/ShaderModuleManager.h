@@ -48,6 +48,7 @@ public:
     const webgpu::raii::ShaderModule& upsample_textures_compute() const;
     const webgpu::raii::ShaderModule& line_render() const;
     const webgpu::raii::ShaderModule& avalanche_trajectories_compute() const;
+    const webgpu::raii::ShaderModule& avalanche_trajectories_buffer_to_texture_compute() const;
     const webgpu::raii::ShaderModule& avalanche_influence_area_compute() const;
 
     std::unique_ptr<webgpu::raii::ShaderModule> create_shader_module(const std::string& name, const std::string& code);
@@ -73,6 +74,7 @@ private:
     std::unique_ptr<webgpu::raii::ShaderModule> m_upsample_textures_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_line_render_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_avalanche_trajectories_compute_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_avalanche_trajectories_buffer_to_texture_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_avalanche_influence_area_compute_module;
 };
 

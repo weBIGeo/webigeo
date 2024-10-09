@@ -53,7 +53,7 @@ Window::Window()
 
 Window::~Window()
 {
-  // Destructor cleanup logic here
+    // Destructor cleanup logic here
 }
 
 void Window::set_wgpu_context(WGPUInstance instance, WGPUDevice device, WGPUAdapter adapter, WGPUSurface surface, WGPUQueue queue)
@@ -569,7 +569,7 @@ float Window::depth([[maybe_unused]] const glm::dvec2& normalised_device_coordin
 glm::dvec3 Window::position([[maybe_unused]] const glm::dvec2& normalised_device_coordinates)
 {
     // If we read position directly no reconstruction is necessary
-    //glm::dvec3 reconstructed = m_camera.position() + m_camera.ray_direction(normalised_device_coordinates) * (double)depth(normalised_device_coordinates);
+    // glm::dvec3 reconstructed = m_camera.position() + m_camera.ray_direction(normalised_device_coordinates) * (double)depth(normalised_device_coordinates);
     auto position = synchronous_position_readback(normalised_device_coordinates);
     return m_camera.position() + glm::dvec3(position.x, position.y, position.z);
 }
@@ -599,7 +599,7 @@ nucleus::utils::ColourTexture::Format Window::ortho_tile_compression_algorithm()
 
 void Window::set_permissible_screen_space_error([[maybe_unused]] float new_error)
 {
-  // Logic for setting permissible screen space error, parameter currently unused
+    // Logic for setting permissible screen space error, parameter currently unused
 }
 
 void Window::update_camera([[maybe_unused]] const nucleus::camera::Definition& new_definition)
@@ -623,7 +623,7 @@ void Window::update_camera([[maybe_unused]] const nucleus::camera::Definition& n
 
 void Window::update_debug_scheduler_stats([[maybe_unused]] const QString& stats)
 {
-  // Logic for updating debug scheduler stats, parameter currently unused
+    // Logic for updating debug scheduler stats, parameter currently unused
 }
 
 void Window::update_gpu_quads([[maybe_unused]] const std::vector<nucleus::tile_scheduler::tile_types::GpuTileQuad>& new_quads,
@@ -714,19 +714,29 @@ void Window::create_bind_groups()
 void Window::update_required_gpu_limits(WGPULimits& limits, const WGPULimits& supported_limits)
 {
     const uint32_t max_required_bind_groups = 4u;
+    const uint32_t min_recommended_max_texture_array_layers = 1024u;
+    const uint32_t min_required_max_color_attachment_bytes_per_sample = 32u;
+    const uint64_t min_required_max_storage_buffer_binding_size = 268435456u;
 
-    if (supported_limits.maxColorAttachmentBytesPerSample < 32u) {
-        qFatal("Minimum supported maxColorAttachmentBytesPerSample needs to be >=32");
+    if (supported_limits.maxColorAttachmentBytesPerSample < min_required_max_color_attachment_bytes_per_sample) {
+        qFatal() << "Minimum supported maxColorAttachmentBytesPerSample needs to be >=" << min_required_max_color_attachment_bytes_per_sample;
     }
-    if (supported_limits.maxTextureArrayLayers < 1024u) {
-        qWarning() << "Minimum supported maxTextureArrayLayers is " << supported_limits.maxTextureArrayLayers << " (1024 recommended)!";
+    if (supported_limits.maxTextureArrayLayers < min_recommended_max_texture_array_layers) {
+        qWarning() << "Minimum supported maxTextureArrayLayers is " << supported_limits.maxTextureArrayLayers << " ("
+                   << min_recommended_max_texture_array_layers << " recommended)!";
     }
     if (supported_limits.maxBindGroups < max_required_bind_groups) {
-        qFatal() << "Maximum amount of bindgroups is " << supported_limits.maxBindGroups << " and " << max_required_bind_groups << " are required";
+        qFatal() << "Maximum supported number of bind groups is " << supported_limits.maxBindGroups << " and " << max_required_bind_groups << " are required";
+    }
+    if (supported_limits.maxStorageBufferBindingSize < min_required_max_storage_buffer_binding_size) {
+        qFatal() << "Maximum supported storage buffer binding size is " << supported_limits.maxStorageBufferBindingSize << " and "
+                 << min_required_max_storage_buffer_binding_size << " is required";
     }
     limits.maxBindGroups = std::max(limits.maxBindGroups, max_required_bind_groups);
-    limits.maxColorAttachmentBytesPerSample = std::max(limits.maxColorAttachmentBytesPerSample, 32u);
-    limits.maxTextureArrayLayers = std::min(std::max(limits.maxTextureArrayLayers, 1024u), supported_limits.maxTextureArrayLayers);
+    limits.maxColorAttachmentBytesPerSample = std::max(limits.maxColorAttachmentBytesPerSample, min_required_max_color_attachment_bytes_per_sample);
+    limits.maxTextureArrayLayers
+        = std::min(std::max(limits.maxTextureArrayLayers, min_recommended_max_texture_array_layers), supported_limits.maxTextureArrayLayers);
+    limits.maxStorageBufferBindingSize = std::max(limits.maxStorageBufferBindingSize, supported_limits.maxStorageBufferBindingSize);
 }
 
 } // namespace webgpu_engine

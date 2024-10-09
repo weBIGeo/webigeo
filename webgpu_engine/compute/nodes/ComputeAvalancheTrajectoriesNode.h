@@ -38,6 +38,7 @@ public:
     enum Output : SocketIndex {
         OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP = 0,
         OUTPUT_TEXTURE_ARRAY = 1,
+        OUTPUT_STORAGE_BUFFER = 2,
     };
 
     static glm::uvec3 SHADER_WORKGROUP_SIZE; // TODO currently hardcoded in shader! can we somehow not hardcode it? maybe using overrides
@@ -126,6 +127,46 @@ private:
 
     // output
     GpuHashMap<tile::Id, uint32_t, GpuTileId> m_output_tile_map; // hash map
+    TileStorageTexture m_output_texture; // texture per tile
+    webgpu::raii::RawBuffer<uint32_t> m_output_storage_buffer; // storage buffer region per tile
+};
+
+class ComputeAvalancheTrajectoriesBufferToTextureNode : public Node {
+    Q_OBJECT
+
+public:
+    enum Input : SocketIndex {
+        TILE_ID_LIST_TO_PROCESS = 0,
+        TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP = 1,
+        INPUT_STORAGE_BUFFER = 2,
+    };
+    enum Output : SocketIndex {
+        OUTPUT_TEXTURE_ARRAY = 0,
+    };
+
+    static glm::uvec3 SHADER_WORKGROUP_SIZE; // TODO currently hardcoded in shader! can we somehow not hardcode it? maybe using overrides
+
+    ComputeAvalancheTrajectoriesBufferToTextureNode(
+        const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity, WGPUTextureFormat output_format);
+
+    const TileStorageTexture& texture_storage() const { return m_output_texture; }
+    TileStorageTexture& texture_storage() { return m_output_texture; }
+
+public slots:
+    void run_impl() override;
+
+protected:
+    Data get_output_data_impl(SocketIndex output_index) override;
+
+private:
+    const PipelineManager* m_pipeline_manager;
+    WGPUDevice m_device;
+    WGPUQueue m_queue;
+
+    // input
+    webgpu::raii::RawBuffer<GpuTileId> m_input_tile_ids;
+
+    // output
     TileStorageTexture m_output_texture; // texture per tile
 };
 

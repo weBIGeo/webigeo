@@ -34,7 +34,8 @@ class Node;
 using DataType = size_t;
 
 /// datatypes that can be used with nodes have to be declared here.
-using Data = std::variant<const std::vector<tile::Id>*, const std::vector<QByteArray>*, TileStorageTexture*, GpuHashMap<tile::Id, uint32_t, GpuTileId>*>;
+using Data = std::variant<const std::vector<tile::Id>*, const std::vector<QByteArray>*, TileStorageTexture*, GpuHashMap<tile::Id, uint32_t, GpuTileId>*,
+    webgpu::raii::RawBuffer<uint32_t>*>;
 
 using SocketIndex = size_t;
 

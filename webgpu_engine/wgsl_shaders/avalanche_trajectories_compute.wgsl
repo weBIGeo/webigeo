@@ -58,9 +58,10 @@ struct AreaOfInfluenceSettings {
 @group(0) @binding(10) var<storage> output_tiles_map_value_buffer: array<u32>; // hash map value buffer, contains texture array indice for output tiles
 
 // output
-@group(0) @binding(11) var output_tiles: texture_storage_2d_array<rgba8unorm, write>; // influence tiles (output)
+@group(0) @binding(11) var output_tiles: texture_storage_2d_array<rgba8unorm, write>; // trajectory tiles (output)
+@group(0) @binding(12) var<storage, read_write> output_storage_buffer: array<atomic<u32>>; // trajectory tiles
 
-const SAMPLING_DENSITY = 64; // traces only: grid frequency in xy direction in (output texture) texels
+const SAMPLING_DENSITY = 16; // traces only: grid frequency in xy direction in (output texture) texels
 
 fn should_paint(col: u32, row: u32, tile_id: TileId) -> bool {
     return (col % SAMPLING_DENSITY == 0) && (row % SAMPLING_DENSITY == 0);
@@ -138,6 +139,10 @@ fn model2(normal: vec3f, velocity: vec3f) -> vec3f {
     return settings.step_length * a;
 }
 
+fn get_storage_buffer_index(texture_layer: u32, coords: vec2u, output_texture_size: vec2u) -> u32 {
+    return texture_layer * output_texture_size.x * output_texture_size.y + coords.y * output_texture_size.x + coords.x;  
+}
+
 // draws traces within a single tile
 fn traces_overlay(id: vec3<u32>) {
     // id.x  in [0, num_tiles]
@@ -166,6 +171,7 @@ fn traces_overlay(id: vec3<u32>) {
 
     var max_steepness = 0.0;
     var velocity = vec3f(0, 0, 0);
+
     var world_space_offset = vec2f(0, 0); // offset from original world position
     for (var i: u32 = 0; i < settings.num_steps; i++) {
         // calculate tile id and uv coordinates
@@ -213,13 +219,18 @@ fn traces_overlay(id: vec3<u32>) {
             //let color = vec3(f32(col) / f32(output_texture_size.x), f32(row) / f32(output_texture_size.y), 0.0);
 
             // color by max steepness
-            let color = color_mapping_bergfex(max_steepness);
+            //let color = color_mapping_bergfex(max_steepness);
 
             // color by velocity
-            //let color = vec3f(length(velocity) * 0.5, 0, 0);
+            let color = vec3f(length(velocity) / 50.0, 0, 0);
 
             // color by num steps
             //let color = vec3(1.0 - f32(i) / f32(settings.num_steps), 0.0, 0.0);
+
+            let buffer_index = get_storage_buffer_index(output_texture_array_index, output_coords, output_texture_size);
+            atomicMax(&output_storage_buffer[buffer_index], u32(max_steepness * (2 << 16)));
+            //atomicMax(&output_storage_buffer[buffer_index], u32((length(velocity) / 25.0f) * (2 << 16)));
+
 
             textureStore(output_tiles, output_coords, output_texture_array_index, vec4f(color, 1.0));
         }
