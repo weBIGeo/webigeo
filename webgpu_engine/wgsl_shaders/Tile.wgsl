@@ -202,6 +202,7 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
 
         if (found && normal_texture_texel_value.w != 0.0f) {
             normal = normal_texture_texel_value.xyz * 2.0 - 1.0;
+            dist = -1.0; // temporary such that we know in compose if we are inside the precalculated area
         }
 
         frag_out.normal_enc = octNormalEncode2u16(normal);
@@ -229,7 +230,6 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
     
             if (found) {
                 overlay_color = sampled_overlay_color;
-                dist = -1.0; // temporary such that we know in compose if we are inside the precalculated area
             } else {
                 overlay_color = vec4f(albedo, 1.0); //kind of ugly
             }
