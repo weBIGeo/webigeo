@@ -50,8 +50,7 @@ public:
 
     struct AvalancheTrajectoriesSettings {
         glm::uvec2 output_resolution;
-        float padding1;
-        float padding2;
+        glm::uvec2 sampling_density;
 
         glm::vec4 target_point;
         glm::vec4 reference_point;
@@ -67,7 +66,7 @@ public:
         float model2_mass;
         float model2_friction_coeff;
         float model2_drag_coeff;
-        float padding3;
+        float padding1;
     };
 
     ComputeAvalancheTrajectoriesNode(const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity);
@@ -86,6 +85,7 @@ public:
     void set_step_length(float step_length) { m_input_settings.data.step_length = step_length; }
     void set_radius(float radius);
     void set_source_zoomlevel(uint32_t source_zoomlevel) { m_input_settings.data.source_zoomlevel = source_zoomlevel; }
+    void set_sampling_density(glm::uvec2 sampling_density) { m_input_settings.data.sampling_density = sampling_density; }
 
     void set_physics_model_type(PhysicsModelType physics_model_type) { this->m_input_settings.data.physics_model_type = physics_model_type; }
     void set_model1_linear_drag_coeff(float model1_linear_drag_coeff) { this->m_input_settings.data.model1_linear_drag_coeff = model1_linear_drag_coeff; }

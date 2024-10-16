@@ -53,6 +53,7 @@ struct ComputePipelineSettings {
     bool sync_snow_settings_with_render_settings = true; // snow node
     compute::nodes::ComputeSnowNode::SnowSettings snow_settings; // snow node
 
+    uint32_t sampling_density = 16u; // trajectories node
     compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType model_type = compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL1;
     float model1_velocity_coeff = 0.02f;
     float model1_gradient_coeff = 0.07f;

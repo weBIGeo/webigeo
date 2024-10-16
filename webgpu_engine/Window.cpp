@@ -18,6 +18,7 @@
  *****************************************************************************/
 
 #include "Window.h"
+#include "compute/nodes/ComputeAvalancheInfluenceAreaNode.h"
 #include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
 #include "compute/nodes/ComputeSnowNode.h"
 #include "compute/nodes/SelectTilesNode.h"
@@ -39,6 +40,7 @@
 #endif
 // TODO: Remove ImGuiFileDialog dependency on Web-build
 #include "imgui.h"
+
 #endif
 
 namespace webgpu_engine {
@@ -323,116 +325,131 @@ void Window::paint_compute_pipeline_gui()
             ImGui::EndCombo();
         }
 
-        if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
-            ImGui::SliderScalar("Source zoom level", ImGuiDataType_U32, &m_compute_pipeline_settings.source_zoomlevel, &min_zoomlevel, &max_zoomlevel, "%u");
-            if (ImGui::IsItemDeactivatedAfterEdit()) {
-                recreate_and_rerun_compute_pipeline();
-            }
+        if (ImGui::TreeNodeEx("Pipeline-specific settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::PushItemWidth(15.0f * ImGui::GetFontSize());
+            if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
+                const uint32_t min_sampling_density = 1;
+                const uint32_t max_sampling_density = 256;
+                // 1-> 1x pro 256 -> 256
+                // 256 -> 256x pro 256 -> 1
+                // 2-> 2x pro 256 -> 128
+                ImGui::SliderScalar("Sampling density", ImGuiDataType_U32, &m_compute_pipeline_settings.sampling_density, &min_sampling_density,
+                    &max_sampling_density, "%u", ImGuiSliderFlags_Logarithmic);
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    recreate_and_rerun_compute_pipeline();
+                }
+                ImGui::SliderScalar(
+                    "Source zoom level", ImGuiDataType_U32, &m_compute_pipeline_settings.source_zoomlevel, &min_zoomlevel, &max_zoomlevel, "%u");
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    recreate_and_rerun_compute_pipeline();
+                }
 
-            const uint32_t min_steps = 1;
-            const uint32_t max_steps = 1024;
-            ImGui::SliderScalar("Num steps", ImGuiDataType_U32, &m_compute_pipeline_settings.num_steps, &min_steps, &max_steps, "%u");
-            if (ImGui::IsItemDeactivatedAfterEdit()) {
-                recreate_and_rerun_compute_pipeline();
-            }
+                const uint32_t min_steps = 1;
+                const uint32_t max_steps = 4096;
+                ImGui::SliderScalar("Num steps", ImGuiDataType_U32, &m_compute_pipeline_settings.num_steps, &min_steps, &max_steps, "%u");
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    recreate_and_rerun_compute_pipeline();
+                }
 
-            ImGui::SliderFloat("Step length", &m_compute_pipeline_settings.steps_length, 0.01, 5.0, "%.1f");
-            if (ImGui::IsItemDeactivatedAfterEdit()) {
-                recreate_and_rerun_compute_pipeline();
-            }
+                ImGui::SliderFloat("Step length", &m_compute_pipeline_settings.steps_length, 0.01f, 1.0f, "%.2f");
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    recreate_and_rerun_compute_pipeline();
+                }
 
-            static int current_physics_model_item = 0;
-            const std::vector<std::pair<std::string, compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType>> physics_model_types
-                = { { "Momentum (simple)", compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL1 },
-                      { "Momentum (less simple)", compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL2 },
-                      { "Gradients", compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL3 } };
-            const char* current_item_label = physics_model_types[current_physics_model_item].first.c_str();
-            if (ImGui::BeginCombo("Physics model", current_item_label)) {
-                for (size_t i = 0; i < physics_model_types.size(); i++) {
-                    bool is_selected = ((size_t)current_physics_model_item == i);
-                    if (ImGui::Selectable(physics_model_types[i].first.c_str(), is_selected)) {
-                        current_physics_model_item = i;
-                        m_compute_pipeline_settings.model_type = physics_model_types[i].second;
+                static int current_physics_model_item = 0;
+                const std::vector<std::pair<std::string, compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType>> physics_model_types
+                    = { { "Momentum (simple)", compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL1 },
+                          { "Momentum (less simple)", compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL2 },
+                          { "Gradients", compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL3 } };
+                const char* current_item_label = physics_model_types[current_physics_model_item].first.c_str();
+                if (ImGui::BeginCombo("Physics model", current_item_label)) {
+                    for (size_t i = 0; i < physics_model_types.size(); i++) {
+                        bool is_selected = ((size_t)current_physics_model_item == i);
+                        if (ImGui::Selectable(physics_model_types[i].first.c_str(), is_selected)) {
+                            current_physics_model_item = i;
+                            m_compute_pipeline_settings.model_type = physics_model_types[i].second;
+                            recreate_and_rerun_compute_pipeline();
+                        }
+                        if (is_selected)
+                            ImGui::SetItemDefaultFocus();
+                    }
+                    ImGui::EndCombo();
+                }
+
+                if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL1) {
+                    ImGui::SliderFloat("Linear drag coeff##model1", &m_compute_pipeline_settings.model1_velocity_coeff, 0.0f, 1.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
                         recreate_and_rerun_compute_pipeline();
                     }
-                    if (is_selected)
-                        ImGui::SetItemDefaultFocus();
+                    ImGui::SliderFloat("Speedup coeff##model1", &m_compute_pipeline_settings.model1_gradient_coeff, 0.0f, 1.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        recreate_and_rerun_compute_pipeline();
+                    }
+                } else if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL2) {
+                    ImGui::SliderFloat("Gravity##model2", &m_compute_pipeline_settings.model2_gravity, 0.0f, 15.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        recreate_and_rerun_compute_pipeline();
+                    }
+                    ImGui::SliderFloat("Mass##model2", &m_compute_pipeline_settings.model2_mass, 0.0f, 100.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        recreate_and_rerun_compute_pipeline();
+                    }
+                    ImGui::SliderFloat("Drag coeff##model2", &m_compute_pipeline_settings.model2_drag_coeff, 0.0f, 1.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        recreate_and_rerun_compute_pipeline();
+                    }
+                    ImGui::SliderFloat("Friction coeff##model2", &m_compute_pipeline_settings.model2_friction_coeff, 0.0f, 1.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        recreate_and_rerun_compute_pipeline();
+                    }
                 }
-                ImGui::EndCombo();
-            }
-
-            if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL1) {
-                ImGui::SliderFloat("Linear drag coeff##model1", &m_compute_pipeline_settings.model1_velocity_coeff, 0.0f, 1.0f, "%.2f");
+            } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_INFLUENCE_AREA) {
+                const uint32_t min_steps = 1;
+                const uint32_t max_steps = 4096;
+                ImGui::SliderScalar("Num steps", ImGuiDataType_U32, &m_compute_pipeline_settings.num_steps, &min_steps, &max_steps, "%u");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     recreate_and_rerun_compute_pipeline();
                 }
-                ImGui::SliderFloat("Speedup coeff##model1", &m_compute_pipeline_settings.model1_gradient_coeff, 0.0f, 1.0f, "%.2f");
+
+                ImGui::SliderFloat("Step length", &m_compute_pipeline_settings.steps_length, 0.01f, 1.0f, "%.2f");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     recreate_and_rerun_compute_pipeline();
                 }
-            } else if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL2) {
-                ImGui::SliderFloat("Gravity##model2", &m_compute_pipeline_settings.model2_gravity, 0.0f, 15.0f, "%.2f");
+
+                ImGui::SliderFloat("Radius", &m_compute_pipeline_settings.radius, 0.0f, 100.0f, "%.1fm");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     recreate_and_rerun_compute_pipeline();
                 }
-                ImGui::SliderFloat("Mass##model2", &m_compute_pipeline_settings.model2_mass, 0.0f, 10.0f, "%.2f");
-                if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    recreate_and_rerun_compute_pipeline();
-                }
-                ImGui::SliderFloat("Drag coeff##model2", &m_compute_pipeline_settings.model2_drag_coeff, 0.0f, 1.0f, "%.2f");
-                if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    recreate_and_rerun_compute_pipeline();
-                }
-                ImGui::SliderFloat("Friction coeff##model2", &m_compute_pipeline_settings.model2_friction_coeff, 0.0f, 1.0f, "%.2f");
-                if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    recreate_and_rerun_compute_pipeline();
-                }
-            }
-        } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_INFLUENCE_AREA) {
-            const uint32_t min_steps = 1;
-            const uint32_t max_steps = 1024;
-            ImGui::SliderScalar("Num steps", ImGuiDataType_U32, &m_compute_pipeline_settings.num_steps, &min_steps, &max_steps, "%u");
-            if (ImGui::IsItemDeactivatedAfterEdit()) {
-                recreate_and_rerun_compute_pipeline();
-            }
 
-            ImGui::SliderFloat("Step length", &m_compute_pipeline_settings.steps_length, 0.01, 5.0, "%.1f");
-            if (ImGui::IsItemDeactivatedAfterEdit()) {
-                recreate_and_rerun_compute_pipeline();
-            }
+            } else if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS_AND_SNOW) {
+                if (ImGui::Checkbox("Sync with render settings", &m_compute_pipeline_settings.sync_snow_settings_with_render_settings)) {
+                    update_compute_pipeline_settings();
+                }
 
-            ImGui::SliderFloat("Radius", &m_compute_pipeline_settings.radius, 0.0f, 100.0f, "%.1fm");
-            if (ImGui::IsItemDeactivatedAfterEdit()) {
-                recreate_and_rerun_compute_pipeline();
-            }
-
-        } else if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS_AND_SNOW) {
-
-            if (ImGui::Checkbox("Sync with render settings", &m_compute_pipeline_settings.sync_snow_settings_with_render_settings)) {
-                update_compute_pipeline_settings();
-            }
-
-            if (!m_compute_pipeline_settings.sync_snow_settings_with_render_settings) {
-                if (ImGui::DragFloatRange2("Angle limit##compute", &m_compute_pipeline_settings.snow_settings.angle.y,
-                        &m_compute_pipeline_settings.snow_settings.angle.z, 0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp)) {
-                    update_compute_pipeline_settings();
-                }
-                if (ImGui::SliderFloat("Angle blend##compute", &m_compute_pipeline_settings.snow_settings.angle.w, 0.0f, 90.0f, "%.1f°")) {
-                    update_compute_pipeline_settings();
-                }
-                if (ImGui::SliderFloat("Altitude limit##compute", &m_compute_pipeline_settings.snow_settings.alt.x, 0.0f, 4000.0f, "%.1fm")) {
-                    update_compute_pipeline_settings();
-                }
-                if (ImGui::SliderFloat("Altitude variation##compute", &m_compute_pipeline_settings.snow_settings.alt.y, 0.0f, 1000.0f, "%.1f°")) {
-                    update_compute_pipeline_settings();
-                }
-                if (ImGui::SliderFloat("Altitude blend##compute", &m_compute_pipeline_settings.snow_settings.alt.z, 0.0f, 1000.0f)) {
-                    update_compute_pipeline_settings();
-                }
-                if (ImGui::SliderFloat("Specular##compute", &m_compute_pipeline_settings.snow_settings.alt.w, 0.0f, 5.0f)) {
-                    update_compute_pipeline_settings();
+                if (!m_compute_pipeline_settings.sync_snow_settings_with_render_settings) {
+                    if (ImGui::DragFloatRange2("Angle limit##compute", &m_compute_pipeline_settings.snow_settings.angle.y,
+                            &m_compute_pipeline_settings.snow_settings.angle.z, 0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp)) {
+                        update_compute_pipeline_settings();
+                    }
+                    if (ImGui::SliderFloat("Angle blend##compute", &m_compute_pipeline_settings.snow_settings.angle.w, 0.0f, 90.0f, "%.1f°")) {
+                        update_compute_pipeline_settings();
+                    }
+                    if (ImGui::SliderFloat("Altitude limit##compute", &m_compute_pipeline_settings.snow_settings.alt.x, 0.0f, 4000.0f, "%.1fm")) {
+                        update_compute_pipeline_settings();
+                    }
+                    if (ImGui::SliderFloat("Altitude variation##compute", &m_compute_pipeline_settings.snow_settings.alt.y, 0.0f, 1000.0f, "%.1f°")) {
+                        update_compute_pipeline_settings();
+                    }
+                    if (ImGui::SliderFloat("Altitude blend##compute", &m_compute_pipeline_settings.snow_settings.alt.z, 0.0f, 1000.0f)) {
+                        update_compute_pipeline_settings();
+                    }
+                    if (ImGui::SliderFloat("Specular##compute", &m_compute_pipeline_settings.snow_settings.alt.w, 0.0f, 5.0f)) {
+                        update_compute_pipeline_settings();
+                    }
                 }
             }
+            ImGui::PopItemWidth();
+            ImGui::TreePop();
         }
     }
 }
@@ -499,8 +516,7 @@ void Window::update_compute_pipeline_settings()
             m_compute_pipeline_settings.snow_settings.angle = m_shared_config_ubo->data.m_snow_settings_angle;
         }
         m_compute_graph->get_node_as<compute::nodes::ComputeSnowNode>("compute_snow_node").set_snow_settings(m_compute_pipeline_settings.snow_settings);
-    } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES
-        || m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_INFLUENCE_AREA) {
+    } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
         // tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_target_tiles_node")
             .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.target_zoomlevel);
@@ -509,21 +525,22 @@ void Window::update_compute_pipeline_settings()
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_source_tiles_node")
             .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.source_zoomlevel);
 
-        // area of influence settings
-        auto& area_of_influence_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("compute_area_of_influence_node");
-        area_of_influence_node.set_reference_point_world(m_compute_pipeline_settings.reference_point);
-        area_of_influence_node.set_target_point_world(m_compute_pipeline_settings.target_point);
-        area_of_influence_node.set_num_steps(m_compute_pipeline_settings.num_steps);
-        area_of_influence_node.set_step_length(m_compute_pipeline_settings.steps_length);
-        area_of_influence_node.set_radius(m_compute_pipeline_settings.radius);
-        area_of_influence_node.set_source_zoomlevel(m_compute_pipeline_settings.source_zoomlevel);
-        area_of_influence_node.set_physics_model_type(m_compute_pipeline_settings.model_type);
-        area_of_influence_node.set_model1_downward_acceleration_coeff(m_compute_pipeline_settings.model1_gradient_coeff);
-        area_of_influence_node.set_model1_linear_drag_coeff(m_compute_pipeline_settings.model1_velocity_coeff);
-        area_of_influence_node.set_model2_gravity(m_compute_pipeline_settings.model2_gravity);
-        area_of_influence_node.set_model2_mass(m_compute_pipeline_settings.model2_mass);
-        area_of_influence_node.set_model2_friction_coeff(m_compute_pipeline_settings.model2_friction_coeff);
-        area_of_influence_node.set_model2_drag_coeff(m_compute_pipeline_settings.model2_drag_coeff);
+        // trajectories settings
+        auto& trajectories_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("compute_area_of_influence_node");
+        trajectories_node.set_reference_point_world(m_compute_pipeline_settings.reference_point);
+        trajectories_node.set_target_point_world(m_compute_pipeline_settings.target_point);
+        trajectories_node.set_num_steps(m_compute_pipeline_settings.num_steps);
+        trajectories_node.set_step_length(m_compute_pipeline_settings.steps_length);
+        trajectories_node.set_radius(m_compute_pipeline_settings.radius);
+        trajectories_node.set_source_zoomlevel(m_compute_pipeline_settings.source_zoomlevel);
+        trajectories_node.set_physics_model_type(m_compute_pipeline_settings.model_type);
+        trajectories_node.set_model1_downward_acceleration_coeff(m_compute_pipeline_settings.model1_gradient_coeff);
+        trajectories_node.set_model1_linear_drag_coeff(m_compute_pipeline_settings.model1_velocity_coeff);
+        trajectories_node.set_model2_gravity(m_compute_pipeline_settings.model2_gravity);
+        trajectories_node.set_model2_mass(m_compute_pipeline_settings.model2_mass);
+        trajectories_node.set_model2_friction_coeff(m_compute_pipeline_settings.model2_friction_coeff);
+        trajectories_node.set_model2_drag_coeff(m_compute_pipeline_settings.model2_drag_coeff);
+        trajectories_node.set_sampling_density(glm::uvec2(256u / m_compute_pipeline_settings.sampling_density));
     } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_INFLUENCE_AREA) {
         // tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_target_tiles_node")
@@ -534,7 +551,7 @@ void Window::update_compute_pipeline_settings()
             .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.source_zoomlevel);
 
         // area of influence settings
-        auto& area_of_influence_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("compute_area_of_influence_node");
+        auto& area_of_influence_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheInfluenceAreaNode>("compute_area_of_influence_node");
         area_of_influence_node.set_reference_point_world(m_compute_pipeline_settings.reference_point);
         area_of_influence_node.set_target_point_world(m_compute_pipeline_settings.target_point);
         area_of_influence_node.set_num_steps(m_compute_pipeline_settings.num_steps);

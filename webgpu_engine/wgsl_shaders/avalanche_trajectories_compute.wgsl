@@ -26,8 +26,7 @@
 
 struct AvalancheTrajectoriesSettings {
     output_resolution: vec2u,
-    padding1: f32,
-    padding2: f32,
+    sampling_density: vec2u, // sampling density in x and y direction (n means starting a trajectory at every n-th texel)
 
     target_point: vec4f,
     reference_point: vec4f,
@@ -43,7 +42,7 @@ struct AvalancheTrajectoriesSettings {
     model2_mass: f32,
     model2_friction_coeff: f32,
     model2_drag_coeff: f32,
-    padding3: f32,
+    padding1: f32,
 }
 
 // input
@@ -64,10 +63,8 @@ struct AvalancheTrajectoriesSettings {
 // output
 @group(0) @binding(11) var<storage, read_write> output_storage_buffer: array<atomic<u32>>; // trajectory tiles
 
-const SAMPLING_DENSITY = 16; // traces only: grid frequency in xy direction in (output texture) texels
-
 fn should_paint(col: u32, row: u32, tile_id: TileId) -> bool {
-    return (col % SAMPLING_DENSITY == 0) && (row % SAMPLING_DENSITY == 0);
+    return (col % settings.sampling_density.x == 0) && (row % settings.sampling_density.y == 0);
     //return (col % 16 == 0) && (row % 16 == 0) && (tile_id.x == 140386 + 1) && (tile_id.y == 169805 + 1);
     //return (col == 0) && (row == 0) && (tile_id.x == 140386 + 1) && (tile_id.y == 169805 + 1);
     //return (col == 64) && (row == 64) && (tile_id.x == 140386 + 1) && (tile_id.y == 169805 + 1);

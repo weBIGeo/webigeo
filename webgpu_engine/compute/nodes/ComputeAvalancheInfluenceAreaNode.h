@@ -19,6 +19,7 @@
 #pragma once
 
 #include "Buffer.h"
+#include "ComputeAvalancheTrajectoriesNode.h"
 #include "Node.h"
 #include "PipelineManager.h"
 
@@ -41,12 +42,6 @@ public:
 
     static glm::uvec3 SHADER_WORKGROUP_SIZE; // TODO currently hardcoded in shader! can we somehow not hardcode it? maybe using overrides
 
-    enum PhysicsModelType : uint32_t {
-        MODEL1 = 0,
-        MODEL2 = 1,
-        MODEL3 = 2,
-    };
-
     struct AvalancheInfluenceAreaSettings {
         glm::vec4 target_point;
         glm::vec4 reference_point;
@@ -55,7 +50,7 @@ public:
         float radius = 20.0f;
         uint32_t source_zoomlevel;
 
-        PhysicsModelType physics_model_type;
+        ComputeAvalancheTrajectoriesNode::PhysicsModelType physics_model_type;
         float model1_linear_drag_coeff;
         float model1_downward_acceleration_coeff;
         float model2_gravity;
@@ -85,7 +80,10 @@ public:
     void set_radius(float radius);
     void set_source_zoomlevel(uint32_t source_zoomlevel) { m_input_settings.data.source_zoomlevel = source_zoomlevel; }
 
-    void set_physics_model_type(PhysicsModelType physics_model_type) { this->m_input_settings.data.physics_model_type = physics_model_type; }
+    void set_physics_model_type(ComputeAvalancheTrajectoriesNode::PhysicsModelType physics_model_type)
+    {
+        this->m_input_settings.data.physics_model_type = physics_model_type;
+    }
     void set_model1_linear_drag_coeff(float model1_linear_drag_coeff) { this->m_input_settings.data.model1_linear_drag_coeff = model1_linear_drag_coeff; }
     void set_model1_downward_acceleration_coeff(float model1_downward_acceleration_coeff)
     {
