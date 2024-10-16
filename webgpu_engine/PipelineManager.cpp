@@ -706,15 +706,8 @@ void PipelineManager::create_avalanche_trajectory_bind_group_layout()
     output_value_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
     output_value_buffer_entry.buffer.minBindingSize = 0;
 
-    WGPUBindGroupLayoutEntry output_tiles_entry {};
-    output_tiles_entry.binding = 11;
-    output_tiles_entry.visibility = WGPUShaderStage_Compute;
-    output_tiles_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2DArray;
-    output_tiles_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
-    output_tiles_entry.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
-
     WGPUBindGroupLayoutEntry output_storage_buffer_entry {};
-    output_storage_buffer_entry.binding = 12;
+    output_storage_buffer_entry.binding = 11;
     output_storage_buffer_entry.visibility = WGPUShaderStage_Compute;
     output_storage_buffer_entry.buffer.type = WGPUBufferBindingType_Storage;
     output_storage_buffer_entry.buffer.minBindingSize = 0;
@@ -722,7 +715,7 @@ void PipelineManager::create_avalanche_trajectory_bind_group_layout()
     m_avalanche_trajectories_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
         std::vector<WGPUBindGroupLayoutEntry> { input_tile_ids_entry, input_bounds_entry, input_settings, key_buffer_entry, value_buffer_entry,
             input_normal_textures_entry, input_normal_texture_sampler, input_height_textures_entry, input_height_texture_sampler, output_key_buffer_entry,
-            output_value_buffer_entry, output_tiles_entry, output_storage_buffer_entry },
+            output_value_buffer_entry, output_storage_buffer_entry },
         "avalanche trajectories compute bind group layout");
 }
 

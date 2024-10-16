@@ -24,7 +24,11 @@
 #include "normals_util.wgsl"
 #include "color_mapping.wgsl"
 
-struct AreaOfInfluenceSettings {
+struct AvalancheTrajectoriesSettings {
+    output_resolution: vec2u,
+    padding1: f32,
+    padding2: f32,
+
     target_point: vec4f,
     reference_point: vec4f,
     num_steps: u32, // maximum number of steps (along gradient)
@@ -39,13 +43,13 @@ struct AreaOfInfluenceSettings {
     model2_mass: f32,
     model2_friction_coeff: f32,
     model2_drag_coeff: f32,
-    padding1: f32,
+    padding3: f32,
 }
 
 // input
 @group(0) @binding(0) var<storage> input_tile_ids: array<TileId>; // tiles ids to process
 @group(0) @binding(1) var<storage> input_tile_bounds: array<vec4<f32>>; // pre-computed tile bounds per tile id (in world space, relative to reference point)
-@group(0) @binding(2) var<uniform> settings: AreaOfInfluenceSettings;
+@group(0) @binding(2) var<uniform> settings: AvalancheTrajectoriesSettings;
 
 @group(0) @binding(3) var<storage> map_key_buffer: array<TileId>; // hash map key buffer
 @group(0) @binding(4) var<storage> map_value_buffer: array<u32>; // hash map value buffer, contains texture array indices
@@ -58,8 +62,7 @@ struct AreaOfInfluenceSettings {
 @group(0) @binding(10) var<storage> output_tiles_map_value_buffer: array<u32>; // hash map value buffer, contains texture array indice for output tiles
 
 // output
-@group(0) @binding(11) var output_tiles: texture_storage_2d_array<rgba8unorm, write>; // trajectory tiles (output)
-@group(0) @binding(12) var<storage, read_write> output_storage_buffer: array<atomic<u32>>; // trajectory tiles
+@group(0) @binding(11) var<storage, read_write> output_storage_buffer: array<atomic<u32>>; // trajectory tiles
 
 const SAMPLING_DENSITY = 16; // traces only: grid frequency in xy direction in (output texture) texels
 
@@ -71,16 +74,6 @@ fn should_paint(col: u32, row: u32, tile_id: TileId) -> bool {
 }
 
 fn gradient_overlay(id: vec3<u32>) {
-    // id.x  in [0, num_tiles]
-    // id.yz in [0, ceil(texture_dimensions(output_tiles).xy / workgroup_size.yz) - 1]
-
-    // exit if thread id is outside image dimensions (i.e. thread is not supposed to be doing any work)
-    let output_texture_size = textureDimensions(output_tiles);
-    if (id.y >= output_texture_size.x || id.z >= output_texture_size.y) {
-        return;
-    }
-    // id.yz in [0, texture_dimensions(output_tiles) - 1]
-
     let tile_id = input_tile_ids[id.x];
     let bounds = input_tile_bounds[id.x];
     let input_texture_size = textureDimensions(input_normal_tiles);
@@ -89,7 +82,7 @@ fn gradient_overlay(id: vec3<u32>) {
 
     let col = id.y; // in [0, texture_dimension(output_tiles).x - 1]
     let row = id.z; // in [0, texture_dimension(output_tiles).y - 1]
-    let uv = vec2f(f32(col), f32(row)) / vec2f(output_texture_size - 1);
+    let uv = vec2f(f32(col), f32(row)) / vec2f(settings.output_resolution - 1);
 
     var source_tile_id: TileId = tile_id;
     var source_uv: vec2f = uv;
@@ -103,7 +96,7 @@ fn gradient_overlay(id: vec3<u32>) {
     }
     let normal = bilinear_sample_vec4f(input_normal_tiles, input_normal_tiles_sampler, source_uv, texture_array_index).xyz * 2 - 1;
     let gradient = get_gradient(normal);
-    textureStore(output_tiles, vec2u(col, row), id.x, vec4f(gradient, 1));
+    //textureStore(output_tiles, vec2u(col, row), id.x, vec4f(gradient, 1));
 }
 
 fn model1(normal: vec3f, velocity: vec3f) -> vec3f {
@@ -145,16 +138,6 @@ fn get_storage_buffer_index(texture_layer: u32, coords: vec2u, output_texture_si
 
 // draws traces within a single tile
 fn traces_overlay(id: vec3<u32>) {
-    // id.x  in [0, num_tiles]
-    // id.yz in [0, ceil(texture_dimensions(output_tiles).xy / workgroup_size.yz) - 1]
-
-    // exit if thread id is outside image dimensions (i.e. thread is not supposed to be doing any work)
-    let output_texture_size = textureDimensions(output_tiles);
-    if (id.y >= output_texture_size.x || id.z >= output_texture_size.y) {
-        return;
-    }
-    // id.yz in [0, texture_dimensions(output_tiles) - 1]
-
     let tile_id = input_tile_ids[id.x];
     let bounds = input_tile_bounds[id.x];
     let input_texture_size = textureDimensions(input_normal_tiles);
@@ -163,7 +146,7 @@ fn traces_overlay(id: vec3<u32>) {
 
     let col = id.y; // in [0, texture_dimension(output_tiles).x - 1]
     let row = id.z; // in [0, texture_dimension(output_tiles).y - 1]
-    let uv = vec2f(f32(col), f32(row)) / vec2f(output_texture_size - 1);
+    let uv = vec2f(f32(col), f32(row)) / vec2f(settings.output_resolution - 1);
 
     if (!should_paint(col, row, tile_id)) {
         return;
@@ -211,12 +194,12 @@ fn traces_overlay(id: vec3<u32>) {
         velocity = velocity + velocity_change;
 
         // paint trace point
-        let output_coords = vec2u(new_uv * vec2f(output_texture_size));
+        let output_coords = vec2u(new_uv * vec2f(settings.output_resolution));
         var output_texture_array_index: u32;
         let found_output_tile = get_texture_array_index(new_tile_id, &output_texture_array_index, &output_tiles_map_key_buffer, &output_tiles_map_value_buffer);
         if (found_output_tile) {
             // color by distinct starting point
-            //let color = vec3(f32(col) / f32(output_texture_size.x), f32(row) / f32(output_texture_size.y), 0.0);
+            //let color = vec3(f32(col) / f32(settings.output_resolution.x), f32(row) / f32(settings.output_resolution.y), 0.0);
 
             // color by max steepness
             //let color = color_mapping_bergfex(max_steepness);
@@ -227,12 +210,12 @@ fn traces_overlay(id: vec3<u32>) {
             // color by num steps
             //let color = vec3(1.0 - f32(i) / f32(settings.num_steps), 0.0, 0.0);
 
-            let buffer_index = get_storage_buffer_index(output_texture_array_index, output_coords, output_texture_size);
+            let buffer_index = get_storage_buffer_index(output_texture_array_index, output_coords, settings.output_resolution);
             atomicMax(&output_storage_buffer[buffer_index], u32(max_steepness * (2 << 16)));
             //atomicMax(&output_storage_buffer[buffer_index], u32((length(velocity) / 25.0f) * (2 << 16)));
 
 
-            textureStore(output_tiles, output_coords, output_texture_array_index, vec4f(color, 1.0));
+            //textureStore(output_tiles, output_coords, output_texture_array_index, vec4f(color, 1.0));
         }
 
         // update position
@@ -240,12 +223,20 @@ fn traces_overlay(id: vec3<u32>) {
     }
 
     // overpaint start point
-    textureStore(output_tiles, vec2u(col, row), id.x, vec4f(0.0, 0.0, 1.0, 1.0));
+    //textureStore(output_tiles, vec2u(col, row), id.x, vec4f(0.0, 0.0, 1.0, 1.0));
 }
 
 @compute @workgroup_size(1, 16, 16)
 fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
+    // id.x  in [0, num_tiles]
+    // id.yz in [0, ceil(texture_dimensions(output_tiles).xy / workgroup_size.yz) - 1]
+
+    // exit if thread id is outside image dimensions (i.e. thread is not supposed to be doing any work)
+    if (id.y >= settings.output_resolution.x || id.z >= settings.output_resolution.y) {
+        return;
+    }
+    // id.yz in [0, texture_dimensions(output_tiles) - 1]
+
     //gradient_overlay(id);
     traces_overlay(id);
-    //area_of_influence_overlay(id);
 }

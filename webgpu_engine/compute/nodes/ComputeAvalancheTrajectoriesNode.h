@@ -37,8 +37,7 @@ public:
     };
     enum Output : SocketIndex {
         OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP = 0,
-        OUTPUT_TEXTURE_ARRAY = 1,
-        OUTPUT_STORAGE_BUFFER = 2,
+        OUTPUT_STORAGE_BUFFER = 1,
     };
 
     static glm::uvec3 SHADER_WORKGROUP_SIZE; // TODO currently hardcoded in shader! can we somehow not hardcode it? maybe using overrides
@@ -50,6 +49,10 @@ public:
     };
 
     struct AvalancheTrajectoriesSettings {
+        glm::uvec2 output_resolution;
+        float padding1;
+        float padding2;
+
         glm::vec4 target_point;
         glm::vec4 reference_point;
         uint32_t num_steps = 128;
@@ -64,16 +67,13 @@ public:
         float model2_mass;
         float model2_friction_coeff;
         float model2_drag_coeff;
-        float padding1;
+        float padding3;
     };
 
-    ComputeAvalancheTrajectoriesNode(
-        const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity, WGPUTextureFormat output_format);
+    ComputeAvalancheTrajectoriesNode(const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity);
 
     const GpuHashMap<tile::Id, uint32_t, GpuTileId>& hash_map() const { return m_output_tile_map; }
     GpuHashMap<tile::Id, uint32_t, GpuTileId>& hash_map() { return m_output_tile_map; }
-    const TileStorageTexture& texture_storage() const { return m_output_texture; }
-    TileStorageTexture& texture_storage() { return m_output_texture; }
 
     void set_area_of_influence_settings(const AvalancheTrajectoriesSettings& settings) { m_input_settings.data = settings; }
     const AvalancheTrajectoriesSettings& get_area_of_influence_settings() const { return m_input_settings.data; }
@@ -113,6 +113,8 @@ private:
     WGPUDevice m_device;
     WGPUQueue m_queue;
     size_t m_capacity;
+    glm::uvec2 m_output_resolution;
+
     bool m_should_output_files;
 
     glm::dvec2 m_target_point;
@@ -127,7 +129,6 @@ private:
 
     // output
     GpuHashMap<tile::Id, uint32_t, GpuTileId> m_output_tile_map; // hash map
-    TileStorageTexture m_output_texture; // texture per tile
     webgpu::raii::RawBuffer<uint32_t> m_output_storage_buffer; // storage buffer region per tile
 };
 

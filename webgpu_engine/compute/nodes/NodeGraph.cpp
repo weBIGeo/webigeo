@@ -317,9 +317,8 @@ std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_trajectories_compute_grap
         = node_graph->add_node("create_hashmap_node", std::make_unique<CreateHashMapNode>(device, input_resolution, capacity, WGPUTextureFormat_R16Uint));
     ComputeNormalsNode* normal_compute_node = static_cast<ComputeNormalsNode*>(node_graph->add_node(
         "compute_normals_node", std::make_unique<ComputeNormalsNode>(manager, device, normal_output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm)));
-    ComputeAvalancheTrajectoriesNode* avalanche_trajectories_compute_node
-        = static_cast<ComputeAvalancheTrajectoriesNode*>(node_graph->add_node("compute_area_of_influence_node",
-            std::make_unique<ComputeAvalancheTrajectoriesNode>(manager, device, area_of_influence_output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm)));
+    ComputeAvalancheTrajectoriesNode* avalanche_trajectories_compute_node = static_cast<ComputeAvalancheTrajectoriesNode*>(node_graph->add_node(
+        "compute_area_of_influence_node", std::make_unique<ComputeAvalancheTrajectoriesNode>(manager, device, area_of_influence_output_resolution, capacity)));
     ComputeAvalancheTrajectoriesBufferToTextureNode* avalanche_trajectories_buffer_to_texture_compute_node
         = static_cast<ComputeAvalancheTrajectoriesBufferToTextureNode*>(node_graph->add_node("avalanche_trajectories_buffer_to_texture_compute_node",
             std::make_unique<ComputeAvalancheTrajectoriesBufferToTextureNode>(
@@ -453,20 +452,20 @@ std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_influence_area_compute_gr
 
     // connect area of influence compute node inputs
     node_graph->connect_sockets(target_tile_select_node, SelectTilesNode::Output::TILE_ID_LIST, avalanche_influence_area_compute_node,
-        ComputeAvalancheTrajectoriesNode::Input::TILE_ID_LIST_TO_PROCESS);
+        ComputeAvalancheInfluenceAreaNode::Input::TILE_ID_LIST_TO_PROCESS);
     node_graph->connect_sockets(normal_compute_node, ComputeNormalsNode::Output::OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP,
-        avalanche_influence_area_compute_node, ComputeAvalancheTrajectoriesNode::Input::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP);
+        avalanche_influence_area_compute_node, ComputeAvalancheInfluenceAreaNode::Input::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP);
     node_graph->connect_sockets(normal_compute_node, ComputeNormalsNode::Output::OUTPUT_TEXTURE_ARRAY, avalanche_influence_area_compute_node,
-        ComputeAvalancheTrajectoriesNode::Input::NORMAL_TEXTURE_ARRAY);
+        ComputeAvalancheInfluenceAreaNode::Input::NORMAL_TEXTURE_ARRAY);
     node_graph->connect_sockets(hash_map_node, CreateHashMapNode::Output::TEXTURE_ARRAY, avalanche_influence_area_compute_node,
-        ComputeAvalancheTrajectoriesNode::Input::HEIGHT_TEXTURE_ARRAY);
+        ComputeAvalancheInfluenceAreaNode::Input::HEIGHT_TEXTURE_ARRAY);
 
     // create downsampled area of influence tiles
     node_graph->connect_sockets(target_tile_select_node, SelectTilesNode::Output::TILE_ID_LIST, downsample_area_of_influence_tiles_node,
         DownsampleTilesNode::Input::TILE_ID_LIST_TO_PROCESS);
     node_graph->connect_sockets(avalanche_influence_area_compute_node, ComputeNormalsNode::Output::OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP,
         downsample_area_of_influence_tiles_node, DownsampleTilesNode::Input::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP);
-    node_graph->connect_sockets(avalanche_influence_area_compute_node, ComputeAvalancheTrajectoriesNode::Output::OUTPUT_TEXTURE_ARRAY,
+    node_graph->connect_sockets(avalanche_influence_area_compute_node, ComputeAvalancheInfluenceAreaNode::Output::OUTPUT_TEXTURE_ARRAY,
         downsample_area_of_influence_tiles_node, DownsampleTilesNode::Input::TEXTURE_ARRAY);
 
     // connect upsample textures node inputs
