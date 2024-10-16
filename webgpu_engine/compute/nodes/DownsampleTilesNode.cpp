@@ -26,8 +26,16 @@ namespace webgpu_engine::compute::nodes {
 glm::uvec3 DownsampleTilesNode::SHADER_WORKGROUP_SIZE = { 1, 16, 16 };
 
 DownsampleTilesNode::DownsampleTilesNode(const PipelineManager& pipeline_manager, WGPUDevice device, size_t capacity, size_t num_downsample_levels)
-    : Node({ data_type<const std::vector<tile::Id>*>(), data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>() },
-        { data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>() })
+    : Node(
+          {
+              data_type<const std::vector<tile::Id>*>(),
+              data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(),
+              data_type<TileStorageTexture*>(),
+          },
+          {
+              data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(),
+              data_type<TileStorageTexture*>(),
+          })
     , m_pipeline_manager { &pipeline_manager }
     , m_device { device }
     , m_queue { wgpuDeviceGetQueue(m_device) }

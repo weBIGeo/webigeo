@@ -30,7 +30,10 @@ SelectTilesNode::SelectTilesNode()
 }
 
 SelectTilesNode::SelectTilesNode(TileIdGenerator tile_id_generator)
-    : Node({}, { data_type<const std::vector<tile::Id>*>() })
+    : Node({},
+          {
+              data_type<const std::vector<tile::Id>*>(),
+          })
     , m_tile_id_generator(tile_id_generator)
 {
 }

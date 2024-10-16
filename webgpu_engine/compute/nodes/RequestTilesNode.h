@@ -27,8 +27,12 @@ class RequestTilesNode : public Node {
     Q_OBJECT
 
 public:
-    enum Input : SocketIndex { TILE_ID_LIST = 0 };
-    enum Output : SocketIndex { TILE_TEXTURE_LIST = 0 };
+    enum Input : SocketIndex {
+        TILE_ID_LIST = 0,
+    };
+    enum Output : SocketIndex {
+        TILE_TEXTURE_LIST = 0,
+    };
 
     RequestTilesNode();
 

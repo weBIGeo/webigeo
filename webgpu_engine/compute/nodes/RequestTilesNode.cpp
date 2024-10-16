@@ -23,7 +23,13 @@
 namespace webgpu_engine::compute::nodes {
 
 RequestTilesNode::RequestTilesNode()
-    : Node({ data_type<const std::vector<tile::Id>*>() }, { data_type<const std::vector<QByteArray>*>() })
+    : Node(
+          {
+              data_type<const std::vector<tile::Id>*>(),
+          },
+          {
+              data_type<const std::vector<QByteArray>*>(),
+          })
     , m_tile_loader { std::make_unique<nucleus::tile_scheduler::TileLoadService>(
           "https://alpinemaps.cg.tuwien.ac.at/tiles/alpine_png/", nucleus::tile_scheduler::TileLoadService::UrlPattern::ZXY, ".png") } // TODO dont hardcode
 {

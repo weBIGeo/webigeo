@@ -23,8 +23,15 @@
 namespace webgpu_engine::compute::nodes {
 
 CreateHashMapNode::CreateHashMapNode(WGPUDevice device, const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format)
-    : Node({ data_type<const std::vector<tile::Id>*>(), data_type<const std::vector<QByteArray>*>() },
-        { data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>() })
+    : Node(
+          {
+              data_type<const std::vector<tile::Id>*>(),
+              data_type<const std::vector<QByteArray>*>(),
+          },
+          {
+              data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(),
+              data_type<TileStorageTexture*>(),
+          })
     , m_device { device }
     , m_queue { wgpuDeviceGetQueue(device) }
     , m_output_tile_id_to_index(device, tile::Id { unsigned(-1), {} }, -1)

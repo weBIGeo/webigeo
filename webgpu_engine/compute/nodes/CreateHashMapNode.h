@@ -26,8 +26,14 @@ class CreateHashMapNode : public Node {
     Q_OBJECT
 
 public:
-    enum Input : SocketIndex { TILE_ID_LIST = 0, TILE_TEXTURE_LIST = 1 };
-    enum Output : SocketIndex { TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP = 0, TEXTURE_ARRAY = 1 };
+    enum Input : SocketIndex {
+        TILE_ID_LIST = 0,
+        TILE_TEXTURE_LIST = 1,
+    };
+    enum Output : SocketIndex {
+        TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP = 0,
+        TEXTURE_ARRAY = 1,
+    };
 
     CreateHashMapNode(WGPUDevice device, const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format);
 

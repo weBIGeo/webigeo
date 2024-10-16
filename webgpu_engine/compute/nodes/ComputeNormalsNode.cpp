@@ -27,8 +27,16 @@ glm::uvec3 ComputeNormalsNode::SHADER_WORKGROUP_SIZE = { 1, 16, 16 };
 
 ComputeNormalsNode::ComputeNormalsNode(
     const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, SocketIndex capacity, WGPUTextureFormat output_format)
-    : Node({ data_type<const std::vector<tile::Id>*>(), data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>() },
-        { data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>() })
+    : Node(
+          {
+              data_type<const std::vector<tile::Id>*>(),
+              data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(),
+              data_type<TileStorageTexture*>(),
+          },
+          {
+              data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(),
+              data_type<TileStorageTexture*>(),
+          })
     , m_pipeline_manager { &pipeline_manager }
     , m_device { device }
     , m_queue(wgpuDeviceGetQueue(m_device))

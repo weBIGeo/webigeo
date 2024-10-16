@@ -23,7 +23,13 @@ namespace webgpu_engine::compute::nodes {
 glm::uvec3 UpsampleTexturesNode::SHADER_WORKGROUP_SIZE = { 1, 16, 16 };
 
 UpsampleTexturesNode::UpsampleTexturesNode(const PipelineManager& pipeline_manager, WGPUDevice device, glm::uvec2 target_resolution, size_t capacity)
-    : Node({ data_type<TileStorageTexture*>() }, { data_type<TileStorageTexture*>() })
+    : Node(
+          {
+              data_type<TileStorageTexture*>(),
+          },
+          {
+              data_type<TileStorageTexture*>(),
+          })
     , m_pipeline_manager { &pipeline_manager }
     , m_device { device }
     , m_queue { wgpuDeviceGetQueue(m_device) }

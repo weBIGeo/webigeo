@@ -29,7 +29,9 @@ public:
     using TileIdGenerator = std::function<std::vector<tile::Id>()>;
 
     enum Input {};
-    enum Output { TILE_ID_LIST = 0 };
+    enum Output {
+        TILE_ID_LIST = 0,
+    };
 
     SelectTilesNode();
     SelectTilesNode(TileIdGenerator tile_id_generator);
