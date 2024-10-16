@@ -41,22 +41,21 @@ namespace webgpu_engine {
 // for preserving settings upon switching graph
 // TODO quite ugly solution
 struct ComputePipelineSettings {
-    bool is_region_select = false;
     geometry::Aabb<3, double> target_region = {}; // select tiles node
     unsigned int target_zoomlevel = 18; // select tiles node
     glm::dvec3 reference_point = {}; // area of influence node
     glm::dvec2 target_point = {}; // area of influence node
-    uint32_t num_steps = 128u; // area of influence node
-    float steps_length = 0.5f; // area of influence node
+    uint32_t num_steps = 1024u; // area of influence node
+    float steps_length = 0.1f; // area of influence node
     float radius = 20.0f; // area of influence node
-    uint32_t source_zoomlevel = 17; // area of influence node
+    uint32_t source_zoomlevel = 15u; // area of influence node
     bool sync_snow_settings_with_render_settings = true; // snow node
     compute::nodes::ComputeSnowNode::SnowSettings snow_settings; // snow node
 
     uint32_t sampling_density = 16u; // trajectories node
-    compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType model_type = compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL1;
-    float model1_velocity_coeff = 0.02f;
-    float model1_gradient_coeff = 0.07f;
+    int model_type = int(compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL1);
+    float model1_slowdown_coeff = 0.0033f;
+    float model1_speedup_coeff = 0.12f;
     float model2_gravity = 9.81f;
     float model2_mass = 5.0f;
     float model2_friction_coeff = 0.01f;
@@ -129,6 +128,8 @@ private:
     void create_and_set_compute_pipeline(ComputePipelineType pipeline_type);
     void update_compute_pipeline_settings();
     void recreate_and_rerun_compute_pipeline();
+    void init_compute_pipeline_presets();
+    void apply_compute_pipeline_preset(size_t preset_index);
 
 private:
     WGPUInstance m_instance = nullptr;
@@ -168,6 +169,9 @@ private:
     std::unique_ptr<compute::nodes::NodeGraph> m_compute_graph;
     ComputePipelineType m_active_compute_pipeline_type;
     ComputePipelineSettings m_compute_pipeline_settings;
+    bool m_is_region_selected = false;
+
+    std::vector<ComputePipelineSettings> m_compute_pipeline_presets;
 };
 
 } // namespace webgpu_engine

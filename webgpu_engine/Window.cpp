@@ -81,6 +81,7 @@ void Window::initialise_gpu()
 
     m_tile_manager->init(m_device, m_queue, *m_pipeline_manager);
 
+    init_compute_pipeline_presets();
     create_and_set_compute_pipeline(ComputePipelineType::AVALANCHE_TRAJECTORIES);
 
     m_track_renderer = std::make_unique<TrackRenderer>(m_device, *m_pipeline_manager);
@@ -285,7 +286,7 @@ void Window::paint_compute_pipeline_gui()
     if (ImGui::CollapsingHeader("Compute pipeline", ImGuiTreeNodeFlags_DefaultOpen)) {
 
         if (ImGui::Button("Run", ImVec2(150, 20))) {
-            if (m_compute_pipeline_settings.is_region_select) {
+            if (m_is_region_selected) {
                 m_compute_graph->run();
             }
         }
@@ -328,6 +329,26 @@ void Window::paint_compute_pipeline_gui()
         if (ImGui::TreeNodeEx("Pipeline-specific settings", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::PushItemWidth(15.0f * ImGui::GetFontSize());
             if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
+
+                // names must align with contents of presets array (class member)
+                // TODO refactor
+                static int current_preset_index = 0;
+                const std::vector<std::string> presets = { "Default values", "Preset A", "Preset B" };
+                const char* current_preset_item_label = presets[current_preset_index].c_str();
+                if (ImGui::BeginCombo("Preset", current_preset_item_label)) {
+                    for (size_t i = 0; i < presets.size(); i++) {
+                        bool is_selected = ((size_t)current_preset_index == i);
+                        if (ImGui::Selectable(presets[i].c_str(), is_selected)) {
+                            current_preset_index = i;
+                            apply_compute_pipeline_preset(current_preset_index);
+                            recreate_and_rerun_compute_pipeline();
+                        }
+                        if (is_selected)
+                            ImGui::SetItemDefaultFocus();
+                    }
+                    ImGui::EndCombo();
+                }
+
                 const uint32_t min_sampling_density = 1;
                 const uint32_t max_sampling_density = 256;
                 // 1-> 1x pro 256 -> 256
@@ -356,32 +377,19 @@ void Window::paint_compute_pipeline_gui()
                     recreate_and_rerun_compute_pipeline();
                 }
 
-                static int current_physics_model_item = 0;
-                const std::vector<std::pair<std::string, compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType>> physics_model_types
-                    = { { "Momentum (simple)", compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL1 },
-                          { "Momentum (less simple)", compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL2 },
-                          { "Gradients", compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL3 } };
-                const char* current_item_label = physics_model_types[current_physics_model_item].first.c_str();
-                if (ImGui::BeginCombo("Physics model", current_item_label)) {
-                    for (size_t i = 0; i < physics_model_types.size(); i++) {
-                        bool is_selected = ((size_t)current_physics_model_item == i);
-                        if (ImGui::Selectable(physics_model_types[i].first.c_str(), is_selected)) {
-                            current_physics_model_item = i;
-                            m_compute_pipeline_settings.model_type = physics_model_types[i].second;
-                            recreate_and_rerun_compute_pipeline();
-                        }
-                        if (is_selected)
-                            ImGui::SetItemDefaultFocus();
-                    }
-                    ImGui::EndCombo();
+                // TODO refactor
+                // this ONLY works because the enum values for the respective combo items are 0, 1 and 2
+                if (ImGui::Combo("Model", &m_compute_pipeline_settings.model_type, "Momentum (simple)\0Momentum (less simple)\0Gradients\0\0")) {
+                    recreate_and_rerun_compute_pipeline();
                 }
 
                 if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL1) {
-                    ImGui::SliderFloat("Linear drag coeff##model1", &m_compute_pipeline_settings.model1_velocity_coeff, 0.0f, 1.0f, "%.2f");
+                    ImGui::SliderFloat(
+                        "Linear drag coeff##model1", &m_compute_pipeline_settings.model1_slowdown_coeff, 0.0f, 0.1f, "%.4f", ImGuiSliderFlags_Logarithmic);
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
                         recreate_and_rerun_compute_pipeline();
                     }
-                    ImGui::SliderFloat("Speedup coeff##model1", &m_compute_pipeline_settings.model1_gradient_coeff, 0.0f, 1.0f, "%.2f");
+                    ImGui::SliderFloat("Speedup coeff##model1", &m_compute_pipeline_settings.model1_speedup_coeff, 0.0f, 1.0f, "%.2f");
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
                         recreate_and_rerun_compute_pipeline();
                     }
@@ -533,9 +541,9 @@ void Window::update_compute_pipeline_settings()
         trajectories_node.set_step_length(m_compute_pipeline_settings.steps_length);
         trajectories_node.set_radius(m_compute_pipeline_settings.radius);
         trajectories_node.set_source_zoomlevel(m_compute_pipeline_settings.source_zoomlevel);
-        trajectories_node.set_physics_model_type(m_compute_pipeline_settings.model_type);
-        trajectories_node.set_model1_downward_acceleration_coeff(m_compute_pipeline_settings.model1_gradient_coeff);
-        trajectories_node.set_model1_linear_drag_coeff(m_compute_pipeline_settings.model1_velocity_coeff);
+        trajectories_node.set_physics_model_type(compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType(m_compute_pipeline_settings.model_type));
+        trajectories_node.set_model1_downward_acceleration_coeff(m_compute_pipeline_settings.model1_speedup_coeff);
+        trajectories_node.set_model1_linear_drag_coeff(m_compute_pipeline_settings.model1_slowdown_coeff);
         trajectories_node.set_model2_gravity(m_compute_pipeline_settings.model2_gravity);
         trajectories_node.set_model2_mass(m_compute_pipeline_settings.model2_mass);
         trajectories_node.set_model2_friction_coeff(m_compute_pipeline_settings.model2_friction_coeff);
@@ -558,9 +566,10 @@ void Window::update_compute_pipeline_settings()
         area_of_influence_node.set_step_length(m_compute_pipeline_settings.steps_length);
         area_of_influence_node.set_radius(m_compute_pipeline_settings.radius);
         area_of_influence_node.set_source_zoomlevel(m_compute_pipeline_settings.source_zoomlevel);
-        area_of_influence_node.set_physics_model_type(m_compute_pipeline_settings.model_type);
-        area_of_influence_node.set_model1_downward_acceleration_coeff(m_compute_pipeline_settings.model1_gradient_coeff);
-        area_of_influence_node.set_model1_linear_drag_coeff(m_compute_pipeline_settings.model1_velocity_coeff);
+        area_of_influence_node.set_physics_model_type(
+            compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType(m_compute_pipeline_settings.model_type));
+        area_of_influence_node.set_model1_downward_acceleration_coeff(m_compute_pipeline_settings.model1_speedup_coeff);
+        area_of_influence_node.set_model1_linear_drag_coeff(m_compute_pipeline_settings.model1_slowdown_coeff);
         area_of_influence_node.set_model2_gravity(m_compute_pipeline_settings.model2_gravity);
         area_of_influence_node.set_model2_mass(m_compute_pipeline_settings.model2_mass);
         area_of_influence_node.set_model2_friction_coeff(m_compute_pipeline_settings.model2_friction_coeff);
@@ -572,9 +581,68 @@ void Window::recreate_and_rerun_compute_pipeline()
 {
     create_and_set_compute_pipeline(m_active_compute_pipeline_type);
     update_compute_pipeline_settings();
-    if (m_compute_pipeline_settings.is_region_select) {
+    if (m_is_region_selected) {
         m_compute_graph->run();
     }
+}
+
+void Window::init_compute_pipeline_presets()
+{
+    ComputePipelineSettings default_values;
+    ComputePipelineSettings preset_a = {
+        .target_region = {}, // select tiles node
+        .target_zoomlevel = 18, // select tiles node
+        .reference_point = {}, // area of influence node
+        .target_point = {}, // area of influence node
+        .num_steps = 512u, // area of influence node
+        .steps_length = 0.1f, // area of influence node
+        .radius = 20.0f, // area of influence node
+        .source_zoomlevel = 15u, // area of influence node
+        .sync_snow_settings_with_render_settings = true, // snow node
+        .snow_settings = compute::nodes::ComputeSnowNode::SnowSettings(), // snow node
+        .sampling_density = 16, // trajectories node
+        .model_type = compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL1,
+        .model1_slowdown_coeff = 0.0033f,
+        .model1_speedup_coeff = 0.12f,
+        .model2_gravity = 9.81f,
+        .model2_mass = 5.0f,
+        .model2_friction_coeff = 0.01f,
+        .model2_drag_coeff = 0.2f,
+    };
+    ComputePipelineSettings preset_b = {
+        .target_region = {}, // select tiles node
+        .target_zoomlevel = 18, // select tiles node
+        .reference_point = {}, // area of influence node
+        .target_point = {}, // area of influence node
+        .num_steps = 2048u, // area of influence node
+        .steps_length = 0.1f, // area of influence node
+        .radius = 20.0f, // area of influence node
+        .source_zoomlevel = 15u, // area of influence node
+        .sync_snow_settings_with_render_settings = true, // snow node
+        .snow_settings = compute::nodes::ComputeSnowNode::SnowSettings(), // snow node
+        .sampling_density = 16, // trajectories node
+        .model_type = compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL1,
+        .model1_slowdown_coeff = 0.0033f,
+        .model1_speedup_coeff = 0.12f,
+        .model2_gravity = 9.81f,
+        .model2_mass = 5.0f,
+        .model2_friction_coeff = 0.01f,
+        .model2_drag_coeff = 0.2f,
+    };
+
+    m_compute_pipeline_presets.push_back(default_values);
+    m_compute_pipeline_presets.push_back(preset_a);
+    m_compute_pipeline_presets.push_back(preset_b);
+}
+
+void Window::apply_compute_pipeline_preset(size_t preset_index)
+{
+    assert(preset_index < m_compute_pipeline_presets.size());
+
+    // replace all parameters except selected region
+    const auto old_region = m_compute_pipeline_settings.target_region;
+    m_compute_pipeline_settings = m_compute_pipeline_presets.at(preset_index);
+    m_compute_pipeline_settings.target_region = old_region;
 }
 
 float Window::depth([[maybe_unused]] const glm::dvec2& normalised_device_coordinates)
@@ -681,15 +749,11 @@ void Window::load_track_and_focus(const std::string& path)
     new_camera_definition.set_viewport_size(m_camera.viewport_size());
 
     // update pipeline settings
-    m_compute_pipeline_settings.is_region_select = true;
+    m_is_region_selected = true;
     m_compute_pipeline_settings.target_region = track_aabb;
-    if (m_compute_graph->exists_node("compute_area_of_influence_node")) {
-        m_compute_pipeline_settings.reference_point = track_aabb.min;
-
-        // for now simply always select point in middle of first segment
-        const auto& coords = gpx_track->track.at(0).at(gpx_track->track.at(0).size() / 2);
-        m_compute_pipeline_settings.target_point = nucleus::srs::lat_long_to_world({ coords.latitude, coords.longitude });
-    }
+    m_compute_pipeline_settings.reference_point = track_aabb.min;
+    const auto& coords = gpx_track->track.at(0).at(gpx_track->track.at(0).size() / 2); // for now simply always select point in middle of first segment
+    m_compute_pipeline_settings.target_point = nucleus::srs::lat_long_to_world({ coords.latitude, coords.longitude });
     update_compute_pipeline_settings();
 
     emit set_camera_definition_requested(new_camera_definition);
