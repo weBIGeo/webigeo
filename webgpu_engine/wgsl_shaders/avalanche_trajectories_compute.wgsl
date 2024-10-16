@@ -211,7 +211,7 @@ fn traces_overlay(id: vec3<u32>) {
         velocity = velocity + velocity_change;
 
         // paint trace point
-        let output_coords = vec2u(new_uv * vec2f(output_texture_size) + 0.5);
+        let output_coords = vec2u(new_uv * vec2f(output_texture_size));
         var output_texture_array_index: u32;
         let found_output_tile = get_texture_array_index(new_tile_id, &output_texture_array_index, &output_tiles_map_key_buffer, &output_tiles_map_value_buffer);
         if (found_output_tile) {
