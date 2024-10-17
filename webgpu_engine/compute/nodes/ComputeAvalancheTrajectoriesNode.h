@@ -66,7 +66,8 @@ public:
         float model2_mass;
         float model2_friction_coeff;
         float model2_drag_coeff;
-        float padding1;
+
+        float trigger_point_max_steepness;
     };
 
     ComputeAvalancheTrajectoriesNode(const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity);
@@ -86,6 +87,7 @@ public:
     void set_radius(float radius);
     void set_source_zoomlevel(uint32_t source_zoomlevel) { m_input_settings.data.source_zoomlevel = source_zoomlevel; }
     void set_sampling_density(glm::uvec2 sampling_density) { m_input_settings.data.sampling_density = sampling_density; }
+    void set_trigger_point_max_steepness(float trigger_point_max_steepness) { m_input_settings.data.trigger_point_max_steepness = trigger_point_max_steepness; }
 
     void set_physics_model_type(PhysicsModelType physics_model_type) { this->m_input_settings.data.physics_model_type = physics_model_type; }
     void set_model1_linear_drag_coeff(float model1_linear_drag_coeff) { this->m_input_settings.data.model1_linear_drag_coeff = model1_linear_drag_coeff; }

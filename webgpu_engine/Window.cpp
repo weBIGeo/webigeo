@@ -365,6 +365,11 @@ void Window::paint_compute_pipeline_gui()
                     recreate_and_rerun_compute_pipeline();
                 }
 
+                ImGui::SliderFloat("Trigger point steepness", &m_compute_pipeline_settings.trigger_point_max_steepness, 0.0f, 90.0f, "%.1f");
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    recreate_and_rerun_compute_pipeline();
+                }
+
                 const uint32_t min_steps = 1;
                 const uint32_t max_steps = 4096;
                 ImGui::SliderScalar("Num steps", ImGuiDataType_U32, &m_compute_pipeline_settings.num_steps, &min_steps, &max_steps, "%u");
@@ -549,6 +554,7 @@ void Window::update_compute_pipeline_settings()
         trajectories_node.set_model2_friction_coeff(m_compute_pipeline_settings.model2_friction_coeff);
         trajectories_node.set_model2_drag_coeff(m_compute_pipeline_settings.model2_drag_coeff);
         trajectories_node.set_sampling_density(glm::uvec2(256u / m_compute_pipeline_settings.sampling_density));
+        trajectories_node.set_trigger_point_max_steepness(m_compute_pipeline_settings.trigger_point_max_steepness);
     } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_INFLUENCE_AREA) {
         // tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_target_tiles_node")

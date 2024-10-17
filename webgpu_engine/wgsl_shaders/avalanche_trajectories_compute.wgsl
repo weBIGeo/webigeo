@@ -42,7 +42,8 @@ struct AvalancheTrajectoriesSettings {
     model2_mass: f32,
     model2_friction_coeff: f32,
     model2_drag_coeff: f32,
-    padding1: f32,
+
+    trigger_point_max_steepness: f32, // in degrees; trigger point only used if steepness at that point not greater than this
 }
 
 // input
@@ -65,9 +66,6 @@ struct AvalancheTrajectoriesSettings {
 
 fn should_paint(col: u32, row: u32, tile_id: TileId) -> bool {
     return (col % settings.sampling_density.x == 0) && (row % settings.sampling_density.y == 0);
-    //return (col % 16 == 0) && (row % 16 == 0) && (tile_id.x == 140386 + 1) && (tile_id.y == 169805 + 1);
-    //return (col == 0) && (row == 0) && (tile_id.x == 140386 + 1) && (tile_id.y == 169805 + 1);
-    //return (col == 64) && (row == 64) && (tile_id.x == 140386 + 1) && (tile_id.y == 169805 + 1);
 }
 
 fn gradient_overlay(id: vec3<u32>) {
@@ -133,6 +131,39 @@ fn get_storage_buffer_index(texture_layer: u32, coords: vec2u, output_texture_si
     return texture_layer * output_texture_size.x * output_texture_size.y + coords.y * output_texture_size.x + coords.x;  
 }
 
+fn get_steepness(normal: vec3f) -> f32 {
+    return 1.0 - normal.z;
+}
+
+fn get_normal(tile_id: TileId, uv: vec2f, zoomlevel: u32, normal: ptr<function, vec3f>) -> bool {  
+    var source_tile_id: TileId = tile_id;
+    var source_uv: vec2f = uv;
+    calc_tile_id_and_uv_for_zoom_level(tile_id, uv, zoomlevel, &source_tile_id, &source_uv);
+    var texture_array_index: u32;
+    let found = get_texture_array_index(source_tile_id, &texture_array_index, &map_key_buffer, &map_value_buffer);
+    if (!found) {
+        // moved to a tile where we don't have any input data, discard
+        return false;
+    }
+    *normal = bilinear_sample_vec4f(input_normal_tiles, input_normal_tiles_sampler, source_uv, texture_array_index).xyz * 2 - 1;
+    return true;
+}
+
+fn is_trigger_point(tile_id: TileId, uv: vec2f) -> bool {
+    var normal: vec3f;
+    if (!get_normal(tile_id, uv, settings.source_zoomlevel, &normal)) {
+        // normal doesnt exist
+        return false;
+    }
+    
+    if (get_steepness(normal) >= settings.trigger_point_max_steepness / 90.0f) {
+        // steepness at point too high
+        return false;
+    }
+
+    return true;
+}
+
 // draws traces within a single tile
 fn traces_overlay(id: vec3<u32>) {
     let tile_id = input_tile_ids[id.x];
@@ -146,6 +177,10 @@ fn traces_overlay(id: vec3<u32>) {
     let uv = vec2f(f32(col), f32(row)) / vec2f(settings.output_resolution - 1);
 
     if (!should_paint(col, row, tile_id)) {
+        return;
+    }
+
+    if (!is_trigger_point(tile_id, uv)) {
         return;
     }
 
@@ -163,19 +198,12 @@ fn traces_overlay(id: vec3<u32>) {
         let new_tile_id = TileId(u32(new_tile_coords.x), u32(new_tile_coords.y), tile_id.zoomlevel, 0);
 
         // read normal
-        var source_tile_id: TileId = new_tile_id;
-        var source_uv: vec2f = new_uv;
-        calc_tile_id_and_uv_for_zoom_level(new_tile_id, new_uv, settings.source_zoomlevel, &source_tile_id, &source_uv);
-        var texture_array_index: u32;
-        let found = get_texture_array_index(source_tile_id, &texture_array_index, &map_key_buffer, &map_value_buffer);
-        if (!found) {
-            // moved to a tile where we don't have any input data, discard
+        var normal: vec3f;
+        if (!get_normal(new_tile_id, new_uv, settings.source_zoomlevel, &normal)) {
             break;
         }
-        let normal = bilinear_sample_vec4f(input_normal_tiles, input_normal_tiles_sampler, source_uv, texture_array_index).xyz * 2 - 1;
 
-
-        let new_steepness = 1.0 - normal.z;
+        let new_steepness = get_steepness(normal);
         max_steepness = max(max_steepness, new_steepness);
 
         var velocity_change: vec3f;

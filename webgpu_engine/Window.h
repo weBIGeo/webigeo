@@ -60,6 +60,8 @@ struct ComputePipelineSettings {
     float model2_mass = 5.0f;
     float model2_friction_coeff = 0.01f;
     float model2_drag_coeff = 0.2f;
+
+    float trigger_point_max_steepness = 55.0f; // trajectories node
 };
 
 class Window : public nucleus::AbstractRenderWindow, public nucleus::camera::AbstractDepthTester {
