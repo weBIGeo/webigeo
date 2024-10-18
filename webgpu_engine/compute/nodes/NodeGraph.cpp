@@ -31,6 +31,7 @@
 #include "compute/RectangularTileRegion.h"
 #include <QDebug>
 #include <memory>
+#include <unordered_set>
 
 namespace webgpu_engine::compute::nodes {
 
@@ -63,10 +64,59 @@ const TileStorageTexture& NodeGraph::output_texture_storage_2() const { return *
 
 TileStorageTexture& NodeGraph::output_texture_storage_2() { return *m_output_texture_storage_ptr_2; }
 
+void NodeGraph::connect_node_signals_and_slots()
+{
+    assert(!m_nodes.empty());
+
+    std::unordered_map<Node*, uint32_t> in_degrees;
+    std::queue<Node*> next_set;
+    std::vector<Node*> topological_ordering;
+
+    for (auto& [_, node] : m_nodes) {
+        uint32_t in_degree = 0;
+        for (auto& socket : node->input_sockets()) {
+            if (socket.is_socket_connected()) {
+                in_degree++;
+            }
+        }
+        in_degrees[node.get()] = in_degree;
+        if (in_degree == 0) {
+            next_set.push(node.get());
+        }
+    }
+
+    while (!next_set.empty()) {
+        Node* node = next_set.front();
+        next_set.pop();
+        topological_ordering.push_back(node);
+        for (auto& output_socket : node->output_sockets()) {
+            for (auto& connected_socket : output_socket.connected_sockets()) {
+                auto& connected_node = connected_socket->node();
+                in_degrees[&connected_node]--;
+                if (in_degrees[&connected_node] == 0) {
+                    next_set.push(&connected_node);
+                }
+            }
+        }
+    }
+
+    for (auto& [node, in_degree] : in_degrees) {
+        if (in_degree) {
+            qFatal() << "cycle in node graph detected";
+        }
+    }
+
+    connect(this, &NodeGraph::run_triggered, topological_ordering.front(), &Node::run);
+    for (uint32_t i = 0; i < topological_ordering.size() - 1; i++) {
+        connect(topological_ordering[i], &Node::run_finished, topological_ordering[i + 1], &Node::run);
+    }
+    connect(topological_ordering.back(), &Node::run_finished, this, &NodeGraph::run_finished); // emits run finished signal in NodeGraph
+}
+
 void NodeGraph::run()
 {
     qDebug() << "running node graph ...";
-    m_start_node->run();
+    emit run_triggered();
 }
 
 std::unique_ptr<NodeGraph> NodeGraph::create_normal_compute_graph(const PipelineManager& manager, WGPUDevice device)
@@ -120,15 +170,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_compute_graph(const Pipeline
     node_graph->m_output_hash_map_ptr_2 = &downsample_tiles_node->hash_map();
     node_graph->m_output_texture_storage_ptr_2 = &downsample_tiles_node->texture_storage();
 
-    // connect signals
-    // TODO do dynamically based on graph
-    node_graph->m_start_node = tile_select_node;
-    connect(tile_select_node, &Node::run_finished, height_request_node, &Node::run);
-    connect(height_request_node, &Node::run_finished, hash_map_node, &Node::run);
-    connect(hash_map_node, &Node::run_finished, normal_compute_node, &Node::run);
-    connect(normal_compute_node, &Node::run_finished, upsample_textures_node, &Node::run);
-    connect(upsample_textures_node, &Node::run_finished, downsample_tiles_node, &Node::run);
-    connect(downsample_tiles_node, &Node::run_finished, node_graph.get(), &NodeGraph::run_finished); // emits run finished signal in NodeGraph
+    node_graph->connect_node_signals_and_slots();
 
     return node_graph;
 }
@@ -204,21 +246,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_with_snow_compute_graph(cons
     node_graph->m_output_hash_map_ptr_2 = &downsample_snow_tiles_node->hash_map();
     node_graph->m_output_texture_storage_ptr_2 = &downsample_snow_tiles_node->texture_storage();
 
-    // connect signals
-    // TODO do dynamically based on graph
-    node_graph->m_start_node = tile_select_node;
-    connect(tile_select_node, &Node::run_finished, height_request_node, &Node::run);
-    connect(height_request_node, &Node::run_finished, hash_map_node, &Node::run);
-    connect(hash_map_node, &Node::run_finished, normal_compute_node, &Node::run);
-    connect(hash_map_node, &Node::run_finished, snow_compute_node, &Node::run);
-    connect(normal_compute_node, &Node::run_finished, upsample_textures_node, &Node::run);
-    connect(upsample_textures_node, &Node::run_finished, downsample_tiles_node, &Node::run);
-    connect(snow_compute_node, &Node::run_finished, upsample_snow_textures_node, &Node::run);
-    connect(upsample_snow_textures_node, &Node::run_finished, downsample_snow_tiles_node, &Node::run);
-    // TODO NodeGraph should keep track of all the currently running nodes and emit run_finished when all of them are done. Currently run_finished gets executed
-    // twice which in our setup is okay (for now)
-    connect(downsample_snow_tiles_node, &Node::run_finished, node_graph.get(), &NodeGraph::run_finished);
-    connect(downsample_tiles_node, &Node::run_finished, node_graph.get(), &NodeGraph::run_finished);
+    node_graph->connect_node_signals_and_slots();
 
     return node_graph;
 }
@@ -262,14 +290,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_snow_compute_graph(const PipelineMa
     node_graph->m_output_hash_map_ptr = &downsample_tiles_node->hash_map();
     node_graph->m_output_texture_storage_ptr = &downsample_tiles_node->texture_storage();
 
-    // connect signals
-    // TODO do dynamically based on graph
-    node_graph->m_start_node = tile_select_node;
-    connect(tile_select_node, &Node::run_finished, height_request_node, &Node::run);
-    connect(height_request_node, &Node::run_finished, hash_map_node, &Node::run);
-    connect(hash_map_node, &Node::run_finished, snow_compute_node, &Node::run);
-    connect(snow_compute_node, &Node::run_finished, downsample_tiles_node, &Node::run);
-    connect(downsample_tiles_node, &Node::run_finished, node_graph.get(), &NodeGraph::run_finished); // emits run finished signal in NodeGraph
+    node_graph->connect_node_signals_and_slots();
 
     return node_graph;
 }
@@ -348,22 +369,8 @@ std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_trajectories_compute_grap
     node_graph->m_output_hash_map_ptr_2 = &downsample_area_of_influence_tiles_node->hash_map();
     node_graph->m_output_texture_storage_ptr_2 = &downsample_area_of_influence_tiles_node->texture_storage();
 
-    // connect signals
-    // TODO do dynamically based on graph
-    node_graph->m_start_node = source_tile_select_node;
-    connect(source_tile_select_node, &Node::run_finished, target_tile_select_node, &Node::run);
-    connect(target_tile_select_node, &Node::run_finished, height_request_node, &Node::run);
-    connect(height_request_node, &Node::run_finished, hash_map_node, &Node::run);
-    connect(hash_map_node, &Node::run_finished, normal_compute_node, &Node::run);
-    connect(normal_compute_node, &Node::run_finished, avalanche_trajectories_compute_node, &Node::run);
-    connect(normal_compute_node, &Node::run_finished, upsample_normals_textures_node, &Node::run);
-    connect(upsample_normals_textures_node, &Node::run_finished, downsample_normals_tiles_node, &Node::run);
-    connect(avalanche_trajectories_compute_node, &Node::run_finished, avalanche_trajectories_buffer_to_texture_compute_node, &Node::run);
-    connect(avalanche_trajectories_buffer_to_texture_compute_node, &Node::run_finished, downsample_area_of_influence_tiles_node, &Node::run);
-    // TODO NodeGraph should keep track of all the currently running nodes and emit run_finished when all of them are done. Currently run_finished gets executed
-    // twice which in our setup is okay (for now)
-    connect(downsample_area_of_influence_tiles_node, &Node::run_finished, node_graph.get(), &NodeGraph::run_finished);
-    // connect(downsample_normals_tiles_node, &Node::run_finished, node_graph.get(), &NodeGraph::run_finished);
+    node_graph->connect_node_signals_and_slots();
+
     return node_graph;
 }
 
@@ -432,21 +439,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_influence_area_compute_gr
     node_graph->m_output_hash_map_ptr_2 = &downsample_area_of_influence_tiles_node->hash_map();
     node_graph->m_output_texture_storage_ptr_2 = &downsample_area_of_influence_tiles_node->texture_storage();
 
-    // connect signals
-    // TODO do dynamically based on graph
-    node_graph->m_start_node = source_tile_select_node;
-    connect(source_tile_select_node, &Node::run_finished, target_tile_select_node, &Node::run);
-    connect(target_tile_select_node, &Node::run_finished, height_request_node, &Node::run);
-    connect(height_request_node, &Node::run_finished, hash_map_node, &Node::run);
-    connect(hash_map_node, &Node::run_finished, normal_compute_node, &Node::run);
-    connect(normal_compute_node, &Node::run_finished, avalanche_influence_area_compute_node, &Node::run);
-    connect(normal_compute_node, &Node::run_finished, upsample_normals_textures_node, &Node::run);
-    connect(upsample_normals_textures_node, &Node::run_finished, downsample_normals_tiles_node, &Node::run);
-    connect(avalanche_influence_area_compute_node, &Node::run_finished, downsample_area_of_influence_tiles_node, &Node::run);
-    // TODO NodeGraph should keep track of all the currently running nodes and emit run_finished when all of them are done. Currently run_finished gets executed
-    // twice which in our setup is okay (for now)
-    connect(downsample_area_of_influence_tiles_node, &Node::run_finished, node_graph.get(), &NodeGraph::run_finished);
-    connect(downsample_normals_tiles_node, &Node::run_finished, node_graph.get(), &NodeGraph::run_finished);
+    node_graph->connect_node_signals_and_slots();
 
     return node_graph;
 }

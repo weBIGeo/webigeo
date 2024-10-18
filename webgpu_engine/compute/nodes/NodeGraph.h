@@ -56,10 +56,15 @@ public:
     const TileStorageTexture& output_texture_storage_2() const;
     TileStorageTexture& output_texture_storage_2();
 
+private:
+    // finds topological order of nodes and connects run_finished and run slots accordingly
+    void connect_node_signals_and_slots();
+
 public slots:
     void run();
 
 signals:
+    void run_triggered();
     void run_finished();
 
 public:
