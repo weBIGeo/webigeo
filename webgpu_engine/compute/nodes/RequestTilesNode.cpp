@@ -25,10 +25,10 @@ namespace webgpu_engine::compute::nodes {
 RequestTilesNode::RequestTilesNode()
     : Node(
           {
-              data_type<const std::vector<tile::Id>*>(),
+              InputSocket(*this, "tile ids", data_type<const std::vector<tile::Id>*>()),
           },
           {
-              data_type<const std::vector<QByteArray>*>(),
+              OutputSocket(*this, "tile data", data_type<const std::vector<QByteArray>*>(), [this]() { return &m_received_tile_textures; }),
           })
     , m_tile_loader { std::make_unique<nucleus::tile_scheduler::TileLoadService>(
           "https://alpinemaps.cg.tuwien.ac.at/tiles/alpine_png/", nucleus::tile_scheduler::TileLoadService::UrlPattern::ZXY, ".png") } // TODO dont hardcode
@@ -42,7 +42,7 @@ void RequestTilesNode::run_impl()
 
     // get tile ids to request
     // TODO maybe make get_input_data a template (so usage would become get_input_data<type>(socket_index))
-    const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(get_input_data(0)); // input 1, list of tile ids
+    const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(input_socket("tile ids").get_connected_data());
 
     // send request for each tile
     m_received_tile_textures.resize(tile_ids.size());
@@ -54,8 +54,6 @@ void RequestTilesNode::run_impl()
         m_tile_loader->load(tile_id);
     }
 }
-
-Data RequestTilesNode::get_output_data_impl([[maybe_unused]] SocketIndex output_index) { return { &m_received_tile_textures }; }
 
 void RequestTilesNode::on_single_tile_received(const nucleus::tile_scheduler::tile_types::TileLayer& tile)
 {

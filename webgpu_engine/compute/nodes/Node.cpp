@@ -22,37 +22,16 @@
 
 namespace webgpu_engine::compute::nodes {
 
-Node::Node(const std::vector<DataType>& input_types, const std::vector<DataType>& output_types)
-    : input_socket_types(input_types)
-    , output_socket_types(output_types)
-    , connected_input_sockets(input_types.size())
-    , connected_output_sockets(output_types.size())
+Node::Node(const std::vector<InputSocket>& input_sockets, const std::vector<OutputSocket>& output_sockets)
+    : m_input_sockets(input_sockets)
+    , m_output_sockets(output_sockets)
 {
+
     connect(this, &webgpu_engine::compute::nodes::Node::run_started, this, [this]() { this->m_last_run_started = std::chrono::high_resolution_clock::now(); });
     connect(
         this, &webgpu_engine::compute::nodes::Node::run_finished, this, [this]() { this->m_last_run_finished = std::chrono::high_resolution_clock::now(); });
     connect(
         this, &webgpu_engine::compute::nodes::Node::run_finished, this, [this]() { qDebug() << " node execution took " << this->last_run_duration() << "ms"; });
-}
-
-void Node::connect_input_socket(size_t input_index, Node* connected_node, size_t connected_output_index)
-{
-    assert(input_index < input_socket_types.size());
-    assert(connected_output_index < connected_node->output_socket_types.size());
-    assert(get_input_socket_type(input_index) == connected_node->get_output_socket_type(connected_output_index));
-
-    connected_input_sockets[input_index].connected_node = connected_node;
-    connected_input_sockets[input_index].connected_socket_index = connected_output_index;
-}
-
-void Node::connect_output_socket(size_t output_index, Node* connected_node, size_t connected_input_index)
-{
-    assert(output_index < output_socket_types.size());
-    assert(connected_input_index < connected_node->input_socket_types.size());
-    assert(get_output_socket_type(output_index) == connected_node->get_input_socket_type(connected_input_index));
-
-    connected_output_sockets[output_index].connected_node = connected_node;
-    connected_output_sockets[output_index].connected_socket_index = connected_input_index;
 }
 
 void Node::run()
@@ -61,45 +40,151 @@ void Node::run()
     run_impl();
 }
 
-DataType Node::get_input_socket_type(size_t input_socket_index) const
+bool Node::has_input_socket(const std::string& name) const
 {
-    assert(input_socket_index < input_socket_types.size());
-    return input_socket_types[input_socket_index];
+    const auto it = std::find_if(m_input_sockets.begin(), m_input_sockets.end(), [&name](const InputSocket& socket) { return socket.name() == name; });
+    return it != m_input_sockets.end();
 }
 
-size_t Node::get_num_input_sockets() const { return input_socket_types.size(); }
-
-DataType Node::get_output_socket_type(size_t output_socket_index) const
+InputSocket& Node::input_socket(const std::string& name)
 {
-    assert(output_socket_index < output_socket_types.size());
-    return output_socket_types[output_socket_index];
+    const auto it = std::find_if(m_input_sockets.begin(), m_input_sockets.end(), [&name](const InputSocket& socket) { return socket.name() == name; });
+    if (it == m_input_sockets.end()) {
+        // TODO throw runtime error
+        qWarning() << "input socket with name '" << name << "' not found";
+    }
+    return *it;
 }
 
-size_t Node::get_num_output_sockets() const { return output_socket_types.size(); }
-
-Data Node::get_output_data(size_t output_index)
+const InputSocket& Node::input_socket(const std::string& name) const
 {
-    assert(output_index < output_socket_types.size());
-
-    // get output data for output socket index, implemented in subclasses
-    Data data = get_output_data_impl(output_index);
-
-    assert(output_socket_types[output_index] == data.index()); // implementation returned correct type
-    return data;
+    const auto it = std::find_if(m_input_sockets.begin(), m_input_sockets.end(), [&name](const InputSocket& socket) { return socket.name() == name; });
+    if (it == m_input_sockets.end()) {
+        // TODO throw runtime error
+        qFatal() << "input socket with name '" << name << "' not found";
+    }
+    return *it;
 }
 
-Data Node::get_input_data(size_t input_index)
+bool Node::has_output_socket(const std::string& name) const
 {
-    assert(input_index < input_socket_types.size());
-    assert(connected_input_sockets[input_index].connected_node != nullptr);
+    const auto it = std::find_if(m_output_sockets.begin(), m_output_sockets.end(), [&name](const OutputSocket& socket) { return socket.name() == name; });
+    return it != m_output_sockets.end();
+}
 
-    // get output data from the output socket connected to this input socket
-    Data data = connected_input_sockets[input_index].connected_node->get_output_data(connected_input_sockets[input_index].connected_socket_index);
+OutputSocket& Node::output_socket(const std::string& name)
+{
+    const auto it = std::find_if(m_output_sockets.begin(), m_output_sockets.end(), [&name](const OutputSocket& socket) { return socket.name() == name; });
+    if (it == m_output_sockets.end()) {
+        // TODO throw runtime error
+        qFatal() << "output socket with name '" << name << "' not found";
+    }
+    return *it;
+}
 
-    assert(input_socket_types[input_index] == data.index()); // correct type
-    return data;
+const OutputSocket& Node::output_socket(const std::string& name) const
+{
+    const auto it = std::find_if(m_output_sockets.begin(), m_output_sockets.end(), [&name](const OutputSocket& socket) { return socket.name() == name; });
+    if (it == m_output_sockets.end()) {
+        qFatal() << "output socket with name '" << name << "' not found";
+    }
+    return *it;
+}
+
+std::vector<InputSocket>& Node::input_sockets() { return m_input_sockets; }
+
+const std::vector<InputSocket>& Node::input_sockets() const { return m_input_sockets; }
+
+std::vector<OutputSocket>& Node::output_sockets() { return m_output_sockets; }
+
+const std::vector<OutputSocket>& Node::output_sockets() const { return m_output_sockets; }
+
+Data Node::get_output_data(const std::string& output_socket_name)
+{
+    if (!has_output_socket(output_socket_name)) {
+        qFatal() << "output socket with name '" << output_socket_name << "' not found";
+        return {};
+    }
+    return output_socket(output_socket_name).get_data();
+}
+
+Data Node::get_input_data(const std::string& input_socket_name)
+{
+    if (!has_input_socket(input_socket_name)) {
+        qFatal() << "input socket with name '" << input_socket_name << "' not found";
+        return {};
+    }
+    Data result = input_socket(input_socket_name).connected_socket().get_data();
+    return result;
 }
 
 float Node::last_run_duration() const { return std::chrono::duration_cast<std::chrono::milliseconds>(m_last_run_finished - m_last_run_started).count(); }
+
+Socket::Socket(Node& node, const std::string& name, DataType type, FlowDirection direction)
+    : m_node(&node)
+    , m_name(name)
+    , m_type(type)
+    , m_direction(direction)
+{
+}
+
+const std::string& Socket::name() const { return m_name; }
+DataType Socket::type() const { return m_type; }
+const Node& Socket::node() const { return *m_node; }
+Node& Socket::node() { return *m_node; }
+
+InputSocket::InputSocket(Node& node, const std::string& name, DataType type)
+    : Socket(node, name, type, Socket::FlowDirection::INPUT)
+{
+}
+
+void InputSocket::connect(OutputSocket& output_socket)
+{
+    assert(type() == output_socket.type());
+    if (is_socket_connected()) {
+        m_connected_socket->remove_connected_socket(*this);
+    }
+    m_connected_socket = &output_socket;
+    output_socket.m_connected_sockets.push_back(this);
+}
+bool InputSocket::is_socket_connected() const { return m_connected_socket != nullptr; }
+OutputSocket& InputSocket::connected_socket() { return *m_connected_socket; }
+const OutputSocket& InputSocket::connected_socket() const { return *m_connected_socket; }
+
+Data InputSocket::get_connected_data()
+{
+    assert(m_connected_socket != nullptr);
+    return m_connected_socket->get_data();
+}
+
+OutputSocket::OutputSocket(Node& node, const std::string& name, DataType type, OutputFunc output_func)
+    : Socket(node, name, type, Socket::FlowDirection::OUTPUT)
+    , m_output_func(output_func)
+{
+}
+
+void OutputSocket::connect(InputSocket& input_socket)
+{
+    assert(type() == input_socket.type());
+    m_connected_sockets.push_back(&input_socket);
+    input_socket.m_connected_socket = this;
+}
+bool OutputSocket::is_socket_connected() const { return !m_connected_sockets.empty(); }
+std::vector<InputSocket*>& OutputSocket::connected_sockets() { return m_connected_sockets; }
+const std::vector<InputSocket*>& OutputSocket::connected_sockets() const { return m_connected_sockets; }
+
+Data OutputSocket::get_data()
+{
+    Data output = m_output_func();
+    assert(output.index() == type()); // implementation returned correct type
+    return output;
+}
+
+void OutputSocket::remove_connected_socket(InputSocket& input_socket)
+{
+    auto it = std::find(m_connected_sockets.begin(), m_connected_sockets.end(), &input_socket);
+    assert(it != m_connected_sockets.end());
+    m_connected_sockets.erase(it);
+}
 
 } // namespace webgpu_engine::compute::nodes

@@ -43,8 +43,6 @@ public:
     template <typename NodeType> NodeType& get_node_as(const std::string& node_name) { return static_cast<NodeType&>(get_node(node_name)); }
     template <typename NodeType> const NodeType& get_node_as(const std::string& node_name) const { return static_cast<const NodeType&>(get_node(node_name)); }
 
-    void connect_sockets(Node* from_node, SocketIndex output_socket, Node* to_node, SocketIndex input_socket);
-
     // obtain outputs - for now all node graphs always output
     //  - a hashmap (mapping tile id to texture array layer)
     //  - a texture array

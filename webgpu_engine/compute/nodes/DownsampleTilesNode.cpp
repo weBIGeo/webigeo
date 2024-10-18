@@ -28,13 +28,14 @@ glm::uvec3 DownsampleTilesNode::SHADER_WORKGROUP_SIZE = { 1, 16, 16 };
 DownsampleTilesNode::DownsampleTilesNode(const PipelineManager& pipeline_manager, WGPUDevice device, size_t capacity, size_t num_downsample_levels)
     : Node(
           {
-              data_type<const std::vector<tile::Id>*>(),
-              data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(),
-              data_type<TileStorageTexture*>(),
+              InputSocket(*this, "tile ids", data_type<const std::vector<tile::Id>*>()),
+              InputSocket(*this, "hash map", data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()),
+              InputSocket(*this, "textures", data_type<TileStorageTexture*>()),
           },
           {
-              data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(),
-              data_type<TileStorageTexture*>(),
+              OutputSocket(*this, "hash map", data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(),
+                  [this]() { return input_socket("hash map").connected_socket().get_data(); }),
+              OutputSocket(*this, "textures", data_type<TileStorageTexture*>(), [this]() { return input_socket("textures").connected_socket().get_data(); }),
           })
     , m_pipeline_manager { &pipeline_manager }
     , m_device { device }
@@ -48,19 +49,21 @@ DownsampleTilesNode::DownsampleTilesNode(const PipelineManager& pipeline_manager
 
 GpuHashMap<tile::Id, uint32_t, GpuTileId>& DownsampleTilesNode::hash_map()
 {
-    return *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(get_input_data(Input::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP));
+    return *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(input_socket("hash map").get_connected_data());
 }
 
-TileStorageTexture& DownsampleTilesNode::texture_storage() { return *std::get<data_type<TileStorageTexture*>()>(get_input_data(Input::TEXTURE_ARRAY)); }
+TileStorageTexture& DownsampleTilesNode::texture_storage()
+{
+    return *std::get<data_type<TileStorageTexture*>()>(input_socket("textures").get_connected_data());
+}
 
 void DownsampleTilesNode::run_impl()
 {
     qDebug() << "running DownsampleTilesNode ...";
 
-    const auto& original_tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(get_input_data(Input::TILE_ID_LIST_TO_PROCESS)); // hash map for lookup
-    auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(
-        get_input_data(Input::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP)); // hash map for height lookup
-    auto& hashmap_textures = *std::get<data_type<TileStorageTexture*>()>(get_input_data(Input::TEXTURE_ARRAY)); // hash map for lookup
+    const auto& original_tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(input_socket("tile ids").get_connected_data());
+    auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(input_socket("hash map").get_connected_data());
+    auto& hashmap_textures = *std::get<data_type<TileStorageTexture*>()>(input_socket("textures").get_connected_data());
 
     // determine downsampled tile ids
     std::vector<tile::Id> downsampled_tile_ids = get_tile_ids_for_downsampled_tiles(original_tile_ids);
@@ -97,17 +100,6 @@ void DownsampleTilesNode::run_impl()
         this);
 }
 
-Data DownsampleTilesNode::get_output_data_impl(SocketIndex output_index)
-{
-    switch (output_index) {
-    case Output::OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP:
-        return get_input_data(Input::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP);
-    case Output::OUTPUT_TEXTURE_ARRAY:
-        return get_input_data(Input::TEXTURE_ARRAY);
-    }
-    exit(-1);
-}
-
 std::vector<tile::Id> DownsampleTilesNode::get_tile_ids_for_downsampled_tiles(const std::vector<tile::Id>& original_tile_ids)
 {
     std::unordered_set<tile::Id, tile::Id::Hasher> unique_downsampled_tile_ids;
@@ -124,9 +116,8 @@ std::vector<tile::Id> DownsampleTilesNode::get_tile_ids_for_downsampled_tiles(co
 
 void DownsampleTilesNode::compute_downsampled_tiles(const std::vector<tile::Id>& tile_ids)
 {
-    auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(
-        get_input_data(Input::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP)); // hash map for height lookup
-    auto& hashmap_textures = *std::get<data_type<TileStorageTexture*>()>(get_input_data(Input::TEXTURE_ARRAY)); // hash map for lookup
+    auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(input_socket("hash map").get_connected_data());
+    auto& hashmap_textures = *std::get<data_type<TileStorageTexture*>()>(input_socket("textures").get_connected_data());
 
     std::vector<GpuTileId> gpu_tile_ids;
     gpu_tile_ids.reserve(tile_ids.size());

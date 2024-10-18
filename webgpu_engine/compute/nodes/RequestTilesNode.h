@@ -27,22 +27,12 @@ class RequestTilesNode : public Node {
     Q_OBJECT
 
 public:
-    enum Input : SocketIndex {
-        TILE_ID_LIST = 0,
-    };
-    enum Output : SocketIndex {
-        TILE_TEXTURE_LIST = 0,
-    };
-
     RequestTilesNode();
 
     void on_single_tile_received(const nucleus::tile_scheduler::tile_types::TileLayer& tile);
 
 public slots:
     void run_impl() override;
-
-protected:
-    Data get_output_data_impl(SocketIndex output_index) override;
 
 private:
     std::unique_ptr<nucleus::tile_scheduler::TileLoadService> m_tile_loader;

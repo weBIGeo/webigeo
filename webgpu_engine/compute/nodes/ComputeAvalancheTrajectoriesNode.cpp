@@ -29,14 +29,14 @@ ComputeAvalancheTrajectoriesNode::ComputeAvalancheTrajectoriesNode(
     const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity)
     : Node(
           {
-              data_type<const std::vector<tile::Id>*>(),
-              data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(),
-              data_type<TileStorageTexture*>(),
-              data_type<TileStorageTexture*>(),
+              InputSocket(*this, "tile ids", data_type<const std::vector<tile::Id>*>()),
+              InputSocket(*this, "hash map", data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()),
+              InputSocket(*this, "normal textures", data_type<TileStorageTexture*>()),
+              InputSocket(*this, "height textures", data_type<TileStorageTexture*>()),
           },
           {
-              data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(),
-              data_type<webgpu::raii::RawBuffer<uint32_t>*>(),
+              OutputSocket(*this, "hash map", data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), [this]() { return &m_output_tile_map; }),
+              OutputSocket(*this, "storage buffer", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return &m_output_storage_buffer; }),
           })
     , m_pipeline_manager { &pipeline_manager }
     , m_device { device }
@@ -77,11 +77,10 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
     qDebug() << "running ComputeAvalancheTrajectoriesNode ...";
 
     // get tile ids to process
-    const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(get_input_data(Input::TILE_ID_LIST_TO_PROCESS)); // list of tile ids to process
-    const auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(
-        get_input_data(Input::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP)); // hash map for normal lookup
-    const auto& normal_textures = *std::get<data_type<TileStorageTexture*>()>(get_input_data(Input::NORMAL_TEXTURE_ARRAY)); // normal textures
-    const auto& height_textures = *std::get<data_type<TileStorageTexture*>()>(get_input_data(Input::HEIGHT_TEXTURE_ARRAY)); // height textures
+    const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(input_socket("tile ids").get_connected_data());
+    const auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(input_socket("hash map").get_connected_data());
+    const auto& normal_textures = *std::get<data_type<TileStorageTexture*>()>(input_socket("normal textures").get_connected_data());
+    const auto& height_textures = *std::get<data_type<TileStorageTexture*>()>(input_socket("height textures").get_connected_data());
 
     assert(tile_ids.size() <= m_capacity);
 
@@ -181,30 +180,18 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
         this);
 }
 
-Data ComputeAvalancheTrajectoriesNode::get_output_data_impl(SocketIndex output_index)
-{
-    switch (output_index) {
-    case Output::OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP:
-        return { &m_output_tile_map };
-    case Output::OUTPUT_STORAGE_BUFFER:
-        return { &m_output_storage_buffer };
-    }
-
-    exit(-1);
-}
-
 glm::uvec3 ComputeAvalancheTrajectoriesBufferToTextureNode::SHADER_WORKGROUP_SIZE = { 1, 16, 16 };
 
 ComputeAvalancheTrajectoriesBufferToTextureNode::ComputeAvalancheTrajectoriesBufferToTextureNode(
     const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity, WGPUTextureFormat output_format)
     : Node(
           {
-              data_type<const std::vector<tile::Id>*>(),
-              data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(),
-              data_type<webgpu::raii::RawBuffer<uint32_t>*>(),
+              InputSocket(*this, "tile ids", data_type<const std::vector<tile::Id>*>()),
+              InputSocket(*this, "hash map", data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()),
+              InputSocket(*this, "storage buffer", data_type<webgpu::raii::RawBuffer<uint32_t>*>()),
           },
           {
-              data_type<TileStorageTexture*>(),
+              OutputSocket(*this, "textures", data_type<TileStorageTexture*>(), [this]() { return &m_output_texture; }),
           })
     , m_pipeline_manager { &pipeline_manager }
     , m_device { device }
@@ -218,9 +205,9 @@ ComputeAvalancheTrajectoriesBufferToTextureNode::ComputeAvalancheTrajectoriesBuf
 void ComputeAvalancheTrajectoriesBufferToTextureNode::run_impl()
 {
     qDebug() << "running ComputeAvalancheTrajectoriesBufferToTextureNode ...";
-    const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(get_input_data(Input::TILE_ID_LIST_TO_PROCESS)); // list of tile ids to process
-    const auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(get_input_data(Input::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP));
-    const auto& input_storage_buffer = *std::get<data_type<webgpu::raii::RawBuffer<uint32_t>*>()>(get_input_data(Input::INPUT_STORAGE_BUFFER));
+    const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(input_socket("tile ids").get_connected_data()); // list of tile ids to process
+    const auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(input_socket("hash map").get_connected_data());
+    const auto& input_storage_buffer = *std::get<data_type<webgpu::raii::RawBuffer<uint32_t>*>()>(input_socket("storage buffer").get_connected_data());
 
     std::vector<GpuTileId> gpu_tile_ids(tile_ids.size());
     std::vector<glm::vec4> tile_bounds(tile_ids.size());
@@ -279,18 +266,6 @@ void ComputeAvalancheTrajectoriesBufferToTextureNode::run_impl()
             _this->run_finished(); // emits signal run_finished()
         },
         this);
-
-    // TODO
-}
-
-Data ComputeAvalancheTrajectoriesBufferToTextureNode::get_output_data_impl(SocketIndex output_index)
-{
-    switch (output_index) {
-    case Output::OUTPUT_TEXTURE_ARRAY:
-        return { &m_output_texture };
-    }
-
-    exit(-1);
 }
 
 } // namespace webgpu_engine::compute::nodes

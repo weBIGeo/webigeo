@@ -53,6 +53,75 @@ template <typename T, std::size_t index = 0> static constexpr DataType data_type
     }
 }
 
+class Socket {
+public:
+    enum class FlowDirection {
+        INPUT,
+        OUTPUT,
+    };
+
+protected:
+    Socket(Node& node, const std::string& name, DataType type, FlowDirection direction);
+
+public:
+    [[nodiscard]] const Node& node() const;
+    [[nodiscard]] Node& node();
+
+    [[nodiscard]] const std::string& name() const;
+    [[nodiscard]] DataType type() const;
+
+private:
+    Node* m_node;
+    std::string m_name;
+    DataType m_type;
+    FlowDirection m_direction;
+};
+
+class OutputSocket;
+class InputSocket;
+
+class InputSocket : public Socket {
+    friend class OutputSocket;
+
+public:
+    InputSocket(Node& node, const std::string& name, DataType type);
+
+    void connect(OutputSocket& output_socket);
+
+    [[nodiscard]] bool is_socket_connected() const;
+    [[nodiscard]] OutputSocket& connected_socket();
+    [[nodiscard]] const OutputSocket& connected_socket() const;
+
+    [[nodiscard]] Data get_connected_data();
+
+private:
+    OutputSocket* m_connected_socket = nullptr;
+};
+
+class OutputSocket : public Socket {
+    friend class InputSocket;
+
+    using OutputFunc = std::function<Data()>;
+
+public:
+    OutputSocket(Node& node, const std::string& name, DataType type, OutputFunc output_func);
+
+    void connect(InputSocket& input_socket);
+
+    [[nodiscard]] bool is_socket_connected() const;
+    [[nodiscard]] std::vector<InputSocket*>& connected_sockets();
+    [[nodiscard]] const std::vector<InputSocket*>& connected_sockets() const;
+
+    [[nodiscard]] Data get_data();
+
+private:
+    void remove_connected_socket(InputSocket& input_socket);
+
+private:
+    OutputFunc m_output_func;
+    std::vector<InputSocket*> m_connected_sockets = {};
+};
+
 /// Abstract base class for nodes.
 ///
 /// Subclasses usually need to override methods run and get_output_data_impl.
@@ -66,16 +135,22 @@ class Node : public QObject {
     Q_OBJECT
 
 public:
-    Node(const std::vector<DataType>& input_types, const std::vector<DataType>& output_types);
+    Node(const std::vector<InputSocket>& input_sockets, const std::vector<OutputSocket>& output_sockets);
     virtual ~Node() = default;
 
-    /// Connects an input socket of this node to an output socket of another node
-    /// TODO should set both directions?
-    void connect_input_socket(SocketIndex input_index, Node* connected_node, SocketIndex connected_output_index);
+    [[nodiscard]] bool has_input_socket(const std::string& name) const;
+    [[nodiscard]] InputSocket& input_socket(const std::string& name);
+    [[nodiscard]] const InputSocket& input_socket(const std::string& name) const;
 
-    /// Connects an output socket of this node to an input socket of another node (unidirectional)
-    /// TODO should set both directions?
-    void connect_output_socket(SocketIndex output_index, Node* connected_node, SocketIndex connected_input_index);
+    [[nodiscard]] bool has_output_socket(const std::string& name) const;
+    [[nodiscard]] OutputSocket& output_socket(const std::string& name);
+    [[nodiscard]] const OutputSocket& output_socket(const std::string& name) const;
+
+    [[nodiscard]] std::vector<InputSocket>& input_sockets();
+    [[nodiscard]] const std::vector<InputSocket>& input_sockets() const;
+
+    [[nodiscard]] std::vector<OutputSocket>& output_sockets();
+    [[nodiscard]] const std::vector<OutputSocket>& output_sockets() const;
 
 public slots:
     void run();
@@ -90,34 +165,16 @@ protected:
     ///   - get_output_data(output-index) returns result
     virtual void run_impl() = 0;
 
-    /// Override to return pointer to output data for respective output slot
-    virtual Data get_output_data_impl(SocketIndex output_index) = 0;
-
 protected:
-    struct ConnectedSocket {
-        Node* connected_node = nullptr;
-        SocketIndex connected_socket_index = std::numeric_limits<SocketIndex>::max(); // is input/output index depending on connection
-    };
+    [[nodiscard]] Data get_output_data(const std::string& output_socket_name);
+    [[nodiscard]] Data get_input_data(const std::string& input_socket_name);
 
-    std::vector<DataType> input_socket_types;
-    std::vector<DataType> output_socket_types;
-
-    std::vector<ConnectedSocket> connected_input_sockets;
-    std::vector<ConnectedSocket> connected_output_sockets;
-
-    DataType get_input_socket_type(SocketIndex input_socket_index) const;
-    size_t get_num_input_sockets() const;
-
-    DataType get_output_socket_type(SocketIndex output_socket_index) const;
-    size_t get_num_output_sockets() const;
-
-    Data get_output_data(SocketIndex output_index);
-
-    Data get_input_data(SocketIndex input_index);
-
-    float last_run_duration() const;
+    [[nodiscard]] float last_run_duration() const;
 
 private:
+    std::vector<InputSocket> m_input_sockets;
+    std::vector<OutputSocket> m_output_sockets;
+
     std::chrono::high_resolution_clock::time_point m_last_run_started;
     std::chrono::high_resolution_clock::time_point m_last_run_finished;
 };

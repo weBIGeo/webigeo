@@ -31,13 +31,13 @@ webgpu_engine::compute::nodes::ComputeSnowNode::ComputeSnowNode(
     const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity, WGPUTextureFormat output_format)
     : Node(
           {
-              data_type<const std::vector<tile::Id>*>(),
-              data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(),
-              data_type<TileStorageTexture*>(),
+              InputSocket(*this, "tile ids", data_type<const std::vector<tile::Id>*>()),
+              InputSocket(*this, "hash map", data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()),
+              InputSocket(*this, "height textures", data_type<TileStorageTexture*>()),
           },
           {
-              data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(),
-              data_type<TileStorageTexture*>(),
+              OutputSocket(*this, "hash map", data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), [this]() { return &m_output_tile_map; }),
+              OutputSocket(*this, "snow textures", data_type<TileStorageTexture*>(), [this]() { return &m_output_texture; }),
           })
     , m_pipeline_manager { &pipeline_manager }
     , m_device { device }
@@ -59,9 +59,9 @@ void ComputeSnowNode::run_impl()
     qDebug() << "running SnowComputeNode ...";
 
     // get tile ids to process
-    const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(get_input_data(0)); // list of tile ids to process
-    const auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(get_input_data(1)); // hash map for height lookup
-    const auto& height_textures = *std::get<data_type<TileStorageTexture*>()>(get_input_data(2)); // hash map for lookup
+    const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(input_socket("tile ids").get_connected_data());
+    const auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(input_socket("hash map").get_connected_data());
+    const auto& height_textures = *std::get<data_type<TileStorageTexture*>()>(input_socket("height textures").get_connected_data());
 
     assert(tile_ids.size() <= m_capacity);
 
@@ -137,7 +137,8 @@ void ComputeSnowNode::run_impl()
             ComputeSnowNode* _this = reinterpret_cast<ComputeSnowNode*>(user_data);
             _this->run_finished(); // emits signal run_finished()
 
-            const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(_this->get_input_data(0)); // list of tile ids to process
+            const auto& tile_ids
+                = *std::get<data_type<const std::vector<tile::Id>*>()>(_this->input_socket("tile ids").get_connected_data()); // list of tile ids to process
 
             // write files for debugging
             for (size_t i = 0; i < tile_ids.size(); i++) {
@@ -158,17 +159,6 @@ void ComputeSnowNode::run_impl()
             
         },
         this);
-}
-
-Data ComputeSnowNode::get_output_data_impl(SocketIndex output_index)
-{
-    switch (output_index) {
-    case Output::OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP:
-        return { &m_output_tile_map };
-    case Output::OUTPUT_TEXTURE_ARRAY:
-        return { &m_output_texture };
-    }
-    exit(-1);
 }
 
 } // namespace webgpu_engine::compute::nodes
