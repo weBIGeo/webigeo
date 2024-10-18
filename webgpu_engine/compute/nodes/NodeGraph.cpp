@@ -66,10 +66,20 @@ TileStorageTexture& NodeGraph::output_texture_storage_2() { return *m_output_tex
 
 void NodeGraph::connect_node_signals_and_slots()
 {
+    // basic idea: find topological ordering by counting in-coming edges (in-degree)
+    //  1. start with nodes that have no incoming edges
+    //  2. select node with 0 incoming edges
+    //  3. add it to topological order
+    //  4. "remove node" from graph, i.e. update in-degrees of nodes that are connected to outputs of this node
+    //   -> this decreases in-degree of other nodes
+    //   -> if some nodes reaches zero, add it to queue to for processing next
+    //
+    // known as https://en.wikipedia.org/wiki/Topological_sorting#Kahn's_algorithm
+
     assert(!m_nodes.empty());
 
     std::unordered_map<Node*, uint32_t> in_degrees;
-    std::queue<Node*> next_set;
+    std::queue<Node*> node_queue;
     std::vector<Node*> topological_ordering;
 
     for (auto& [_, node] : m_nodes) {
@@ -81,20 +91,20 @@ void NodeGraph::connect_node_signals_and_slots()
         }
         in_degrees[node.get()] = in_degree;
         if (in_degree == 0) {
-            next_set.push(node.get());
+            node_queue.push(node.get());
         }
     }
 
-    while (!next_set.empty()) {
-        Node* node = next_set.front();
-        next_set.pop();
+    while (!node_queue.empty()) {
+        Node* node = node_queue.front();
+        node_queue.pop();
         topological_ordering.push_back(node);
         for (auto& output_socket : node->output_sockets()) {
             for (auto& connected_socket : output_socket.connected_sockets()) {
                 auto& connected_node = connected_socket->node();
                 in_degrees[&connected_node]--;
                 if (in_degrees[&connected_node] == 0) {
-                    next_set.push(&connected_node);
+                    node_queue.push(&connected_node);
                 }
             }
         }
