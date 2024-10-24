@@ -26,13 +26,10 @@
 
 struct AvalancheTrajectoriesSettings {
     output_resolution: vec2u,
-    sampling_density: vec2u, // sampling density in x and y direction (n means starting a trajectory at every n-th texel)
+    sampling_interval: vec2u, // n means starting a trajectory at every n-th texel
 
-    target_point: vec4f,
-    reference_point: vec4f,
     num_steps: u32, // maximum number of steps (along gradient)
     step_length: f32, // length of one simulation step in world space
-    radius: f32,
     source_zoomlevel: u32,
 
     model_type: u32, //0 is simple, 1 is more complex
@@ -43,7 +40,8 @@ struct AvalancheTrajectoriesSettings {
     model2_friction_coeff: f32,
     model2_drag_coeff: f32,
 
-    trigger_point_max_steepness: f32, // in degrees; trigger point only used if steepness at that point not greater than this
+    trigger_point_min_steepness: f32, // in degrees
+    trigger_point_max_steepness: f32, // in degrees
 }
 
 // input
@@ -65,7 +63,7 @@ struct AvalancheTrajectoriesSettings {
 @group(0) @binding(11) var<storage, read_write> output_storage_buffer: array<atomic<u32>>; // trajectory tiles
 
 fn should_paint(col: u32, row: u32, tile_id: TileId) -> bool {
-    return (col % settings.sampling_density.x == 0) && (row % settings.sampling_density.y == 0);
+    return (col % settings.sampling_interval.x == 0) && (row % settings.sampling_interval.y == 0);
 }
 
 fn gradient_overlay(id: vec3<u32>) {
@@ -156,8 +154,9 @@ fn is_trigger_point(tile_id: TileId, uv: vec2f) -> bool {
         return false;
     }
     
-    if (get_steepness(normal) >= settings.trigger_point_max_steepness / 90.0f) {
-        // steepness at point too high
+    // check if steepness is in allowed interval
+    let steepness = get_steepness(normal);
+    if (steepness < settings.trigger_point_min_steepness || steepness > settings.trigger_point_max_steepness) {
         return false;
     }
 

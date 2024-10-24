@@ -31,21 +31,53 @@ class ComputeAvalancheTrajectoriesNode : public Node {
 public:
     static glm::uvec3 SHADER_WORKGROUP_SIZE; // TODO currently hardcoded in shader! can we somehow not hardcode it? maybe using overrides
 
+    struct TriggerPoints {
+        glm::uvec2 sampling_density;
+
+        float min_steepness = 28.0f; // in degrees
+        float max_steepness = 60.0f; // in degrees
+    };
+
     enum PhysicsModelType : uint32_t {
         MODEL1 = 0,
         MODEL2 = 1,
         MODEL3 = 2,
     };
 
-    struct AvalancheTrajectoriesSettings {
-        glm::uvec2 output_resolution;
-        glm::uvec2 sampling_density;
+    struct Model1Params {
+        float slowdown_coefficient = 0.0033f;
+        float speedup_coefficient = 0.12f;
+    };
 
-        glm::vec4 target_point;
-        glm::vec4 reference_point;
+    struct Model2Params {
+        float gravity = 9.81f;
+        float mass = 10.0f;
+        float friction_coeff = 0.01f;
+        float drag_coeff = 0.2f;
+    };
+
+    struct Simulation {
+        uint32_t zoomlevel = 16;
+        uint32_t num_steps = 1024;
+        float step_length = 0.1f;
+
+        PhysicsModelType active_model;
+        Model1Params model1;
+        Model2Params model2;
+    };
+
+    struct AvalancheTrajectoriesSettings {
+        TriggerPoints trigger_points;
+        Simulation simulation;
+    };
+
+private:
+    struct AvalancheTrajectoriesSettingsUniform {
+        glm::uvec2 output_resolution;
+        glm::uvec2 sampling_interval;
+
         uint32_t num_steps = 128;
-        float step_length = 0.5;
-        float radius = 20.0f;
+        float step_length = 0.5f;
         uint32_t source_zoomlevel;
 
         PhysicsModelType physics_model_type;
@@ -56,42 +88,20 @@ public:
         float model2_friction_coeff;
         float model2_drag_coeff;
 
+        float trigger_point_min_steepness;
         float trigger_point_max_steepness;
     };
 
+public:
     ComputeAvalancheTrajectoriesNode(const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity);
 
     const GpuHashMap<tile::Id, uint32_t, GpuTileId>& hash_map() const { return m_output_tile_map; }
     GpuHashMap<tile::Id, uint32_t, GpuTileId>& hash_map() { return m_output_tile_map; }
 
-    void set_area_of_influence_settings(const AvalancheTrajectoriesSettings& settings) { m_input_settings.data = settings; }
-    const AvalancheTrajectoriesSettings& get_area_of_influence_settings() const { return m_input_settings.data; }
+    void update_gpu_settings();
 
-    void set_target_point_lat_lon(const glm::dvec2& target_point_lat_lon);
-    void set_target_point_world(const glm::dvec2& target_point_world);
-    void set_reference_point_lat_lon_alt(const glm::dvec3& reference_point_lat_lon_alt);
-    void set_reference_point_world(const glm::dvec3& reference_point_world);
-    void set_num_steps(uint32_t num_steps) { m_input_settings.data.num_steps = num_steps; }
-    void set_step_length(float step_length) { m_input_settings.data.step_length = step_length; }
-    void set_radius(float radius);
-    void set_source_zoomlevel(uint32_t source_zoomlevel) { m_input_settings.data.source_zoomlevel = source_zoomlevel; }
-    void set_sampling_density(glm::uvec2 sampling_density) { m_input_settings.data.sampling_density = sampling_density; }
-    void set_trigger_point_max_steepness(float trigger_point_max_steepness) { m_input_settings.data.trigger_point_max_steepness = trigger_point_max_steepness; }
-
-    void set_physics_model_type(PhysicsModelType physics_model_type) { this->m_input_settings.data.physics_model_type = physics_model_type; }
-    void set_model1_linear_drag_coeff(float model1_linear_drag_coeff) { this->m_input_settings.data.model1_linear_drag_coeff = model1_linear_drag_coeff; }
-    void set_model1_downward_acceleration_coeff(float model1_downward_acceleration_coeff)
-    {
-        this->m_input_settings.data.model1_downward_acceleration_coeff = model1_downward_acceleration_coeff;
-    }
-
-    void set_model2_gravity(float model2_gravity) { this->m_input_settings.data.model2_gravity = model2_gravity; }
-    void set_model2_mass(float model2_mass) { this->m_input_settings.data.model2_mass = model2_mass; }
-    void set_model2_friction_coeff(float model2_friction_coeff) { this->m_input_settings.data.model2_friction_coeff = model2_friction_coeff; }
-    void set_model2_drag_coeff(float model2_drag_coeff) { this->m_input_settings.data.model2_drag_coeff = model2_drag_coeff; }
-
-    const glm::dvec3& get_reference_point_world() const { return m_reference_point; }
-    const glm::dvec2& get_target_point_world() const { return m_target_point; }
+    void set_area_of_influence_settings(const AvalancheTrajectoriesSettings& settings) { m_settings = settings; }
+    const AvalancheTrajectoriesSettings& get_area_of_influence_settings() const { return m_settings; }
 
 public slots:
     void run_impl() override;
@@ -103,17 +113,15 @@ private:
     size_t m_capacity;
     glm::uvec2 m_output_resolution;
 
-    bool m_should_output_files;
 
-    glm::dvec2 m_target_point;
-    glm::dvec3 m_reference_point;
+    AvalancheTrajectoriesSettings m_settings;
 
     // calculated on cpu-side before each invocation
     webgpu::raii::RawBuffer<glm::vec4> m_tile_bounds; // aabb per tile
 
     // input
     webgpu::raii::RawBuffer<GpuTileId> m_input_tile_ids; // tile ids for which to calculate overlays
-    webgpu_engine::Buffer<AvalancheTrajectoriesSettings> m_input_settings; // settings for area of influence calculation
+    webgpu_engine::Buffer<AvalancheTrajectoriesSettingsUniform> m_settings_uniform; // settings for area of influence calculation
 
     // output
     GpuHashMap<tile::Id, uint32_t, GpuTileId> m_output_tile_map; // hash map

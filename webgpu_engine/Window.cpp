@@ -365,7 +365,8 @@ void Window::paint_compute_pipeline_gui()
                     recreate_and_rerun_compute_pipeline();
                 }
 
-                ImGui::SliderFloat("Trigger point steepness", &m_compute_pipeline_settings.trigger_point_max_steepness, 0.0f, 90.0f, "%.1f");
+                ImGui::DragFloatRange2("Trigger point steepness limit", &m_compute_pipeline_settings.trigger_point_min_steepness,
+                    &m_compute_pipeline_settings.trigger_point_max_steepness, 0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp);
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     recreate_and_rerun_compute_pipeline();
                 }
@@ -539,22 +540,24 @@ void Window::update_compute_pipeline_settings()
             .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.source_zoomlevel);
 
         // trajectories settings
+        compute::nodes::ComputeAvalancheTrajectoriesNode::AvalancheTrajectoriesSettings trajectory_settings {};
+        trajectory_settings.trigger_points.sampling_density = glm::vec2(m_compute_pipeline_settings.sampling_density);
+        trajectory_settings.trigger_points.min_steepness = m_compute_pipeline_settings.trigger_point_min_steepness;
+        trajectory_settings.trigger_points.max_steepness = m_compute_pipeline_settings.trigger_point_max_steepness;
+        trajectory_settings.simulation.num_steps = m_compute_pipeline_settings.num_steps;
+        trajectory_settings.simulation.step_length = m_compute_pipeline_settings.steps_length;
+        trajectory_settings.simulation.zoomlevel = m_compute_pipeline_settings.source_zoomlevel;
+        trajectory_settings.simulation.active_model
+            = compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType(m_compute_pipeline_settings.model_type);
+        trajectory_settings.simulation.model1.slowdown_coefficient = m_compute_pipeline_settings.model1_slowdown_coeff;
+        trajectory_settings.simulation.model1.speedup_coefficient = m_compute_pipeline_settings.model1_speedup_coeff;
+        trajectory_settings.simulation.model2.gravity = m_compute_pipeline_settings.model2_gravity;
+        trajectory_settings.simulation.model2.mass = m_compute_pipeline_settings.model2_mass;
+        trajectory_settings.simulation.model2.friction_coeff = m_compute_pipeline_settings.model2_friction_coeff;
+        trajectory_settings.simulation.model2.drag_coeff = m_compute_pipeline_settings.model2_drag_coeff;
+
         auto& trajectories_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("compute_area_of_influence_node");
-        trajectories_node.set_reference_point_world(m_compute_pipeline_settings.reference_point);
-        trajectories_node.set_target_point_world(m_compute_pipeline_settings.target_point);
-        trajectories_node.set_num_steps(m_compute_pipeline_settings.num_steps);
-        trajectories_node.set_step_length(m_compute_pipeline_settings.steps_length);
-        trajectories_node.set_radius(m_compute_pipeline_settings.radius);
-        trajectories_node.set_source_zoomlevel(m_compute_pipeline_settings.source_zoomlevel);
-        trajectories_node.set_physics_model_type(compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType(m_compute_pipeline_settings.model_type));
-        trajectories_node.set_model1_downward_acceleration_coeff(m_compute_pipeline_settings.model1_speedup_coeff);
-        trajectories_node.set_model1_linear_drag_coeff(m_compute_pipeline_settings.model1_slowdown_coeff);
-        trajectories_node.set_model2_gravity(m_compute_pipeline_settings.model2_gravity);
-        trajectories_node.set_model2_mass(m_compute_pipeline_settings.model2_mass);
-        trajectories_node.set_model2_friction_coeff(m_compute_pipeline_settings.model2_friction_coeff);
-        trajectories_node.set_model2_drag_coeff(m_compute_pipeline_settings.model2_drag_coeff);
-        trajectories_node.set_sampling_density(glm::uvec2(256u / m_compute_pipeline_settings.sampling_density));
-        trajectories_node.set_trigger_point_max_steepness(m_compute_pipeline_settings.trigger_point_max_steepness);
+        trajectories_node.set_area_of_influence_settings(trajectory_settings);
     } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_INFLUENCE_AREA) {
         // tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_target_tiles_node")
