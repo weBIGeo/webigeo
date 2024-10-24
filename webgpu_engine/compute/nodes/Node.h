@@ -41,17 +41,19 @@ using SocketIndex = size_t;
 
 // Get data type (DataType value) for specific C++ type
 // adapted from https://stackoverflow.com/a/52303671
-template <typename T, std::size_t index = 0> static constexpr DataType data_type()
+template <typename T, typename VariantT, std::size_t index = 0> static constexpr DataType data_type()
 {
-    static_assert(std::variant_size_v<Data> > index, "Type not found in variant");
-    if constexpr (index == std::variant_size_v<Data>) {
+    static_assert(std::variant_size_v<VariantT> > index, "Type not found in variant");
+    if constexpr (index == std::variant_size_v<VariantT>) {
         return index;
-    } else if constexpr (std::is_same_v<std::variant_alternative_t<index, Data>, T>) {
+    } else if constexpr (std::is_same_v<std::variant_alternative_t<index, VariantT>, T>) {
         return index;
     } else {
-        return data_type<T, index + 1>();
+        return data_type<T, VariantT, index + 1>();
     }
 }
+
+template <typename T> static constexpr DataType data_type() { return data_type<T, Data>(); }
 
 class Socket {
 public:
