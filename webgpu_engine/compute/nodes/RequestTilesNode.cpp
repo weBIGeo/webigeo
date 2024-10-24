@@ -72,7 +72,7 @@ void RequestTilesNode::on_single_tile_received(const nucleus::tile_scheduler::ti
     m_num_tiles_received++;
     if (m_num_tiles_received == m_num_tiles_requested) {
         // emit all_tiles_received();
-        emit run_finished();
+        emit run_completed();
     }
 }
 

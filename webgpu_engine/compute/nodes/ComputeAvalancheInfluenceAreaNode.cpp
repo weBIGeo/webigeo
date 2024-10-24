@@ -170,7 +170,7 @@ void ComputeAvalancheInfluenceAreaNode::run_impl()
         m_queue,
         []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
             ComputeAvalancheInfluenceAreaNode* _this = reinterpret_cast<ComputeAvalancheInfluenceAreaNode*>(user_data);
-            _this->run_finished(); // emits signal run_finished()
+            _this->run_completed(); // emits signal run_finished()
         },
         this);
 }

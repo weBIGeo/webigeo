@@ -53,10 +53,13 @@ void CreateHashMapNode::run_impl()
     assert(tile_ids.size() == textures.size());
 
     if (tile_ids.size() > m_output_tile_textures.capacity()) {
-        qCritical() << "failed to store textures in GPU hash map: trying to store " << tile_ids.size() << " textures, but hash map capacity is "
-                    << m_output_tile_textures.capacity() << ". Aborting node execution.";
+        emit run_failed(NodeRunFailureInfo(*this,
+            std::format("failed to store textures in GPU hash map: trying to store {} textures, but texture array capacity is {}", tile_ids.size(),
+                m_output_tile_textures.capacity())));
         return;
     }
+
+    qDebug() << "populating hash map with " << tile_ids.size() << " entries";
 
     // store each texture in texture array and store resulting index in hashmap
     m_output_tile_id_to_index.clear();
@@ -77,7 +80,7 @@ void CreateHashMapNode::run_impl()
             // std::vector<uint32_t> value_buffer_contents = _this->m_output_tile_id_to_index.value_buffer().read_back_sync(_this->m_device, 10000);
             // std::cout << "done" << std::endl;
 
-            emit _this->run_finished();
+            emit _this->run_completed();
         },
         this);
 }

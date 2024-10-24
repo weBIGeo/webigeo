@@ -124,6 +124,21 @@ private:
     std::vector<InputSocket*> m_connected_sockets = {};
 };
 
+class NodeRunFailureInfo {
+public:
+    NodeRunFailureInfo() = delete;
+    NodeRunFailureInfo(const NodeRunFailureInfo&) = default;
+
+    NodeRunFailureInfo(const Node& node, const std::string& message);
+
+    [[nodiscard]] const Node& node() const;
+    [[nodiscard]] const std::string& message() const;
+
+private:
+    const Node* m_node;
+    std::string m_message;
+};
+
 /// Abstract base class for nodes.
 ///
 /// Subclasses usually need to override methods run and get_output_data_impl.
@@ -159,10 +174,12 @@ public slots:
 
 signals:
     void run_started();
-    void run_finished();
+    void run_completed();
+    void run_failed(NodeRunFailureInfo failed_info);
 
 protected:
     /// Override to implement node behavior.
+    /// Call either signal run_completed() or run_failed(info) to indicate completion or failure of run.
     /// Postcondition:
     ///   - get_output_data(output-index) returns result
     virtual void run_impl() = 0;

@@ -40,7 +40,7 @@ public slots:
 
 private:
     static std::vector<tile::Id> get_tile_ids_for_downsampled_tiles(const std::vector<tile::Id>& original_tile_ids);
-    void compute_downsampled_tiles(const std::vector<tile::Id>& tile_ids);
+    std::optional<NodeRunFailureInfo> compute_downsampled_tiles(const std::vector<tile::Id>& tile_ids);
 
 private:
     const PipelineManager* m_pipeline_manager;

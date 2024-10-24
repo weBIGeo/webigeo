@@ -84,10 +84,20 @@ void DownsampleTilesNode::run_impl()
     m_compute_bind_group = std::make_unique<webgpu::raii::BindGroup>(
         m_device, m_pipeline_manager->downsample_compute_bind_group_layout(), entries, "compute: downsample bind group");
 
-    compute_downsampled_tiles(downsampled_tile_ids);
+    // TODO smarter way of doing this, less duplicated code - maybe refactor compute_downsampled_tiles
+    std::optional<NodeRunFailureInfo> potential_failure = compute_downsampled_tiles(downsampled_tile_ids);
+    if (potential_failure.has_value()) {
+        emit run_failed(potential_failure.value());
+        return;
+    }
+
     for (size_t i = 1; i < m_num_downsample_steps; i++) {
         downsampled_tile_ids = get_tile_ids_for_downsampled_tiles(downsampled_tile_ids);
         compute_downsampled_tiles(downsampled_tile_ids);
+        if (potential_failure.has_value()) {
+            emit run_failed(potential_failure.value());
+            return;
+        }
     }
 
     wgpuQueueOnSubmittedWorkDone(
@@ -95,7 +105,7 @@ void DownsampleTilesNode::run_impl()
         []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
             DownsampleTilesNode* _this = reinterpret_cast<DownsampleTilesNode*>(user_data);
             _this->m_internal_storage_texture.release(); // release texture array when done
-            _this->run_finished(); // emits signal run_finished()
+            _this->run_completed(); // emits signal run_finished()
         },
         this);
 }
@@ -114,18 +124,31 @@ std::vector<tile::Id> DownsampleTilesNode::get_tile_ids_for_downsampled_tiles(co
     return downsampled_tile_ids;
 }
 
-void DownsampleTilesNode::compute_downsampled_tiles(const std::vector<tile::Id>& tile_ids)
+std::optional<NodeRunFailureInfo> DownsampleTilesNode::compute_downsampled_tiles(const std::vector<tile::Id>& tile_ids)
 {
+    qDebug() << "need to calculate " << tile_ids.size() << " downsampled tiles";
+
+    if (tile_ids.size() > m_input_tile_ids.size()) {
+        return NodeRunFailureInfo(*this,
+            std::format("failed to store tile ids for downsampling in buffer: trying to store {} tile ids, but buffer size is {}", tile_ids.size(),
+                m_input_tile_ids.size()));
+    }
+
     auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(input_socket("hash map").get_connected_data());
     auto& hashmap_textures = *std::get<data_type<TileStorageTexture*>()>(input_socket("textures").get_connected_data());
+
+    if (hashmap_textures.num_used() + tile_ids.size() > hashmap_textures.capacity()) {
+        return NodeRunFailureInfo(*this,
+            std::format("failed to store textures for downsampling in buffer: texture array has {} layers, where {} layers are already used, tried to store {} "
+                        "additional downsampled textures",
+                hashmap_textures.capacity(), hashmap_textures.num_used(), tile_ids.size(), m_input_tile_ids.size()));
+    }
 
     std::vector<GpuTileId> gpu_tile_ids;
     gpu_tile_ids.reserve(tile_ids.size());
     std::for_each(std::begin(tile_ids), std::end(tile_ids),
         [&gpu_tile_ids](const tile::Id& tile_id) { gpu_tile_ids.emplace_back(tile_id.coords.x, tile_id.coords.y, tile_id.zoom_level); });
 
-    qDebug() << "need to calculate " << gpu_tile_ids.size() << " downsampled tiles";
-    assert(gpu_tile_ids.size() <= m_input_tile_ids.size());
     m_input_tile_ids.write(m_queue, gpu_tile_ids.data(), gpu_tile_ids.size());
 
     // bind GPU resources and run pipeline
@@ -161,6 +184,7 @@ void DownsampleTilesNode::compute_downsampled_tiles(const std::vector<tile::Id>&
 
     // write texture array indices only after downsampling so we dont accidentally access not-yet-written tiles
     hash_map.update_gpu_data();
+    return {};
 }
 
 } // namespace webgpu_engine::compute::nodes

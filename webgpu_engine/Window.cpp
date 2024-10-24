@@ -509,8 +509,11 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type)
 
     update_compute_pipeline_settings();
 
-    connect(m_compute_graph.get(), &compute::nodes::NodeGraph::run_finished, this, &Window::request_redraw);
+    connect(m_compute_graph.get(), &compute::nodes::NodeGraph::run_completed, this, &Window::request_redraw);
     m_tile_manager->set_node_graph(*m_compute_graph);
+    connect(m_compute_graph.get(), &compute::nodes::NodeGraph::run_failed, this, [](compute::nodes::GraphRunFailureInfo info) {
+        qWarning() << "graph run failed. " << info.node_name() << ": " << info.node_run_failure_info().message();
+    });
 }
 
 void Window::update_compute_pipeline_settings()

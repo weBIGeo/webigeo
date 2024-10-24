@@ -33,6 +33,16 @@
 
 namespace webgpu_engine::compute::nodes {
 
+GraphRunFailureInfo::GraphRunFailureInfo(const std::string& node_name, NodeRunFailureInfo node_run_failure_info)
+    : m_node_name(node_name)
+    , m_node_run_failure_info(node_run_failure_info)
+{
+}
+
+const std::string& GraphRunFailureInfo::node_name() const { return m_node_name; }
+
+const NodeRunFailureInfo& GraphRunFailureInfo::node_run_failure_info() const { return m_node_run_failure_info; }
+
 Node* NodeGraph::add_node(const std::string& name, std::unique_ptr<Node> node)
 {
     assert(!m_nodes.contains(name));
@@ -116,15 +126,26 @@ void NodeGraph::connect_node_signals_and_slots()
 
     connect(this, &NodeGraph::run_triggered, topological_ordering.front(), &Node::run);
     for (uint32_t i = 0; i < topological_ordering.size() - 1; i++) {
-        connect(topological_ordering[i], &Node::run_finished, topological_ordering[i + 1], &Node::run);
+        connect(topological_ordering[i], &Node::run_completed, topological_ordering[i + 1], &Node::run);
     }
-    connect(topological_ordering.back(), &Node::run_finished, this, &NodeGraph::run_finished); // emits run finished signal in NodeGraph
+    connect(topological_ordering.back(), &Node::run_completed, this, &NodeGraph::run_completed); // emits run completed signal in NodeGraph
+
+    for (auto& [_, node] : m_nodes) {
+        connect(node.get(), &Node::run_failed, this, &NodeGraph::emit_graph_failure);
+    }
 }
 
 void NodeGraph::run()
 {
     qDebug() << "running node graph ...";
     emit run_triggered();
+}
+
+void NodeGraph::emit_graph_failure(NodeRunFailureInfo info)
+{
+    auto it = std::find_if(m_nodes.begin(), m_nodes.end(), [&info](const auto& key_value_pair) { return key_value_pair.second.get() == &info.node(); });
+    assert(it != m_nodes.end());
+    emit run_failed(GraphRunFailureInfo(it->first, info));
 }
 
 std::unique_ptr<NodeGraph> NodeGraph::create_normal_compute_graph(const PipelineManager& manager, WGPUDevice device)

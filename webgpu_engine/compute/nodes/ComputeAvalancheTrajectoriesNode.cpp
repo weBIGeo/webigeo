@@ -89,7 +89,11 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
     const auto& normal_textures = *std::get<data_type<TileStorageTexture*>()>(input_socket("normal textures").get_connected_data());
     const auto& height_textures = *std::get<data_type<TileStorageTexture*>()>(input_socket("height textures").get_connected_data());
 
-    assert(tile_ids.size() <= m_capacity);
+    if (tile_ids.size() > m_capacity) {
+        emit run_failed(NodeRunFailureInfo(*this,
+            std::format("failed to store textures in GPU hash map: trying to store {} textures, but hash map capacity is {}", tile_ids.size(), m_capacity)));
+        return;
+    }
 
     // calculate bounds per tile id, write tile ids and bounds to buffer
     std::vector<GpuTileId> gpu_tile_ids(tile_ids.size());
@@ -179,7 +183,7 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
         m_queue,
         []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
             ComputeAvalancheTrajectoriesNode* _this = reinterpret_cast<ComputeAvalancheTrajectoriesNode*>(user_data);
-            _this->run_finished(); // emits signal run_finished()
+            _this->run_completed(); // emits signal run_finished()
         },
         this);
 }
@@ -267,7 +271,7 @@ void ComputeAvalancheTrajectoriesBufferToTextureNode::run_impl()
         m_queue,
         []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
             ComputeAvalancheTrajectoriesBufferToTextureNode* _this = reinterpret_cast<ComputeAvalancheTrajectoriesBufferToTextureNode*>(user_data);
-            _this->run_finished(); // emits signal run_finished()
+            _this->run_completed(); // emits signal run_finished()
         },
         this);
 }

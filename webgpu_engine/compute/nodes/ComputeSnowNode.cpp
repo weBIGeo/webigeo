@@ -63,7 +63,12 @@ void ComputeSnowNode::run_impl()
     const auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(input_socket("hash map").get_connected_data());
     const auto& height_textures = *std::get<data_type<TileStorageTexture*>()>(input_socket("height textures").get_connected_data());
 
-    assert(tile_ids.size() <= m_capacity);
+    if (tile_ids.size() > m_output_texture.capacity()) {
+        emit run_failed(NodeRunFailureInfo(*this,
+            std::format("failed to store textures in GPU hash map: trying to store {} textures, but hash map capacity is {}", tile_ids.size(),
+                m_output_texture.capacity())));
+        return;
+    }
 
     // calculate bounds per tile id, write tile ids and bounds to buffer
     std::vector<GpuTileId> gpu_tile_ids(tile_ids.size());
@@ -135,7 +140,7 @@ void ComputeSnowNode::run_impl()
         m_queue,
         []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
             ComputeSnowNode* _this = reinterpret_cast<ComputeSnowNode*>(user_data);
-            _this->run_finished(); // emits signal run_finished()
+            _this->run_completed(); // emits signal run_finished()
 
             const auto& tile_ids
                 = *std::get<data_type<const std::vector<tile::Id>*>()>(_this->input_socket("tile ids").get_connected_data()); // list of tile ids to process

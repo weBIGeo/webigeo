@@ -98,7 +98,7 @@ void UpsampleTexturesNode::run_impl()
         m_queue,
         []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
             UpsampleTexturesNode* _this = reinterpret_cast<UpsampleTexturesNode*>(user_data);
-            emit _this->run_finished();
+            emit _this->run_completed();
         },
         this);
 }
