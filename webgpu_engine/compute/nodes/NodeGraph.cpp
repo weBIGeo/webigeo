@@ -28,10 +28,8 @@
 #include "RequestTilesNode.h"
 #include "SelectTilesNode.h"
 #include "UpsampleTexturesNode.h"
-#include "compute/RectangularTileRegion.h"
 #include <QDebug>
 #include <memory>
-#include <unordered_set>
 
 namespace webgpu_engine::compute::nodes {
 
@@ -131,20 +129,13 @@ void NodeGraph::run()
 
 std::unique_ptr<NodeGraph> NodeGraph::create_normal_compute_graph(const PipelineManager& manager, WGPUDevice device)
 {
-    glm::uvec2 min = { 140288 + 100, 169984 };
-    RectangularTileRegion region { .min = min,
-        .max = min + glm::uvec2 { 26, 26 }, // inclusive, so this region has 27x27 tiles
-        .zoom_level = 18,
-        .scheme = tile::Scheme::Tms };
-    auto tile_id_generator_func = [region]() { return region.get_tiles(); };
-
     size_t capacity = 1024;
     glm::uvec2 input_resolution = { 65, 65 };
     glm::uvec2 normal_output_resolution = { 65, 65 };
     glm::uvec2 upsample_output_resolution = { 256, 256 };
 
     auto node_graph = std::make_unique<NodeGraph>();
-    Node* tile_select_node = node_graph->add_node("select_tiles_node", std::make_unique<SelectTilesNode>(tile_id_generator_func));
+    Node* tile_select_node = node_graph->add_node("select_tiles_node", std::make_unique<SelectTilesNode>());
     Node* height_request_node = node_graph->add_node("request_height_node", std::make_unique<RequestTilesNode>());
     Node* hash_map_node
         = node_graph->add_node("hashmap_node", std::make_unique<CreateHashMapNode>(device, input_resolution, capacity, WGPUTextureFormat_R16Uint));
@@ -187,20 +178,13 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_compute_graph(const Pipeline
 
 std::unique_ptr<NodeGraph> NodeGraph::create_normal_with_snow_compute_graph(const PipelineManager& manager, WGPUDevice device)
 {
-    glm::uvec2 min = { 140288 + 100, 169984 };
-    RectangularTileRegion region { .min = min,
-        .max = min + glm::uvec2 { 26, 26 }, // inclusive, so this region has 27x27 tiles
-        .zoom_level = 18,
-        .scheme = tile::Scheme::Tms };
-    auto tile_id_generator_func = [region]() { return region.get_tiles(); };
-
     size_t capacity = 1024;
     glm::uvec2 input_resolution = { 65, 65 };
     glm::uvec2 normal_output_resolution = { 65, 65 };
     glm::uvec2 upsample_output_resolution = { 256, 256 };
 
     auto node_graph = std::make_unique<NodeGraph>();
-    Node* tile_select_node = node_graph->add_node("select_tiles_node", std::make_unique<SelectTilesNode>(tile_id_generator_func));
+    Node* tile_select_node = node_graph->add_node("select_tiles_node", std::make_unique<SelectTilesNode>());
     Node* height_request_node = node_graph->add_node("request_height_node", std::make_unique<RequestTilesNode>());
     Node* hash_map_node
         = node_graph->add_node("create_hashmap_node", std::make_unique<CreateHashMapNode>(device, input_resolution, capacity, WGPUTextureFormat_R16Uint));
@@ -263,19 +247,12 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_with_snow_compute_graph(cons
 
 std::unique_ptr<NodeGraph> NodeGraph::create_snow_compute_graph(const PipelineManager& manager, WGPUDevice device)
 {
-    glm::uvec2 min = { 140288, 169984 };
-    RectangularTileRegion region { .min = min,
-        .max = min + glm::uvec2 { 12, 12 }, // inclusive, so this region has 13x13 tiles
-        .zoom_level = 18,
-        .scheme = tile::Scheme::Tms };
-    auto tile_id_generator_func = [region]() { return region.get_tiles(); };
-
     size_t capacity = 256;
     glm::uvec2 input_resolution = { 65, 65 };
     glm::uvec2 output_resolution = { 65, 65 };
 
     auto node_graph = std::make_unique<NodeGraph>();
-    Node* tile_select_node = node_graph->add_node("select_tiles_node", std::make_unique<SelectTilesNode>(tile_id_generator_func));
+    Node* tile_select_node = node_graph->add_node("select_tiles_node", std::make_unique<SelectTilesNode>());
     Node* height_request_node = node_graph->add_node("request_height_node", std::make_unique<RequestTilesNode>());
     Node* hash_map_node
         = node_graph->add_node("hashmap_node", std::make_unique<CreateHashMapNode>(device, input_resolution, capacity, WGPUTextureFormat_R16Uint));
