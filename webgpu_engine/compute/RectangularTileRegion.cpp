@@ -25,7 +25,7 @@ std::vector<tile::Id> RectangularTileRegion::get_tiles() const
     assert(min.x <= max.x);
     assert(min.y <= max.y);
     std::vector<tile::Id> tiles;
-    tiles.reserve((min.x - max.x + 1) * (min.y - max.y + 1));
+    tiles.reserve((max.x - min.x + 1) * (max.y - min.y + 1));
     for (unsigned x = min.x; x <= max.x; x++) {
         for (unsigned y = min.y; y <= max.y; y++) {
             tiles.emplace_back(tile::Id { zoom_level, { x, y }, scheme });
