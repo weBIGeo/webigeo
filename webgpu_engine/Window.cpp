@@ -635,7 +635,6 @@ void Window::init_compute_pipeline_presets()
     ComputePipelineSettings default_values;
     ComputePipelineSettings preset_a = {
         .target_region = {}, // select tiles node
-        .target_zoomlevel = 18, // select tiles node
         .min_target_zoomlevel = 13,
         .max_target_zoomlevel = 18,
         .reference_point = {}, // area of influence node
@@ -657,7 +656,8 @@ void Window::init_compute_pipeline_presets()
     };
     ComputePipelineSettings preset_b = {
         .target_region = {}, // select tiles node
-        .target_zoomlevel = 18, // select tiles node
+        .min_target_zoomlevel = 13,
+        .max_target_zoomlevel = 18,
         .reference_point = {}, // area of influence node
         .target_point = {}, // area of influence node
         .num_steps = 2048u, // area of influence node
