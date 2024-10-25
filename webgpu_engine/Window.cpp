@@ -279,6 +279,28 @@ void Window::paint_gui()
 
     paint_compute_pipeline_gui();
 
+    if (m_gui_error_state.should_open_modal) {
+        ImGui::OpenPopup("Error");
+        m_gui_error_state.should_open_modal = false;
+    }
+
+    // Always center this window when appearing
+    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+
+    if (ImGui::BeginPopupModal("Error", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+
+        ImGui::PushTextWrapPos(30.0f * ImGui::GetFontSize());
+        ImGui::Text("%s", m_gui_error_state.text.c_str());
+        ImGui::PopTextWrapPos();
+
+        ImGui::Separator();
+        if (ImGui::Button("OK", ImVec2(120, 0))) {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+
 #endif
 }
 
@@ -301,8 +323,8 @@ void Window::paint_compute_pipeline_gui()
 
         const uint32_t min_zoomlevel = 1;
         const uint32_t max_zoomlevel = 18;
-        ImGui::DragIntRange2("Target zoom levels", &m_compute_pipeline_settings.min_target_zoomlevel, &m_compute_pipeline_settings.max_target_zoomlevel, 1, 1,
-            18, "From: %d", "To: %d");
+        ImGui::DragIntRange2("Target zoom levels", &m_compute_pipeline_settings.min_target_zoomlevel, &m_compute_pipeline_settings.max_target_zoomlevel, 0.1,
+            static_cast<int>(min_zoomlevel), static_cast<int>(max_zoomlevel), "From: %d", "To: %d");
         if (ImGui::IsItemDeactivatedAfterEdit()) {
             recreate_and_rerun_compute_pipeline();
         }
@@ -513,8 +535,10 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type)
 
     connect(m_compute_graph.get(), &compute::nodes::NodeGraph::run_completed, this, &Window::request_redraw);
     m_tile_manager->set_node_graph(*m_compute_graph);
-    connect(m_compute_graph.get(), &compute::nodes::NodeGraph::run_failed, this, [](compute::nodes::GraphRunFailureInfo info) {
+    connect(m_compute_graph.get(), &compute::nodes::NodeGraph::run_failed, this, [this](compute::nodes::GraphRunFailureInfo info) {
         qWarning() << "graph run failed. " << info.node_name() << ": " << info.node_run_failure_info().message();
+        std::string message = "Execution of pipeline failed.\n\nNode \"" + info.node_name() + "\" reported \"" + info.node_run_failure_info().message() + "\"";
+        this->display_message(message);
     });
 }
 
@@ -689,6 +713,12 @@ void Window::apply_compute_pipeline_preset(size_t preset_index)
     const auto old_region = m_compute_pipeline_settings.target_region;
     m_compute_pipeline_settings = m_compute_pipeline_presets.at(preset_index);
     m_compute_pipeline_settings.target_region = old_region;
+}
+
+void Window::display_message(const std::string& message)
+{
+    m_gui_error_state.text = message;
+    m_gui_error_state.should_open_modal = true;
 }
 
 float Window::depth([[maybe_unused]] const glm::dvec2& normalised_device_coordinates)

@@ -66,6 +66,11 @@ struct ComputePipelineSettings {
     float trigger_point_max_steepness = 60.0f; // trajectories node
 };
 
+struct GuiErrorState {
+    bool should_open_modal = false;
+    std::string text = "";
+};
+
 class Window : public nucleus::AbstractRenderWindow, public nucleus::camera::AbstractDepthTester {
     Q_OBJECT
 public:
@@ -135,6 +140,8 @@ private:
     void init_compute_pipeline_presets();
     void apply_compute_pipeline_preset(size_t preset_index);
 
+    void display_message(const std::string& message);
+
 private:
     WGPUInstance m_instance = nullptr;
     WGPUDevice m_device = nullptr;
@@ -174,6 +181,7 @@ private:
     ComputePipelineType m_active_compute_pipeline_type;
     ComputePipelineSettings m_compute_pipeline_settings;
     bool m_is_region_selected = false;
+    GuiErrorState m_gui_error_state;
 
     std::vector<ComputePipelineSettings> m_compute_pipeline_presets;
 };
