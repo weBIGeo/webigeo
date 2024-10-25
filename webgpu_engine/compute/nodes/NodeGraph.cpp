@@ -165,7 +165,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_compute_graph(const Pipeline
     Node* upsample_textures_node
         = node_graph->add_node("upsample_textures_node", std::make_unique<UpsampleTexturesNode>(manager, device, upsample_output_resolution, capacity));
     DownsampleTilesNode* downsample_tiles_node
-        = static_cast<DownsampleTilesNode*>(node_graph->add_node("downsample_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity, 5)));
+        = static_cast<DownsampleTilesNode*>(node_graph->add_node("downsample_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity)));
 
     // connect height request inputs
     tile_select_node->output_socket("tile ids").connect(height_request_node->input_socket("tile ids"));
@@ -218,9 +218,9 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_with_snow_compute_graph(cons
     Node* upsample_snow_textures_node
         = node_graph->add_node("upsample_snow_textures_node", std::make_unique<UpsampleTexturesNode>(manager, device, upsample_output_resolution, capacity));
     DownsampleTilesNode* downsample_snow_tiles_node
-        = static_cast<DownsampleTilesNode*>(node_graph->add_node("downsample_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity, 5)));
+        = static_cast<DownsampleTilesNode*>(node_graph->add_node("downsample_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity)));
     DownsampleTilesNode* downsample_tiles_node = static_cast<DownsampleTilesNode*>(
-        node_graph->add_node("downsample_snow_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity, 5)));
+        node_graph->add_node("downsample_snow_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity)));
 
     // connect height request node inputs
     tile_select_node->output_socket("tile ids").connect(height_request_node->input_socket("tile ids"));
@@ -280,7 +280,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_snow_compute_graph(const PipelineMa
     Node* snow_compute_node = node_graph->add_node(
         "compute_snow_node", std::make_unique<ComputeSnowNode>(manager, device, output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm));
     DownsampleTilesNode* downsample_tiles_node
-        = static_cast<DownsampleTilesNode*>(node_graph->add_node("downsample_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity, 3)));
+        = static_cast<DownsampleTilesNode*>(node_graph->add_node("downsample_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity)));
 
     tile_select_node->output_socket("tile ids").connect(height_request_node->input_socket("tile ids"));
 
@@ -308,7 +308,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_trajectories_compute_grap
     size_t capacity = 1024;
     glm::uvec2 input_resolution = { 65, 65 };
     glm::uvec2 normal_output_resolution = { 65, 65 };
-    glm::uvec2 area_of_influence_output_resolution = { 256, 256 };
+    glm::uvec2 trajectories_output_resolution = { 256, 256 };
     glm::uvec2 upsample_output_resolution = { 256, 256 };
 
     auto node_graph = std::make_unique<NodeGraph>();
@@ -322,17 +322,17 @@ std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_trajectories_compute_grap
     ComputeNormalsNode* normal_compute_node = static_cast<ComputeNormalsNode*>(node_graph->add_node(
         "compute_normals_node", std::make_unique<ComputeNormalsNode>(manager, device, normal_output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm)));
     ComputeAvalancheTrajectoriesNode* avalanche_trajectories_compute_node = static_cast<ComputeAvalancheTrajectoriesNode*>(node_graph->add_node(
-        "compute_area_of_influence_node", std::make_unique<ComputeAvalancheTrajectoriesNode>(manager, device, area_of_influence_output_resolution, capacity)));
+        "compute_avalanche_trajectories_node", std::make_unique<ComputeAvalancheTrajectoriesNode>(manager, device, trajectories_output_resolution, capacity)));
     ComputeAvalancheTrajectoriesBufferToTextureNode* avalanche_trajectories_buffer_to_texture_compute_node
         = static_cast<ComputeAvalancheTrajectoriesBufferToTextureNode*>(node_graph->add_node("avalanche_trajectories_buffer_to_texture_compute_node",
             std::make_unique<ComputeAvalancheTrajectoriesBufferToTextureNode>(
-                manager, device, area_of_influence_output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm)));
+                manager, device, trajectories_output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm)));
     Node* upsample_normals_textures_node
         = node_graph->add_node("upsample_textures_node", std::make_unique<UpsampleTexturesNode>(manager, device, upsample_output_resolution, capacity));
-    DownsampleTilesNode* downsample_area_of_influence_tiles_node = static_cast<DownsampleTilesNode*>(
-        node_graph->add_node("downsample_area_of_influence_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity, 5)));
+    DownsampleTilesNode* downsample_trajectory_tiles_node = static_cast<DownsampleTilesNode*>(
+        node_graph->add_node("downsample_trajectory_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity)));
     DownsampleTilesNode* downsample_normals_tiles_node = static_cast<DownsampleTilesNode*>(
-        node_graph->add_node("downsample_normals_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity, 5)));
+        node_graph->add_node("downsample_normals_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity)));
 
     // connect tile request node inputs
     source_tile_select_node->output_socket("tile ids").connect(height_request_node->input_socket("tile ids"));
@@ -359,9 +359,9 @@ std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_trajectories_compute_grap
         .connect(avalanche_trajectories_buffer_to_texture_compute_node->input_socket("storage buffer"));
 
     // create downsampled area of influence tiles
-    target_tile_select_node->output_socket("tile ids").connect(downsample_area_of_influence_tiles_node->input_socket("tile ids"));
-    avalanche_trajectories_compute_node->output_socket("hash map").connect(downsample_area_of_influence_tiles_node->input_socket("hash map"));
-    avalanche_trajectories_buffer_to_texture_compute_node->output_socket("textures").connect(downsample_area_of_influence_tiles_node->input_socket("textures"));
+    target_tile_select_node->output_socket("tile ids").connect(downsample_trajectory_tiles_node->input_socket("tile ids"));
+    avalanche_trajectories_compute_node->output_socket("hash map").connect(downsample_trajectory_tiles_node->input_socket("hash map"));
+    avalanche_trajectories_buffer_to_texture_compute_node->output_socket("textures").connect(downsample_trajectory_tiles_node->input_socket("textures"));
 
     // connect upsample textures node inputs
     normal_compute_node->output_socket("normal textures").connect(upsample_normals_textures_node->input_socket("source textures"));
@@ -374,8 +374,8 @@ std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_trajectories_compute_grap
     node_graph->m_output_hash_map_ptr = &downsample_normals_tiles_node->hash_map();
     node_graph->m_output_texture_storage_ptr = &downsample_normals_tiles_node->texture_storage();
 
-    node_graph->m_output_hash_map_ptr_2 = &downsample_area_of_influence_tiles_node->hash_map();
-    node_graph->m_output_texture_storage_ptr_2 = &downsample_area_of_influence_tiles_node->texture_storage();
+    node_graph->m_output_hash_map_ptr_2 = &downsample_trajectory_tiles_node->hash_map();
+    node_graph->m_output_texture_storage_ptr_2 = &downsample_trajectory_tiles_node->texture_storage();
 
     node_graph->connect_node_signals_and_slots();
 
@@ -406,9 +406,9 @@ std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_influence_area_compute_gr
     Node* upsample_normals_textures_node
         = node_graph->add_node("upsample_textures_node", std::make_unique<UpsampleTexturesNode>(manager, device, upsample_output_resolution, capacity));
     DownsampleTilesNode* downsample_area_of_influence_tiles_node = static_cast<DownsampleTilesNode*>(
-        node_graph->add_node("downsample_area_of_influence_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity, 5)));
+        node_graph->add_node("downsample_area_of_influence_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity)));
     DownsampleTilesNode* downsample_normals_tiles_node = static_cast<DownsampleTilesNode*>(
-        node_graph->add_node("downsample_normals_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity, 5)));
+        node_graph->add_node("downsample_normals_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity)));
 
     // connect tile request node inputs
     source_tile_select_node->output_socket("tile ids").connect(height_request_node->input_socket("tile ids"));

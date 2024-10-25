@@ -29,11 +29,20 @@ class DownsampleTilesNode : public Node {
 public:
     static glm::uvec3 SHADER_WORKGROUP_SIZE; // TODO currently hardcoded in shader! can we somehow not hardcode it? maybe using overrides
 
-    DownsampleTilesNode(const PipelineManager& pipeline_manager, WGPUDevice device, size_t capacity, size_t num_downsample_levels = 1);
+    struct DownsampleSettings {
+        uint32_t num_levels = 1u; // how many zoomlevels should be downsampled
+        // TODO filtering type enum (just add it when we need it)
+    };
+
+    DownsampleTilesNode(const PipelineManager& pipeline_manager, WGPUDevice device, size_t capacity);
+    DownsampleTilesNode(const PipelineManager& pipeline_manager, WGPUDevice device, size_t capacity, const DownsampleSettings& settings);
 
     GpuHashMap<tile::Id, uint32_t, GpuTileId>& hash_map();
 
     TileStorageTexture& texture_storage();
+
+    void set_downsample_settings(const DownsampleSettings& settings);
+    const DownsampleSettings& get_downsample_settings() const;
 
 public slots:
     void run_impl() override;
@@ -47,7 +56,8 @@ private:
     WGPUDevice m_device;
     WGPUQueue m_queue;
 
-    size_t m_num_downsample_steps; // how many zoomlevels should be downsampled
+    DownsampleSettings m_settings;
+
     webgpu::raii::RawBuffer<GpuTileId> m_input_tile_ids; // tile ids of (to be calculated) downsampled tiles
     std::unique_ptr<TileStorageTexture> m_internal_storage_texture; // stores output of downsampling before it is copied back to input hashmap
     std::unique_ptr<webgpu::raii::BindGroup> m_compute_bind_group;

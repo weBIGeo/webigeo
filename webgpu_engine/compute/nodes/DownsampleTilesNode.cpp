@@ -25,7 +25,12 @@ namespace webgpu_engine::compute::nodes {
 
 glm::uvec3 DownsampleTilesNode::SHADER_WORKGROUP_SIZE = { 1, 16, 16 };
 
-DownsampleTilesNode::DownsampleTilesNode(const PipelineManager& pipeline_manager, WGPUDevice device, size_t capacity, size_t num_downsample_levels)
+DownsampleTilesNode::DownsampleTilesNode(const PipelineManager& pipeline_manager, WGPUDevice device, size_t capacity)
+    : DownsampleTilesNode(pipeline_manager, device, capacity, DownsampleSettings())
+{
+}
+
+DownsampleTilesNode::DownsampleTilesNode(const PipelineManager& pipeline_manager, WGPUDevice device, size_t capacity, const DownsampleSettings& settings)
     : Node(
           {
               InputSocket(*this, "tile ids", data_type<const std::vector<tile::Id>*>()),
@@ -40,11 +45,10 @@ DownsampleTilesNode::DownsampleTilesNode(const PipelineManager& pipeline_manager
     , m_pipeline_manager { &pipeline_manager }
     , m_device { device }
     , m_queue { wgpuDeviceGetQueue(m_device) }
-    , m_num_downsample_steps { num_downsample_levels }
+    , m_settings { settings }
     , m_input_tile_ids(device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc, capacity, "compute: downsampling, tile id buffer")
     , m_internal_storage_texture()
 {
-    assert(m_num_downsample_steps > 0 && m_num_downsample_steps < 18);
 }
 
 GpuHashMap<tile::Id, uint32_t, GpuTileId>& DownsampleTilesNode::hash_map()
@@ -57,9 +61,19 @@ TileStorageTexture& DownsampleTilesNode::texture_storage()
     return *std::get<data_type<TileStorageTexture*>()>(input_socket("textures").get_connected_data());
 }
 
+void DownsampleTilesNode::set_downsample_settings(const DownsampleSettings& settings) { m_settings = settings; }
+
+const DownsampleTilesNode::DownsampleSettings& DownsampleTilesNode::get_downsample_settings() const { return m_settings; }
+
 void DownsampleTilesNode::run_impl()
 {
     qDebug() << "running DownsampleTilesNode ...";
+    qDebug() << "downsampling over " << m_settings.num_levels << " zoom levels";
+    if (m_settings.num_levels == 0) {
+        qDebug() << "nothing to do, emit completed signal immediately";
+        emit run_completed();
+        return;
+    }
 
     const auto& original_tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(input_socket("tile ids").get_connected_data());
     auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(input_socket("hash map").get_connected_data());
@@ -79,8 +93,13 @@ void DownsampleTilesNode::run_impl()
     WGPUBindGroupEntry input_hash_map_value_buffer_entry = hash_map.value_buffer().create_bind_group_entry(2);
     WGPUBindGroupEntry input_texture_array_entry = hashmap_textures.texture().texture_view().create_bind_group_entry(3);
     WGPUBindGroupEntry output_texture_array_entry = m_internal_storage_texture->texture().texture_view().create_bind_group_entry(4);
-    std::vector<WGPUBindGroupEntry> entries { input_tile_ids_entry, input_hash_map_key_buffer_entry, input_hash_map_value_buffer_entry,
-        input_texture_array_entry, output_texture_array_entry };
+    std::vector<WGPUBindGroupEntry> entries {
+        input_tile_ids_entry,
+        input_hash_map_key_buffer_entry,
+        input_hash_map_value_buffer_entry,
+        input_texture_array_entry,
+        output_texture_array_entry,
+    };
     m_compute_bind_group = std::make_unique<webgpu::raii::BindGroup>(
         m_device, m_pipeline_manager->downsample_compute_bind_group_layout(), entries, "compute: downsample bind group");
 
@@ -91,7 +110,7 @@ void DownsampleTilesNode::run_impl()
         return;
     }
 
-    for (size_t i = 1; i < m_num_downsample_steps; i++) {
+    for (size_t i = 1; i < m_settings.num_levels; i++) {
         downsampled_tile_ids = get_tile_ids_for_downsampled_tiles(downsampled_tile_ids);
         std::optional<NodeRunFailureInfo> potential_failure = compute_downsampled_tiles(downsampled_tile_ids);
         if (potential_failure.has_value()) {

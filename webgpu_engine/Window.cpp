@@ -21,6 +21,7 @@
 #include "compute/nodes/ComputeAvalancheInfluenceAreaNode.h"
 #include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
 #include "compute/nodes/ComputeSnowNode.h"
+#include "compute/nodes/DownsampleTilesNode.h"
 #include "compute/nodes/SelectTilesNode.h"
 #include "nucleus/track/GPX.h"
 #include "webgpu/raii/RenderPassEncoder.h"
@@ -300,7 +301,8 @@ void Window::paint_compute_pipeline_gui()
 
         const uint32_t min_zoomlevel = 1;
         const uint32_t max_zoomlevel = 18;
-        ImGui::SliderScalar("Target zoom level", ImGuiDataType_U32, &m_compute_pipeline_settings.target_zoomlevel, &min_zoomlevel, &max_zoomlevel, "%u");
+        ImGui::DragIntRange2("Target zoom levels", &m_compute_pipeline_settings.min_target_zoomlevel, &m_compute_pipeline_settings.max_target_zoomlevel, 1, 1,
+            18, "From: %d", "To: %d");
         if (ImGui::IsItemDeactivatedAfterEdit()) {
             recreate_and_rerun_compute_pipeline();
         }
@@ -521,11 +523,18 @@ void Window::update_compute_pipeline_settings()
     if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS) {
         // tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
-            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.target_zoomlevel);
+            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.max_target_zoomlevel);
+
+        // downsampling
+        compute::nodes::DownsampleTilesNode::DownsampleSettings downsample_settings {
+            .num_levels = static_cast<uint32_t>(m_compute_pipeline_settings.max_target_zoomlevel - m_compute_pipeline_settings.min_target_zoomlevel),
+        };
+        m_compute_graph->get_node_as<compute::nodes::DownsampleTilesNode>("downsample_tiles_node").set_downsample_settings(downsample_settings);
+
     } else if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS_AND_SNOW) {
         // tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
-            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.target_zoomlevel);
+            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.max_target_zoomlevel);
 
         // snow settings
         if (m_compute_pipeline_settings.sync_snow_settings_with_render_settings) {
@@ -533,10 +542,18 @@ void Window::update_compute_pipeline_settings()
             m_compute_pipeline_settings.snow_settings.angle = m_shared_config_ubo->data.m_snow_settings_angle;
         }
         m_compute_graph->get_node_as<compute::nodes::ComputeSnowNode>("compute_snow_node").set_snow_settings(m_compute_pipeline_settings.snow_settings);
+
+        // downsampling
+        compute::nodes::DownsampleTilesNode::DownsampleSettings downsample_settings {
+            .num_levels = static_cast<uint32_t>(m_compute_pipeline_settings.max_target_zoomlevel - m_compute_pipeline_settings.min_target_zoomlevel),
+        };
+        m_compute_graph->get_node_as<compute::nodes::DownsampleTilesNode>("downsample_tiles_node").set_downsample_settings(downsample_settings);
+        m_compute_graph->get_node_as<compute::nodes::DownsampleTilesNode>("downsample_snow_tiles_node").set_downsample_settings(downsample_settings);
+
     } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
         // tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_target_tiles_node")
-            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.target_zoomlevel);
+            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.max_target_zoomlevel);
 
         // data source tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_source_tiles_node")
@@ -559,12 +576,19 @@ void Window::update_compute_pipeline_settings()
         trajectory_settings.simulation.model2.friction_coeff = m_compute_pipeline_settings.model2_friction_coeff;
         trajectory_settings.simulation.model2.drag_coeff = m_compute_pipeline_settings.model2_drag_coeff;
 
-        auto& trajectories_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("compute_area_of_influence_node");
+        auto& trajectories_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("compute_avalanche_trajectories_node");
         trajectories_node.set_area_of_influence_settings(trajectory_settings);
+
+        // downsampling
+        compute::nodes::DownsampleTilesNode::DownsampleSettings downsample_settings {
+            .num_levels = static_cast<uint32_t>(m_compute_pipeline_settings.max_target_zoomlevel - m_compute_pipeline_settings.min_target_zoomlevel),
+        };
+        m_compute_graph->get_node_as<compute::nodes::DownsampleTilesNode>("downsample_trajectory_tiles_node").set_downsample_settings(downsample_settings);
+        m_compute_graph->get_node_as<compute::nodes::DownsampleTilesNode>("downsample_normals_tiles_node").set_downsample_settings(downsample_settings);
     } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_INFLUENCE_AREA) {
         // tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_target_tiles_node")
-            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.target_zoomlevel);
+            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.max_target_zoomlevel);
 
         // data source tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_source_tiles_node")
@@ -586,6 +610,14 @@ void Window::update_compute_pipeline_settings()
         area_of_influence_node.set_model2_mass(m_compute_pipeline_settings.model2_mass);
         area_of_influence_node.set_model2_friction_coeff(m_compute_pipeline_settings.model2_friction_coeff);
         area_of_influence_node.set_model2_drag_coeff(m_compute_pipeline_settings.model2_drag_coeff);
+
+        // downsampling
+        compute::nodes::DownsampleTilesNode::DownsampleSettings downsample_settings {
+            .num_levels = static_cast<uint32_t>(m_compute_pipeline_settings.max_target_zoomlevel - m_compute_pipeline_settings.min_target_zoomlevel),
+        };
+        m_compute_graph->get_node_as<compute::nodes::DownsampleTilesNode>("downsample_area_of_influence_tiles_node")
+            .set_downsample_settings(downsample_settings);
+        m_compute_graph->get_node_as<compute::nodes::DownsampleTilesNode>("downsample_normals_tiles_node").set_downsample_settings(downsample_settings);
     }
 }
 
@@ -604,6 +636,8 @@ void Window::init_compute_pipeline_presets()
     ComputePipelineSettings preset_a = {
         .target_region = {}, // select tiles node
         .target_zoomlevel = 18, // select tiles node
+        .min_target_zoomlevel = 13,
+        .max_target_zoomlevel = 18,
         .reference_point = {}, // area of influence node
         .target_point = {}, // area of influence node
         .num_steps = 512u, // area of influence node
