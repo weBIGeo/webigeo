@@ -46,6 +46,17 @@ set(SOURCES
     compute/nodes/UpsampleTexturesNode.h compute/nodes/UpsampleTexturesNode.cpp
     compute/nodes/ComputeAvalancheTrajectoriesNode.h compute/nodes/ComputeAvalancheTrajectoriesNode.cpp
     compute/nodes/ComputeAvalancheInfluenceAreaNode.h compute/nodes/ComputeAvalancheInfluenceAreaNode.cpp
+
+    atmosphere/atmosphere.h atmosphere/atmosphere.cpp
+    atmosphere/resources.h atmosphere/resources.cpp
+    atmosphere/config.h atmosphere/config.cpp
+    atmosphere/util.h atmosphere/util.cpp
+    atmosphere/uniforms.h atmosphere/uniforms.cpp
+    atmosphere/params.h atmosphere/params.cpp
+    atmosphere/shaders.h atmosphere/shaders.cpp
+    atmosphere/pipelines.h atmosphere/pipelines.cpp
+    atmosphere/lut_renderer.h atmosphere/lut_renderer.cpp
+    atmosphere/sky_renderer.h atmosphere/sky_renderer.cpp
 )
 
 qt_add_library(webgpu_engine STATIC ${SOURCES})
