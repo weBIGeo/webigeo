@@ -109,9 +109,12 @@ public:
     std::unique_ptr<TextureView> create_view() const;
     std::unique_ptr<TextureView> create_view(const WGPUTextureViewDescriptor& desc) const;
 
-    size_t size_in_bytes();
-    size_t bytes_per_row();
-    size_t single_layer_size_in_bytes();
+    size_t width() const;
+    size_t height() const;
+    size_t depth_or_num_layers() const;
+    size_t size_in_bytes() const;
+    size_t bytes_per_row() const;
+    size_t single_layer_size_in_bytes() const;
 
 private:
     std::queue<ReadBackState> m_read_back_states;

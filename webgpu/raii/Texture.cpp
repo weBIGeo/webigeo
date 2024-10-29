@@ -80,6 +80,7 @@ uint8_t Texture::get_bytes_per_element(WGPUTextureFormat format)
 
     default:
         qFatal("tried to get texture size for unsupoorted format");
+        return 0;
     }
 }
 
@@ -201,7 +202,8 @@ WGPUTextureViewDescriptor Texture::default_texture_view_descriptor() const
     view_desc.dimension = determineViewDimension(m_descriptor);
     view_desc.format = m_descriptor.format;
     view_desc.baseArrayLayer = 0;
-    view_desc.arrayLayerCount = m_descriptor.size.depthOrArrayLayers;
+    // arrayLayerCount must be 1 for 3d textures, webGPU does not (yet) support 3d texture arrays
+    view_desc.arrayLayerCount = m_descriptor.dimension == WGPUTextureDimension_3D ? 1u : m_descriptor.size.depthOrArrayLayers;
     view_desc.baseMipLevel = 0;
     view_desc.mipLevelCount = m_descriptor.mipLevelCount;
     return view_desc;
@@ -211,14 +213,20 @@ std::unique_ptr<TextureView> Texture::create_view() const { return create_view(d
 
 std::unique_ptr<TextureView> Texture::create_view(const WGPUTextureViewDescriptor& desc) const { return std::make_unique<TextureView>(m_handle, desc); }
 
-size_t Texture::size_in_bytes() { return single_layer_size_in_bytes() * m_descriptor.size.depthOrArrayLayers; }
+size_t Texture::width() const { return m_descriptor.size.width; }
 
-size_t Texture::bytes_per_row()
+size_t Texture::height() const { return m_descriptor.size.height; }
+
+size_t Texture::depth_or_num_layers() const { return m_descriptor.size.depthOrArrayLayers; }
+
+size_t Texture::size_in_bytes() const { return single_layer_size_in_bytes() * m_descriptor.size.depthOrArrayLayers; }
+
+size_t Texture::bytes_per_row() const
 {
     return size_t(std::ceil(double(m_descriptor.size.width) * double(get_bytes_per_element(m_descriptor.format)) / double(BYTES_PER_ROW_PADDING))
         * BYTES_PER_ROW_PADDING); // rows are padded to 256 bytes
 }
 
-size_t Texture::single_layer_size_in_bytes() { return bytes_per_row() * m_descriptor.size.height; }
+size_t Texture::single_layer_size_in_bytes() const { return bytes_per_row() * m_descriptor.size.height; }
 
 } // namespace webgpu::raii
