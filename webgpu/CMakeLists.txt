@@ -23,6 +23,8 @@ project(alpine-renderer-webgpu LANGUAGES C CXX)
 
 set(ALP_DAWN_DIR "${CMAKE_SOURCE_DIR}/../dawn" CACHE PATH "path to the dawn repo with debug and release builds. (only necessary for native build)")
 
+set(ALP_SDL_INSTALL_DIR "${CMAKE_SOURCE_DIR}/../SDL" CACHE PATH "Path to the SDL installation directory")
+
 set(SOURCES
 
     raii/base_types.h
@@ -60,9 +62,14 @@ else()
     include(${CMAKE_SOURCE_DIR}/cmake/alp_target_add_dawn.cmake)
     alp_target_add_dawn(webgpu "${ALP_DAWN_DIR}" PUBLIC)
 
-    # add glfw to webgpu library
-    alp_add_git_repository(glfw URL https://github.com/AlpineMapsOrgDependencies/glfw_slim.git COMMITISH 1c340247f42f8dc9ed3f971eb292ce76be6077e5)
-    target_link_libraries(webgpu PUBLIC glfw)
+    # set public IMGUI_IMPL_WEBGPU_BACKEND_DAWN flag
+    target_compile_definitions(webgpu PUBLIC IMGUI_IMPL_WEBGPU_BACKEND_DAWN)
+
+    # find and add SDL2 (you may install it to the default install folder or ALP_SDL_INSTALL_DIR)
+    # Add ALP_SDL_INSTALL_DIR to CMake's search path for find_package
+    list(APPEND CMAKE_PREFIX_PATH "${ALP_SDL_INSTALL_DIR}")
+    find_package(SDL2 REQUIRED)
+    target_link_libraries(webgpu PUBLIC SDL2::SDL2 SDL2::SDL2main)
 
     # If tint_lang_hlsl_writer.lib within ${ALP_DAWN_DIR}/build/debug/src exists DAWN was compiled with DX-Backends.
     file(GLOB_RECURSE TINT_LIB_PATH "${ALP_DAWN_DIR}/build/debug/src/tint_lang_hlsl_writer.lib")

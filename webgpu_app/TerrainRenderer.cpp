@@ -40,82 +40,57 @@
 
 namespace webgpu_app {
 
-static void window_resize_callback(GLFWwindow* window, int width, int height)
-{
-    auto terrainRenderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
-    terrainRenderer->on_window_resize(width, height);
-}
-
-static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-#if __EMSCRIPTEN__
-    if (webgpu::isSleeping()) {
-        qWarning() << "Key event while sleeping will be ignored";
-        return;
-    }
-#endif
-    auto renderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
-    renderer->get_input_mapper()->on_key_callback(key, scancode, action, mods);
-}
-
-#ifndef __EMSCRIPTEN__
-static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
-    auto renderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
-    renderer->get_input_mapper()->on_cursor_position_callback(xpos, ypos);
-}
-
-static void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
-    auto renderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
-    double xpos, ypos;
-    glfwGetCursorPos(window, &xpos, &ypos);
-    renderer->get_input_mapper()->on_mouse_button_callback(button, action, mods, xpos, ypos);
-}
-#endif
-static void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
-{
-#if __EMSCRIPTEN__
-    if (webgpu::isSleeping()) {
-        qWarning() << "Scroll event while sleeping will be ignored";
-        return;
-    }
-#endif
-    auto renderer = static_cast<TerrainRenderer*>(glfwGetWindowUserPointer(window));
-    double xpos, ypos;
-    glfwGetCursorPos(window, &xpos, &ypos);
-    renderer->get_input_mapper()->on_scroll_callback(xoffset, yoffset, xpos, ypos);
-}
-
 TerrainRenderer::TerrainRenderer() {
 #ifdef __EMSCRIPTEN__
     // execute on window resize when canvas size changes
-    QObject::connect(&WebInterop::instance(), &WebInterop::canvas_size_changed, this, &TerrainRenderer::set_glfw_window_size);
+    QObject::connect(&WebInterop::instance(), &WebInterop::body_size_changed, this, &TerrainRenderer::set_window_size);
 #endif
 }
 
 void TerrainRenderer::init_window() {
-    if (!glfwInit())
-        qFatal("Could not initialize GLFW!");
-
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    //glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-    m_window = glfwCreateWindow(m_viewport_size.x, m_viewport_size.y, "weBIGeo - Geospatial Visualization Tool", NULL, NULL);
-    if (!m_window) {
-        glfwTerminate();
-        qFatal("Could not open GLFW window");
+    // Initializes SDL2 video subsystem
+    SDL_SetMainReady();
+    if (SDL_InitSubSystem(SDL_INIT_VIDEO) != 0) {
+        qFatal("Could not initialize SDL2 video subsystem! SDL_Error: %s", SDL_GetError());
     }
-    glfwSetWindowUserPointer(m_window, this);
-    glfwSetKeyCallback(m_window, key_callback);
-    glfwSetWindowSizeCallback(m_window, window_resize_callback);
-#ifndef __EMSCRIPTEN__
-    glfwSetCursorPosCallback(m_window, cursor_position_callback);
-    glfwSetMouseButtonCallback(m_window, mouse_button_callback);
+
+#ifdef __EMSCRIPTEN__
+    // Fetch size of the webpage
+    m_viewport_size = WebInterop::instance().get_body_size();
 #endif
-    glfwSetScrollCallback(m_window, scroll_callback);
+    m_sdl_window = SDL_CreateWindow("weBIGeo - Geospatial Visualization Tool", // Window title
+        SDL_WINDOWPOS_CENTERED, // Window position x
+        SDL_WINDOWPOS_CENTERED, // Window position y
+        m_viewport_size.x, // Window width
+        m_viewport_size.y, // Window height
+        SDL_WINDOW_RESIZABLE); // SDL_WINDOW_VULKAN
+
+    if (!m_sdl_window) {
+        SDL_Quit();
+        qFatal("Could not create SDL window! SDL_Error: %s", SDL_GetError());
+    }
 
 #ifndef __EMSCRIPTEN__
-    // Load Icon for Window
+    // Load icon using the existing image loader
     auto icon = nucleus::utils::image_loader::rgba8(":/icons/logo32.png");
-    GLFWimage image = { int(icon.width()), int(icon.height()), icon.bytes() };
-    glfwSetWindowIcon(m_window, 1, &image);
+    // Create SDL_Surface from the raw image data
+    SDL_Surface* iconSurface = SDL_CreateRGBSurfaceFrom((void*)icon.bytes(), // Pixel data
+        icon.width(), // Image width
+        icon.height(), // Image height
+        32, // Bits per pixel (RGBA = 32 bits)
+        icon.width() * 4, // Pitch (width * 4 bytes per pixel)
+        0x000000ff, // Red mask
+        0x0000ff00, // Green mask
+        0x00ff0000, // Blue mask
+        0xff000000 // Alpha mask
+    );
+
+    if (iconSurface) {
+        SDL_SetWindowIcon(m_sdl_window, iconSurface); // Set the window icon
+        SDL_FreeSurface(iconSurface); // Free the surface after setting the icon
+    } else {
+        qWarning("Could not create SDL surface for window icon. SDL_Error: %s", SDL_GetError());
+    }
 #endif
 }
 
@@ -131,17 +106,52 @@ void TerrainRenderer::render_gui()
     }
     ImGui::Checkbox("Repaint each frame", &m_force_repaint);
     ImGui::Text("Repaint-Counter: %d", m_repaint_count);
-#endif
 
     if (ImGui::Button("Reload shaders [F5]", ImVec2(350, 20))) {
         m_webgpu_window->reload_shaders();
+    }
+#endif
+}
+
+void TerrainRenderer::poll_events()
+{
+    // Poll events and handle them.
+    // (contrary to GLFW, close event is not automatically managed, and there
+    // is no callback mechanism by default.)
+
+    static SDL_Event events[15]; // Only allocate memory once (11 is the max events at once i witnessed)
+    bool events_contain_touch = false;
+    int event_count = 0;
+    static SDL_Event event;
+    while (SDL_PollEvent(&event)) {
+        m_gui_manager->on_sdl_event(event);
+        if (event.type == SDL_QUIT) {
+            m_window_open = false;
+        } else if (event.type == SDL_WINDOWEVENT) {
+            if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
+                on_window_resize(event.window.data1, event.window.data2);
+            }
+        } else {
+            events[event_count++] = event;
+            if (event.type == SDL_FINGERDOWN || event.type == SDL_FINGERUP || event.type == SDL_FINGERMOTION) {
+                events_contain_touch = true;
+            }
+        }
+    }
+
+    // IMPORTANT: SDL seems to emulate touch events as mouse events aswell. In order to avoid this
+    // we need to filter out the mouse events if there are touch events. Meaning we priortize touch over mouse.
+    for (int i = 0; i < event_count; i++) {
+        if (events_contain_touch && (events[i].type == SDL_MOUSEMOTION || events[i].type == SDL_MOUSEBUTTONDOWN || events[i].type == SDL_MOUSEBUTTONUP)) {
+            continue;
+        }
+        m_input_mapper->on_sdl_event(events[i]);
     }
 }
 
 void TerrainRenderer::render() {
     // Do nothing, this checks for ongoing asynchronous operations and call their callbacks
     m_cputimer->start();
-    glfwPollEvents();
 
     WGPUTextureView swapchain_texture = wgpuSwapChainGetCurrentTextureView(m_swapchain);
     if (!swapchain_texture) {
@@ -164,7 +174,6 @@ void TerrainRenderer::render() {
 
     {
         webgpu::raii::RenderPassEncoder render_pass(encoder, swapchain_texture, nullptr);
-        // webgpu::raii::RenderPassEncoder render_pass(encoder, swapchain_texture, nullptr, &m_timestamp_writes);
         wgpuRenderPassEncoderSetPipeline(render_pass.handle(), m_gui_pipeline.get()->pipeline().handle());
         wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 0, m_gui_bind_group->handle(), 0, nullptr);
         wgpuRenderPassEncoderDraw(render_pass.handle(), 3, 1, 0, 0);
@@ -215,26 +224,27 @@ void TerrainRenderer::start() {
 #endif
 
     nucleus::camera::Controller* camera_controller = m_controller->camera_controller();
-    m_input_mapper = std::make_unique<InputMapper>(this, camera_controller, m_gui_manager.get());
+    m_input_mapper = std::make_unique<InputMapper>(this, camera_controller, m_gui_manager.get(), [this]() { return m_viewport_size; });
 
     connect(this, &TerrainRenderer::update_camera_requested, camera_controller, &nucleus::camera::Controller::update_camera_request);
     connect(m_webgpu_window.get(), &webgpu_engine::Window::set_camera_definition_requested, camera_controller, &nucleus::camera::Controller::set_definition);
 
 #ifdef __EMSCRIPTEN__
-    connect(&WebInterop::instance(), &WebInterop::mouse_button_event, m_input_mapper.get(), &InputMapper::on_mouse_button_callback);
-    connect(&WebInterop::instance(), &WebInterop::mouse_position_event, m_input_mapper.get(), &InputMapper::on_cursor_position_callback);
+    // connect(&WebInterop::instance(), &WebInterop::mouse_button_event, m_input_mapper.get(), &InputMapper::on_mouse_button_callback);
+    // connect(&WebInterop::instance(), &WebInterop::mouse_position_event, m_input_mapper.get(), &InputMapper::on_cursor_position_callback);
 #endif
 
     connect(m_input_mapper.get(), &InputMapper::key_pressed, this, &TerrainRenderer::handle_shortcuts);
 
     m_webgpu_window->set_wgpu_context(m_instance, m_device, m_adapter, m_surface, m_queue);
     m_webgpu_window->initialise_gpu();
+
     // Creates the swapchain
     this->on_window_resize(m_viewport_size.x, m_viewport_size.y);
 
     { // load first camera definition without changing preset in nucleus
         auto new_definition = nucleus::camera::stored_positions::heiligenblut_popping();
-        new_definition.set_viewport_size(camera_controller->definition().viewport_size());
+        new_definition.set_viewport_size(m_viewport_size);
         camera_controller->set_definition(new_definition);
     }
 
@@ -302,11 +312,9 @@ void TerrainRenderer::start() {
     m_gui_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, *m_gui_bind_group_layout.get(),
         std::initializer_list<WGPUBindGroupEntry> { m_framebuffer->color_texture_view(0).create_bind_group_entry(0), m_gui_ubo->create_bind_group_entry(1) });
 
-    glfwSetWindowSize(m_window, m_viewport_size.x, m_viewport_size.y);
-
     m_timer_manager = std::make_unique<webgpu::timing::GuiTimerManager>();
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-    m_gui_manager->init(m_window, m_device, m_swapchain_format, WGPUTextureFormat_Undefined);
+    m_gui_manager->init(m_sdl_window, m_device, m_swapchain_format, WGPUTextureFormat_Undefined);
 #endif
 
     m_cputimer = std::make_shared<webgpu::timing::CpuTimer>(120);
@@ -316,19 +324,20 @@ void TerrainRenderer::start() {
         m_timer_manager->add_timer(m_gputimer, "GPU Timer", "Renderer");
     }
 
+    this->on_window_resize(m_viewport_size.x, m_viewport_size.y);
     m_initialized = true;
 
 #if defined(__EMSCRIPTEN__)
     emscripten_set_main_loop_arg(
-        [](void *userData) {
+        [](void* userData) {
             TerrainRenderer& renderer = *reinterpret_cast<TerrainRenderer*>(userData);
+            renderer.poll_events();
             renderer.render();
         },
-        (void*)this,
-        0, true
-    );
+        (void*)this, 0, true);
 #else
-    while (!glfwWindowShouldClose(m_window)) {
+    while (m_window_open) {
+        poll_events();
         render();
     }
 #endif
@@ -342,16 +351,20 @@ void TerrainRenderer::start() {
     webgpu_release_context();
     m_webgpu_window->destroy();
 
-    glfwDestroyWindow(m_window);
-    glfwTerminate();
+    SDL_DestroyWindow(m_sdl_window);
+    SDL_Quit();
     m_initialized = false;
 #endif
 }
 
-void TerrainRenderer::set_glfw_window_size(int width, int height) {
-    m_viewport_size = { width, height };
+void TerrainRenderer::set_window_size(glm::uvec2 size)
+{
+    if (m_viewport_size == size)
+        return;
+    m_viewport_size = size;
     if (m_initialized) {
-        glfwSetWindowSize(m_window, width, height);
+        SDL_SetWindowSize(m_sdl_window, size.x, size.y);
+        on_window_resize(size.x, size.y);
     }
 }
 
@@ -444,7 +457,7 @@ void TerrainRenderer::webgpu_create_context()
     qInfo() << "Got instance: " << m_instance;
 
     qDebug() << "Requesting surface...";
-    m_surface = glfwGetWGPUSurface(m_instance, m_window);
+    m_surface = SDL_GetWGPUSurface(m_instance, m_sdl_window);
     if (!m_surface) {
         qFatal("Could not create surface!");
     }

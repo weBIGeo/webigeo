@@ -22,7 +22,7 @@
 #include "GuiManager.h"
 #include "InputMapper.h"
 #include "nucleus/Controller.h"
-#include <GLFW/glfw3.h>
+#include <SDL2/SDL.h>
 #include <memory>
 
 #include <nucleus/timing/TimerManager.h>
@@ -48,6 +48,7 @@ public:
 
     void init_window();
     void start();
+    void poll_events();
     void render();
     void render_gui();
     void on_window_resize(int width, int height);
@@ -62,11 +63,11 @@ signals:
     void update_camera_requested();
 
 private slots:
-    void set_glfw_window_size(int width, int height);
+    void set_window_size(glm::uvec2 size);
     void handle_shortcuts(QKeyCombination key);
 
 private:
-    GLFWwindow* m_window;
+    SDL_Window* m_sdl_window;
     std::unique_ptr<webgpu_engine::Window> m_webgpu_window;
     std::unique_ptr<nucleus::Controller> m_controller;
     std::unique_ptr<InputMapper> m_input_mapper;
@@ -111,6 +112,9 @@ private:
     uint32_t m_repaint_count = 0;
     uint32_t m_frame_count = 0;
     WGPUPresentMode m_swapchain_presentmode = WGPUPresentMode::WGPUPresentMode_Fifo;
+
+    // Flag to exit the rendering loop
+    bool m_window_open = true;
 
     void webgpu_create_context();
     void webgpu_release_context();

@@ -18,16 +18,15 @@
 
 #include "GuiManager.h"
 #include "TerrainRenderer.h"
+
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-#include "backends/imgui_impl_glfw.h"
+#include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_wgpu.h"
+#include <IconsFontAwesome5.h>
 #include <imgui.h>
 #include <imnodes.h>
 #endif
 #include "webgpu_engine/Window.h"
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-#include <IconsFontAwesome5.h>
-#endif
 #include <QDebug>
 #include <QFile>
 #include <nucleus/camera/PositionStorage.h>
@@ -46,7 +45,7 @@ GuiManager::GuiManager(TerrainRenderer* terrain_renderer)
 }
 
 void GuiManager::init(
-    GLFWwindow* window, WGPUDevice device, [[maybe_unused]] WGPUTextureFormat swapchainFormat, [[maybe_unused]] WGPUTextureFormat depthTextureFormat)
+    SDL_Window* window, WGPUDevice device, [[maybe_unused]] WGPUTextureFormat swapchainFormat, [[maybe_unused]] WGPUTextureFormat depthTextureFormat)
 {
     qDebug() << "Setup GuiManager...";
     m_window = window;
@@ -60,7 +59,7 @@ void GuiManager::init(
     ImNodes::CreateContext();
 
     // Setup Platform/Renderer backends
-    ImGui_ImplGlfw_InitForOther(m_window, true);
+    ImGui_ImplSDL2_InitForOther(m_window);
     ImGui_ImplWGPU_InitInfo init_info = {};
     init_info.Device = m_device;
     init_info.RenderTargetFormat = swapchainFormat;
@@ -121,7 +120,7 @@ void GuiManager::render([[maybe_unused]] WGPURenderPassEncoder renderPass)
 {
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     ImGui_ImplWGPU_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
+    ImGui_ImplSDL2_NewFrame();
     ImGui::NewFrame();
 
     draw();
@@ -136,7 +135,7 @@ void GuiManager::shutdown()
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     qDebug() << "Releasing GuiManager...";
     ImGui_ImplWGPU_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
     ImNodes::DestroyContext();
     ImGui::DestroyContext();
 #endif
@@ -157,6 +156,13 @@ bool GuiManager::want_capture_mouse()
     return ImGui::GetIO().WantCaptureMouse;
 #else
     return false;
+#endif
+}
+
+void GuiManager::on_sdl_event(SDL_Event& event)
+{
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
+    ImGui_ImplSDL2_ProcessEvent(&event);
 #endif
 }
 

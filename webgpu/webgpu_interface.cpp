@@ -18,7 +18,7 @@
  *****************************************************************************/
 
 /**
- * This is an extension of GLFW for WebGPU, abstracting away the details of
+ * This is an extension of SDL for WebGPU, abstracting away the details of
  * OS-specific operations.
  *
  * This file is part of the "Learn WebGPU for C++" book.
@@ -53,8 +53,6 @@
 
 #include <QDebug>
 #include <assert.h>
-#include <iostream>
-#include <stdio.h>
 #include <webgpu/webgpu.h>
 
 #ifdef __EMSCRIPTEN__
@@ -75,50 +73,41 @@
 #define WGPU_TARGET_LINUX_WAYLAND 4
 #define WGPU_TARGET_EMSCRIPTEN 5
 
-#if defined(__EMSCRIPTEN__)
-#define WGPU_TARGET WGPU_TARGET_EMSCRIPTEN
-#elif defined(_WIN32)
-#define WGPU_TARGET WGPU_TARGET_WINDOWS
-#elif defined(__APPLE__)
-#define WGPU_TARGET WGPU_TARGET_MACOS
-#elif defined(_GLFW_WAYLAND)
-#define WGPU_TARGET WGPU_TARGET_LINUX_WAYLAND
-#else
-#define WGPU_TARGET WGPU_TARGET_LINUX_X11
-#endif
-
-#if WGPU_TARGET == WGPU_TARGET_MACOS
+#if defined(SDL_VIDEO_DRIVER_COCOA)
+#include <Cocoa/Cocoa.h>
 #include <Foundation/Foundation.h>
 #include <QuartzCore/CAMetalLayer.h>
+#elif defined(SDL_VIDEO_DRIVER_UIKIT)
+#include <Foundation/Foundation.h>
+#include <Metal/Metal.h>
+#include <QuartzCore/CAMetalLayer.h>
+#include <UIKit/UIKit.h>
 #endif
 
-#include <GLFW/glfw3.h>
-#if WGPU_TARGET == WGPU_TARGET_MACOS
-#define GLFW_EXPOSE_NATIVE_COCOA
-#elif WGPU_TARGET == WGPU_TARGET_LINUX_X11
-#define GLFW_EXPOSE_NATIVE_X11
-#elif WGPU_TARGET == WGPU_TARGET_LINUX_WAYLAND
-#define GLFW_EXPOSE_NATIVE_WAYLAND
-#elif WGPU_TARGET == WGPU_TARGET_WINDOWS
-#define GLFW_EXPOSE_NATIVE_WIN32
-#endif
+#include <SDL2/SDL_syswm.h>
 
-#if !defined(__EMSCRIPTEN__)
-#include <GLFW/glfw3native.h>
-#endif
+WGPUSurface SDL_GetWGPUSurface(WGPUInstance instance, SDL_Window* window)
+{
+    SDL_SysWMinfo windowWMInfo;
+    SDL_VERSION(&windowWMInfo.version);
+    SDL_GetWindowWMInfo(window, &windowWMInfo);
 
-WGPUSurface glfwGetWGPUSurface(WGPUInstance instance, GLFWwindow* window) {
-    (void)window; // Cast to void to suppress unused parameter warning
-#if WGPU_TARGET == WGPU_TARGET_MACOS
+#if defined(SDL_VIDEO_DRIVER_COCOA)
     {
-        id metal_layer = [CAMetalLayer layer];
-        NSWindow* ns_window = glfwGetCocoaWindow(window);
-        [ns_window.contentView setWantsLayer : YES] ;
-        [ns_window.contentView setLayer : metal_layer] ;
+        id metal_layer = NULL;
+        NSWindow* ns_window = windowWMInfo.info.cocoa.window;
+        [ns_window.contentView setWantsLayer:YES];
+        metal_layer = [CAMetalLayer layer];
+        [ns_window.contentView setLayer:metal_layer];
 
+#ifdef WEBGPU_BACKEND_DAWN
+        WGPUSurfaceSourceMetalLayer fromMetalLayer;
+        fromMetalLayer.chain.sType = WGPUSType_SurfaceSourceMetalLayer;
+#else
         WGPUSurfaceDescriptorFromMetalLayer fromMetalLayer;
-        fromMetalLayer.chain.next = NULL;
         fromMetalLayer.chain.sType = WGPUSType_SurfaceDescriptorFromMetalLayer;
+#endif
+        fromMetalLayer.chain.next = NULL;
         fromMetalLayer.layer = metal_layer;
 
         WGPUSurfaceDescriptor surfaceDescriptor;
@@ -127,14 +116,46 @@ WGPUSurface glfwGetWGPUSurface(WGPUInstance instance, GLFWwindow* window) {
 
         return wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
     }
-#elif WGPU_TARGET == WGPU_TARGET_LINUX_X11
+#elif defined(SDL_VIDEO_DRIVER_UIKIT)
     {
-        Display* x11_display = glfwGetX11Display();
-        Window x11_window = glfwGetX11Window(window);
+        UIWindow* ui_window = windowWMInfo.info.uikit.window;
+        UIView* ui_view = ui_window.rootViewController.view;
+        CAMetalLayer* metal_layer = [CAMetalLayer new];
+        metal_layer.opaque = true;
+        metal_layer.frame = ui_view.frame;
+        metal_layer.drawableSize = ui_view.frame.size;
 
+        [ui_view.layer addSublayer:metal_layer];
+
+#ifdef WEBGPU_BACKEND_DAWN
+        WGPUSurfaceSourceMetalLayer fromMetalLayer;
+        fromMetalLayer.chain.sType = WGPUSType_SurfaceSourceMetalLayer;
+#else
+        WGPUSurfaceDescriptorFromMetalLayer fromMetalLayer;
+        fromMetalLayer.chain.sType = WGPUSType_SurfaceDescriptorFromMetalLayer;
+#endif
+        fromMetalLayer.chain.next = NULL;
+        fromMetalLayer.layer = metal_layer;
+
+        WGPUSurfaceDescriptor surfaceDescriptor;
+        surfaceDescriptor.nextInChain = &fromMetalLayer.chain;
+        surfaceDescriptor.label = NULL;
+
+        return wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
+    }
+#elif defined(SDL_VIDEO_DRIVER_X11)
+    {
+        Display* x11_display = windowWMInfo.info.x11.display;
+        Window x11_window = windowWMInfo.info.x11.window;
+
+#ifdef WEBGPU_BACKEND_DAWN
+        WGPUSurfaceSourceXlibWindow fromXlibWindow;
+        fromXlibWindow.chain.sType = WGPUSType_SurfaceSourceXlibWindow;
+#else
         WGPUSurfaceDescriptorFromXlibWindow fromXlibWindow;
-        fromXlibWindow.chain.next = NULL;
         fromXlibWindow.chain.sType = WGPUSType_SurfaceDescriptorFromXlibWindow;
+#endif
+        fromXlibWindow.chain.next = NULL;
         fromXlibWindow.display = x11_display;
         fromXlibWindow.window = x11_window;
 
@@ -144,14 +165,19 @@ WGPUSurface glfwGetWGPUSurface(WGPUInstance instance, GLFWwindow* window) {
 
         return wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
     }
-#elif WGPU_TARGET == WGPU_TARGET_LINUX_WAYLAND
+#elif defined(SDL_VIDEO_DRIVER_WAYLAND)
     {
-        struct wl_display* wayland_display = glfwGetWaylandDisplay();
-        struct wl_surface* wayland_surface = glfwGetWaylandWindow(window);
+        struct wl_display* wayland_display = windowWMInfo.info.wl.display;
+        struct wl_surface* wayland_surface = windowWMInfo.info.wl.surface;
 
+#ifdef WEBGPU_BACKEND_DAWN
+        WGPUSurfaceSourceWaylandSurface fromWaylandSurface;
+        fromWaylandSurface.chain.sType = WGPUSType_SurfaceSourceWaylandSurface;
+#else
         WGPUSurfaceDescriptorFromWaylandSurface fromWaylandSurface;
-        fromWaylandSurface.chain.next = NULL;
         fromWaylandSurface.chain.sType = WGPUSType_SurfaceDescriptorFromWaylandSurface;
+#endif
+        fromWaylandSurface.chain.next = NULL;
         fromWaylandSurface.display = wayland_display;
         fromWaylandSurface.surface = wayland_surface;
 
@@ -161,14 +187,19 @@ WGPUSurface glfwGetWGPUSurface(WGPUInstance instance, GLFWwindow* window) {
 
         return wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
     }
-#elif WGPU_TARGET == WGPU_TARGET_WINDOWS
+#elif defined(SDL_VIDEO_DRIVER_WINDOWS)
     {
-        HWND hwnd = glfwGetWin32Window(window);
+        HWND hwnd = windowWMInfo.info.win.window;
         HINSTANCE hinstance = GetModuleHandle(NULL);
 
+#ifdef WEBGPU_BACKEND_DAWN
+        WGPUSurfaceSourceWindowsHWND fromWindowsHWND;
+        fromWindowsHWND.chain.sType = WGPUSType_SurfaceSourceWindowsHWND;
+#else
         WGPUSurfaceDescriptorFromWindowsHWND fromWindowsHWND;
-        fromWindowsHWND.chain.next = NULL;
         fromWindowsHWND.chain.sType = WGPUSType_SurfaceDescriptorFromWindowsHWND;
+#endif
+        fromWindowsHWND.chain.next = NULL;
         fromWindowsHWND.hinstance = hinstance;
         fromWindowsHWND.hwnd = hwnd;
 
@@ -178,13 +209,17 @@ WGPUSurface glfwGetWGPUSurface(WGPUInstance instance, GLFWwindow* window) {
 
         return wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
     }
-#elif WGPU_TARGET == WGPU_TARGET_EMSCRIPTEN
+#elif defined(SDL_VIDEO_DRIVER_EMSCRIPTEN)
     {
-        printf("Creating surface from canvas\n");
+#ifdef WEBGPU_BACKEND_DAWN
+        WGPUSurfaceSourceCanvasHTMLSelector_Emscripten fromCanvasHTMLSelector;
+        fromCanvasHTMLSelector.chain.sType = WGPUSType_SurfaceSourceCanvasHTMLSelector_Emscripten;
+#else
         WGPUSurfaceDescriptorFromCanvasHTMLSelector fromCanvasHTMLSelector;
-        fromCanvasHTMLSelector.chain.next = NULL;
         fromCanvasHTMLSelector.chain.sType = WGPUSType_SurfaceDescriptorFromCanvasHTMLSelector;
-        fromCanvasHTMLSelector.selector = "#webgpucanvas";
+#endif
+        fromCanvasHTMLSelector.chain.next = NULL;
+        fromCanvasHTMLSelector.selector = "#canvas";
 
         WGPUSurfaceDescriptor surfaceDescriptor;
         surfaceDescriptor.nextInChain = &fromCanvasHTMLSelector.chain;
@@ -193,6 +228,7 @@ WGPUSurface glfwGetWGPUSurface(WGPUInstance instance, GLFWwindow* window) {
         return wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
     }
 #else
+// TODO: See SDL_syswm.h for other possible enum values!
 #error "Unsupported WGPU_TARGET"
 #endif
 }
@@ -235,7 +271,7 @@ void waitForFlag(const WGPUDevice& device, bool* flag, int sleepInterval, int ti
         webgpu::sleep(device, sleepInterval);
         time += sleepInterval;
         if (time > timeout) {
-            std::cerr << "Timeout while waiting for flag" << std::endl;
+            qCritical() << "Timeout while waiting for flag";
             return;
         }
     }

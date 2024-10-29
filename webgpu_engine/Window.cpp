@@ -306,6 +306,7 @@ void Window::paint_gui()
 
 void Window::paint_compute_pipeline_gui()
 {
+#if ALP_WEBGPU_APP_ENABLE_IMGUI
     if (ImGui::CollapsingHeader("Compute pipeline", ImGuiTreeNodeFlags_DefaultOpen)) {
 
         if (ImGui::Button("Run", ImVec2(150, 20))) {
@@ -490,6 +491,7 @@ void Window::paint_compute_pipeline_gui()
             ImGui::TreePop();
         }
     }
+#endif
 }
 
 glm::vec4 Window::synchronous_position_readback(const glm::dvec2& ndc)

@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include <GLFW/glfw3.h>
+#include <SDL2/SDL.h>
 #include <set>
 #include <string>
 #include <vector>
@@ -39,14 +39,15 @@ class GuiManager {
 public:
     GuiManager(TerrainRenderer* terrain_renderer);
 
-    void init(GLFWwindow* window, WGPUDevice device, WGPUTextureFormat swapchainFormat, WGPUTextureFormat depthTextureFormat);
+    void init(SDL_Window* window, WGPUDevice device, WGPUTextureFormat swapchainFormat, WGPUTextureFormat depthTextureFormat);
     void render(WGPURenderPassEncoder renderPass);
     void shutdown();
     bool want_capture_keyboard();
     bool want_capture_mouse();
+    void on_sdl_event(SDL_Event& event);
 
 private:
-    GLFWwindow* m_window;
+    SDL_Window* m_window;
     WGPUDevice m_device;
     TerrainRenderer* m_terrain_renderer = nullptr;
     bool m_show_nodeeditor = false;

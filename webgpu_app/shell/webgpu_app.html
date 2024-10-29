@@ -33,7 +33,7 @@
     </div>
   </div>
 
-  <canvas width="800" height="600" class="emscripten" id="webgpucanvas"></canvas>
+  <canvas width="800" height="600" class="emscripten" id="canvas"></canvas>
 
   <script src="webgpu_hacks.js"></script>
   <script src="webgpu_app.js"></script>
@@ -43,7 +43,7 @@
       const spinner = document.querySelector('#qtspinner');
       const screen = document.querySelector('#screen');
       const status = document.querySelector('#qtstatus');
-      const webgpu_canvas = document.querySelector('#webgpucanvas');
+      const webgpu_canvas = document.querySelector('#canvas');
       const log_element = document.querySelector('#log');
       const log_wrapper = document.querySelector('#logwrapper');
 
@@ -80,10 +80,6 @@
             entryFunction: window.webgpu_app_entry,
             containerElements: [screen],
           },
-          // Canvas need to be set here as its needed for emscripten GLFW
-          canvas: (() => {
-            return webgpu_canvas;
-          })(),
           webgpuTimingsAvailable: (() => {
             return hacks.webgpuTimingsAvailable;
           })(),

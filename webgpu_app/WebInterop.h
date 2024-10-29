@@ -18,7 +18,7 @@
 #pragma once
 
 #include <QObject>
-#include <emscripten/bind.h>
+#include <glm/glm.hpp>
 #include <webgpu/webgpu.h>
 
 #define JS_MAX_TOUCHES 3 // also needs changes in WebInterop.cpp and the shell and global_touch_event!
@@ -27,11 +27,6 @@
 // Otherwise we ended up with issues when functions are called from js event loop inside the WASM core.
 // https://github.com/weBIGeo/webigeo/issues/25
 extern "C" {
-[[maybe_unused]] void global_canvas_size_changed(int width, int height);
-[[maybe_unused]] void global_touch_event(int32_t changed_client_x1, int32_t changed_client_y1, int32_t changed_identifier1, int32_t changed_client_x2,
-    int32_t changed_client_y2, int32_t changed_identifier2, int32_t changed_client_x3, int32_t changed_client_y3, int32_t changed_identifier3,
-    int32_t client_x1, int32_t client_y1, int32_t identifier1, int32_t client_x2, int32_t client_y2, int32_t identifier2, int32_t client_x3, int32_t client_y3,
-    int32_t identifier3, int32_t js_touch_type_int);
 [[maybe_unused]] void global_mouse_button_event(int button, int action, int mods, double xpos, double ypos);
 [[maybe_unused]] void global_mouse_position_event(int button, double xpos, double ypos);
 [[maybe_unused]] void global_file_uploaded(const char* filename);
@@ -43,21 +38,6 @@ class WebInterop : public QObject {
     Q_OBJECT
 
 public:
-    enum JsTouchType { JS_TOUCH_START = 0, JS_TOUCH_MOVE = 1, JS_TOUCH_END = 2, JS_TOUCH_CANCEL = 3 };
-
-    struct JsTouch {
-        int clientX;
-        int clientY;
-        int identifier;
-        inline bool is_valid() const { return identifier >= 0; }
-    };
-
-    struct JsTouchEvent {
-        JsTouch changedTouches[JS_MAX_TOUCHES];
-        JsTouch touches[JS_MAX_TOUCHES];
-        int typeint; // int easier to handle with emscripten
-        inline JsTouchType type() const { return static_cast<JsTouchType>(typeint); }
-    };
 
     // Deleted copy constructor and copy assignment operator
     WebInterop(const WebInterop&) = delete;
@@ -69,9 +49,6 @@ public:
         return _instance;
     }
 
-    static void _canvas_size_changed(int width, int height);
-    static void _touch_event(const JsTouchEvent& event);
-
     static void _mouse_button_event(int button, int action, int mods, double xpos, double ypos);
     static void _mouse_position_event(int button, double xpos, double ypos);
 
@@ -79,9 +56,10 @@ public:
 
     void open_file_dialog(const std::string& filter);
 
+    glm::uvec2 get_body_size();
+
 signals:
-    void canvas_size_changed(int width, int height);
-    void touch_event(const JsTouchEvent& event);
+    void body_size_changed(glm::uvec2 size);
 
     void mouse_button_event(int button, int action, int mods, double xpos, double ypos);
     void mouse_position_event(double xpos, double ypos);
@@ -90,6 +68,6 @@ signals:
 
 private:
     // Private constructor
-    WebInterop() {}
+    WebInterop();
 };
 
