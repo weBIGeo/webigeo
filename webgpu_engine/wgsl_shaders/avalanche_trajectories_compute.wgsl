@@ -205,17 +205,38 @@ fn traces_overlay(id: vec3<u32>) {
         let new_steepness = get_steepness(normal);
         max_steepness = max(max_steepness, new_steepness);
 
-        var velocity_change: vec3f;
         if (settings.model_type == 0) {
-            velocity_change = model1(normal, velocity);
+            velocity += model1(normal, velocity);
         } else if (settings.model_type == 1) {
-            velocity_change = settings.step_length * model2(normal, velocity);
+            velocity += settings.step_length * model2(normal, velocity);
         } else if (settings.model_type == 2) {
-            velocity_change = -velocity + get_gradient(normal);
+            velocity = get_gradient(normal);
         }
 
-        // update velocity
-        velocity = velocity + velocity_change;
+        // for model_type == 3
+        var angle: f32;
+        var neighbor_index: i32;
+        if (settings.model_type == 3) {
+            let grad = get_gradient(normal).xy;
+            if (grad.x == 0 && grad.y == 0) {
+                break;
+            }
+            angle = atan2(-grad.y, grad.x) + PI; // now [0, 2*pi]
+            var angle_adjusted = (angle + PI / 8) % (2 * PI);
+            neighbor_index = min(i32((angle_adjusted) / (2 * PI) * 8), 7); //could be 8 if angle = +pi
+            var possible_neighbors = array<vec2f, 8>(
+                                    vec2f(-1,0),
+                                    vec2f(-1,1),
+                                    vec2f(0,1),
+                                    vec2f(1,1),
+                                    vec2f(1,0),
+                                    vec2f(1,-1),
+                                    vec2f(0,-1),
+                                    vec2f(-1,-1));
+            var to_selected_neighbor_center = possible_neighbors[neighbor_index] * vec2f(tile_width, tile_height)
+                / vec2f(settings.output_resolution);
+            velocity = vec3f(to_selected_neighbor_center, 0);
+        }
 
         // paint trace point
         let output_coords = vec2u(new_uv * vec2f(settings.output_resolution));
@@ -238,6 +259,8 @@ fn traces_overlay(id: vec3<u32>) {
             atomicMax(&output_storage_buffer[buffer_index], u32(max_steepness * (2 << 16)));
             //atomicMax(&output_storage_buffer[buffer_index], u32((length(velocity) / 25.0f) * (2 << 16)));
 
+            // model_type==3: discretized gradient direction
+            //atomicMax(&output_storage_buffer[buffer_index], u32(neighbor_index));
 
             //textureStore(output_tiles, output_coords, output_texture_array_index, vec4f(color, 1.0));
         }

@@ -42,6 +42,7 @@ public:
         MODEL1 = 0,
         MODEL2 = 1,
         MODEL3 = 2,
+        MODEL4 = 3,
     };
 
     struct Model1Params {
