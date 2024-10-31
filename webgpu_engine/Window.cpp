@@ -108,7 +108,8 @@ void Window::resize_framebuffer(int w, int h)
             m_gbuffer->color_texture_view(0).create_bind_group_entry(0), // albedo texture
             m_gbuffer->color_texture_view(1).create_bind_group_entry(1), // position texture
             m_gbuffer->color_texture_view(2).create_bind_group_entry(2), // normal texture
-            m_atmosphere_framebuffer->color_texture_view(0).create_bind_group_entry(3) // atmosphere texture
+            m_atmosphere_framebuffer->color_texture_view(0).create_bind_group_entry(3), // atmosphere texture
+            m_gbuffer->color_texture_view(3).create_bind_group_entry(4), // overlay texture
         });
 
     m_depth_texture_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->depth_texture_bind_group_layout(),

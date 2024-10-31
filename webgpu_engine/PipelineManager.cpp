@@ -167,9 +167,10 @@ void PipelineManager::create_tile_pipeline()
 
     webgpu::FramebufferFormat format {};
     format.depth_format = WGPUTextureFormat_Depth24Plus;
-    format.color_formats.emplace_back(WGPUTextureFormat_RGBA8Unorm);
-    format.color_formats.emplace_back(WGPUTextureFormat_RGBA32Float);
-    format.color_formats.emplace_back(WGPUTextureFormat_RG16Uint);
+    format.color_formats.emplace_back(WGPUTextureFormat_R32Uint); // albedo
+    format.color_formats.emplace_back(WGPUTextureFormat_RGBA32Float); // position
+    format.color_formats.emplace_back(WGPUTextureFormat_RG16Uint); // normal
+    format.color_formats.emplace_back(WGPUTextureFormat_R32Uint); // overlay
 
     m_tile_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(m_device, m_shader_manager->tile(), m_shader_manager->tile(),
         std::vector<webgpu::util::SingleVertexBufferInfo> {
@@ -364,7 +365,7 @@ void PipelineManager::create_compose_bind_group_layout()
     WGPUBindGroupLayoutEntry albedo_texture_entry {};
     albedo_texture_entry.binding = 0;
     albedo_texture_entry.visibility = WGPUShaderStage_Fragment;
-    albedo_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
+    albedo_texture_entry.texture.sampleType = WGPUTextureSampleType_Uint;
     albedo_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
     WGPUBindGroupLayoutEntry position_texture_entry {};
@@ -385,8 +386,15 @@ void PipelineManager::create_compose_bind_group_layout()
     atmosphere_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
     atmosphere_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
+    WGPUBindGroupLayoutEntry overlay_texture_entry {};
+    overlay_texture_entry.binding = 4;
+    overlay_texture_entry.visibility = WGPUShaderStage_Fragment;
+    overlay_texture_entry.texture.sampleType = WGPUTextureSampleType_Uint;
+    overlay_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
     m_compose_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
-        std::vector<WGPUBindGroupLayoutEntry> { albedo_texture_entry, position_texture_entry, normal_texture_entry, atmosphere_texture_entry },
+        std::vector<WGPUBindGroupLayoutEntry> {
+            albedo_texture_entry, position_texture_entry, normal_texture_entry, atmosphere_texture_entry, overlay_texture_entry },
         "compose bind group layout");
 }
 
