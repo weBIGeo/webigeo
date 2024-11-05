@@ -46,6 +46,7 @@ set(SOURCES
     compute/nodes/UpsampleTexturesNode.h compute/nodes/UpsampleTexturesNode.cpp
     compute/nodes/ComputeAvalancheTrajectoriesNode.h compute/nodes/ComputeAvalancheTrajectoriesNode.cpp
     compute/nodes/ComputeAvalancheInfluenceAreaNode.h compute/nodes/ComputeAvalancheInfluenceAreaNode.cpp
+    compute/nodes/ComputeD8DirectionsNode.h compute/nodes/ComputeD8DirectionsNode.cpp
 )
 
 qt_add_library(webgpu_engine STATIC ${SOURCES})
