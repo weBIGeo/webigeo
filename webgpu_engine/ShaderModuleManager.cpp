@@ -43,7 +43,7 @@ void ShaderModuleManager::create_shader_modules()
     m_upsample_textures_compute_module = create_shader_module_for_file("upsample_textures_compute.wgsl");
     m_line_render_module = create_shader_module_for_file("line_render.wgsl");
     m_avalanche_trajectories_compute_module = create_shader_module_for_file("avalanche_trajectories_compute.wgsl");
-    m_avalanche_trajectories_buffer_to_texture_compute_module = create_shader_module("avalanche_trajectories_buffer_to_texture_compute.wgsl");
+    m_avalanche_trajectories_buffer_to_texture_compute_module = create_shader_module_for_file("avalanche_trajectories_buffer_to_texture_compute.wgsl");
     m_avalanche_influence_area_compute_module = create_shader_module_for_file("avalanche_influence_area_compute.wgsl");
 }
 
