@@ -51,13 +51,15 @@ public:
     const webgpu::raii::ShaderModule& avalanche_trajectories_buffer_to_texture_compute() const;
     const webgpu::raii::ShaderModule& avalanche_influence_area_compute() const;
 
-    std::unique_ptr<webgpu::raii::ShaderModule> create_shader_module(const std::string& name, const std::string& code);
+    static std::string load_and_preprocess_without_cache(const std::string& path);
+    static std::unique_ptr<webgpu::raii::ShaderModule> create_shader_module(WGPUDevice device, const std::string& label, const std::string& code);
+
+    std::unique_ptr<webgpu::raii::ShaderModule> create_shader_module_for_file(const std::string& filename);
 
 private:
-    std::string read_file_contents(const std::string& name) const;
+    static std::string read_file_contents(const std::string& name);
     std::string get_file_contents_with_cache(const std::string& name);
     std::string preprocess(const std::string& code);
-    std::unique_ptr<webgpu::raii::ShaderModule> create_shader_module(const std::string& filename);
 
 private:
     WGPUDevice m_device;
