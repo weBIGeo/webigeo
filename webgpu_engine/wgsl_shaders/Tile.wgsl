@@ -221,9 +221,11 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
             var texure_array_index: u32;
             let found = get_texture_array_index(tile_id, &texure_array_index, &overlay_hashmap_key_buffer, &overlay_hashmap_value_buffer);
 
-             // remap texture coordinates to skip first and last half texel (so uv grid spans only texel centers)
-            let overlay_texture_size = textureDimensions(overlay_texture);
-            let overlay_uv = vertex_out.uv * (vec2f(overlay_texture_size - 1) / vec2f(overlay_texture_size)) + 1f / (2f * vec2f(overlay_texture_size));
+            // NOTE on uv remapping:
+            //  - does make sense for normals texture (see above), bc each texel CENTER (height) is associated with a vertex
+            //  - textures that are to be used as overlay, should be generated such that their texel BORDER aligns with the vertex grid
+            //  - therefore no remapping needed here
+            //  - and for this reason, directly using the normal texture as overlay looks incorrect
 
             // textureSample needs to happen in uniform control flow
             // therefore: if texture was found, sample correct texture array index, otherwise sample from texture 0

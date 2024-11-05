@@ -71,9 +71,7 @@ fn normal_by_finite_difference_method_with_neighbors(
     let height_texture_size: vec2u = textureDimensions(height_tiles_texture);
     
     let height = quad_width + quad_height;
-
-    // 0 is texel center of first texel, 1 is texel center of last texel
-    let uv_tex = vec2i(floor(uv * vec2f(height_texture_size - 1) + 0.5));
+    let uv_tex = vec2i(floor(uv * vec2f(height_texture_size - 1)));
 
     let hL_uv = uv_tex - vec2<i32>(1, 0);
     let hL_sample = sample_height_with_neighbors(height_texture_size.x, tile_id, hL_uv, tiles_map_key_buffer, tiles_map_value_buffer, height_tiles_texture, height_tiles_sampler);
