@@ -19,6 +19,7 @@
 #pragma once
 
 #include "Buffer.h"
+#include "ComputeAvalancheTrajectoriesNode.h"
 #include "Node.h"
 #include "PipelineManager.h"
 
@@ -28,24 +29,7 @@ class ComputeAvalancheInfluenceAreaNode : public Node {
     Q_OBJECT
 
 public:
-    enum Input : SocketIndex {
-        TILE_ID_LIST_TO_PROCESS = 0,
-        TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP = 1,
-        NORMAL_TEXTURE_ARRAY = 2,
-        HEIGHT_TEXTURE_ARRAY = 3,
-    };
-    enum Output : SocketIndex {
-        OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP = 0,
-        OUTPUT_TEXTURE_ARRAY = 1,
-    };
-
     static glm::uvec3 SHADER_WORKGROUP_SIZE; // TODO currently hardcoded in shader! can we somehow not hardcode it? maybe using overrides
-
-    enum PhysicsModelType : uint32_t {
-        MODEL1 = 0,
-        MODEL2 = 1,
-        MODEL3 = 2,
-    };
 
     struct AvalancheInfluenceAreaSettings {
         glm::vec4 target_point;
@@ -55,7 +39,7 @@ public:
         float radius = 20.0f;
         uint32_t source_zoomlevel;
 
-        PhysicsModelType physics_model_type;
+        ComputeAvalancheTrajectoriesNode::PhysicsModelType physics_model_type;
         float model1_linear_drag_coeff;
         float model1_downward_acceleration_coeff;
         float model2_gravity;
@@ -85,7 +69,10 @@ public:
     void set_radius(float radius);
     void set_source_zoomlevel(uint32_t source_zoomlevel) { m_input_settings.data.source_zoomlevel = source_zoomlevel; }
 
-    void set_physics_model_type(PhysicsModelType physics_model_type) { this->m_input_settings.data.physics_model_type = physics_model_type; }
+    void set_physics_model_type(ComputeAvalancheTrajectoriesNode::PhysicsModelType physics_model_type)
+    {
+        this->m_input_settings.data.physics_model_type = physics_model_type;
+    }
     void set_model1_linear_drag_coeff(float model1_linear_drag_coeff) { this->m_input_settings.data.model1_linear_drag_coeff = model1_linear_drag_coeff; }
     void set_model1_downward_acceleration_coeff(float model1_downward_acceleration_coeff)
     {
@@ -102,9 +89,6 @@ public:
 
 public slots:
     void run_impl() override;
-
-protected:
-    Data get_output_data_impl(SocketIndex output_index) override;
 
 private:
     const PipelineManager* m_pipeline_manager;

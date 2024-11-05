@@ -23,7 +23,13 @@ namespace webgpu_engine::compute::nodes {
 glm::uvec3 UpsampleTexturesNode::SHADER_WORKGROUP_SIZE = { 1, 16, 16 };
 
 UpsampleTexturesNode::UpsampleTexturesNode(const PipelineManager& pipeline_manager, WGPUDevice device, glm::uvec2 target_resolution, size_t capacity)
-    : Node({ data_type<TileStorageTexture*>() }, { data_type<TileStorageTexture*>() })
+    : Node(
+          {
+              InputSocket(*this, "source textures", data_type<TileStorageTexture*>()),
+          },
+          {
+              OutputSocket(*this, "output textures", data_type<TileStorageTexture*>(), [this]() { return m_output_storage_texture.get(); }),
+          })
     , m_pipeline_manager { &pipeline_manager }
     , m_device { device }
     , m_queue { wgpuDeviceGetQueue(m_device) }
@@ -38,7 +44,7 @@ void UpsampleTexturesNode::run_impl()
 {
     qDebug() << "running UpsampleTexturesNode ...";
 
-    const auto& input_textures = *std::get<data_type<TileStorageTexture*>()>(get_input_data(Input::TEXTURE_ARRAY));
+    const auto& input_textures = *std::get<data_type<TileStorageTexture*>()>(input_socket("source textures").get_connected_data());
     const std::vector<uint32_t> input_used_indices = input_textures.used_layer_indices();
 
     qDebug() << "upsampling " << input_used_indices.size() << " textures from (" << input_textures.width() << "," << input_textures.height() << ") to ("
@@ -92,17 +98,9 @@ void UpsampleTexturesNode::run_impl()
         m_queue,
         []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
             UpsampleTexturesNode* _this = reinterpret_cast<UpsampleTexturesNode*>(user_data);
-            emit _this->run_finished();
+            emit _this->run_completed();
         },
         this);
-}
-
-webgpu_engine::compute::nodes::Data UpsampleTexturesNode::get_output_data_impl(SocketIndex output_index)
-{
-    if (output_index == Output::OUTPUT_TEXTURE_ARRAY) {
-        return { m_output_storage_texture.get() };
-    }
-    exit(-1); // TODO log
 }
 
 } // namespace webgpu_engine::compute::nodes

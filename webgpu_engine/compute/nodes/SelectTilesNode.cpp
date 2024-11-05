@@ -30,7 +30,10 @@ SelectTilesNode::SelectTilesNode()
 }
 
 SelectTilesNode::SelectTilesNode(TileIdGenerator tile_id_generator)
-    : Node({}, { data_type<const std::vector<tile::Id>*>() })
+    : Node({},
+          {
+              OutputSocket(*this, "tile ids", data_type<const std::vector<tile::Id>*>(), [this]() { return &m_output_tile_ids; }),
+          })
     , m_tile_id_generator(tile_id_generator)
 {
 }
@@ -59,12 +62,12 @@ void SelectTilesNode::run_impl()
 
     if (tile_ids.empty()) {
         qWarning() << "no tiles selected";
+        return;
     }
+    qDebug() << tile_ids.size() << " tiles selected";
 
     m_output_tile_ids.insert(m_output_tile_ids.begin(), tile_ids.begin(), tile_ids.end());
-    emit run_finished();
+    emit run_completed();
 }
-
-Data SelectTilesNode::get_output_data_impl([[maybe_unused]] SocketIndex output_index) { return { &m_output_tile_ids }; }
 
 } // namespace webgpu_engine::compute::nodes

@@ -17,16 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include <GLFW/glfw3.h>
-
-#if defined(__EMSCRIPTEN__)
-#include <emscripten/emscripten.h>
-#else
-#endif
-
 #include "TerrainRenderer.h"
 #include "util/error_logging.h"
-#include <GLFW/glfw3.h>
 #include <QCoreApplication>
 
 void print_logo()

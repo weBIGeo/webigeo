@@ -23,10 +23,7 @@
 #include <QKeyCombination>
 #include <QObject>
 #include <QPoint>
-
-#ifdef __EMSCRIPTEN__
-#include "WebInterop.h"
-#endif
+#include <functional>
 
 namespace nucleus::camera {
     class Controller;
@@ -38,11 +35,10 @@ class InputMapper : public QObject {
     Q_OBJECT
 
 public:
-    InputMapper(QObject* parent, nucleus::camera::Controller* camera_controller, GuiManager* gui_manager);
-    void on_key_callback(int key, int scancode, int action, int mods);
-    void on_cursor_position_callback(double xpos, double ypos);
-    void on_mouse_button_callback(int button, int action, int mods, double xpos, double ypos);
-    void on_scroll_callback(double xoffset, double yoffset, double xpos, double ypos);
+    using ViewportSizeCallback = std::function<glm::vec2()>;
+
+    InputMapper(QObject* parent, nucleus::camera::Controller* camera_controller, GuiManager* gui_manager, ViewportSizeCallback vp_size_callback);
+    void on_sdl_event(const SDL_Event& event);
 
 signals:
     void key_pressed(QKeyCombination key);
@@ -53,19 +49,20 @@ signals:
     void touch(nucleus::event_parameter::Touch touch);
 
 
-public slots:
-#ifdef __EMSCRIPTEN__
-    void touch_event(const WebInterop::JsTouchEvent& event);
-#endif
-
-
 private:
-    nucleus::event_parameter::Mouse m_mouse;
-    std::array<Qt::Key, 349> m_keymap; // 349 to cover all GLFW keys
-    std::array<Qt::MouseButton, 8> m_buttonmap; // 8 to cover all GLFW mouse buttons
-    std::map<int, nucleus::event_parameter::EventPoint> m_touchmap;
     GuiManager* m_gui_manager = nullptr;
-    bool m_ongoing_touch_interaction = false;
+    ViewportSizeCallback m_viewport_size_callback;
+
+    nucleus::event_parameter::Mouse m_mouse;
+    std::map<SDL_Keycode, Qt::Key> m_keymap;
+    std::array<Qt::MouseButton, 6> m_buttonmap; // 5 to cover all SDL mouse buttons
+    std::map<int, nucleus::event_parameter::EventPoint> m_touchmap;
+
+    void handle_key_event(const SDL_Event& event);
+    void handle_mouse_button_event(const SDL_Event& event);
+    void handle_mouse_motion_event(const SDL_Event& event);
+    void handle_mouse_wheel_event(const SDL_Event& event);
+    void handle_touch_event(const SDL_Event& event);
 };
 
 } // namespace webgpu_app

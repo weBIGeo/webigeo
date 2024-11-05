@@ -18,26 +18,10 @@
 
 #include "WebInterop.h"
 #include "webgpu/webgpu_interface.hpp"
+#include <emscripten.h>
 #include <emscripten/em_asm.h>
+#include <emscripten/html5.h>
 #include <qdebug.h>
-
-void global_canvas_size_changed(int width, int height) { WebInterop::_canvas_size_changed(width, height); }
-
-void global_touch_event(int32_t changed_client_x1, int32_t changed_client_y1, int32_t changed_identifier1, int32_t changed_client_x2, int32_t changed_client_y2,
-    int32_t changed_identifier2, int32_t changed_client_x3, int32_t changed_client_y3, int32_t changed_identifier3, int32_t client_x1, int32_t client_y1,
-    int32_t identifier1, int32_t client_x2, int32_t client_y2, int32_t identifier2, int32_t client_x3, int32_t client_y3, int32_t identifier3,
-    int32_t js_touch_type_int)
-{
-    WebInterop::JsTouchEvent touch_event;
-    touch_event.changedTouches[0] = { .clientX = changed_client_x1, .clientY = changed_client_y1, .identifier = changed_identifier1 };
-    touch_event.changedTouches[1] = { .clientX = changed_client_x2, .clientY = changed_client_y2, .identifier = changed_identifier2 };
-    touch_event.changedTouches[2] = { .clientX = changed_client_x3, .clientY = changed_client_y3, .identifier = changed_identifier3 };
-    touch_event.touches[0] = { .clientX = client_x1, .clientY = client_y1, .identifier = identifier1 };
-    touch_event.touches[1] = { .clientX = client_x2, .clientY = client_y2, .identifier = identifier2 };
-    touch_event.touches[2] = { .clientX = client_x3, .clientY = client_y3, .identifier = identifier3 };
-    touch_event.typeint = js_touch_type_int;
-    WebInterop::_touch_event(touch_event);
-}
 
 void global_mouse_button_event(int button, int action, int mods, double xpos, double ypos)
 {
@@ -47,16 +31,6 @@ void global_mouse_button_event(int button, int action, int mods, double xpos, do
 void global_mouse_position_event(int button, double xpos, double ypos) { WebInterop::_mouse_position_event(button, xpos, ypos); }
 
 void global_file_uploaded(const char* filename) { WebInterop::_file_uploaded(filename); }
-
-void WebInterop::_canvas_size_changed(int width, int height) { emit instance().canvas_size_changed(width, height); }
-
-void WebInterop::_touch_event(const JsTouchEvent& event) {
-    if (webgpu::isSleeping()) {
-        qWarning() << "Touch event while sleeping will be ignored";
-        return;
-    }
-    emit instance().touch_event(event);
-}
 
 void WebInterop::_mouse_button_event(int button, int action, int mods, double xpos, double ypos)
 {
@@ -86,4 +60,25 @@ void WebInterop::_file_uploaded(const char* filename)
 void WebInterop::open_file_dialog(const std::string& filter)
 {
     EM_ASM_({ eminstance.hacks.uploadFileWithDialog(UTF8ToString($0)); }, filter.c_str());
+}
+
+glm::uvec2 WebInterop::get_body_size()
+{
+    double w, h;
+    emscripten_get_element_css_size("body", &w, &h);
+    return glm::uvec2(w, h);
+}
+
+static EM_BOOL _body_size_changed([[maybe_unused]] int event_type, [[maybe_unused]] const EmscriptenUiEvent* event, [[maybe_unused]] void* user_data)
+{
+    // NOTE: We could debounce this event, as it gets called rather often which means
+    // the swapchain will be recreated very often
+    emit WebInterop::instance().body_size_changed(WebInterop::instance().get_body_size());
+    return 0;
+}
+
+WebInterop::WebInterop()
+{
+    // Setup _web_display_size_changed to be called when the window is resized
+    emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, 0, _body_size_changed);
 }

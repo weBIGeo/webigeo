@@ -53,7 +53,7 @@ template <typename T> const webgpu::raii::RawBuffer<T>& Buffer<T>::raw_buffer() 
 template class Buffer<uboSharedConfig>;
 template class Buffer<uboCameraConfig>;
 template class Buffer<compute::nodes::ComputeSnowNode::SnowSettings>;
-template class Buffer<compute::nodes::ComputeAvalancheTrajectoriesNode::AvalancheTrajectoriesSettings>;
+template class Buffer<compute::nodes::ComputeAvalancheTrajectoriesNode::AvalancheTrajectoriesSettingsUniform>;
 template class Buffer<compute::nodes::ComputeAvalancheInfluenceAreaNode::AvalancheInfluenceAreaSettings>;
 template class Buffer<TrackRenderer::LineConfig>;
 template class Buffer<atmosphere::resources::AtmosphereUniform>;

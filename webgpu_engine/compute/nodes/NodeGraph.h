@@ -25,7 +25,20 @@
 
 namespace webgpu_engine::compute::nodes {
 
-class NodeGraph;
+class GraphRunFailureInfo {
+public:
+    GraphRunFailureInfo() = delete;
+    GraphRunFailureInfo(const GraphRunFailureInfo&) = default;
+
+    GraphRunFailureInfo(const std::string& node_name, NodeRunFailureInfo node_run_failure_info);
+
+    [[nodiscard]] const std::string& node_name() const;
+    [[nodiscard]] const NodeRunFailureInfo& node_run_failure_info() const;
+
+private:
+    std::string m_node_name;
+    NodeRunFailureInfo m_node_run_failure_info;
+};
 
 // TODO define interface - or maybe for now, just use hardcoded graph for complete normals setup
 class NodeGraph : public QObject {
@@ -43,8 +56,6 @@ public:
     template <typename NodeType> NodeType& get_node_as(const std::string& node_name) { return static_cast<NodeType&>(get_node(node_name)); }
     template <typename NodeType> const NodeType& get_node_as(const std::string& node_name) const { return static_cast<const NodeType&>(get_node(node_name)); }
 
-    void connect_sockets(Node* from_node, SocketIndex output_socket, Node* to_node, SocketIndex input_socket);
-
     // obtain outputs - for now all node graphs always output
     //  - a hashmap (mapping tile id to texture array layer)
     //  - a texture array
@@ -58,11 +69,18 @@ public:
     const TileStorageTexture& output_texture_storage_2() const;
     TileStorageTexture& output_texture_storage_2();
 
+private:
+    // finds topological order of nodes and connects run_finished and run slots accordingly
+    void connect_node_signals_and_slots();
+
 public slots:
     void run();
+    void emit_graph_failure(NodeRunFailureInfo info);
 
 signals:
-    void run_finished();
+    void run_triggered();
+    void run_completed();
+    void run_failed(GraphRunFailureInfo info);
 
 public:
     static std::unique_ptr<NodeGraph> create_normal_compute_graph(const PipelineManager& manager, WGPUDevice device);

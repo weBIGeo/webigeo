@@ -110,6 +110,8 @@ size_t TileStorageTexture::width() const { return m_texture_array->texture().des
 
 size_t TileStorageTexture::height() const { return m_texture_array->texture().descriptor().size.height; }
 
+size_t TileStorageTexture::num_used() const { return used_layer_indices().size(); }
+
 size_t TileStorageTexture::capacity() const { return m_capacity; }
 
 std::vector<uint32_t> TileStorageTexture::used_layer_indices() const

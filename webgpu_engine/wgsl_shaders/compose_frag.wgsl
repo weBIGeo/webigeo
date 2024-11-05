@@ -28,10 +28,11 @@
 @group(0) @binding(0) var<uniform> conf : shared_config;
 @group(1) @binding(0) var<uniform> camera : camera_config;
 
-@group(2) @binding(0) var albedo_texture : texture_2d<f32>;
+@group(2) @binding(0) var albedo_texture : texture_2d<u32>;
 @group(2) @binding(1) var position_texture : texture_2d<f32>;
 @group(2) @binding(2) var normal_texture : texture_2d<u32>;
 @group(2) @binding(3) var atmosphere_texture : texture_2d<f32>;
+@group(2) @binding(4) var overlay_texture : texture_2d<u32>;
 
 // Calculates the diffuse and specular illumination contribution for the given
 // parameters according to the Blinn-Phong lighting model.
@@ -87,7 +88,7 @@ fn calculate_illumination(
 fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
     let tci : vec2<u32> = vec2u(vertex_out.texcoords * camera.viewport_size);
 
-    var albedo = textureLoad(albedo_texture, tci, 0).rgb;
+    var albedo: vec3f = unpack4x8unorm(textureLoad(albedo_texture, tci, 0).r).xyz;
     let pos_dist = textureLoad(position_texture, tci, 0);
     let encoded_normal = textureLoad(normal_texture, tci, 0).xy;
 
@@ -129,26 +130,34 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         }
 
         if (bool(conf.snow_settings_angle.x)) {
-            if (tile_dist >= 0.0f) { // -1 if snow is already calculated in tile stage
-                let overlay_color: vec4f = overlay_snow(normal, pos_ws, conf.snow_settings_angle, conf.snow_settings_alt);
-                material_light_response.z += conf.snow_settings_alt.w * overlay_color.a;
-                albedo = mix(albedo, overlay_color.rgb, overlay_color.a);
-            }
-
+            // note: for now we use fragment snow with overlays (trajectories on top of fragment snow)
+            //   for precomputed snow, we would want to disable fragment shader snow in the area where overlay tiles are available
+            //   for this behavior, comment in the following if  
+            
+            //if (tile_dist >= 0.0f) { // -1 if snow is already calculated in tile stage
+            let overlay_color: vec4f = overlay_snow(normal, pos_ws, conf.snow_settings_angle, conf.snow_settings_alt);
+            material_light_response.z += conf.snow_settings_alt.w * overlay_color.a;
+            albedo = mix(albedo, overlay_color.rgb, overlay_color.a);
+            //}
         }
 
         // NOTE: PRESHADING OVERLAY ONLY APPLIED ON TILES NOT ON BACKGROUND!!!
-        if (!bool(conf.overlay_postshading_enabled) && conf.overlay_mode >= 100u) {
+        if (!bool(conf.overlay_postshading_enabled)) {
             var overlay_color = vec4f(0.0);
             if (conf.overlay_mode == 100u) {
                 overlay_color = vec4f(normal * 0.5 + 0.5, 1.0);
-            } /*elseif (conf.overlay_mode == 101u) {
+            } else if (conf.overlay_mode == 101u) {
+                //TODO implement
                 //overlay_color = overlay_steepness(normal, dist);
-            } elseif (conf.overlay_mode == 102u) {
-                overlay_color = vec4f(amb_occlusion, amb_occlusion, amb_occlusion, 1.0);
-            } elseif (conf.overlay_mode == 103u) {
+            } else if (conf.overlay_mode == 102u) {
+                //TODO implement
+                //overlay_color = vec4f(amb_occlusion, amb_occlusion, amb_occlusion, 1.0);
+            } else if (conf.overlay_mode == 103u) {
+                //TODO implement
                 //overlay_color = vec4(color_from_id_hash(uint(sampled_shadow_layer)), 1.0);
-            }*/
+            } else if ((conf.overlay_mode == 1u) || (conf.overlay_mode == 99u)) {
+                overlay_color = unpack4x8unorm(textureLoad(overlay_texture, tci, 0).r);
+            }
             overlay_color.a *= conf.overlay_strength;
             albedo = mix(albedo, overlay_color.rgb, overlay_color.a);
         }
@@ -166,17 +175,22 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
     //let atmospheric_color = textureSample(atmosphere_texture, compose_sampler_filtering, vertex_out.texcoords.xy).rgb;
     var out_Color = vec4f(mix(atmospheric_color, shaded_color, alpha), 1.0);
 
-    if (bool(conf.overlay_postshading_enabled) && conf.overlay_mode >= 100u) {
+    if (bool(conf.overlay_postshading_enabled)) {
         var overlay_color = vec4f(0.0);
         if (conf.overlay_mode == 100u) {
             overlay_color = vec4f(normal * 0.5 + 0.5, 1.0);
-        } /*elseif (conf.overlay_mode == 101u) {
+        } else if (conf.overlay_mode == 101u) {
+            //TODO implement
             //overlay_color = overlay_steepness(normal, dist);
-        } elseif (conf.overlay_mode == 102u) {
-            overlay_color = vec4f(amb_occlusion, amb_occlusion, amb_occlusion, 1.0);
-        } elseif (conf.overlay_mode == 103u) {
+        } else if (conf.overlay_mode == 102u) {
+            //TODO implement
+            //overlay_color = vec4f(amb_occlusion, amb_occlusion, amb_occlusion, 1.0);
+        } else if (conf.overlay_mode == 103u) {
+            //TODO implement
             //overlay_color = vec4(color_from_id_hash(uint(sampled_shadow_layer)), 1.0);
-        }*/
+        } else if ((conf.overlay_mode == 1u) || (conf.overlay_mode == 99u)) {
+            overlay_color = unpack4x8unorm(textureLoad(overlay_texture, tci, 0).r);
+        }
         overlay_color.a *= conf.overlay_strength;
         out_Color = vec4(mix(out_Color.rgb, overlay_color.rgb, overlay_color.a), out_Color.a);
     }

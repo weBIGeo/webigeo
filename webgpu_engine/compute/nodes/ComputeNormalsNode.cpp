@@ -27,8 +27,16 @@ glm::uvec3 ComputeNormalsNode::SHADER_WORKGROUP_SIZE = { 1, 16, 16 };
 
 ComputeNormalsNode::ComputeNormalsNode(
     const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, SocketIndex capacity, WGPUTextureFormat output_format)
-    : Node({ data_type<const std::vector<tile::Id>*>(), data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>() },
-        { data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>() })
+    : Node(
+          {
+              InputSocket(*this, "tile ids", data_type<const std::vector<tile::Id>*>()),
+              InputSocket(*this, "hash map", data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()),
+              InputSocket(*this, "height textures", data_type<TileStorageTexture*>()),
+          },
+          {
+              OutputSocket(*this, "hash map", data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), [this]() { return &m_output_tile_map; }),
+              OutputSocket(*this, "normal textures", data_type<TileStorageTexture*>(), [this]() { return &m_output_texture; }),
+          })
     , m_pipeline_manager { &pipeline_manager }
     , m_device { device }
     , m_queue(wgpuDeviceGetQueue(m_device))
@@ -46,11 +54,16 @@ void ComputeNormalsNode::run_impl()
     qDebug() << "running NormalComputeNode ...";
 
     // get tile ids to process
-    const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(get_input_data(0)); // list of tile ids to process
-    const auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(get_input_data(1)); // hash map for height lookup
-    const auto& height_textures = *std::get<data_type<TileStorageTexture*>()>(get_input_data(2)); // hash map for lookup
+    const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(input_socket("tile ids").get_connected_data());
+    const auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(input_socket("hash map").get_connected_data());
+    const auto& height_textures = *std::get<data_type<TileStorageTexture*>()>(input_socket("height textures").get_connected_data());
 
-    assert(tile_ids.size() <= m_capacity);
+    if (tile_ids.size() > m_output_texture.capacity()) {
+        emit run_failed(NodeRunFailureInfo(*this,
+            std::format("failed to store textures in GPU hash map: trying to store {} textures, but hash map capacity is {}", tile_ids.size(),
+                m_output_texture.capacity())));
+        return;
+    }
 
     // calculate bounds per tile id, write tile ids and bounds to buffer
     std::vector<GpuTileId> gpu_tile_ids(tile_ids.size());
@@ -118,20 +131,9 @@ void ComputeNormalsNode::run_impl()
         m_queue,
         []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
             ComputeNormalsNode* _this = reinterpret_cast<ComputeNormalsNode*>(user_data);
-            _this->run_finished(); // emits signal run_finished()
+            _this->run_completed(); // emits signal run_finished()
         },
         this);
-}
-
-Data ComputeNormalsNode::get_output_data_impl(SocketIndex output_index)
-{
-    switch (output_index) {
-    case Output::OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP:
-        return { &m_output_tile_map };
-    case Output::OUTPUT_TEXTURE_ARRAY:
-        return { &m_output_texture };
-    }
-    exit(-1);
 }
 
 } // namespace webgpu_engine::compute::nodes

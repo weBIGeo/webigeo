@@ -23,8 +23,15 @@
 namespace webgpu_engine::compute::nodes {
 
 CreateHashMapNode::CreateHashMapNode(WGPUDevice device, const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format)
-    : Node({ data_type<const std::vector<tile::Id>*>(), data_type<const std::vector<QByteArray>*>() },
-        { data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), data_type<TileStorageTexture*>() })
+    : Node(
+          {
+              InputSocket(*this, "tile ids", data_type<const std::vector<tile::Id>*>()),
+              InputSocket(*this, "texture data", data_type<const std::vector<QByteArray>*>()),
+          },
+          {
+              OutputSocket(*this, "hash map", data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), [this]() { return &m_output_tile_id_to_index; }),
+              OutputSocket(*this, "textures", data_type<TileStorageTexture*>(), [this]() { return &m_output_tile_textures; }),
+          })
     , m_device { device }
     , m_queue { wgpuDeviceGetQueue(device) }
     , m_output_tile_id_to_index(device, tile::Id { unsigned(-1), {} }, -1)
@@ -39,17 +46,20 @@ void CreateHashMapNode::run_impl()
 
     // get input data
     // TODO maybe make get_input_data a template (so usage would become get_input_data<type>(socket_index))
-    const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(get_input_data(Input::TILE_ID_LIST)); // input 1, list of tile ids
-    const auto& textures
-        = *std::get<data_type<const std::vector<QByteArray>*>()>(get_input_data(Input::TILE_TEXTURE_LIST)); // input 2, list of tile corresponding textures
+    const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(input_socket("tile ids").get_connected_data()); // input 1, list of tile ids
+    const auto& textures = *std::get<data_type<const std::vector<QByteArray>*>()>(
+        input_socket("texture data").get_connected_data()); // input 2, list of tile corresponding textures
 
     assert(tile_ids.size() == textures.size());
 
     if (tile_ids.size() > m_output_tile_textures.capacity()) {
-        qCritical() << "failed to store textures in GPU hash map: trying to store " << tile_ids.size() << " textures, but hash map capacity is "
-                    << m_output_tile_textures.capacity() << ". Aborting node execution.";
+        emit run_failed(NodeRunFailureInfo(*this,
+            std::format("failed to store textures in GPU hash map: trying to store {} textures, but texture array capacity is {}", tile_ids.size(),
+                m_output_tile_textures.capacity())));
         return;
     }
+
+    qDebug() << "populating hash map with " << tile_ids.size() << " entries";
 
     // store each texture in texture array and store resulting index in hashmap
     m_output_tile_id_to_index.clear();
@@ -70,21 +80,9 @@ void CreateHashMapNode::run_impl()
             // std::vector<uint32_t> value_buffer_contents = _this->m_output_tile_id_to_index.value_buffer().read_back_sync(_this->m_device, 10000);
             // std::cout << "done" << std::endl;
 
-            emit _this->run_finished();
+            emit _this->run_completed();
         },
         this);
-}
-
-Data CreateHashMapNode::get_output_data_impl(SocketIndex output_index)
-{
-    // return pointers to hash map and texture array respectively
-    switch (output_index) {
-    case Output::TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP:
-        return { &m_output_tile_id_to_index };
-    case Output::TEXTURE_ARRAY:
-        return { &m_output_tile_textures };
-    }
-    exit(-1);
 }
 
 } // namespace webgpu_engine::compute::nodes

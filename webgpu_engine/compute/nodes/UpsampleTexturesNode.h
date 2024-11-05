@@ -28,18 +28,12 @@ class UpsampleTexturesNode : public Node {
     Q_OBJECT
 
 public:
-    enum Input : SocketIndex { TEXTURE_ARRAY = 0 };
-    enum Output : SocketIndex { OUTPUT_TEXTURE_ARRAY = 0 };
-
     static glm::uvec3 SHADER_WORKGROUP_SIZE; // TODO currently hardcoded in shader! can we somehow not hardcode it? maybe using overrides
 
     UpsampleTexturesNode(const PipelineManager& pipeline_manager, WGPUDevice device, glm::uvec2 target_resolution, size_t capacity);
 
 public slots:
     void run_impl() override;
-
-protected:
-    Data get_output_data_impl(SocketIndex output_index) override;
 
 private:
     const PipelineManager* m_pipeline_manager;

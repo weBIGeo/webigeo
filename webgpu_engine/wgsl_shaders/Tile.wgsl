@@ -25,6 +25,7 @@
 #include "tile_util.wgsl"
 #include "tile_hashmap.wgsl"
 #include "normals_util.wgsl"
+#include "snow.wgsl"
 
 @group(0) @binding(0) var<uniform> config: shared_config;
 
@@ -63,10 +64,10 @@ struct VertexOut {
 }
 
 struct FragOut {
-    @location(0) albedo: vec4f,
+    @location(0) albedo: u32,
     @location(1) position: vec4f,
     @location(2) normal_enc: vec2u,
-    @location(3) depth: vec4f,
+    @location(3) overlay: u32,
 }
 
 fn camera_world_space_position(
@@ -202,6 +203,7 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
 
         if (found && normal_texture_texel_value.w != 0.0f) {
             normal = normal_texture_texel_value.xyz * 2.0 - 1.0;
+            dist = -1.0; // temporary such that we know in compose if we are inside the precalculated area
         }
 
         frag_out.normal_enc = octNormalEncode2u16(normal);
@@ -209,8 +211,8 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
 
     // HANDLE OVERLAYS (and mix it with the albedo color) THAT CAN JUST BE DONE IN THIS STAGE
     // NOTE: Performancewise its generally better to handle overlays in the compose step! (overdraw)
+    var overlay_color = vec4f(0.0);
     if (config.overlay_mode > 0u && config.overlay_mode < 100u) {
-        var overlay_color = vec4f(0.0);
         if (config.overlay_mode == 1) {
             overlay_color = vec4f(normal * 0.5 + 0.5, 1.0);
         } else if (config.overlay_mode == 99) { // compute overlay
@@ -229,16 +231,12 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
     
             if (found) {
                 overlay_color = sampled_overlay_color;
-                dist = -1.0; // temporary such that we know in compose if we are inside the precalculated area
-            } else {
-                overlay_color = vec4f(albedo, 1.0); //kind of ugly
             }
-        } else {
-            overlay_color = vec4f(vertex_out.color, 1.0);
         }
-        albedo = mix(albedo, overlay_color.xyz, config.overlay_strength * overlay_color.w);
+        //albedo = mix(albedo, overlay_color.xyz, config.overlay_strength * overlay_color.w);
     }
-    frag_out.albedo = vec4f(albedo, 1.0);
+    frag_out.overlay = pack4x8unorm(overlay_color);
+    frag_out.albedo = pack4x8unorm(vec4f(albedo, 1.0));
 
     frag_out.position = vec4f(vertex_out.pos_cws, dist);
 

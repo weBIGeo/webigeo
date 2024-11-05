@@ -18,42 +18,14 @@ class WeBIGeoHacks {
       logWrapper.querySelector('#buttouchemulator').style.display = 'none';
     };
 
-    window.addEventListener('touchstart', (event) => this.handleTouchEvent(event), { passive: false });
-    window.addEventListener('touchmove', (event) => this.handleTouchEvent(event), { passive: false });
-    window.addEventListener('touchend', (event) => this.handleTouchEvent(event), { passive: false });
     window.addEventListener('keydown', (event) => this.handleKeydownEvent(event));
-    window.addEventListener('resize', (event) => this.handleResizeEvent(event));
 
-    webgpuCanvas.addEventListener('mousedown', (event) => this.handleMousedownEvent(event));
+    // Not implemented with SDL yet. Also maybe there is a better way to handle this. (create SDL events?)
+    // webgpuCanvas.addEventListener('mousedown', (event) => this.handleMousedownEvent(event));
+
     // Prevent right-click context menu
     webgpuCanvas.addEventListener('contextmenu', (event) => { event.preventDefault(); event.stopPropagation(); });
     this.hideLog();
-  }
-
-  async handleTouchEvent(e) {
-    if (!this.eminstance) return;
-    const disabledJsTouch = { clientX: -1, clientY: -1, identifier: -1 };
-
-    const changedJsTouches = Array(JS_MAX_TOUCHES).fill(disabledJsTouch);
-    for (let i = 0; i < Math.min(e.changedTouches.length, JS_MAX_TOUCHES); i++) {
-      const touch = e.changedTouches[i];
-      changedJsTouches[i] = { clientX: touch.clientX, clientY: touch.clientY, identifier: touch.identifier };
-    }
-
-    const activeJsTouches = Array(JS_MAX_TOUCHES).fill(disabledJsTouch);
-    for (let i = 0; i < Math.min(e.touches.length, JS_MAX_TOUCHES); i++) {
-      const touch = e.touches[i];
-      activeJsTouches[i] = { clientX: touch.clientX, clientY: touch.clientY, identifier: touch.identifier };
-    }
-
-    await this.eminstance.ccall("global_touch_event", null,
-      Array(19).fill("number"),
-      [
-        ...changedJsTouches.flatMap(touch => [touch.clientX, touch.clientY, touch.identifier]),
-        ...activeJsTouches.flatMap(touch => [touch.clientX, touch.clientY, touch.identifier]),
-        e.type === 'touchstart' ? 0 : e.type === 'touchmove' ? 1 : e.type === "touchend" ? 2 : 3
-      ],
-      { async: true });
   }
 
   async handleKeydownEvent(event) {
@@ -61,11 +33,8 @@ class WeBIGeoHacks {
     if (event.key === 'Dead') this.toggleLog();
   }
 
-  async handleResizeEvent(event) {
-    if (!this.eminstance) return;
-    await this.eminstance.ccall("global_canvas_size_changed", null, ["number", "number"], [window.innerWidth, window.innerHeight], { async: true });
-  }
-
+  // deprecated
+  /*
   async handleMousedownEvent(event) {
     const jsButtonToEmButton = { 0: 0, 1: 2, 2: 1, 3: 3, 4: 4 };
     this.logWrapper.classList.add('noselect');
@@ -89,14 +58,11 @@ class WeBIGeoHacks {
       this.logWrapper.classList.remove('noselect');
     };
     if (this.webgpuCanvas.setCapture) { this.webgpuCanvas.setCapture(); }
-  }
+  }*/
 
   async setEminstance(eminstance) {
     this.eminstance = eminstance;
     this.debugBuild = eminstance.hasOwnProperty("getCallStack") || eminstance.hasOwnProperty("getCallstack");
-
-    // Set the canvas to be the same size as the screen upon initialization
-    await eminstance.ccall("global_canvas_size_changed", null, ["number", "number"], [window.innerWidth, window.innerHeight], { async: true });
   }
 
   async checkWebGPU() {

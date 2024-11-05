@@ -9,7 +9,7 @@ We are in discord, talk to us!
 https://discord.gg/p8T9XzVwRa
 
 # Setup
-weBIGeo's primary target is the web. Additionally we support native builds on Windows, using [Dawn](https://dawn.googlesource.com/). This allows for faster development as emscripten linking is quite slow and GPU debugging is not easily possible in the web. Both setups require significant setup time as we need to compile Qt by source. For the native workflow also Dawn needs to be compiled. The rest of the dependencies should get automatically pulled by the cmake setup.
+weBIGeo's primary target is the web. Additionally we support native builds on Windows, using [Dawn](https://dawn.googlesource.com/) and [SDL2](https://github.com/libsdl-org/SDL/tree/SDL2). This allows for faster development as emscripten linking is quite slow and GPU debugging is not easily possible in the web. Both setups require significant setup time as we need to compile Qt by source. For the native workflow also Dawn and SDL needs to be compiled. The rest of the dependencies should get automatically pulled by the cmake setup.
 
 ## Building the web version
 
@@ -239,6 +239,48 @@ cd build/debug & cmake -GNinja -DCMAKE_BUILD_TYPE=Debug -DTINT_BUILD_SPV_READER=
 cd ../release & cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DTINT_BUILD_SPV_READER=OFF -DDAWN_BUILD_SAMPLES=OFF -DTINT_BUILD_TESTS=OFF -DTINT_BUILD_FUZZERS=OFF -DTINT_BUILD_SPIRV_TOOLS_FUZZER=OFF -DTINT_BUILD_AST_FUZZER=OFF -DTINT_BUILD_REGEX_FUZZER=OFF -DTINT_BUILD_BENCHMARKS=OFF -DTINT_BUILD_TESTS=OFF -DTINT_BUILD_AS_OTHER_OS=OFF ../.. & ninja
 ```
 
+### Building SDL
+SDL is the library in use for window management. Given its big size we also build it seperately from weBIGeo
+
+1. We need the compiler env variables, so choose either (or do manually :P)
+
+   1. Start the `x64 Native Tools Command Prompt for VS 2022`.
+
+   2. Start a new CMD and run: (you might have to adjust the link depending on your vs version)
+      ```
+      "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat" amd64
+      ```
+
+2.  Set install location. (like DAWN it should be the parent of the weBIGeo renderer location)
+    ```
+    set CMAKE_INSTALL_PREFIX=C:\tmp\webigeo\SDL
+    mkdir %CMAKE_INSTALL_PREFIX% && cd %CMAKE_INSTALL_PREFIX%
+    ```
+
+3.  Clone SDL, step into directory and checkout SDL2 branch. (The location doesnt matter, it's only for the temporary build files)
+    ```
+    git clone https://github.com/libsdl-org/SDL.git && cd SDL && git checkout SDL2
+    ```
+
+4.  Create and step into build directory
+    ```
+    mkdir build & cd build
+    ```
+
+5.  Configure and compile Release-Build (Debug not necessary)
+    ```
+    cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release && ninja
+    ```
+
+6.  Install SDL files
+    ```
+    ninja install
+    ```
+
+7.  Delete Build and Source Files
+    ```
+    cd ../.. && rmdir /S /Q SDL
+    ```    
 
 # Code style
 We adhere to the coding guidelines of [AlpineMaps.org](https://github.com/AlpineMapsOrg/renderer?tab=readme-ov-file#code-style).

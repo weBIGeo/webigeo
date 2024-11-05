@@ -164,7 +164,7 @@ using CommandEncoder = GpuResource<WGPUCommandEncoder, WGPUCommandEncoderDescrip
 // Also SwapChain is different because it needs Device and surface as parameters...
 //using SwapChain = GpuResource<WGPUSwapChain, WGPUSwapChainDescriptor, WGPUDevice>;
 
-// Surface is not as easy, as we get it from glfw
-//using Surface = GpuResource<WGPUSurface, WGPUSurfaceDescriptor, WGPUInstance>;
+// Surface is not as easy, as we get it from sdl
+// using Surface = GpuResource<WGPUSurface, WGPUSurfaceDescriptor, WGPUInstance>;
 
 } // namespace webgpu::raii
