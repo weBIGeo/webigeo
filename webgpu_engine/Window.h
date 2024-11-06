@@ -26,6 +26,7 @@
 #include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
 #include "compute/nodes/ComputeSnowNode.h"
 #include "compute/nodes/NodeGraph.h"
+#include "compute/nodes/RequestTilesNode.h"
 #include "nucleus/AbstractRenderWindow.h"
 #include "nucleus/camera/AbstractDepthTester.h"
 #include "nucleus/camera/Controller.h"
@@ -64,6 +65,8 @@ struct ComputePipelineSettings {
 
     float trigger_point_min_steepness = 28.0f; // trajectories node
     float trigger_point_max_steepness = 60.0f; // trajectories node
+
+    int tile_source_index = 0;
 };
 
 struct GuiErrorState {
@@ -184,6 +187,15 @@ private:
     GuiErrorState m_gui_error_state;
 
     std::vector<ComputePipelineSettings> m_compute_pipeline_presets;
+
+    std::vector<compute::nodes::RequestTilesNode::RequestTilesNodeSettings> m_tile_source_settings = {
+        compute::nodes::RequestTilesNode::RequestTilesNodeSettings(),
+        compute::nodes::RequestTilesNode::RequestTilesNodeSettings {
+            .tile_path = "https://alpinemaps.cg.tuwien.ac.at/tiles/alpine_png/",
+            .url_pattern = nucleus::tile_scheduler::TileLoadService::UrlPattern::ZXY,
+            .file_extension = ".png",
+        },
+    }; // namespace webgpu_engine
 };
 
 } // namespace webgpu_engine

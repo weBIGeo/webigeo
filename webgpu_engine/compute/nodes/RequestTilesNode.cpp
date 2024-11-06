@@ -22,7 +22,7 @@
 
 namespace webgpu_engine::compute::nodes {
 
-RequestTilesNode::RequestTilesNode()
+RequestTilesNode::RequestTilesNode(const RequestTilesNodeSettings& settings)
     : Node(
           {
               InputSocket(*this, "tile ids", data_type<const std::vector<tile::Id>*>()),
@@ -30,10 +30,13 @@ RequestTilesNode::RequestTilesNode()
           {
               OutputSocket(*this, "tile data", data_type<const std::vector<QByteArray>*>(), [this]() { return &m_received_tile_textures; }),
           })
-    , m_tile_loader { std::make_unique<nucleus::tile_scheduler::TileLoadService>(
-          "https://alpinemaps.cg.tuwien.ac.at/tiles/alpine_png/", nucleus::tile_scheduler::TileLoadService::UrlPattern::ZXY, ".png") } // TODO dont hardcode
 {
-    connect(m_tile_loader.get(), &nucleus::tile_scheduler::TileLoadService::load_finished, this, &RequestTilesNode::on_single_tile_received);
+    set_settings(settings);
+}
+
+RequestTilesNode::RequestTilesNode()
+    : RequestTilesNode(RequestTilesNodeSettings())
+{
 }
 
 void RequestTilesNode::run_impl()
@@ -48,7 +51,8 @@ void RequestTilesNode::run_impl()
     m_received_tile_textures.resize(tile_ids.size());
     m_requested_tile_ids = tile_ids;
     m_num_tiles_requested = m_received_tile_textures.size();
-    m_num_tiles_received = 0;
+    m_num_tiles_unavailable = 0;
+    m_num_signals_received = 0;
     qDebug() << "requesting " << m_num_tiles_requested << " tiles ...";
     for (const auto& tile_id : tile_ids) {
         m_tile_loader->load(tile_id);
@@ -57,23 +61,35 @@ void RequestTilesNode::run_impl()
 
 void RequestTilesNode::on_single_tile_received(const nucleus::tile_scheduler::tile_types::TileLayer& tile)
 {
+    m_num_signals_received++;
+
     if (tile.network_info.status != nucleus::tile_scheduler::tile_types::NetworkInfo::Status::Good) {
-        qFatal() << "failed to load tile id x=" << tile.id.coords.x << ", y=" << tile.id.coords.y << ", zoomlevel=" << tile.id.zoom_level << ": "
-                 << (tile.network_info.status == nucleus::tile_scheduler::tile_types::NetworkInfo::Status::NotFound ? "Not found" : "Network error");
+        m_num_tiles_unavailable++;
+        qWarning() << "failed to load tile id x=" << tile.id.coords.x << ", y=" << tile.id.coords.y << ", zoomlevel=" << tile.id.zoom_level << ": "
+                   << (tile.network_info.status == nucleus::tile_scheduler::tile_types::NetworkInfo::Status::NotFound ? "Not found" : "Network error");
+    } else {
+        auto found_it = std::find(m_requested_tile_ids.begin(), m_requested_tile_ids.end(), tile.id);
+        assert(found_it != m_requested_tile_ids.end()); // cannot receive tile id that was not requested
+        size_t found_index = found_it - m_requested_tile_ids.begin();
+        m_received_tile_textures[found_index] = *tile.data;
     }
 
-    auto found_it = std::find(m_requested_tile_ids.begin(), m_requested_tile_ids.end(), tile.id);
-
-    assert(found_it != m_requested_tile_ids.end()); // cannot receive tile id that was not requested
-
-    size_t found_index = found_it - m_requested_tile_ids.begin();
-    m_received_tile_textures[found_index] = *tile.data;
-
-    m_num_tiles_received++;
-    if (m_num_tiles_received == m_num_tiles_requested) {
-        // emit all_tiles_received();
-        emit run_completed();
+    // when all requests are finished (either failed or successfully)
+    if (m_num_signals_received == m_num_tiles_requested) {
+        if (m_num_tiles_unavailable > 0) {
+            emit run_failed(NodeRunFailureInfo(*this, std::format("failed to load {} tiles from {}", m_num_tiles_unavailable, m_settings.tile_path)));
+        } else {
+            emit run_completed();
+        }
     }
+}
+
+void RequestTilesNode::set_settings(const RequestTilesNodeSettings& settings)
+{
+    m_settings = settings;
+    m_tile_loader = std::make_unique<nucleus::tile_scheduler::TileLoadService>(
+        QString::fromStdString(settings.tile_path), settings.url_pattern, QString::fromStdString(settings.file_extension));
+    connect(m_tile_loader.get(), &nucleus::tile_scheduler::TileLoadService::load_finished, this, &RequestTilesNode::on_single_tile_received);
 }
 
 } // namespace webgpu_engine::compute::nodes

@@ -27,16 +27,27 @@ class RequestTilesNode : public Node {
     Q_OBJECT
 
 public:
+    struct RequestTilesNodeSettings {
+        std::string tile_path = "https://alpinemaps.cg.tuwien.ac.at/tiles/at_dtm_alpinemaps/";
+        nucleus::tile_scheduler::TileLoadService::UrlPattern url_pattern = nucleus::tile_scheduler::TileLoadService::UrlPattern::ZXY;
+        std::string file_extension = ".png";
+    };
+
     RequestTilesNode();
+    RequestTilesNode(const RequestTilesNodeSettings& settings);
 
     void on_single_tile_received(const nucleus::tile_scheduler::tile_types::TileLayer& tile);
+
+    void set_settings(const RequestTilesNodeSettings& settings);
 
 public slots:
     void run_impl() override;
 
 private:
+    RequestTilesNodeSettings m_settings;
     std::unique_ptr<nucleus::tile_scheduler::TileLoadService> m_tile_loader;
-    size_t m_num_tiles_received = 0;
+    size_t m_num_signals_received = 0;
+    size_t m_num_tiles_unavailable = 0;
     size_t m_num_tiles_requested = 0;
     std::vector<QByteArray> m_received_tile_textures;
     std::vector<tile::Id> m_requested_tile_ids;

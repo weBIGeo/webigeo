@@ -323,6 +323,12 @@ void Window::paint_compute_pipeline_gui()
             m_needs_redraw = true;
         }
 
+        const char* tile_source_items = "DTM tiles\0DSM tiles\0";
+        if (ImGui::Combo("Tile source", &m_compute_pipeline_settings.tile_source_index, tile_source_items)) {
+            recreate_and_rerun_compute_pipeline();
+            m_needs_redraw = true;
+        }
+
         const uint32_t min_zoomlevel = 1;
         const uint32_t max_zoomlevel = 18;
         ImGui::DragIntRange2("Target zoom levels", &m_compute_pipeline_settings.min_target_zoomlevel, &m_compute_pipeline_settings.max_target_zoomlevel, 0.1,
@@ -552,6 +558,10 @@ void Window::update_compute_pipeline_settings()
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
             .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.max_target_zoomlevel);
 
+        // tile source
+        m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node")
+            .set_settings(m_tile_source_settings.at(m_compute_pipeline_settings.tile_source_index));
+
         // downsampling
         compute::nodes::DownsampleTilesNode::DownsampleSettings downsample_settings {
             .num_levels = static_cast<uint32_t>(m_compute_pipeline_settings.max_target_zoomlevel - m_compute_pipeline_settings.min_target_zoomlevel),
@@ -562,6 +572,10 @@ void Window::update_compute_pipeline_settings()
         // tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
             .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.max_target_zoomlevel);
+
+        // tile source
+        m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node")
+            .set_settings(m_tile_source_settings.at(m_compute_pipeline_settings.tile_source_index));
 
         // snow settings
         if (m_compute_pipeline_settings.sync_snow_settings_with_render_settings) {
@@ -581,6 +595,10 @@ void Window::update_compute_pipeline_settings()
         // tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_target_tiles_node")
             .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.max_target_zoomlevel);
+
+        // tile source
+        m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node")
+            .set_settings(m_tile_source_settings.at(m_compute_pipeline_settings.tile_source_index));
 
         // data source tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_source_tiles_node")
@@ -620,6 +638,10 @@ void Window::update_compute_pipeline_settings()
         // data source tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_source_tiles_node")
             .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.source_zoomlevel);
+
+        // tile source
+        m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node")
+            .set_settings(m_tile_source_settings.at(m_compute_pipeline_settings.tile_source_index));
 
         // area of influence settings
         auto& area_of_influence_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheInfluenceAreaNode>("compute_area_of_influence_node");
