@@ -51,7 +51,7 @@ void SelectTilesNode::select_tiles_in_world_aabb(const geometry::Aabb<3, double>
         };
         return region.get_tiles();
     });
-    qDebug() << "lower left tile coords x=" << lower_left_tile.coords.x << ", y=" << lower_left_tile.coords.y;
+    qDebug() << Qt::fixed << "selected aabb=[(" << aabb.min.x << ", " << aabb.min.y << "), (" << aabb.max.x << ", " << aabb.max.y << ")]";
 }
 
 void SelectTilesNode::run_impl()
