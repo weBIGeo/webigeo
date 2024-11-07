@@ -26,6 +26,9 @@ namespace webgpu_engine::compute {
 class TileStorageTexture {
 
 public:
+    TileStorageTexture(WGPUDevice device, WGPUTextureDescriptor texture_desc, WGPUSamplerDescriptor sampler_desc);
+
+    // convenience wrapper
     TileStorageTexture(WGPUDevice device, const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format,
         WGPUTextureUsageFlags usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst);
 
@@ -48,6 +51,10 @@ public:
 private:
     size_t find_unused_layer_index() const;
     void set_layer_used(size_t layer);
+
+    static WGPUTextureDescriptor create_default_texture_descriptor(
+        const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format, WGPUTextureUsageFlags usage);
+    static WGPUSamplerDescriptor create_default_sampler_descriptor();
 
 private:
     WGPUDevice m_device;

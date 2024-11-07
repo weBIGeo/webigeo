@@ -23,36 +23,20 @@
 
 namespace webgpu_engine::compute {
 
-TileStorageTexture::TileStorageTexture(WGPUDevice device, const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format, WGPUTextureUsageFlags usage)
+TileStorageTexture::TileStorageTexture(WGPUDevice device, WGPUTextureDescriptor texture_desc, WGPUSamplerDescriptor sampler_desc)
     : m_device { device }
     , m_queue { wgpuDeviceGetQueue(device) }
-    , m_resolution { resolution }
-    , m_capacity { capacity }
+    , m_resolution { texture_desc.size.width, texture_desc.size.height }
+    , m_capacity { texture_desc.size.depthOrArrayLayers }
     , m_layers_used(m_capacity, false)
 {
-    WGPUTextureDescriptor height_texture_desc {};
-    height_texture_desc.label = "compute storage texture";
-    height_texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
-    height_texture_desc.size = { uint32_t(m_resolution.x), uint32_t(m_resolution.y), uint32_t(m_capacity) };
-    height_texture_desc.mipLevelCount = 1;
-    height_texture_desc.sampleCount = 1;
-    height_texture_desc.format = format;
-    height_texture_desc.usage = usage;
+    m_texture_array = std::make_unique<webgpu::raii::TextureWithSampler>(m_device, texture_desc, sampler_desc);
+}
 
-    WGPUSamplerDescriptor height_sampler_desc {};
-    height_sampler_desc.label = "compute storage sampler";
-    height_sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    height_sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    height_sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    height_sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
-    height_sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
-    height_sampler_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Nearest;
-    height_sampler_desc.lodMinClamp = 0.0f;
-    height_sampler_desc.lodMaxClamp = 1.0f;
-    height_sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
-    height_sampler_desc.maxAnisotropy = 1;
-
-    m_texture_array = std::make_unique<webgpu::raii::TextureWithSampler>(m_device, height_texture_desc, height_sampler_desc);
+TileStorageTexture::TileStorageTexture(WGPUDevice device, const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format, WGPUTextureUsageFlags usage)
+    : webgpu_engine::compute::TileStorageTexture(
+          device, create_default_texture_descriptor(resolution, capacity, format, usage), create_default_sampler_descriptor())
+{
 }
 
 void TileStorageTexture::store(size_t layer, const QByteArray& data)
@@ -145,6 +129,37 @@ void TileStorageTexture::set_layer_used(size_t layer)
         m_num_stored++;
         m_layers_used[layer] = true;
     }
+}
+
+WGPUTextureDescriptor TileStorageTexture::create_default_texture_descriptor(
+    const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format, WGPUTextureUsageFlags usage)
+{
+    WGPUTextureDescriptor texture_desc {};
+    texture_desc.label = "compute storage texture";
+    texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
+    texture_desc.size = { uint32_t(resolution.x), uint32_t(resolution.y), uint32_t(capacity) };
+    texture_desc.mipLevelCount = 1;
+    texture_desc.sampleCount = 1;
+    texture_desc.format = format;
+    texture_desc.usage = usage;
+    return texture_desc;
+}
+
+WGPUSamplerDescriptor TileStorageTexture::create_default_sampler_descriptor()
+{
+    WGPUSamplerDescriptor sampler_desc {};
+    sampler_desc.label = "compute storage sampler";
+    sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
+    sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
+    sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
+    sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
+    sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
+    sampler_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Nearest;
+    sampler_desc.lodMinClamp = 0.0f;
+    sampler_desc.lodMaxClamp = 1.0f;
+    sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
+    sampler_desc.maxAnisotropy = 1;
+    return sampler_desc;
 }
 
 } // namespace webgpu_engine::compute
