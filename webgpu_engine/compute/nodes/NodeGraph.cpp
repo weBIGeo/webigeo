@@ -57,21 +57,21 @@ const Node& NodeGraph::get_node(const std::string& node_name) const { return *m_
 
 bool NodeGraph::exists_node(const std::string& node_name) const { return m_nodes.find(node_name) != m_nodes.end(); }
 
-const GpuHashMap<tile::Id, uint32_t, GpuTileId>& NodeGraph::output_hash_map() const { return *m_output_hash_map_ptr; }
+const GpuHashMap<tile::Id, uint32_t, GpuTileId>& NodeGraph::output_normals_hash_map() const { return *m_output_normals_hash_map_ptr; }
 
-GpuHashMap<tile::Id, uint32_t, GpuTileId>& NodeGraph::output_hash_map() { return *m_output_hash_map_ptr; }
+GpuHashMap<tile::Id, uint32_t, GpuTileId>& NodeGraph::output_normals_hash_map() { return *m_output_normals_hash_map_ptr; }
 
-const TileStorageTexture& NodeGraph::output_texture_storage() const { return *m_output_texture_storage_ptr; }
+const TileStorageTexture& NodeGraph::output_normals_texture_storage() const { return *m_output_normals_texture_storage_ptr; }
 
-TileStorageTexture& NodeGraph::output_texture_storage() { return *m_output_texture_storage_ptr; }
+TileStorageTexture& NodeGraph::output_normals_texture_storage() { return *m_output_normals_texture_storage_ptr; }
 
-const GpuHashMap<tile::Id, uint32_t, GpuTileId>& NodeGraph::output_hash_map_2() const { return *m_output_hash_map_ptr_2; }
+const GpuHashMap<tile::Id, uint32_t, GpuTileId>& NodeGraph::output_overlay_hash_map() const { return *m_output_overlay_hash_map_ptr; }
 
-GpuHashMap<tile::Id, uint32_t, GpuTileId>& NodeGraph::output_hash_map_2() { return *m_output_hash_map_ptr_2; }
+GpuHashMap<tile::Id, uint32_t, GpuTileId>& NodeGraph::output_overlay_hash_map() { return *m_output_overlay_hash_map_ptr; }
 
-const TileStorageTexture& NodeGraph::output_texture_storage_2() const { return *m_output_texture_storage_ptr_2; }
+const TileStorageTexture& NodeGraph::output_overlay_texture_storage() const { return *m_output_overlay_texture_storage_ptr; }
 
-TileStorageTexture& NodeGraph::output_texture_storage_2() { return *m_output_texture_storage_ptr_2; }
+TileStorageTexture& NodeGraph::output_overlay_texture_storage() { return *m_output_overlay_texture_storage_ptr; }
 
 void NodeGraph::connect_node_signals_and_slots()
 {
@@ -188,10 +188,10 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_compute_graph(const Pipeline
     normal_compute_node->output_socket("hash map").connect(downsample_tiles_node->input_socket("hash map"));
     normal_compute_node->output_socket("normal textures").connect(downsample_tiles_node->input_socket("textures"));
 
-    node_graph->m_output_hash_map_ptr = &downsample_tiles_node->hash_map();
-    node_graph->m_output_texture_storage_ptr = &downsample_tiles_node->texture_storage();
-    node_graph->m_output_hash_map_ptr_2 = &downsample_tiles_node->hash_map();
-    node_graph->m_output_texture_storage_ptr_2 = &downsample_tiles_node->texture_storage();
+    node_graph->m_output_normals_hash_map_ptr = &downsample_tiles_node->hash_map();
+    node_graph->m_output_normals_texture_storage_ptr = &downsample_tiles_node->texture_storage();
+    node_graph->m_output_overlay_hash_map_ptr = &downsample_tiles_node->hash_map();
+    node_graph->m_output_overlay_texture_storage_ptr = &downsample_tiles_node->texture_storage();
 
     node_graph->connect_node_signals_and_slots();
 
@@ -256,11 +256,11 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_with_snow_compute_graph(cons
     normal_compute_node->output_socket("hash map").connect(downsample_tiles_node->input_socket("hash map"));
     upsample_textures_node->output_socket("output textures").connect(downsample_tiles_node->input_socket("textures"));
 
-    node_graph->m_output_hash_map_ptr = &downsample_tiles_node->hash_map();
-    node_graph->m_output_texture_storage_ptr = &downsample_tiles_node->texture_storage();
+    node_graph->m_output_normals_hash_map_ptr = &downsample_tiles_node->hash_map();
+    node_graph->m_output_normals_texture_storage_ptr = &downsample_tiles_node->texture_storage();
 
-    node_graph->m_output_hash_map_ptr_2 = &downsample_snow_tiles_node->hash_map();
-    node_graph->m_output_texture_storage_ptr_2 = &downsample_snow_tiles_node->texture_storage();
+    node_graph->m_output_overlay_hash_map_ptr = &downsample_snow_tiles_node->hash_map();
+    node_graph->m_output_overlay_texture_storage_ptr = &downsample_snow_tiles_node->texture_storage();
 
     node_graph->connect_node_signals_and_slots();
 
@@ -296,8 +296,8 @@ std::unique_ptr<NodeGraph> NodeGraph::create_snow_compute_graph(const PipelineMa
     snow_compute_node->output_socket("hash map").connect(downsample_tiles_node->input_socket("hash map"));
     snow_compute_node->output_socket("snow textures").connect(downsample_tiles_node->input_socket("textures"));
 
-    node_graph->m_output_hash_map_ptr = &downsample_tiles_node->hash_map();
-    node_graph->m_output_texture_storage_ptr = &downsample_tiles_node->texture_storage();
+    node_graph->m_output_normals_hash_map_ptr = &downsample_tiles_node->hash_map();
+    node_graph->m_output_normals_texture_storage_ptr = &downsample_tiles_node->texture_storage();
 
     node_graph->connect_node_signals_and_slots();
 
@@ -372,11 +372,11 @@ std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_trajectories_compute_grap
     normal_compute_node->output_socket("hash map").connect(downsample_normals_tiles_node->input_socket("hash map"));
     upsample_normals_textures_node->output_socket("output textures").connect(downsample_normals_tiles_node->input_socket("textures"));
 
-    node_graph->m_output_hash_map_ptr = &downsample_normals_tiles_node->hash_map();
-    node_graph->m_output_texture_storage_ptr = &downsample_normals_tiles_node->texture_storage();
+    node_graph->m_output_normals_hash_map_ptr = &downsample_normals_tiles_node->hash_map();
+    node_graph->m_output_normals_texture_storage_ptr = &downsample_normals_tiles_node->texture_storage();
 
-    node_graph->m_output_hash_map_ptr_2 = &downsample_trajectory_tiles_node->hash_map();
-    node_graph->m_output_texture_storage_ptr_2 = &downsample_trajectory_tiles_node->texture_storage();
+    node_graph->m_output_overlay_hash_map_ptr = &downsample_trajectory_tiles_node->hash_map();
+    node_graph->m_output_overlay_texture_storage_ptr = &downsample_trajectory_tiles_node->texture_storage();
 
     node_graph->connect_node_signals_and_slots();
 
@@ -442,11 +442,11 @@ std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_influence_area_compute_gr
     normal_compute_node->output_socket("hash map").connect(downsample_normals_tiles_node->input_socket("hash map"));
     upsample_normals_textures_node->output_socket("output textures").connect(downsample_normals_tiles_node->input_socket("textures"));
 
-    node_graph->m_output_hash_map_ptr = &downsample_normals_tiles_node->hash_map();
-    node_graph->m_output_texture_storage_ptr = &downsample_normals_tiles_node->texture_storage();
+    node_graph->m_output_normals_hash_map_ptr = &downsample_normals_tiles_node->hash_map();
+    node_graph->m_output_normals_texture_storage_ptr = &downsample_normals_tiles_node->texture_storage();
 
-    node_graph->m_output_hash_map_ptr_2 = &downsample_area_of_influence_tiles_node->hash_map();
-    node_graph->m_output_texture_storage_ptr_2 = &downsample_area_of_influence_tiles_node->texture_storage();
+    node_graph->m_output_overlay_hash_map_ptr = &downsample_area_of_influence_tiles_node->hash_map();
+    node_graph->m_output_overlay_texture_storage_ptr = &downsample_area_of_influence_tiles_node->texture_storage();
 
     node_graph->connect_node_signals_and_slots();
 
@@ -499,10 +499,10 @@ std::unique_ptr<NodeGraph> NodeGraph::create_d8_compute_graph(const PipelineMana
     normal_compute_node->output_socket("hash map").connect(downsample_tiles_node->input_socket("hash map"));
     normal_compute_node->output_socket("normal textures").connect(downsample_tiles_node->input_socket("textures"));
 
-    node_graph->m_output_hash_map_ptr = &downsample_tiles_node->hash_map();
-    node_graph->m_output_texture_storage_ptr = &downsample_tiles_node->texture_storage();
-    node_graph->m_output_hash_map_ptr_2 = &downsample_tiles_node->hash_map();
-    node_graph->m_output_texture_storage_ptr_2 = &downsample_tiles_node->texture_storage();
+    node_graph->m_output_normals_hash_map_ptr = &downsample_tiles_node->hash_map();
+    node_graph->m_output_normals_texture_storage_ptr = &downsample_tiles_node->texture_storage();
+    node_graph->m_output_overlay_hash_map_ptr = &downsample_tiles_node->hash_map();
+    node_graph->m_output_overlay_texture_storage_ptr = &downsample_tiles_node->texture_storage();
 
     node_graph->connect_node_signals_and_slots();
 

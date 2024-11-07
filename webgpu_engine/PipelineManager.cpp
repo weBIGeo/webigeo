@@ -519,45 +519,45 @@ void PipelineManager::create_snow_compute_bind_group_layout()
 
 void PipelineManager::create_overlay_bind_group_layout()
 {
-    WGPUBindGroupLayoutEntry overlay_key_buffer_entry {};
-    overlay_key_buffer_entry.binding = 0;
-    overlay_key_buffer_entry.visibility = WGPUShaderStage_Fragment;
-    overlay_key_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    overlay_key_buffer_entry.buffer.minBindingSize = 0;
-
-    WGPUBindGroupLayoutEntry overlay_value_buffer_entry {};
-    overlay_value_buffer_entry.binding = 1;
-    overlay_value_buffer_entry.visibility = WGPUShaderStage_Fragment;
-    overlay_value_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    overlay_value_buffer_entry.buffer.minBindingSize = 0;
-
-    WGPUBindGroupLayoutEntry overlay_textures_entry {};
-    overlay_textures_entry.binding = 2;
-    overlay_textures_entry.visibility = WGPUShaderStage_Fragment;
-    overlay_textures_entry.texture.sampleType = WGPUTextureSampleType_Float;
-    overlay_textures_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
-
     WGPUBindGroupLayoutEntry normals_key_buffer_entry {};
-    normals_key_buffer_entry.binding = 3;
+    normals_key_buffer_entry.binding = 0;
     normals_key_buffer_entry.visibility = WGPUShaderStage_Fragment;
     normals_key_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
     normals_key_buffer_entry.buffer.minBindingSize = 0;
 
     WGPUBindGroupLayoutEntry normals_value_buffer_entry {};
-    normals_value_buffer_entry.binding = 4;
+    normals_value_buffer_entry.binding = 1;
     normals_value_buffer_entry.visibility = WGPUShaderStage_Fragment;
     normals_value_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
     normals_value_buffer_entry.buffer.minBindingSize = 0;
 
-    WGPUBindGroupLayoutEntry normals_input_textures_entry {};
-    normals_input_textures_entry.binding = 5;
-    normals_input_textures_entry.visibility = WGPUShaderStage_Fragment;
-    normals_input_textures_entry.texture.sampleType = WGPUTextureSampleType_Float;
-    normals_input_textures_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
+    WGPUBindGroupLayoutEntry normals_textures_entry {};
+    normals_textures_entry.binding = 2;
+    normals_textures_entry.visibility = WGPUShaderStage_Fragment;
+    normals_textures_entry.texture.sampleType = WGPUTextureSampleType_Float;
+    normals_textures_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
+
+    WGPUBindGroupLayoutEntry overlay_key_buffer_entry {};
+    overlay_key_buffer_entry.binding = 3;
+    overlay_key_buffer_entry.visibility = WGPUShaderStage_Fragment;
+    overlay_key_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    overlay_key_buffer_entry.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry overlay_value_buffer_entry {};
+    overlay_value_buffer_entry.binding = 4;
+    overlay_value_buffer_entry.visibility = WGPUShaderStage_Fragment;
+    overlay_value_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    overlay_value_buffer_entry.buffer.minBindingSize = 0;
+
+    WGPUBindGroupLayoutEntry overlay_input_textures_entry {};
+    overlay_input_textures_entry.binding = 5;
+    overlay_input_textures_entry.visibility = WGPUShaderStage_Fragment;
+    overlay_input_textures_entry.texture.sampleType = WGPUTextureSampleType_Float;
+    overlay_input_textures_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
 
     m_overlay_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
-        std::vector<WGPUBindGroupLayoutEntry> { overlay_key_buffer_entry, overlay_value_buffer_entry, overlay_textures_entry, normals_key_buffer_entry,
-            normals_value_buffer_entry, normals_input_textures_entry },
+        std::vector<WGPUBindGroupLayoutEntry> { normals_key_buffer_entry, normals_value_buffer_entry, normals_textures_entry, overlay_key_buffer_entry,
+            overlay_value_buffer_entry, overlay_input_textures_entry },
         "overlay bind group layout");
 }
 

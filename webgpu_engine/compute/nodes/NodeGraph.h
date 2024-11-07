@@ -57,17 +57,19 @@ public:
     template <typename NodeType> const NodeType& get_node_as(const std::string& node_name) const { return static_cast<const NodeType&>(get_node(node_name)); }
 
     // obtain outputs - for now all node graphs always output
-    //  - a hashmap (mapping tile id to texture array layer)
-    //  - a texture array
-    const GpuHashMap<tile::Id, uint32_t, GpuTileId>& output_hash_map() const;
-    GpuHashMap<tile::Id, uint32_t, GpuTileId>& output_hash_map();
-    const TileStorageTexture& output_texture_storage() const;
-    TileStorageTexture& output_texture_storage();
+    //  - a hashmap for overlay tiles (mapping tile id to texture array layer)
+    //  - a texture array for overlay tiles
+    //  - a hashmap for normals tiles (mapping tile id to texture array layer)
+    //  - a texture array for normals tiles
+    const GpuHashMap<tile::Id, uint32_t, GpuTileId>& output_normals_hash_map() const;
+    GpuHashMap<tile::Id, uint32_t, GpuTileId>& output_normals_hash_map();
+    const TileStorageTexture& output_normals_texture_storage() const;
+    TileStorageTexture& output_normals_texture_storage();
 
-    const GpuHashMap<tile::Id, uint32_t, GpuTileId>& output_hash_map_2() const;
-    GpuHashMap<tile::Id, uint32_t, GpuTileId>& output_hash_map_2();
-    const TileStorageTexture& output_texture_storage_2() const;
-    TileStorageTexture& output_texture_storage_2();
+    const GpuHashMap<tile::Id, uint32_t, GpuTileId>& output_overlay_hash_map() const;
+    GpuHashMap<tile::Id, uint32_t, GpuTileId>& output_overlay_hash_map();
+    const TileStorageTexture& output_overlay_texture_storage() const;
+    TileStorageTexture& output_overlay_texture_storage();
 
 private:
     // finds topological order of nodes and connects run_finished and run slots accordingly
@@ -92,13 +94,12 @@ public:
 
 private:
     std::unordered_map<std::string, std::unique_ptr<Node>> m_nodes;
-    Node* m_start_node;
 
-    GpuHashMap<tile::Id, uint32_t, GpuTileId>* m_output_hash_map_ptr;
-    TileStorageTexture* m_output_texture_storage_ptr;
+    GpuHashMap<tile::Id, uint32_t, GpuTileId>* m_output_normals_hash_map_ptr;
+    TileStorageTexture* m_output_normals_texture_storage_ptr;
 
-    GpuHashMap<tile::Id, uint32_t, GpuTileId>* m_output_hash_map_ptr_2;
-    TileStorageTexture* m_output_texture_storage_ptr_2;
+    GpuHashMap<tile::Id, uint32_t, GpuTileId>* m_output_overlay_hash_map_ptr;
+    TileStorageTexture* m_output_overlay_texture_storage_ptr;
 };
 
 } // namespace webgpu_engine::compute::nodes

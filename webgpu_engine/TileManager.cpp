@@ -474,13 +474,13 @@ void TileRendererInstancedSingleArrayMultiCall::draw(
 void TileRendererInstancedSingleArrayMultiCall::set_node_graph(const compute::nodes::NodeGraph& node_graph)
 {
     // create binding group for compute graph output
-    WGPUBindGroupEntry normal_hashmap_key_buffer_entry = node_graph.output_hash_map().key_buffer().create_bind_group_entry(0);
-    WGPUBindGroupEntry normal_hashmap_value_buffer_entry = node_graph.output_hash_map().value_buffer().create_bind_group_entry(1);
-    WGPUBindGroupEntry normal_texture_array_entry = node_graph.output_texture_storage().texture().texture_view().create_bind_group_entry(2);
+    WGPUBindGroupEntry normal_hashmap_key_buffer_entry = node_graph.output_normals_hash_map().key_buffer().create_bind_group_entry(0);
+    WGPUBindGroupEntry normal_hashmap_value_buffer_entry = node_graph.output_normals_hash_map().value_buffer().create_bind_group_entry(1);
+    WGPUBindGroupEntry normal_texture_array_entry = node_graph.output_normals_texture_storage().texture().texture_view().create_bind_group_entry(2);
 
-    WGPUBindGroupEntry overlay_hashmap_key_buffer_entry = node_graph.output_hash_map_2().key_buffer().create_bind_group_entry(3);
-    WGPUBindGroupEntry overlay_hashmap_value_buffer_entry = node_graph.output_hash_map_2().value_buffer().create_bind_group_entry(4);
-    WGPUBindGroupEntry overlay_texture_array_entry = node_graph.output_texture_storage_2().texture().texture_view().create_bind_group_entry(5);
+    WGPUBindGroupEntry overlay_hashmap_key_buffer_entry = node_graph.output_overlay_hash_map().key_buffer().create_bind_group_entry(3);
+    WGPUBindGroupEntry overlay_hashmap_value_buffer_entry = node_graph.output_overlay_hash_map().value_buffer().create_bind_group_entry(4);
+    WGPUBindGroupEntry overlay_texture_array_entry = node_graph.output_overlay_texture_storage().texture().texture_view().create_bind_group_entry(5);
 
     std::vector<WGPUBindGroupEntry> entries { normal_hashmap_key_buffer_entry, normal_hashmap_value_buffer_entry, normal_texture_array_entry,
         overlay_hashmap_key_buffer_entry, overlay_hashmap_value_buffer_entry, overlay_texture_array_entry };
