@@ -549,15 +549,20 @@ void PipelineManager::create_overlay_bind_group_layout()
     overlay_value_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
     overlay_value_buffer_entry.buffer.minBindingSize = 0;
 
-    WGPUBindGroupLayoutEntry overlay_input_textures_entry {};
-    overlay_input_textures_entry.binding = 5;
-    overlay_input_textures_entry.visibility = WGPUShaderStage_Fragment;
-    overlay_input_textures_entry.texture.sampleType = WGPUTextureSampleType_Float;
-    overlay_input_textures_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
+    WGPUBindGroupLayoutEntry overlay_textures_entry {};
+    overlay_textures_entry.binding = 5;
+    overlay_textures_entry.visibility = WGPUShaderStage_Fragment;
+    overlay_textures_entry.texture.sampleType = WGPUTextureSampleType_Float;
+    overlay_textures_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
+
+    WGPUBindGroupLayoutEntry overlay_sampler_entry {};
+    overlay_sampler_entry.binding = 6;
+    overlay_sampler_entry.visibility = WGPUShaderStage_Fragment;
+    overlay_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
 
     m_overlay_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
         std::vector<WGPUBindGroupLayoutEntry> { normals_key_buffer_entry, normals_value_buffer_entry, normals_textures_entry, overlay_key_buffer_entry,
-            overlay_value_buffer_entry, overlay_input_textures_entry },
+            overlay_value_buffer_entry, overlay_textures_entry, overlay_sampler_entry },
         "overlay bind group layout");
 }
 

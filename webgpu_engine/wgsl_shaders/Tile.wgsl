@@ -44,6 +44,7 @@
 @group(3) @binding(3) var<storage> overlay_hashmap_key_buffer: array<TileId>; // hash map key buffer
 @group(3) @binding(4) var<storage> overlay_hashmap_value_buffer: array<u32>; // hash map value buffer, contains texture array indices
 @group(3) @binding(5) var overlay_texture: texture_2d_array<f32>; // overlay tiles
+@group(3) @binding(6) var overlay_sampler: sampler;
 
 struct VertexIn {
     @location(0) bounds: vec4f,
@@ -229,7 +230,7 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
 
             // textureSample needs to happen in uniform control flow
             // therefore: if texture was found, sample correct texture array index, otherwise sample from texture 0
-            let sampled_overlay_color = textureSample(overlay_texture, ortho_sampler, vertex_out.uv, texure_array_index).rgba;
+            let sampled_overlay_color = textureSample(overlay_texture, overlay_sampler, vertex_out.uv, texure_array_index).rgba;
     
             if (found) {
                 overlay_color = sampled_overlay_color;

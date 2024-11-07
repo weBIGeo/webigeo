@@ -481,9 +481,10 @@ void TileRendererInstancedSingleArrayMultiCall::set_node_graph(const compute::no
     WGPUBindGroupEntry overlay_hashmap_key_buffer_entry = node_graph.output_overlay_hash_map().key_buffer().create_bind_group_entry(3);
     WGPUBindGroupEntry overlay_hashmap_value_buffer_entry = node_graph.output_overlay_hash_map().value_buffer().create_bind_group_entry(4);
     WGPUBindGroupEntry overlay_texture_array_entry = node_graph.output_overlay_texture_storage().texture().texture_view().create_bind_group_entry(5);
+    WGPUBindGroupEntry overlay_sampler_entry = node_graph.output_overlay_texture_storage().texture().sampler().create_bind_group_entry(6);
 
     std::vector<WGPUBindGroupEntry> entries { normal_hashmap_key_buffer_entry, normal_hashmap_value_buffer_entry, normal_texture_array_entry,
-        overlay_hashmap_key_buffer_entry, overlay_hashmap_value_buffer_entry, overlay_texture_array_entry };
+        overlay_hashmap_key_buffer_entry, overlay_hashmap_value_buffer_entry, overlay_texture_array_entry, overlay_sampler_entry };
     m_overlay_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->overlay_bind_group_layout(), entries, "overlay bind group");
 }
 
