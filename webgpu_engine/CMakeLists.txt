@@ -80,6 +80,7 @@ qt_add_resources(webgpu_engine "shaders"
         "wgsl_shaders/filtering.wgsl"
         "wgsl_shaders/normals_util.wgsl"
         "wgsl_shaders/color_mapping.wgsl"
+        "wgsl_shaders/d8_compute.wgsl"
     )
 
 # Note: This has to go into the webgpu_app as soon as we don't use ImGui in the engine anymore!!!
