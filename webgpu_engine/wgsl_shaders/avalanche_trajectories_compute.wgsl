@@ -213,7 +213,7 @@ fn get_normal_uv(overlay_uv: vec2f) -> vec2f {
     return overlay_uv * vec2f(textureDimensions(input_normal_tiles) - 1) / vec2f(textureDimensions(input_normal_tiles)) + 1f / (2f * vec2f(textureDimensions(input_normal_tiles)));
 }
 
-// map overlay (non-overlapping) uv coordinate to normal texture (overlapping) uv coordinate
+// map overlay (non-overlapping) uv coordinate to height texture (overlapping) uv coordinate
 fn get_height_uv(overlay_uv: vec2f) -> vec2f {
     return overlay_uv * vec2f(textureDimensions(input_height_tiles) - 1) / vec2f(textureDimensions(input_height_tiles)) + 1f / (2f * vec2f(textureDimensions(input_height_tiles)));
 }
