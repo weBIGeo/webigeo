@@ -219,32 +219,32 @@ fn get_height_uv(overlay_uv: vec2f) -> vec2f {
 }
 
 fn get_normal(tile_id: TileId, overlay_uv: vec2f, zoomlevel: u32, normal: ptr<function, vec3f>) -> bool {
-    let normal_texture_uv = get_normal_uv(overlay_uv);
     var source_tile_id: TileId = tile_id;
-    var source_uv: vec2f = normal_texture_uv;
-    calc_tile_id_and_uv_for_zoom_level(tile_id, normal_texture_uv, zoomlevel, &source_tile_id, &source_uv);
+    var source_uv: vec2f = overlay_uv;
+    calc_tile_id_and_uv_for_zoom_level(tile_id, overlay_uv, zoomlevel, &source_tile_id, &source_uv);
+    let normal_texture_uv = get_normal_uv(source_uv);
     var texture_array_index: u32;
     let found = get_texture_array_index(source_tile_id, &texture_array_index, &map_key_buffer, &map_value_buffer);
     if (!found) {
         // moved to a tile where we don't have any input data, discard
         return false;
     }
-    *normal = bilinear_sample_vec4f(input_normal_tiles, input_normal_tiles_sampler, source_uv, texture_array_index).xyz * 2 - 1;
+    *normal = bilinear_sample_vec4f(input_normal_tiles, input_normal_tiles_sampler, normal_texture_uv, texture_array_index).xyz * 2 - 1;
     return true;
 }
 
 fn get_height(tile_id: TileId, overlay_uv: vec2f, zoomlevel: u32, height: ptr<function, u32>) -> bool {
-    let height_texture_uv = get_height_uv(overlay_uv);
     var source_tile_id: TileId = tile_id;
-    var source_uv: vec2f = height_texture_uv;
-    calc_tile_id_and_uv_for_zoom_level(tile_id, height_texture_uv, zoomlevel, &source_tile_id, &source_uv);
+    var source_uv: vec2f = overlay_uv;
+    calc_tile_id_and_uv_for_zoom_level(tile_id, overlay_uv, zoomlevel, &source_tile_id, &source_uv);
+    let height_texture_uv = get_height_uv(source_uv);
     var texture_array_index: u32;
     let found = get_texture_array_index(source_tile_id, &texture_array_index, &map_key_buffer, &map_value_buffer);
     if (!found) {
         // moved to a tile where we don't have any input data, discard
         return false;
     }
-    *height = bilinear_sample_u32(input_height_tiles, input_height_tiles_sampler, source_uv, texture_array_index);
+    *height = bilinear_sample_u32(input_height_tiles, input_height_tiles_sampler, height_texture_uv, texture_array_index);
     return true;
 }
 
