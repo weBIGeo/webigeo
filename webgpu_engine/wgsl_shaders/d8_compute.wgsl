@@ -28,7 +28,7 @@
 @group(0) @binding(4) var input_sampler: sampler; // height tiles sampler
 
 // output
-@group(0) @binding(5) var output_tiles: texture_storage_2d_array<rgba8uint, write>; // d8 tiles (output)
+@group(0) @binding(5) var output_tiles: texture_storage_2d_array<rgba8unorm, write>; // d8 tiles (output)
 //TODO currently, format r8uint cannot be used for storage texture with write access (apparently only 32 bit formats can be used)
 
 //TODO use storage buffer instead for now!
@@ -62,7 +62,7 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     const directions = array<vec2f, 8>(vec2f(1, 0), vec2f(1, 1), vec2f(0, 1), vec2f(-1, 1), vec2f(-1, 0), vec2f(-1, -1), vec2f(0, -1), vec2f(1, -1));
 
     let step_size = vec2f(1) / (vec2f(output_texture_size - 1));
-    var min_height: u32 = 10000000; //TODO
+    var min_height: u32 = 1 << 31; //TODO
     var min_index: u32; //TODO
     for (var i: u32 = 0; i < 8; i++) {
         let height_value = get_height_value(tile_id, uv + step_size * directions[i]);
@@ -72,8 +72,8 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
         }
     }
     let encoded_direction: u32 = 1u << min_index;
-    textureStore(output_tiles, vec2(col, row), id.x, vec4u(encoded_direction, 0, 0, 0));
-    //textureStore(output_tiles, vec2(col, row), id.x, vec4f(f32(min_index) / 8f, 0, 0, 1));
+    //textureStore(output_tiles, vec2(col, row), id.x, vec4f(encoded_direction, 0, 0, 0));
+    textureStore(output_tiles, vec2(col, row), id.x, vec4f(f32(min_index) / 8f, 0, 0, 1));
     //textureStore(output_tiles, vec2(col, row), id.x, vec4f(uv.x, uv.y, 0, 1));
 
 }

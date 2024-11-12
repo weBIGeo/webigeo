@@ -343,6 +343,7 @@ void Window::paint_compute_pipeline_gui()
             { "Snow + Normals", ComputePipelineType::NORMALS_AND_SNOW },
             { "Avalanche trajectories + Normals", ComputePipelineType::AVALANCHE_TRAJECTORIES },
             { "Avalanche influence area + Normals", ComputePipelineType::AVALANCHE_INFLUENCE_AREA },
+            { "D8 directions", ComputePipelineType::D8_DIRECTIONS },
         };
         const char* current_item_label = overlays[current_item].first.c_str();
         if (ImGui::BeginCombo("Type", current_item_label)) {
@@ -539,6 +540,8 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type)
         m_compute_graph = compute::nodes::NodeGraph::create_avalanche_trajectories_compute_graph(*m_pipeline_manager, m_device);
     } else if (pipeline_type == ComputePipelineType::AVALANCHE_INFLUENCE_AREA) {
         m_compute_graph = compute::nodes::NodeGraph::create_avalanche_influence_area_compute_graph(*m_pipeline_manager, m_device);
+    } else if (pipeline_type == ComputePipelineType::D8_DIRECTIONS) {
+        m_compute_graph = compute::nodes::NodeGraph::create_d8_compute_graph(*m_pipeline_manager, m_device);
     }
 
     update_compute_pipeline_settings();
@@ -668,6 +671,14 @@ void Window::update_compute_pipeline_settings()
         m_compute_graph->get_node_as<compute::nodes::DownsampleTilesNode>("downsample_area_of_influence_tiles_node")
             .set_downsample_settings(downsample_settings);
         m_compute_graph->get_node_as<compute::nodes::DownsampleTilesNode>("downsample_normals_tiles_node").set_downsample_settings(downsample_settings);
+    } else if (m_active_compute_pipeline_type == ComputePipelineType::D8_DIRECTIONS) {
+        // tile selection
+        m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
+            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.max_target_zoomlevel);
+
+        // tile source
+        m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node")
+            .set_settings(m_tile_source_settings.at(m_compute_pipeline_settings.tile_source_index));
     }
 }
 

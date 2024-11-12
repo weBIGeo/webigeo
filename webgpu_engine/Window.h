@@ -82,6 +82,7 @@ public:
         NORMALS_AND_SNOW = 1,
         AVALANCHE_TRAJECTORIES = 2,
         AVALANCHE_INFLUENCE_AREA = 3,
+        D8_DIRECTIONS = 4,
     };
 
 public:

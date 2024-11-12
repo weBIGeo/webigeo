@@ -905,7 +905,7 @@ void PipelineManager::create_d8_compute_bind_group_layout()
     output_tiles_entry.visibility = WGPUShaderStage_Compute;
     output_tiles_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2DArray;
     output_tiles_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
-    output_tiles_entry.storageTexture.format = WGPUTextureFormat_RGBA8Uint;
+    output_tiles_entry.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
 
     m_d8_compute_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
         std::vector<WGPUBindGroupLayoutEntry> { input_tile_ids_entry, input_hashmap_key_buffer_entry, input_hashmap_value_buffer_entry,

@@ -309,7 +309,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_trajectories_compute_grap
     size_t capacity = 1024;
     glm::uvec2 input_resolution = { 65, 65 };
     glm::uvec2 normal_output_resolution = { 65, 65 };
-    glm::uvec2 trajectories_output_resolution = { 256, 256 };
+    glm::uvec2 trajectories_output_resolution = { 64, 64 };
     glm::uvec2 upsample_output_resolution = { 256, 256 };
 
     auto node_graph = std::make_unique<NodeGraph>();
@@ -465,14 +465,10 @@ std::unique_ptr<NodeGraph> NodeGraph::create_d8_compute_graph(const PipelineMana
     Node* height_request_node = node_graph->add_node("request_height_node", std::make_unique<RequestTilesNode>());
     Node* hash_map_node
         = node_graph->add_node("hashmap_node", std::make_unique<CreateHashMapNode>(device, input_resolution, capacity, WGPUTextureFormat_R16Uint));
-    Node* normal_compute_node = node_graph->add_node(
-        "compute_normals_node", std::make_unique<ComputeNormalsNode>(manager, device, normal_output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm));
+    ComputeNormalsNode* normal_compute_node = static_cast<ComputeNormalsNode*>(node_graph->add_node(
+        "compute_normals_node", std::make_unique<ComputeNormalsNode>(manager, device, normal_output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm)));
     ComputeD8DirectionsNode* d8_compute_node = static_cast<ComputeD8DirectionsNode*>(
         node_graph->add_node("d8_compute_node", std::make_unique<ComputeD8DirectionsNode>(manager, device, normal_output_resolution, capacity)));
-    Node* upsample_textures_node
-        = node_graph->add_node("upsample_textures_node", std::make_unique<UpsampleTexturesNode>(manager, device, upsample_output_resolution, capacity));
-    DownsampleTilesNode* downsample_tiles_node
-        = static_cast<DownsampleTilesNode*>(node_graph->add_node("downsample_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity)));
 
     // connect height request inputs
     tile_select_node->output_socket("tile ids").connect(height_request_node->input_socket("tile ids"));
@@ -491,18 +487,10 @@ std::unique_ptr<NodeGraph> NodeGraph::create_d8_compute_graph(const PipelineMana
     hash_map_node->output_socket("hash map").connect(d8_compute_node->input_socket("hash map"));
     hash_map_node->output_socket("textures").connect(d8_compute_node->input_socket("height textures"));
 
-    //  connect upsample textures node inputs
-    normal_compute_node->output_socket("normal textures").connect(upsample_textures_node->input_socket("source textures"));
-
-    // connect downsample tiles node inputs
-    tile_select_node->output_socket("tile ids").connect(downsample_tiles_node->input_socket("tile ids"));
-    normal_compute_node->output_socket("hash map").connect(downsample_tiles_node->input_socket("hash map"));
-    normal_compute_node->output_socket("normal textures").connect(downsample_tiles_node->input_socket("textures"));
-
-    node_graph->m_output_normals_hash_map_ptr = &downsample_tiles_node->hash_map();
-    node_graph->m_output_normals_texture_storage_ptr = &downsample_tiles_node->texture_storage();
-    node_graph->m_output_overlay_hash_map_ptr = &downsample_tiles_node->hash_map();
-    node_graph->m_output_overlay_texture_storage_ptr = &downsample_tiles_node->texture_storage();
+    node_graph->m_output_normals_hash_map_ptr = &normal_compute_node->hash_map();
+    node_graph->m_output_normals_texture_storage_ptr = &normal_compute_node->texture_storage();
+    node_graph->m_output_overlay_hash_map_ptr = &d8_compute_node->hash_map();
+    node_graph->m_output_overlay_texture_storage_ptr = &d8_compute_node->texture_storage();
 
     node_graph->connect_node_signals_and_slots();
 
