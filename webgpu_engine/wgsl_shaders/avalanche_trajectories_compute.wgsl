@@ -65,37 +65,109 @@ struct AvalancheTrajectoriesSettings {
 // output
 @group(0) @binding(11) var<storage, read_write> output_storage_buffer: array<atomic<u32>>; // trajectory tiles
 
+// note: as of writing this, wgsl only supports atomic access for storage buffers and only for u32 and i32
+//       therefore, we first write the risk value (along the trajectory as raster) into a buffer,
+//       then write its contents into a texture in a subsequent step (avalanche_trajectories_buffer_to_texture.wgsl)
+
+
+// ***** UTILITY FUNCTIONS *****
+
+// checks if thread should do something (based on sampling interval)
+// TODO: just start correct number of threads from CPU side
 fn should_paint(col: u32, row: u32, tile_id: TileId) -> bool {
     return (col % settings.sampling_interval.x == 0) && (row % settings.sampling_interval.y == 0);
 }
 
-fn gradient_overlay(id: vec3<u32>) {
-    let tile_id = input_tile_ids[id.x];
-    let bounds = input_tile_bounds[id.x];
-    let input_texture_size = textureDimensions(input_normal_tiles);
-    let tile_width: f32 = (bounds.z - bounds.x);
-    let tile_height: f32 = (bounds.w - bounds.y);
+// returns index into the storage buffer for a 2d (texture) position
+fn get_storage_buffer_index(texture_layer: u32, coords: vec2u, output_texture_size: vec2u) -> u32 {
+    return texture_layer * output_texture_size.x * output_texture_size.y + coords.y * output_texture_size.x + coords.x;  
+}
 
-    let col = id.y; // in [0, texture_dimension(output_tiles).x - 1]
-    let row = id.z; // in [0, texture_dimension(output_tiles).y - 1]
-    let uv = vec2f(f32(col), f32(row)) / vec2f(settings.output_resolution - 1);
+// returns steepness based on surface normal
+// 1 is vertical, 0 is horizontal
+fn get_steepness(normal: vec3f) -> f32 {
+    return 1.0 - normal.z;
+}
 
+// map overlay (non-overlapping) uv coordinate to normal texture (overlapping) uv coordinate
+fn get_normal_uv(overlay_uv: vec2f) -> vec2f {
+    return overlay_uv * vec2f(textureDimensions(input_normal_tiles) - 1) / vec2f(textureDimensions(input_normal_tiles)) + 1f / (2f * vec2f(textureDimensions(input_normal_tiles)));
+}
+
+// map overlay (non-overlapping) uv coordinate to height texture (overlapping) uv coordinate
+fn get_height_uv(overlay_uv: vec2f) -> vec2f {
+    return overlay_uv * vec2f(textureDimensions(input_height_tiles) - 1) / vec2f(textureDimensions(input_height_tiles)) + 1f / (2f * vec2f(textureDimensions(input_height_tiles)));
+}
+
+// get normal for a specific overlay tile id and uv.
+//  - if uv is not in [0,1], internally calculates correct tile id and uv
+// if tile id exists, sets value of normal ptr to normal, returns true; otherwise returns false 
+fn get_normal(tile_id: TileId, overlay_uv: vec2f, zoomlevel: u32, normal: ptr<function, vec3f>) -> bool {
     var source_tile_id: TileId = tile_id;
-    var source_uv: vec2f = uv;
-    calc_tile_id_and_uv_for_zoom_level(tile_id, uv, settings.source_zoomlevel, &source_tile_id, &source_uv);
-
-    // read normal
+    var source_uv: vec2f = overlay_uv;
+    calc_tile_id_and_uv_for_zoom_level(tile_id, overlay_uv, zoomlevel, &source_tile_id, &source_uv);
+    let normal_texture_uv = get_normal_uv(source_uv);
     var texture_array_index: u32;
     let found = get_texture_array_index(source_tile_id, &texture_array_index, &map_key_buffer, &map_value_buffer);
     if (!found) {
-        return;
+        // moved to a tile where we don't have any input data, discard
+        return false;
     }
-    let normal = bilinear_sample_vec4f(input_normal_tiles, input_normal_tiles_sampler, source_uv, texture_array_index).xyz * 2 - 1;
-    let gradient = get_gradient(normal);
-    //textureStore(output_tiles, vec2u(col, row), id.x, vec4f(gradient, 1));
+    *normal = bilinear_sample_vec4f(input_normal_tiles, input_normal_tiles_sampler, normal_texture_uv, texture_array_index).xyz * 2 - 1;
+    return true;
 }
 
-fn model1(normal: vec3f, velocity: vec3f) -> vec3f {
+// get height for a specific overlay tile id and uv.
+//  - if uv is not in [0,1], internally calculates correct tile id and uv
+// if tile id exists, sets value of height ptr to height, returns true; otherwise returns false
+fn get_height(tile_id: TileId, overlay_uv: vec2f, zoomlevel: u32, height: ptr<function, u32>) -> bool {
+    var source_tile_id: TileId = tile_id;
+    var source_uv: vec2f = overlay_uv;
+    calc_tile_id_and_uv_for_zoom_level(tile_id, overlay_uv, zoomlevel, &source_tile_id, &source_uv);
+    let height_texture_uv = get_height_uv(source_uv);
+    var texture_array_index: u32;
+    let found = get_texture_array_index(source_tile_id, &texture_array_index, &map_key_buffer, &map_value_buffer);
+    if (!found) {
+        // moved to a tile where we don't have any input data, discard
+        return false;
+    }
+    *height = bilinear_sample_u32(input_height_tiles, input_height_tiles_sampler, height_texture_uv, texture_array_index);
+    return true;
+}
+
+// checks if specific position is a trigger point for avalanches (using min/max steepness in settings)
+fn is_trigger_point(tile_id: TileId, overlay_uv: vec2f) -> bool {
+    var normal: vec3f;
+    if (!get_normal(tile_id, overlay_uv, settings.source_zoomlevel, &normal)) {
+        // normal doesnt exist
+        return false;
+    }
+    
+    // check if steepness is in allowed interval
+    let steepness = get_steepness(normal);
+    if (steepness < settings.trigger_point_min_steepness || steepness > settings.trigger_point_max_steepness) {
+        return false;
+    }
+
+    return true;
+}
+
+// takes tile id and arbitrary uv coordinates (not restricted to [0,1])
+// returns new tile id and uv, such that uv is in [0,1]
+fn offset_uv(tile_id: TileId, uv: vec2f, output_tile_id: ptr<function, TileId>, output_uv: ptr<function, vec2f>) {
+    let new_uv = fract(uv); //TODO this is actually never 1; also we might need some offset because of tile overlap (i think)
+    let uv_space_tile_offset = vec2i(floor(uv));
+    let world_space_tile_offset = vec2i(uv_space_tile_offset.x, -uv_space_tile_offset.y); // world space y is opposite to uv space y, therefore invert y
+    let new_tile_coords = vec2i(i32(tile_id.x), i32(tile_id.y)) + world_space_tile_offset;
+    let new_tile_id = TileId(u32(new_tile_coords.x), u32(new_tile_coords.y), tile_id.zoomlevel, 0);
+    *output_uv = new_uv;
+    *output_tile_id = new_tile_id;
+}
+
+
+// ***** MODELS *****
+
+fn model_physics_simple(normal: vec3f, velocity: vec3f) -> vec3f {
     // simple model: slows down by a constant factor of the velocity, speeds up by constant factor of normalized gradient
     let gradient = get_gradient(normal);
 
@@ -103,7 +175,7 @@ fn model1(normal: vec3f, velocity: vec3f) -> vec3f {
     return velocity_change;
 }
 
-fn model2(normal: vec3f, velocity: vec3f) -> vec3f {
+fn model_physics_less_simple(normal: vec3f, velocity: vec3f) -> vec3f {
     // trying to come up with a more realistic model with tunable parameters
     //   Fw = m * g * (0,0,-1)                  ... weight force
     //   Fn = (-Fw . normal) * normal           ... normal force (Fw + Fn is the part of the weight force acting along gradient)
@@ -128,13 +200,32 @@ fn model2(normal: vec3f, velocity: vec3f) -> vec3f {
     return settings.step_length * a;
 }
 
-fn get_height_value(tile_id: TileId, uv: vec2f) -> u32 {
-    let height_texture_size = textureDimensions(input_height_tiles);
-    let tex_pos = vec2i(floor(uv * vec2f(height_texture_size - 1)));
-    return sample_height_with_neighbors(height_texture_size.x, tile_id, tex_pos, &map_key_buffer, &map_value_buffer, input_height_tiles, input_height_tiles_sampler);
+fn model_gradient(normal: vec3f) -> vec2f {
+    return get_gradient(normal).xy;
 }
 
-fn model4(tile_id: TileId, uv: vec2f) -> vec2f {
+fn model_discretized_gradient(normal: vec3f) -> vec2f {
+    // discreticed gradient, probably not the most efficient way of doing that
+    let grad = get_gradient(normal).xy;
+    if (grad.x == 0 && grad.y == 0) {
+        return vec2f(0);
+    }
+    let angle = atan2(-grad.y, grad.x) + PI; // now [0, 2*pi]
+    let angle_adjusted = (angle + PI / 8) % (2 * PI);
+    let neighbor_index = min(i32((angle_adjusted) / (2 * PI) * 8), 7); //could be 8 if angle = +pi
+    const possible_neighbors = array<vec2f, 8>(
+                            vec2f(-1,0),
+                            vec2f(-1,1),
+                            vec2f(0,1),
+                            vec2f(1,1),
+                            vec2f(1,0),
+                            vec2f(1,-1),
+                            vec2f(0,-1),
+                            vec2f(-1,-1));
+    return possible_neighbors[neighbor_index];
+}
+
+fn model_d8_without_weights(tile_id: TileId, uv: vec2f) -> vec2f {
     const directions = array<vec2f, 8>(vec2f(1, 0), vec2f(1, 1), vec2f(0, 1), vec2f(-1, 1), vec2f(-1, 0), vec2f(-1, -1), vec2f(0, -1), vec2f(1, -1));
     let step_size_to_neighbor = vec2f(1) / vec2f(settings.output_resolution - 1);
 
@@ -200,80 +291,33 @@ fn model_d8_with_weights(tile_id: TileId, uv: vec2f, last_dir_index: i32, select
     return directions[max_weighted_descent_index];
 }
 
-fn get_storage_buffer_index(texture_layer: u32, coords: vec2u, output_texture_size: vec2u) -> u32 {
-    return texture_layer * output_texture_size.x * output_texture_size.y + coords.y * output_texture_size.x + coords.x;  
-}
 
-fn get_steepness(normal: vec3f) -> f32 {
-    return 1.0 - normal.z;
-}
+// ***** OVERLAY IMPLEMENTATIONS *****
 
-// map overlay (non-overlapping) uv coordinate to normal texture (overlapping) uv coordinate
-fn get_normal_uv(overlay_uv: vec2f) -> vec2f {
-    return overlay_uv * vec2f(textureDimensions(input_normal_tiles) - 1) / vec2f(textureDimensions(input_normal_tiles)) + 1f / (2f * vec2f(textureDimensions(input_normal_tiles)));
-}
+fn gradient_overlay(id: vec3<u32>) {
+    let tile_id = input_tile_ids[id.x];
+    let bounds = input_tile_bounds[id.x];
+    let input_texture_size = textureDimensions(input_normal_tiles);
+    let tile_width: f32 = (bounds.z - bounds.x);
+    let tile_height: f32 = (bounds.w - bounds.y);
 
-// map overlay (non-overlapping) uv coordinate to height texture (overlapping) uv coordinate
-fn get_height_uv(overlay_uv: vec2f) -> vec2f {
-    return overlay_uv * vec2f(textureDimensions(input_height_tiles) - 1) / vec2f(textureDimensions(input_height_tiles)) + 1f / (2f * vec2f(textureDimensions(input_height_tiles)));
-}
+    let col = id.y; // in [0, texture_dimension(output_tiles).x - 1]
+    let row = id.z; // in [0, texture_dimension(output_tiles).y - 1]
+    let uv = vec2f(f32(col), f32(row)) / vec2f(settings.output_resolution - 1);
 
-fn get_normal(tile_id: TileId, overlay_uv: vec2f, zoomlevel: u32, normal: ptr<function, vec3f>) -> bool {
     var source_tile_id: TileId = tile_id;
-    var source_uv: vec2f = overlay_uv;
-    calc_tile_id_and_uv_for_zoom_level(tile_id, overlay_uv, zoomlevel, &source_tile_id, &source_uv);
-    let normal_texture_uv = get_normal_uv(source_uv);
+    var source_uv: vec2f = uv;
+    calc_tile_id_and_uv_for_zoom_level(tile_id, uv, settings.source_zoomlevel, &source_tile_id, &source_uv);
+
+    // read normal
     var texture_array_index: u32;
     let found = get_texture_array_index(source_tile_id, &texture_array_index, &map_key_buffer, &map_value_buffer);
     if (!found) {
-        // moved to a tile where we don't have any input data, discard
-        return false;
+        return;
     }
-    *normal = bilinear_sample_vec4f(input_normal_tiles, input_normal_tiles_sampler, normal_texture_uv, texture_array_index).xyz * 2 - 1;
-    return true;
-}
-
-fn get_height(tile_id: TileId, overlay_uv: vec2f, zoomlevel: u32, height: ptr<function, u32>) -> bool {
-    var source_tile_id: TileId = tile_id;
-    var source_uv: vec2f = overlay_uv;
-    calc_tile_id_and_uv_for_zoom_level(tile_id, overlay_uv, zoomlevel, &source_tile_id, &source_uv);
-    let height_texture_uv = get_height_uv(source_uv);
-    var texture_array_index: u32;
-    let found = get_texture_array_index(source_tile_id, &texture_array_index, &map_key_buffer, &map_value_buffer);
-    if (!found) {
-        // moved to a tile where we don't have any input data, discard
-        return false;
-    }
-    *height = bilinear_sample_u32(input_height_tiles, input_height_tiles_sampler, height_texture_uv, texture_array_index);
-    return true;
-}
-
-fn is_trigger_point(tile_id: TileId, overlay_uv: vec2f) -> bool {
-    var normal: vec3f;
-    if (!get_normal(tile_id, overlay_uv, settings.source_zoomlevel, &normal)) {
-        // normal doesnt exist
-        return false;
-    }
-    
-    // check if steepness is in allowed interval
-    let steepness = get_steepness(normal);
-    if (steepness < settings.trigger_point_min_steepness || steepness > settings.trigger_point_max_steepness) {
-        return false;
-    }
-
-    return true;
-}
-
-// takes tile id and arbitrary uv coordinates (not restricted to [0,1])
-// returns new tile id and uv, such that uv is in [0,1]
-fn offset_uv(tile_id: TileId, uv: vec2f, output_tile_id: ptr<function, TileId>, output_uv: ptr<function, vec2f>) {
-    let new_uv = fract(uv); //TODO this is actually never 1; also we might need some offset because of tile overlap (i think)
-    let uv_space_tile_offset = vec2i(floor(uv));
-    let world_space_tile_offset = vec2i(uv_space_tile_offset.x, -uv_space_tile_offset.y); // world space y is opposite to uv space y, therefore invert y
-    let new_tile_coords = vec2i(i32(tile_id.x), i32(tile_id.y)) + world_space_tile_offset;
-    let new_tile_id = TileId(u32(new_tile_coords.x), u32(new_tile_coords.y), tile_id.zoomlevel, 0);
-    *output_uv = new_uv;
-    *output_tile_id = new_tile_id;
+    let normal = bilinear_sample_vec4f(input_normal_tiles, input_normal_tiles_sampler, source_uv, texture_array_index).xyz * 2 - 1;
+    let gradient = get_gradient(normal);
+    //textureStore(output_tiles, vec2u(col, row), id.x, vec4f(gradient, 1));
 }
 
 // draws traces within a single tile
@@ -338,37 +382,20 @@ fn traces_overlay(id: vec3<u32>) {
         }
 
         if (settings.model_type == 0) {
-            velocity += model1(normal, velocity);
+            velocity += model_physics_simple(normal, velocity);
             world_space_offset = world_space_offset + settings.step_length * velocity.xy;
         } else if (settings.model_type == 1) {
-            velocity += settings.step_length * model2(normal, velocity);
+            velocity += settings.step_length * model_physics_less_simple(normal, velocity);
             world_space_offset = world_space_offset + settings.step_length * velocity.xy;
         } else if (settings.model_type == 2) {
-            let gradient = get_gradient(normal);
-            world_space_offset = world_space_offset + settings.step_length * gradient.xy;
-        } else if (settings.model_type == 3) {
-            // discreticed gradient, probably not the most efficient way of doing that
-            let grad = get_gradient(normal).xy;
-            if (grad.x == 0 && grad.y == 0) {
-                break;
-            }
-            let angle = atan2(-grad.y, grad.x) + PI; // now [0, 2*pi]
-            let angle_adjusted = (angle + PI / 8) % (2 * PI);
-            let neighbor_index = min(i32((angle_adjusted) / (2 * PI) * 8), 7); //could be 8 if angle = +pi
-            const possible_neighbors = array<vec2f, 8>(
-                                    vec2f(-1,0),
-                                    vec2f(-1,1),
-                                    vec2f(0,1),
-                                    vec2f(1,1),
-                                    vec2f(1,0),
-                                    vec2f(1,-1),
-                                    vec2f(0,-1),
-                                    vec2f(-1,-1));
-            let direction = possible_neighbors[neighbor_index] * vec2f(tile_width, tile_height)
-                / vec2f(settings.output_resolution);
+            let direction = model_gradient(normal);
             world_space_offset = world_space_offset + settings.step_length * direction;
+        } else if (settings.model_type == 3) {
+            let direction = model_discretized_gradient(normal);
+            let step = direction * vec2f(tile_width, tile_height) / vec2f(settings.output_resolution);
+            world_space_offset = world_space_offset + settings.step_length * step;
         } else if (settings.model_type == 4) {
-            let uv_direction = model4(current_tile_id, current_tile_uv);
+            let uv_direction = model_d8_without_weights(current_tile_id, current_tile_uv);
             let world_direction = vec2f(uv_direction.x, -uv_direction.y);
             let step_uv_offset = (1f / vec2f(settings.output_resolution));
             world_space_offset = world_space_offset + world_direction * step_uv_offset * vec2f(tile_width, tile_height);
