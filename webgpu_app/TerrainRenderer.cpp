@@ -372,6 +372,8 @@ void TerrainRenderer::handle_shortcuts(QKeyCombination key)
 {
     if (key.key() == Qt::Key_F5) {
         m_webgpu_window->reload_shaders();
+    } else if (key.key() == Qt::Key_H) {
+        m_gui_manager->set_gui_visibility(!m_gui_manager->get_gui_visibility());
     }
 }
 

@@ -29,6 +29,7 @@ set(SOURCES
     InputMapper.h InputMapper.cpp
 
     util/error_logging.h util/error_logging.cpp
+    util/url_tools.h util/url_tools.cpp
 
     GuiManager.h GuiManager.cpp
 )

@@ -46,11 +46,15 @@ public:
     bool want_capture_mouse();
     void on_sdl_event(SDL_Event& event);
 
+    void set_gui_visibility(bool visible);
+    bool get_gui_visibility() const;
+
 private:
     SDL_Window* m_window;
     WGPUDevice m_device;
     TerrainRenderer* m_terrain_renderer = nullptr;
     bool m_show_nodeeditor = false;
+    bool m_gui_visible = true;
 
     std::vector<std::string> m_camera_preset_names;
     int m_selected_camera_preset = 0;
