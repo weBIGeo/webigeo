@@ -67,6 +67,8 @@ struct ComputePipelineSettings {
     float trigger_point_max_steepness = 60.0f; // trajectories node
 
     int tile_source_index = 0;
+
+    std::array<float, 8> model5_weights = { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f };
 };
 
 struct GuiErrorState {

@@ -42,6 +42,9 @@ struct AvalancheTrajectoriesSettings {
 
     trigger_point_min_steepness: f32, // in degrees
     trigger_point_max_steepness: f32, // in degrees
+
+    //model5_weights: array<f32, 8>, // wgsl compiler does not allow f32 arrays in uniforms because of padding requirements, altough it would work here
+    model5_weights: array<vec4f, 2>,
 }
 
 // input
@@ -133,28 +136,68 @@ fn get_height_value(tile_id: TileId, uv: vec2f) -> u32 {
 
 fn model4(tile_id: TileId, uv: vec2f) -> vec2f {
     const directions = array<vec2f, 8>(vec2f(1, 0), vec2f(1, 1), vec2f(0, 1), vec2f(-1, 1), vec2f(-1, 0), vec2f(-1, -1), vec2f(0, -1), vec2f(1, -1));
-
     let step_size_to_neighbor = vec2f(1) / vec2f(settings.output_resolution - 1);
 
-    var min_height: u32 = 100000;
+    var min_height: u32 = 1 << 31;
     var min_index: u32;
     for (var i: u32 = 0; i < 8; i++) {
         var neighbor_tile_id: TileId;
         var neighbor_uv: vec2f;
         offset_uv(tile_id, uv + step_size_to_neighbor * directions[i], &neighbor_tile_id, &neighbor_uv);
 
-        var height_value: u32;
-        if (!get_height(neighbor_tile_id, neighbor_uv, settings.source_zoomlevel, &height_value)) {
+        var neighbor_height: u32;
+        if (!get_height(neighbor_tile_id, neighbor_uv, settings.source_zoomlevel, &neighbor_height)) {
             //TODO handle error somehow, maybe return incorrect dir or something?
             return vec2f(0);
         }
 
-        if (height_value < min_height) {
-            min_height = height_value;
+        if (neighbor_height < min_height) {
+            min_height = neighbor_height;
             min_index = i;
         }
     }
     return directions[min_index];
+}
+
+// like d8, but multiplies heights with a weight before comparing them
+// the weight is chosen based on the last direction taken (passed via index into directions array)
+// if there was no previous movement, all directions are weighted equally (indicated by passing -1)
+// if all weights are 1, the output should be the same as d8 without weights 
+fn model_d8_with_weights(tile_id: TileId, uv: vec2f, last_dir_index: i32, selected_dir_index: ptr<function, i32>, weights: array<f32, 8>) -> vec2f {
+    const directions = array<vec2f, 8>(vec2f(1, 0), vec2f(1, 1), vec2f(0, 1), vec2f(-1, 1), vec2f(-1, 0), vec2f(-1, -1), vec2f(0, -1), vec2f(1, -1));
+    //const weights = array<f32, 8>(1, 0.707, 0, 0, 0, 0, 0, 0.707);
+
+    let step_size_to_neighbor = vec2f(1) / vec2f(settings.output_resolution - 1);
+
+    var this_height: u32;
+    if (!get_height(tile_id, uv, settings.source_zoomlevel, &this_height)) {
+        //TODO handle error somehow, maybe return incorrect dir or something?
+        return vec2f(0);
+    }
+
+    var max_weighted_descent: f32 = -100000; // positive if neighboring cell has lower height than this 
+    var max_weighted_descent_index: i32;
+    for (var i: i32 = 0; i < 8; i++) {
+        var neighbor_tile_id: TileId;
+        var neighbor_uv: vec2f;
+        offset_uv(tile_id, uv + step_size_to_neighbor * directions[i], &neighbor_tile_id, &neighbor_uv);
+
+        var neighbor_height: u32;
+        if (!get_height(neighbor_tile_id, neighbor_uv, settings.source_zoomlevel, &neighbor_height)) {
+            //TODO handle error somehow, maybe return incorrect dir or something?
+            return vec2f(0);
+        }
+        
+        let weight = select(weights[(i - last_dir_index) % 8], 1, last_dir_index == -1);
+        let weighted_descent = weight * (f32(this_height) - f32(neighbor_height));
+
+        if (weighted_descent > max_weighted_descent) {
+            max_weighted_descent = weighted_descent;
+            max_weighted_descent_index = i;
+        }
+    }
+    *selected_dir_index = max_weighted_descent_index; 
+    return directions[max_weighted_descent_index];
 }
 
 fn get_storage_buffer_index(texture_layer: u32, coords: vec2u, output_texture_size: vec2u) -> u32 {
@@ -264,6 +307,7 @@ fn traces_overlay(id: vec3<u32>) {
     get_normal(tile_id, overlay_uv, settings.source_zoomlevel, &start_normal);
     let start_steepness = get_steepness(start_normal);
 
+    var last_dir_index: i32 = -1;  // used for d8 with weights
     var world_space_offset = vec2f(0, 0); // offset from original world position
     for (var i: u32 = 0; i < settings.num_steps; i++) {
         // calculate tile id and overlay uv coordinates for current position
@@ -328,8 +372,15 @@ fn traces_overlay(id: vec3<u32>) {
             let world_direction = vec2f(uv_direction.x, -uv_direction.y);
             let step_uv_offset = (1f / vec2f(settings.output_resolution));
             world_space_offset = world_space_offset + world_direction * step_uv_offset * vec2f(tile_width, tile_height);
+        } else if (settings.model_type == 5) {
+            let w1 = settings.model5_weights[0];
+            let w2 = settings.model5_weights[1];
+            let weights = array<f32, 8>(w1.x, w1.y, w1.z, w1.w, w2.x, w2.y, w2.z, w2.w);
+            let uv_direction = model_d8_with_weights(current_tile_id, current_tile_uv, last_dir_index, &last_dir_index, weights);
+            let world_direction = vec2f(uv_direction.x, -uv_direction.y);
+            let step_uv_offset = (1f / vec2f(settings.output_resolution));
+            world_space_offset = world_space_offset + world_direction * step_uv_offset * vec2f(tile_width, tile_height);
         }
-
     }
 
     // overpaint start point

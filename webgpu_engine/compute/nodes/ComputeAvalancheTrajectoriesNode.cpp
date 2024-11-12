@@ -75,6 +75,10 @@ void ComputeAvalancheTrajectoriesNode::update_gpu_settings()
     m_settings_uniform.data.trigger_point_min_steepness = m_settings.trigger_points.min_steepness / 90.0f;
     m_settings_uniform.data.trigger_point_max_steepness = m_settings.trigger_points.max_steepness / 90.0f;
 
+    for (uint8_t i = 0; i < sizeof(m_settings.simulation.model_d8_with_weights.weights.size()); i++) {
+        m_settings_uniform.data.model_d8_with_weights_weights[i] = m_settings.simulation.model_d8_with_weights.weights[i];
+    }
+
     m_settings_uniform.data.source_zoomlevel = m_settings.simulation.zoomlevel;
     m_settings_uniform.update_gpu_data(m_queue);
 }

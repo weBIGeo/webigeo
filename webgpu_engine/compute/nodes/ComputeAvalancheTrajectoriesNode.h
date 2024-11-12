@@ -44,6 +44,7 @@ public:
         MODEL3 = 2,
         MODEL4 = 3,
         D8_NO_WEIGHTS = 4,
+        D8_WEIGHTS = 5,
     };
 
     struct Model1Params {
@@ -58,6 +59,10 @@ public:
         float drag_coeff = 0.2f;
     };
 
+    struct ModelD8WithWeightsParams {
+        std::array<float, 8> weights = { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f };
+    };
+
     struct Simulation {
         uint32_t zoomlevel = 16;
         uint32_t num_steps = 1024;
@@ -66,6 +71,7 @@ public:
         PhysicsModelType active_model;
         Model1Params model1;
         Model2Params model2;
+        ModelD8WithWeightsParams model_d8_with_weights;
     };
 
     struct AvalancheTrajectoriesSettings {
@@ -92,6 +98,8 @@ private:
 
         float trigger_point_min_steepness;
         float trigger_point_max_steepness;
+
+        float model_d8_with_weights_weights[8];
     };
 
 public:
