@@ -221,6 +221,8 @@ fn is_trigger_point(tile_id: TileId, overlay_uv: vec2f) -> bool {
     return true;
 }
 
+// takes tile id and arbitrary uv coordinates (not restricted to [0,1])
+// returns new tile id and uv, such that uv is in [0,1]
 fn offset_uv(tile_id: TileId, uv: vec2f, output_tile_id: ptr<function, TileId>, output_uv: ptr<function, vec2f>) {
     let new_uv = fract(uv); //TODO this is actually never 1; also we might need some offset because of tile overlap (i think)
     let uv_space_tile_offset = vec2i(floor(uv));
@@ -230,8 +232,6 @@ fn offset_uv(tile_id: TileId, uv: vec2f, output_tile_id: ptr<function, TileId>, 
     *output_uv = new_uv;
     *output_tile_id = new_tile_id;
 }
-
-
 
 // draws traces within a single tile
 fn traces_overlay(id: vec3<u32>) {
