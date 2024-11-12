@@ -42,6 +42,8 @@ ComputeD8DirectionsNode::ComputeD8DirectionsNode(
     , m_output_tile_map(device, tile::Id { unsigned(-1), {} }, -1)
     , m_output_texture(device, output_resolution, capacity, WGPUTextureFormat_RGBA8Uint)
 {
+    m_output_tile_map.clear();
+    m_output_tile_map.update_gpu_data();
 }
 
 void ComputeD8DirectionsNode::run_impl()
