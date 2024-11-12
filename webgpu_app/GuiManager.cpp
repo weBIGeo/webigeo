@@ -26,6 +26,7 @@
 #include <imgui.h>
 #include <imnodes.h>
 #endif
+#include "util/url_tools.h"
 #include "webgpu_engine/Window.h"
 #include <QDebug>
 #include <QFile>
@@ -166,6 +167,10 @@ void GuiManager::on_sdl_event(SDL_Event& event)
 #endif
 }
 
+void GuiManager::set_gui_visibility(bool visible) { m_gui_visible = visible; }
+
+bool GuiManager::get_gui_visibility() const { return m_gui_visible; }
+
 void GuiManager::toggle_timer(uint32_t timer_id)
 {
     if (is_timer_selected(timer_id)) {
@@ -184,6 +189,8 @@ void GuiManager::draw()
     static std::vector<std::pair<int, int>> links;
     static bool first_frame = true;
 
+    if (!m_gui_visible)
+        return;
     // ImGuiIO& io = ImGui::GetIO();
 
     ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - 400, 0)); // Set position to top-left corner
@@ -341,6 +348,30 @@ void GuiManager::draw()
         }
 
         ImGui::End();
+    }
+
+    {
+        // Position the white box in the bottom-left corner
+        ImGui::SetNextWindowPos(ImVec2(0, ImGui::GetIO().DisplaySize.y - 30), ImGuiCond_Always);
+        ImGui::SetNextWindowBgAlpha(0.5f); // Semi-transparent background
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(4, 4)); // Reduce padding
+        // Set border color to transparent
+        ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // Transparent border
+        ImGui::Begin("CopyrightBox", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize);
+
+        // Set up a button with no hover effect by temporarily changing colors
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 1.0f, 1.0f, 0.0f)); // Transparent background
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.0f, 0.0f, 1.0f, 0.2f)); // No hover effect
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.0f, 0.0f, 1.0f, 0.1f)); // No active effect
+
+        if (ImGui::Button("© basemap.at")) {
+            util::open_website("https://basemap.at/");
+        }
+
+        ImGui::PopStyleColor(3); // Restore previous color settings
+        ImGui::End();
+        ImGui::PopStyleColor();
+        ImGui::PopStyleVar(); // Restore padding
     }
 
     first_frame = false;
