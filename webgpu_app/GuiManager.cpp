@@ -351,6 +351,58 @@ void GuiManager::draw()
     }
 
     {
+        // === ROTATE NORTH BUTTON ===
+        // Offset position from the bottom-left corner by 32 pixels, then position the button
+        ImVec2 button_pos(10, ImGui::GetIO().DisplaySize.y - 48 - 40);
+        ImGui::SetNextWindowPos(button_pos, ImGuiCond_Always);
+        ImGui::SetNextWindowBgAlpha(0.5f); // Semi-transparent background
+        ImGui::SetNextWindowSize(ImVec2(48, 48)); // Set button size
+
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0)); // No padding for better icon alignment
+        ImGui::Begin("RotateNorthButton", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize);
+
+        auto camController = m_terrain_renderer->get_controller()->camera_controller();
+
+        // Draw button with custom rotation
+        if (ImGui::InvisibleButton("RotateNorthBtn", ImVec2(48, 48))) {
+            // Your code here when the button is clicked (e.g., rotate north)
+            camController->rotate_north();
+        }
+
+        // Drawing the arrow icon manually with rotation
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
+        const auto rectMin = ImGui::GetItemRectMin();
+
+        auto cameraFrontAxis = camController->definition().z_axis();
+        auto degFromNorth = glm::degrees(glm::acos(glm::dot(glm::normalize(glm::dvec3(cameraFrontAxis.x, cameraFrontAxis.y, 0)), glm::dvec3(0, -1, 0))));
+        float cameraAngle = cameraFrontAxis.x > 0 ? degFromNorth : -degFromNorth;
+
+        ImVec2 center = ImVec2(rectMin.x + 24, rectMin.y + 24); // Center of the button
+        float rotation_angle = cameraAngle * (M_PI / 180.0f); // Replace with your custom angle in degrees, converting to radians
+
+        // Define arrow vertices relative to the center
+        float arrow_length = 16.0f; // Size of the arrow
+        ImVec2 points[3] = {
+            ImVec2(0.0f, -arrow_length), // Arrow tip
+            ImVec2(-arrow_length * 0.5f, arrow_length * 0.5f), // Left base
+            ImVec2(arrow_length * 0.5f, arrow_length * 0.5f), // Right base
+        };
+
+        // Rotate and translate arrow vertices to draw at the specified angle
+        for (int i = 0; i < 3; ++i) {
+            float rotated_x = cos(rotation_angle) * points[i].x - sin(rotation_angle) * points[i].y;
+            float rotated_y = sin(rotation_angle) * points[i].x + cos(rotation_angle) * points[i].y;
+            points[i] = ImVec2(center.x + rotated_x, center.y + rotated_y);
+        }
+
+        // Draw the rotated arrow
+        draw_list->AddTriangleFilled(points[0], points[1], points[2], IM_COL32(70, 70, 70, 255)); // White color for the arrow
+
+        ImGui::End();
+        ImGui::PopStyleVar(); // Restore padding
+    }
+
+    { // Draw the copyright box
         // Position the white box in the bottom-left corner
         ImGui::SetNextWindowPos(ImVec2(0, ImGui::GetIO().DisplaySize.y - 30), ImGuiCond_Always);
         ImGui::SetNextWindowBgAlpha(0.5f); // Semi-transparent background
