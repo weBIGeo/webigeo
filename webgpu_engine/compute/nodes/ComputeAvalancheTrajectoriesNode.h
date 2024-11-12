@@ -43,6 +43,7 @@ public:
         MODEL2 = 1,
         MODEL3 = 2,
         MODEL4 = 3,
+        D8_NO_WEIGHTS = 4,
     };
 
     struct Model1Params {

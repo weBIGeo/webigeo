@@ -417,7 +417,8 @@ void Window::paint_compute_pipeline_gui()
 
                 // TODO refactor
                 // this ONLY works because the enum values for the respective combo items are 0, 1, 2 and 3
-                if (ImGui::Combo("Model", &m_compute_pipeline_settings.model_type, "Momentum (simple)\0Momentum (less simple)\0Gradients\0D8 (WIP)\0\0")) {
+                if (ImGui::Combo("Model", &m_compute_pipeline_settings.model_type,
+                        "Momentum (simple)\0Momentum (less simple)\0Gradients\0Discretized gradients\0D8 (no weights)\0")) {
                     recreate_and_rerun_compute_pipeline();
                 }
 
