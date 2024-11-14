@@ -398,8 +398,8 @@ void Window::paint_compute_pipeline_gui()
                     recreate_and_rerun_compute_pipeline();
                 }
 
-                ImGui::DragFloatRange2("Trigger point steepness limit", &m_compute_pipeline_settings.trigger_point_min_steepness,
-                    &m_compute_pipeline_settings.trigger_point_max_steepness, 0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp);
+                ImGui::DragFloatRange2("Trigger point steepness limit", &m_compute_pipeline_settings.trigger_point_min_slope_angle,
+                    &m_compute_pipeline_settings.trigger_point_max_slope_angle, 0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp);
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     recreate_and_rerun_compute_pipeline();
                 }
@@ -650,8 +650,8 @@ void Window::update_compute_pipeline_settings()
         // trajectories settings
         compute::nodes::ComputeAvalancheTrajectoriesNode::AvalancheTrajectoriesSettings trajectory_settings {};
         trajectory_settings.trigger_points.sampling_density = glm::vec2(m_compute_pipeline_settings.sampling_density);
-        trajectory_settings.trigger_points.min_steepness = m_compute_pipeline_settings.trigger_point_min_steepness;
-        trajectory_settings.trigger_points.max_steepness = m_compute_pipeline_settings.trigger_point_max_steepness;
+        trajectory_settings.trigger_points.min_slope_angle = m_compute_pipeline_settings.trigger_point_min_slope_angle;
+        trajectory_settings.trigger_points.max_slope_angle = m_compute_pipeline_settings.trigger_point_max_slope_angle;
         trajectory_settings.simulation.num_steps = m_compute_pipeline_settings.num_steps;
         trajectory_settings.simulation.step_length = m_compute_pipeline_settings.steps_length;
         trajectory_settings.simulation.zoomlevel = m_compute_pipeline_settings.source_zoomlevel;

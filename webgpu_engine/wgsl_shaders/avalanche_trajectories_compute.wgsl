@@ -40,8 +40,8 @@ struct AvalancheTrajectoriesSettings {
     model2_friction_coeff: f32,
     model2_drag_coeff: f32,
 
-    trigger_point_min_steepness: f32, // in degrees
-    trigger_point_max_steepness: f32, // in degrees
+    trigger_point_min_slope_angle: f32, // in rad
+    trigger_point_max_slope_angle: f32, // in rad
 
     //model5_weights: array<f32, 8>, // wgsl compiler does not allow f32 arrays in uniforms because of padding requirements, altough it would work here
     model5_weights: array<vec4f, 2>,
@@ -94,10 +94,10 @@ fn get_storage_buffer_index(texture_layer: u32, coords: vec2u, output_texture_si
     return texture_layer * output_texture_size.x * output_texture_size.y + coords.y * output_texture_size.x + coords.x;  
 }
 
-// returns steepness based on surface normal
-// 1 is vertical, 0 is horizontal
-fn get_steepness(normal: vec3f) -> f32 {
-    return 1.0 - normal.z;
+// returns slope angle in radians based on surface normal (0 is horizontal, pi/2 is vertical)
+fn get_slope_angle(normal: vec3f) -> f32 {
+    return acos(normal.z);
+    //return (1 - normal.z) * (PI / 2); // previous implementation, incorrect
 }
 
 // map overlay (non-overlapping) uv coordinate to normal texture (overlapping) uv coordinate
@@ -146,17 +146,10 @@ fn get_height(tile_id: TileId, overlay_uv: vec2f, zoomlevel: u32, height: ptr<fu
     return true;
 }
 
-// checks if specific position is a trigger point for avalanches (using min/max steepness in settings)
-fn is_trigger_point(tile_id: TileId, overlay_uv: vec2f) -> bool {
-    var normal: vec3f;
-    if (!get_normal(tile_id, overlay_uv, settings.source_zoomlevel, &normal)) {
-        // normal doesnt exist
-        return false;
-    }
-    
-    // check if steepness is in allowed interval
-    let steepness = get_steepness(normal);
-    if (steepness < settings.trigger_point_min_steepness || steepness > settings.trigger_point_max_steepness) {
+// checks if specific position is a trigger point for avalanches (using min/max slope angle in settings)
+fn is_trigger_point(slope_angle: f32) -> bool {
+    // check if slope angle is in allowed interval
+    if (slope_angle < settings.trigger_point_min_slope_angle || slope_angle > settings.trigger_point_max_slope_angle) {
         return false;
     }
 
@@ -308,7 +301,7 @@ fn runout_perla(last_velocity: f32, last_theta: f32, normal: vec3f, out_theta: p
     let md = settings.runout_perla_md; // M/D mass-to-drag ratio
     let l = settings.runout_perla_l; // distance between grid cells
     let g = settings.runout_perla_g; // acceleration due to gravity
-    let this_theta = PI - acos(1 - normal.z); // local slope angle
+    let this_theta = get_slope_angle(normal); // local slope angle
 
     let this_alpha = g * (sin(this_theta) - my * cos(this_theta));
     let this_beta = -2f * l / (md);
@@ -366,17 +359,18 @@ fn traces_overlay(id: vec3<u32>) {
         return;
     }
 
-    if (!is_trigger_point(tile_id, overlay_uv)) {
+    // get slope angle at start
+    var start_normal: vec3f;
+    get_normal(tile_id, overlay_uv, settings.source_zoomlevel, &start_normal);
+    let start_slope_angle = get_slope_angle(start_normal);
+
+    if (!is_trigger_point(start_slope_angle)) {
         return;
     }
 
-    var max_steepness = 0.0;
+    var max_slope_angle = 0.0;
     var velocity = vec3f(0, 0, 0);
 
-    // get steepness at start
-    var start_normal: vec3f;
-    get_normal(tile_id, overlay_uv, settings.source_zoomlevel, &start_normal);
-    let start_steepness = get_steepness(start_normal);
     var perla_velocity = 0f;
     var perla_theta = 0f;
 
@@ -394,14 +388,10 @@ fn traces_overlay(id: vec3<u32>) {
         var output_texture_array_index: u32;
         let found_output_tile = get_texture_array_index(current_tile_id, &output_texture_array_index, &output_tiles_map_key_buffer, &output_tiles_map_value_buffer);
         if (found_output_tile) {
-            //let color = vec3(f32(col) / f32(settings.output_resolution.x), f32(row) / f32(settings.output_resolution.y), 0.0); // color by distinct starting point
-            //let color = color_mapping_bergfex(max_steepness); // color by max steepness
-            //let color = vec3f(length(velocity) / 50.0, 0, 0); // color by velocity
-            //let color = vec3(1.0 - f32(i) / f32(settings.num_steps), 0.0, 0.0); // color by num steps
-
             let buffer_index = get_storage_buffer_index(output_texture_array_index, output_coords, settings.output_resolution);
-            atomicMax(&output_storage_buffer[buffer_index], u32(start_steepness * (2 << 16)));
-            //atomicMax(&output_storage_buffer[buffer_index], u32((length(velocity) / 25.0f) * (2 << 16)));
+            atomicMax(&output_storage_buffer[buffer_index], u32((start_slope_angle / (PI / 2)) * (1 << 16))); // map slope angle to [0,1]
+            //atomicMax(&output_storage_buffer[buffer_index], u32(settings.model5_center_height_offset * (1 << 16)));
+            //atomicMax(&output_storage_buffer[buffer_index], u32((length(velocity) / 25.0f) * (1 << 16)));
         }
 
         // read normal, get direction using model, check stopping criterion, update position

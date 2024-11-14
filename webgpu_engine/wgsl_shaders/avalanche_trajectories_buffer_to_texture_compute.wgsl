@@ -59,7 +59,7 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     }
 
     let buffer_index = get_storage_buffer_index(output_texture_array_index, vec2u(col, row), output_texture_size);
-    let risk_value = f32(input_storage_buffer[buffer_index]) / (2 << 16);
+    let risk_value = f32(input_storage_buffer[buffer_index]) / (1 << 16);
     if (risk_value == 0.0) {
         return;
     }
