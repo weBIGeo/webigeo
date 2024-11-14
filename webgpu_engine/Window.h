@@ -69,6 +69,9 @@ struct ComputePipelineSettings {
     int tile_source_index = 0;
 
     std::array<float, 8> model5_weights = { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f };
+
+    int runout_model_type = int(compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType::NONE);
+    compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutPerlaParams perla;
 };
 
 struct GuiErrorState {

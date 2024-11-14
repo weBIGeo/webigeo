@@ -45,6 +45,17 @@ struct AvalancheTrajectoriesSettings {
 
     //model5_weights: array<f32, 8>, // wgsl compiler does not allow f32 arrays in uniforms because of padding requirements, altough it would work here
     model5_weights: array<vec4f, 2>,
+    model5_center_height_offset: f32,
+
+    runout_model_type: u32, //0 none, 1 perla
+
+    runout_perla_my: f32, // sliding friction coeff
+    runout_perla_md: f32, // M/D mass-to-drag ratio
+    runout_perla_l: f32, // distance between grid cells (in m)
+    runout_perla_g: f32, // acceleration due to gravity (in m/s^2)
+
+    padding1: u32,
+    padding2: u32,
 }
 
 // input
@@ -292,6 +303,22 @@ fn model_d8_with_weights(tile_id: TileId, uv: vec2f, last_dir_index: i32, select
 }
 
 
+fn runout_perla(last_velocity: f32, last_theta: f32, normal: vec3f, out_theta: ptr<function, f32>) -> f32 {
+    let my = settings.runout_perla_my; // sliding friction coeff
+    let md = settings.runout_perla_md; // M/D mass-to-drag ratio
+    let l = settings.runout_perla_l; // distance between grid cells
+    let g = settings.runout_perla_g; // acceleration due to gravity
+    let this_theta = PI - acos(1 - normal.z); // local slope angle
+
+    let this_alpha = g * (sin(this_theta) - my * cos(this_theta));
+    let this_beta = -2f * l / (md);
+    let diff_theta = max(0, last_theta - this_theta);
+    let this_velocity = sqrt(this_alpha * md * (1 - exp(this_beta)) + pow(last_velocity, 2) * exp(this_beta) * cos(diff_theta));
+    
+    *out_theta = this_theta;
+    return this_velocity;
+}
+
 // ***** OVERLAY IMPLEMENTATIONS *****
 
 fn gradient_overlay(id: vec3<u32>) {
@@ -350,6 +377,8 @@ fn traces_overlay(id: vec3<u32>) {
     var start_normal: vec3f;
     get_normal(tile_id, overlay_uv, settings.source_zoomlevel, &start_normal);
     let start_steepness = get_steepness(start_normal);
+    var perla_velocity = 0f;
+    var perla_theta = 0f;
 
     var last_dir_index: i32 = -1;  // used for d8 with weights
     var world_space_offset = vec2f(0, 0); // offset from original world position
@@ -407,6 +436,17 @@ fn traces_overlay(id: vec3<u32>) {
             let world_direction = vec2f(uv_direction.x, -uv_direction.y);
             let step_uv_offset = (1f / vec2f(settings.output_resolution));
             world_space_offset = world_space_offset + world_direction * step_uv_offset * vec2f(tile_width, tile_height);
+        }
+
+        if (settings.runout_model_type == 1) {
+            perla_velocity = runout_perla(perla_velocity, perla_theta, normal, &perla_theta);
+
+            //let buffer_index = get_storage_buffer_index(output_texture_array_index, output_coords, settings.output_resolution);
+            //atomicMax(&output_storage_buffer[buffer_index], u32(1000f * (perla_velocity / 10.0f)));
+
+            if (perla_velocity < 0.01) { //TODO
+                break;
+            }
         }
     }
 

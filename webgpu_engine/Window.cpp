@@ -466,6 +466,29 @@ void Window::paint_compute_pipeline_gui()
                         }
                         recreate_and_rerun_compute_pipeline();
                     }
+                // TODO refactor
+                // this ONLY works because the enum values for the respective combo items are 0, 1
+                if (ImGui::Combo("Runout model", &m_compute_pipeline_settings.runout_model_type, "None\0Perla et al.\0")) {
+                    recreate_and_rerun_compute_pipeline();
+                }
+
+                if (m_compute_pipeline_settings.runout_model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType::PERLA) {
+                    ImGui::SliderFloat("My##runout_perla", &m_compute_pipeline_settings.perla.my, 0.004f, 0.6f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        recreate_and_rerun_compute_pipeline();
+                    }
+                    ImGui::SliderFloat("M/D##runout_perla", &m_compute_pipeline_settings.perla.md, 20.0f, 150.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        recreate_and_rerun_compute_pipeline();
+                    }
+                    ImGui::SliderFloat("L##runout_perla", &m_compute_pipeline_settings.perla.l, 1.0f, 15.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        recreate_and_rerun_compute_pipeline();
+                    }
+                    ImGui::SliderFloat("Gravity##runout_perla", &m_compute_pipeline_settings.perla.g, 0.0f, 15.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        recreate_and_rerun_compute_pipeline();
+                    }
                 }
             } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_INFLUENCE_AREA) {
                 const uint32_t min_steps = 1;
@@ -641,6 +664,10 @@ void Window::update_compute_pipeline_settings()
         trajectory_settings.simulation.model2.friction_coeff = m_compute_pipeline_settings.model2_friction_coeff;
         trajectory_settings.simulation.model2.drag_coeff = m_compute_pipeline_settings.model2_drag_coeff;
         trajectory_settings.simulation.model_d8_with_weights.weights = m_compute_pipeline_settings.model5_weights;
+
+        trajectory_settings.simulation.active_runout_model
+            = compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType(m_compute_pipeline_settings.runout_model_type);
+        trajectory_settings.simulation.perla = m_compute_pipeline_settings.perla;
 
         auto& trajectories_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("compute_avalanche_trajectories_node");
         trajectories_node.set_area_of_influence_settings(trajectory_settings);

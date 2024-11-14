@@ -47,6 +47,11 @@ public:
         D8_WEIGHTS = 5,
     };
 
+    enum RunoutModelType : uint32_t {
+        NONE = 0,
+        PERLA = 1,
+    };
+
     struct Model1Params {
         float slowdown_coefficient = 0.0033f;
         float speedup_coefficient = 0.12f;
@@ -61,6 +66,11 @@ public:
 
     struct ModelD8WithWeightsParams {
         std::array<float, 8> weights = { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f };
+    struct RunoutPerlaParams {
+        float my = 0.11f; // sliding friction coeff
+        float md = 40.0f; // M/D mass-to-drag ratio (in m)
+        float l = 1.0f; // distance between grid cells (in m)
+        float g = 9.81f; // acceleration due to gravity (in m/s^2)
     };
 
     struct Simulation {
@@ -72,6 +82,9 @@ public:
         Model1Params model1;
         Model2Params model2;
         ModelD8WithWeightsParams model_d8_with_weights;
+
+        RunoutModelType active_runout_model = RunoutModelType::PERLA;
+        RunoutPerlaParams perla;
     };
 
     struct AvalancheTrajectoriesSettings {
@@ -100,6 +113,17 @@ private:
         float trigger_point_max_steepness;
 
         float model_d8_with_weights_weights[8];
+        float model_d8_with_weights_center_height_offset;
+
+        RunoutModelType runout_model_type;
+
+        float runout_perla_my;
+        float runout_perla_md;
+        float runout_perla_l;
+        float runout_perla_g;
+
+        uint32_t padding1;
+        uint32_t padding2;
     };
 
 public:
