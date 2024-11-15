@@ -72,8 +72,8 @@ void ComputeAvalancheTrajectoriesNode::update_gpu_settings()
     m_settings_uniform.data.model2_friction_coeff = m_settings.simulation.model2.friction_coeff;
     m_settings_uniform.data.model2_drag_coeff = m_settings.simulation.model2.drag_coeff;
 
-    m_settings_uniform.data.trigger_point_min_steepness = m_settings.trigger_points.min_steepness / 90.0f;
-    m_settings_uniform.data.trigger_point_max_steepness = m_settings.trigger_points.max_steepness / 90.0f;
+    m_settings_uniform.data.trigger_point_min_slope_angle = glm::radians(m_settings.trigger_points.min_slope_angle);
+    m_settings_uniform.data.trigger_point_max_slope_angle = glm::radians(m_settings.trigger_points.max_slope_angle);
 
     for (uint8_t i = 0; i < sizeof(m_settings.simulation.model_d8_with_weights.weights.size()); i++) {
         m_settings_uniform.data.model_d8_with_weights_weights[i] = m_settings.simulation.model_d8_with_weights.weights[i];

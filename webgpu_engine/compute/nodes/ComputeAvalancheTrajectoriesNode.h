@@ -34,8 +34,8 @@ public:
     struct TriggerPoints {
         glm::uvec2 sampling_density;
 
-        float min_steepness = 28.0f; // in degrees
-        float max_steepness = 60.0f; // in degrees
+        float min_slope_angle = 28.0f; // in degrees
+        float max_slope_angle = 60.0f; // in degrees
     };
 
     enum PhysicsModelType : uint32_t {
@@ -109,8 +109,8 @@ private:
         float model2_friction_coeff;
         float model2_drag_coeff;
 
-        float trigger_point_min_steepness;
-        float trigger_point_max_steepness;
+        float trigger_point_min_slope_angle; // in radians
+        float trigger_point_max_slope_angle; // in radians
 
         float model_d8_with_weights_weights[8];
         float model_d8_with_weights_center_height_offset;
