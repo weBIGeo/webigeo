@@ -66,6 +66,9 @@ public:
 
     struct ModelD8WithWeightsParams {
         std::array<float, 8> weights = { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f };
+        float center_height_offset = 1.0f;
+    };
+
     struct RunoutPerlaParams {
         float my = 0.11f; // sliding friction coeff
         float md = 40.0f; // M/D mass-to-drag ratio (in m)

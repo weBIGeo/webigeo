@@ -264,11 +264,12 @@ fn model_d8_with_weights(tile_id: TileId, uv: vec2f, last_dir_index: i32, select
 
     let step_size_to_neighbor = vec2f(1) / vec2f(settings.output_resolution - 1);
 
-    var this_height: u32;
-    if (!get_height(tile_id, uv, settings.source_zoomlevel, &this_height)) {
+    var this_height_u32: u32;
+    if (!get_height(tile_id, uv, settings.source_zoomlevel, &this_height_u32)) {
         //TODO handle error somehow, maybe return incorrect dir or something?
         return vec2f(0);
     }
+    let this_height = f32(this_height_u32) + settings.model5_center_height_offset;
 
     var max_weighted_descent: f32 = -100000; // positive if neighboring cell has lower height than this 
     var max_weighted_descent_index: i32;
@@ -284,7 +285,7 @@ fn model_d8_with_weights(tile_id: TileId, uv: vec2f, last_dir_index: i32, select
         }
         
         let weight = select(weights[(i - last_dir_index) % 8], 1, last_dir_index == -1);
-        let weighted_descent = weight * (f32(this_height) - f32(neighbor_height));
+        let weighted_descent = weight * (this_height - f32(neighbor_height));
 
         if (weighted_descent > max_weighted_descent) {
             max_weighted_descent = weighted_descent;

@@ -78,6 +78,8 @@ void ComputeAvalancheTrajectoriesNode::update_gpu_settings()
     for (uint8_t i = 0; i < sizeof(m_settings.simulation.model_d8_with_weights.weights.size()); i++) {
         m_settings_uniform.data.model_d8_with_weights_weights[i] = m_settings.simulation.model_d8_with_weights.weights[i];
     }
+    m_settings_uniform.data.model_d8_with_weights_center_height_offset = m_settings.simulation.model_d8_with_weights.center_height_offset;
+
     m_settings_uniform.data.runout_model_type = m_settings.simulation.active_runout_model;
     m_settings_uniform.data.runout_perla_my = m_settings.simulation.perla.my;
     m_settings_uniform.data.runout_perla_md = m_settings.simulation.perla.md;

@@ -466,6 +466,14 @@ void Window::paint_compute_pipeline_gui()
                         }
                         recreate_and_rerun_compute_pipeline();
                     }
+
+                    ImGui::SliderFloat(
+                        "Center height offset##d8 with weights", &m_compute_pipeline_settings.model_d8_with_weights_center_height_offset, 0.0f, 10.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        recreate_and_rerun_compute_pipeline();
+                    }
+                }
+
                 // TODO refactor
                 // this ONLY works because the enum values for the respective combo items are 0, 1
                 if (ImGui::Combo("Runout model", &m_compute_pipeline_settings.runout_model_type, "None\0Perla et al.\0")) {
@@ -664,6 +672,7 @@ void Window::update_compute_pipeline_settings()
         trajectory_settings.simulation.model2.friction_coeff = m_compute_pipeline_settings.model2_friction_coeff;
         trajectory_settings.simulation.model2.drag_coeff = m_compute_pipeline_settings.model2_drag_coeff;
         trajectory_settings.simulation.model_d8_with_weights.weights = m_compute_pipeline_settings.model5_weights;
+        trajectory_settings.simulation.model_d8_with_weights.center_height_offset = m_compute_pipeline_settings.model_d8_with_weights_center_height_offset;
 
         trajectory_settings.simulation.active_runout_model
             = compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType(m_compute_pipeline_settings.runout_model_type);
