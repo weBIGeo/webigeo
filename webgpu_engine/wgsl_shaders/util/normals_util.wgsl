@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "tile_util.wgsl"
-#include "tile_hashmap.wgsl"
+#include "util/tile_util.wgsl"
+#include "util/tile_hashmap.wgsl"
 
 fn normal_by_finite_difference_method(
     uv: vec2<f32>,

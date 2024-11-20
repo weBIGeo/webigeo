@@ -37,15 +37,15 @@ void ShaderModuleManager::create_shader_modules()
     m_screen_pass_vert_shader_module = create_shader_module_for_file("screen_pass_vert.wgsl");
     m_compose_frag_shader_module = create_shader_module_for_file("compose_frag.wgsl");
     m_atmosphere_frag_shader_module = create_shader_module_for_file("atmosphere_frag.wgsl");
-    m_normals_compute_module = create_shader_module_for_file("normals_compute.wgsl");
-    m_snow_compute_module = create_shader_module_for_file("snow_compute.wgsl");
-    m_downsample_compute_module = create_shader_module_for_file("downsample_compute.wgsl");
-    m_upsample_textures_compute_module = create_shader_module_for_file("upsample_textures_compute.wgsl");
     m_line_render_module = create_shader_module_for_file("line_render.wgsl");
-    m_avalanche_trajectories_compute_module = create_shader_module_for_file("avalanche_trajectories_compute.wgsl");
-    m_avalanche_trajectories_buffer_to_texture_compute_module = create_shader_module_for_file("avalanche_trajectories_buffer_to_texture_compute.wgsl");
-    m_avalanche_influence_area_compute_module = create_shader_module_for_file("avalanche_influence_area_compute.wgsl");
-    m_d8_compute_module = create_shader_module_for_file("d8_compute.wgsl");
+    m_normals_compute_module = create_shader_module_for_file("compute/normals_compute.wgsl");
+    m_snow_compute_module = create_shader_module_for_file("compute/snow_compute.wgsl");
+    m_downsample_compute_module = create_shader_module_for_file("compute/downsample_compute.wgsl");
+    m_upsample_textures_compute_module = create_shader_module_for_file("compute/upsample_textures_compute.wgsl");
+    m_avalanche_trajectories_compute_module = create_shader_module_for_file("compute/avalanche_trajectories_compute.wgsl");
+    m_avalanche_trajectories_buffer_to_texture_compute_module = create_shader_module_for_file("compute/avalanche_trajectories_buffer_to_texture_compute.wgsl");
+    m_avalanche_influence_area_compute_module = create_shader_module_for_file("compute/avalanche_influence_area_compute.wgsl");
+    m_d8_compute_module = create_shader_module_for_file("compute/d8_compute.wgsl");
 }
 
 void ShaderModuleManager::release_shader_modules()
@@ -55,11 +55,11 @@ void ShaderModuleManager::release_shader_modules()
     m_screen_pass_vert_shader_module.release();
     m_compose_frag_shader_module.release();
     m_atmosphere_frag_shader_module.release();
+    m_line_render_module.release();
     m_normals_compute_module.release();
     m_snow_compute_module.release();
     m_downsample_compute_module.release();
     m_upsample_textures_compute_module.release();
-    m_line_render_module.release();
     m_avalanche_trajectories_compute_module.release();
     m_avalanche_trajectories_buffer_to_texture_compute_module.release();
     m_avalanche_influence_area_compute_module.release();

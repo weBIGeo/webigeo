@@ -18,8 +18,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "filtering.wgsl"
-#include "tile_util.wgsl"
+#include "util/filtering.wgsl"
+#include "util/tile_util.wgsl"
 
 // input
 @group(0) @binding(0) var<storage> indices: array<u32>;

@@ -17,7 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "camera_config.wgsl"
+#include "util/camera_config.wgsl"
 #include "atmosphere_implementation.wgsl"
 #include "screen_pass_shared.wgsl"
 

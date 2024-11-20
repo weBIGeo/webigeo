@@ -17,13 +17,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "shared_config.wgsl"
-#include "camera_config.wgsl"
+#include "util/shared_config.wgsl"
+#include "util/camera_config.wgsl"
 #include "screen_pass_shared.wgsl"
 #include "atmosphere_implementation.wgsl"
-#include "encoder.wgsl"
+#include "util/encoder.wgsl"
 #include "snow.wgsl"
-#include "tile_util.wgsl"
+#include "util/tile_util.wgsl"
 
 @group(0) @binding(0) var<uniform> conf : shared_config;
 @group(1) @binding(0) var<uniform> camera : camera_config;
