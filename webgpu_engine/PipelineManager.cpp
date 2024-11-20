@@ -179,7 +179,7 @@ void PipelineManager::create_tile_pipeline()
     format.color_formats.emplace_back(WGPUTextureFormat_RG16Uint); // normal
     format.color_formats.emplace_back(WGPUTextureFormat_R32Uint); // overlay
 
-    m_tile_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(m_device, m_shader_manager->tile(), m_shader_manager->tile(),
+    m_tile_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(m_device, m_shader_manager->render_tiles(), m_shader_manager->render_tiles(),
         std::vector<webgpu::util::SingleVertexBufferInfo> {
             bounds_buffer_info, texture_layer_buffer_info, tileset_id_buffer_info, zoomlevel_buffer_info, tile_id_buffer_info },
         format,
@@ -193,7 +193,7 @@ void PipelineManager::create_compose_pipeline()
     format.depth_format = WGPUTextureFormat_Depth24Plus; // ImGUI needs attached depth buffer
     format.color_formats.emplace_back(WGPUTextureFormat_BGRA8Unorm);
 
-    m_compose_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(m_device, m_shader_manager->screen_pass_vert(), m_shader_manager->compose_frag(),
+    m_compose_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(m_device, m_shader_manager->compose_pass(), m_shader_manager->compose_pass(),
         std::vector<webgpu::util::SingleVertexBufferInfo> {}, format,
         std::vector<const webgpu::raii::BindGroupLayout*> {
             m_shared_config_bind_group_layout.get(), m_camera_bind_group_layout.get(), m_compose_bind_group_layout.get() });
@@ -205,8 +205,8 @@ void PipelineManager::create_atmosphere_pipeline()
     format.depth_format = WGPUTextureFormat_Undefined;  // no depth buffer needed
     format.color_formats.emplace_back(WGPUTextureFormat_RGBA8Unorm);
 
-    m_atmosphere_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(m_device, m_shader_manager->screen_pass_vert(),
-        m_shader_manager->atmosphere_frag(), std::vector<webgpu::util::SingleVertexBufferInfo> {}, format,
+    m_atmosphere_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(m_device, m_shader_manager->render_atmosphere(),
+        m_shader_manager->render_atmosphere(), std::vector<webgpu::util::SingleVertexBufferInfo> {}, format,
         std::vector<const webgpu::raii::BindGroupLayout*> { m_camera_bind_group_layout.get() });
 }
 
@@ -254,7 +254,7 @@ void PipelineManager::create_lines_render_pipeline()
     color_target_state.format = WGPUTextureFormat_BGRA8Unorm;
 
     WGPUFragmentState fragment_state {};
-    fragment_state.module = m_shader_manager->line_render().handle();
+    fragment_state.module = m_shader_manager->render_lines().handle();
     fragment_state.entryPoint = "fragmentMain";
     fragment_state.constantCount = 0;
     fragment_state.constants = nullptr;
@@ -267,7 +267,7 @@ void PipelineManager::create_lines_render_pipeline()
 
     WGPURenderPipelineDescriptor pipeline_desc {};
     pipeline_desc.label = "line render pipeline";
-    pipeline_desc.vertex.module = m_shader_manager->line_render().handle();
+    pipeline_desc.vertex.module = m_shader_manager->render_lines().handle();
     pipeline_desc.vertex.entryPoint = "vertexMain";
     pipeline_desc.vertex.bufferCount = 0;
     pipeline_desc.vertex.buffers = nullptr;

@@ -19,11 +19,12 @@
 
 #include "util/shared_config.wgsl"
 #include "util/camera_config.wgsl"
-#include "screen_pass_shared.wgsl"
-#include "atmosphere_implementation.wgsl"
+#include "util/atmosphere.wgsl"
 #include "util/encoder.wgsl"
-#include "snow.wgsl"
+#include "util/snow.wgsl"
 #include "util/tile_util.wgsl"
+
+#include "screen_pass_vert.wgsl"
 
 @group(0) @binding(0) var<uniform> conf : shared_config;
 @group(1) @binding(0) var<uniform> camera : camera_config;

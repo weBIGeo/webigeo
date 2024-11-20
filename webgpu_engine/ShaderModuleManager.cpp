@@ -33,11 +33,11 @@ ShaderModuleManager::ShaderModuleManager(WGPUDevice device)
 
 void ShaderModuleManager::create_shader_modules()
 {
-    m_tile_shader_module = create_shader_module_for_file("Tile.wgsl");
-    m_screen_pass_vert_shader_module = create_shader_module_for_file("screen_pass_vert.wgsl");
-    m_compose_frag_shader_module = create_shader_module_for_file("compose_frag.wgsl");
-    m_atmosphere_frag_shader_module = create_shader_module_for_file("atmosphere_frag.wgsl");
-    m_line_render_module = create_shader_module_for_file("line_render.wgsl");
+    m_render_tiles_shader_module = create_shader_module_for_file("render_tiles.wgsl");
+    m_render_atmosphere_shader_module = create_shader_module_for_file("render_atmosphere.wgsl");
+    m_render_lines_module = create_shader_module_for_file("render_lines.wgsl");
+    m_compose_pass_shader_module = create_shader_module_for_file("compose_pass.wgsl");
+
     m_normals_compute_module = create_shader_module_for_file("compute/normals_compute.wgsl");
     m_snow_compute_module = create_shader_module_for_file("compute/snow_compute.wgsl");
     m_downsample_compute_module = create_shader_module_for_file("compute/downsample_compute.wgsl");
@@ -51,11 +51,12 @@ void ShaderModuleManager::create_shader_modules()
 void ShaderModuleManager::release_shader_modules()
 {
     m_shader_name_to_code.clear();
-    m_tile_shader_module.release();
-    m_screen_pass_vert_shader_module.release();
-    m_compose_frag_shader_module.release();
-    m_atmosphere_frag_shader_module.release();
-    m_line_render_module.release();
+
+    m_render_tiles_shader_module.release();
+    m_compose_pass_shader_module.release();
+    m_render_atmosphere_shader_module.release();
+    m_render_lines_module.release();
+
     m_normals_compute_module.release();
     m_snow_compute_module.release();
     m_downsample_compute_module.release();
@@ -65,13 +66,13 @@ void ShaderModuleManager::release_shader_modules()
     m_avalanche_influence_area_compute_module.release();
 }
 
-const webgpu::raii::ShaderModule& ShaderModuleManager::tile() const { return *m_tile_shader_module; }
+const webgpu::raii::ShaderModule& ShaderModuleManager::render_tiles() const { return *m_render_tiles_shader_module; }
 
-const webgpu::raii::ShaderModule& ShaderModuleManager::screen_pass_vert() const { return *m_screen_pass_vert_shader_module; }
+const webgpu::raii::ShaderModule& ShaderModuleManager::render_atmosphere() const { return *m_render_atmosphere_shader_module; }
 
-const webgpu::raii::ShaderModule& ShaderModuleManager::compose_frag() const { return *m_compose_frag_shader_module; }
+const webgpu::raii::ShaderModule& ShaderModuleManager::render_lines() const { return *m_render_lines_module; }
 
-const webgpu::raii::ShaderModule& ShaderModuleManager::atmosphere_frag() const { return *m_atmosphere_frag_shader_module; }
+const webgpu::raii::ShaderModule& ShaderModuleManager::compose_pass() const { return *m_compose_pass_shader_module; }
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::normals_compute() const { return *m_normals_compute_module; }
 
@@ -81,7 +82,6 @@ const webgpu::raii::ShaderModule& ShaderModuleManager::downsample_compute() cons
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::upsample_textures_compute() const { return *m_upsample_textures_compute_module; }
 
-const webgpu::raii::ShaderModule& ShaderModuleManager::line_render() const { return *m_line_render_module; }
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::avalanche_trajectories_compute() const { return *m_avalanche_trajectories_compute_module; }
 

@@ -21,7 +21,7 @@
 #include "util/tile_util.wgsl"
 #include "util/tile_hashmap.wgsl"
 #include "util/normals_util.wgsl"
-#include "snow.wgsl"
+#include "util/snow.wgsl"
 
 struct SnowSettings {
     angle: vec4f,

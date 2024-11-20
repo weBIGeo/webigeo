@@ -25,7 +25,7 @@
 #include "util/tile_util.wgsl"
 #include "util/tile_hashmap.wgsl"
 #include "util/normals_util.wgsl"
-#include "snow.wgsl"
+#include "util/snow.wgsl"
 
 @group(0) @binding(0) var<uniform> config: shared_config;
 
