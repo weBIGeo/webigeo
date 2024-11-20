@@ -89,7 +89,7 @@ void TrackRenderer::render(WGPUCommandEncoder command_encoder, const webgpu::rai
     render_pass_descriptor.timestampWrites = nullptr;
 
     auto render_pass = webgpu::raii::RenderPassEncoder(command_encoder, render_pass_descriptor);
-    wgpuRenderPassEncoderSetPipeline(render_pass.handle(), m_pipeline_manager->lines_render_pipeline().handle());
+    wgpuRenderPassEncoderSetPipeline(render_pass.handle(), m_pipeline_manager->render_lines_pipeline().handle());
     wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 0, shared_config.handle(), 0, nullptr);
     wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 1, camera_config.handle(), 0, nullptr);
     wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 2, depth_texture.handle(), 0, nullptr);

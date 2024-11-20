@@ -95,11 +95,11 @@ void Window::resize_framebuffer(int w, int h)
 {
     m_swapchain_size = glm::vec2(w, h);
 
-    m_gbuffer_format = webgpu::FramebufferFormat(m_pipeline_manager->tile_pipeline().framebuffer_format());
+    m_gbuffer_format = webgpu::FramebufferFormat(m_pipeline_manager->render_tiles_pipeline().framebuffer_format());
     m_gbuffer_format.size = glm::uvec2 { w, h };
     m_gbuffer = std::make_unique<webgpu::Framebuffer>(m_device, m_gbuffer_format);
 
-    webgpu::FramebufferFormat atmosphere_framebuffer_format(m_pipeline_manager->atmosphere_pipeline().framebuffer_format());
+    webgpu::FramebufferFormat atmosphere_framebuffer_format(m_pipeline_manager->render_atmosphere_pipeline().framebuffer_format());
     atmosphere_framebuffer_format.size = glm::uvec2(1, h);
     m_atmosphere_framebuffer = std::make_unique<webgpu::Framebuffer>(m_device, atmosphere_framebuffer_format);
 
@@ -143,7 +143,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
     {
         std::unique_ptr<webgpu::raii::RenderPassEncoder> render_pass = m_atmosphere_framebuffer->begin_render_pass(command_encoder);
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 0, m_camera_bind_group->handle(), 0, nullptr);
-        wgpuRenderPassEncoderSetPipeline(render_pass->handle(), m_pipeline_manager->atmosphere_pipeline().pipeline().handle());
+        wgpuRenderPassEncoderSetPipeline(render_pass->handle(), m_pipeline_manager->render_atmosphere_pipeline().pipeline().handle());
         wgpuRenderPassEncoderDraw(render_pass->handle(), 3, 1, 0, 0);
     }
 
