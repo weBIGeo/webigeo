@@ -20,6 +20,7 @@
 #include "TerrainRenderer.h"
 
 #include "webgpu_engine/Window.h"
+#include <QCoreApplication>
 #include <QFile>
 #include <webgpu/webgpu_interface.hpp>
 
@@ -115,10 +116,13 @@ void TerrainRenderer::render_gui()
 
 void TerrainRenderer::poll_events()
 {
-    // Poll events and handle them.
+    // NOTE: The following line is not strictly necessary, we discovered that SDL somehow
+    // triggers the processing of qt events. On the web we assume that Qt attaches itself to
+    // the emscripten event loop.
+    QCoreApplication::processEvents();
+    // Poll SDL events and handle them.
     // (contrary to GLFW, close event is not automatically managed, and there
     // is no callback mechanism by default.)
-
     static SDL_Event events[15]; // Only allocate memory once (11 is the max events at once i witnessed)
     bool events_contain_touch = false;
     int event_count = 0;
@@ -228,6 +232,8 @@ void TerrainRenderer::start() {
 
     connect(this, &TerrainRenderer::update_camera_requested, camera_controller, &nucleus::camera::Controller::update_camera_request);
     connect(m_webgpu_window.get(), &webgpu_engine::Window::set_camera_definition_requested, camera_controller, &nucleus::camera::Controller::set_definition);
+
+    connect(m_webgpu_window.get(), &nucleus::AbstractRenderWindow::update_requested, this, &TerrainRenderer::schedule_update);
 
 #ifdef __EMSCRIPTEN__
     // connect(&WebInterop::instance(), &WebInterop::mouse_button_event, m_input_mapper.get(), &InputMapper::on_mouse_button_callback);
@@ -377,6 +383,8 @@ void TerrainRenderer::handle_shortcuts(QKeyCombination key)
     }
 }
 
+void TerrainRenderer::schedule_update() { m_force_repaint_once = true; }
+
 void TerrainRenderer::create_framebuffer(uint32_t width, uint32_t height)
 {
     qDebug() << "creating framebuffer textures for size " << width << "x" << height;
@@ -415,6 +423,8 @@ void TerrainRenderer::create_swapchain(uint32_t width, uint32_t height)
     m_swapchain = wgpuDeviceCreateSwapChain(m_device, m_surface, &swapchain_desc);
     qInfo() << "Got swapchain: " << m_swapchain;
 }
+
+void TerrainRenderer::update_camera() { emit update_camera_requested(); }
 
 void TerrainRenderer::on_window_resize(int width, int height) {
     m_viewport_size = { width, height };

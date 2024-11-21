@@ -52,6 +52,7 @@ public:
     void render();
     void render_gui();
     void on_window_resize(int width, int height);
+    void update_camera();
 
     [[nodiscard]] InputMapper* get_input_mapper() { return m_input_mapper.get(); }
     [[nodiscard]] GuiManager* get_gui_manager() { return m_gui_manager.get(); }
@@ -65,6 +66,7 @@ signals:
 private slots:
     void set_window_size(glm::uvec2 size);
     void handle_shortcuts(QKeyCombination key);
+    void schedule_update();
 
 private:
     SDL_Window* m_sdl_window;
@@ -111,7 +113,7 @@ private:
     bool m_force_repaint_once = false;
     uint32_t m_repaint_count = 0;
     uint32_t m_frame_count = 0;
-    WGPUPresentMode m_swapchain_presentmode = WGPUPresentMode::WGPUPresentMode_Fifo;
+    WGPUPresentMode m_swapchain_presentmode = WGPUPresentMode::WGPUPresentMode_Immediate;
 
     // Flag to exit the rendering loop
     bool m_window_open = true;

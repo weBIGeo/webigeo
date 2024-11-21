@@ -816,7 +816,8 @@ void Window::update_camera([[maybe_unused]] const nucleus::camera::Definition& n
     m_camera_config_ubo->update_gpu_data(m_queue);
     m_camera = new_definition;
 
-    m_needs_redraw = true;
+    emit update_requested();
+    // m_needs_redraw = true;
 }
 
 void Window::update_debug_scheduler_stats([[maybe_unused]] const QString& stats)
