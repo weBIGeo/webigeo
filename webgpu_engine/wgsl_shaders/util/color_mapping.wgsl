@@ -19,7 +19,12 @@
 
 // value in [0,1], represents angle from horizontal to vertical
 // color map from https://www.bergfex.com/
+// values not in [0,1] are mapped to black
 fn color_mapping_bergfex(value: f32) -> vec3f {
+    if (value < 0.0 || value > 1.0) {
+        return vec3f(0);
+    }
+
     let deg = u32(value * 90);
 
     const bins = array<u32, 5>(29, 34, 39, 44, 90);
@@ -40,7 +45,12 @@ fn color_mapping_bergfex(value: f32) -> vec3f {
 
 // value in [0,1], represents angle from horizontal to vertical
 // color map from https://www.openslopemap.org/karte/
+// values not in [0,1] are mapped to black
 fn color_mapping_openslopemap(value: f32) -> vec3f {
+    if (value < 0.0 || value > 1.0) {
+        return vec3f(0);
+    }
+
     let deg = u32(value * 90);
 
     const bins = array<u32, 9>(9, 29, 34, 39, 42, 45, 49, 54, 90);
@@ -61,4 +71,9 @@ fn color_mapping_openslopemap(value: f32) -> vec3f {
         index++;
     }
     return colors[index];
+}
+
+// value in [0,1], just use red color channel
+fn color_mapping_red(value: f32) -> vec3f {
+    return vec3f(value, 0, 0);
 }

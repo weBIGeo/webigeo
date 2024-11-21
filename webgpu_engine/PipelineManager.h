@@ -31,10 +31,10 @@ class PipelineManager {
 public:
     PipelineManager(WGPUDevice device, ShaderModuleManager& shader_manager);
 
-    const webgpu::raii::GenericRenderPipeline& tile_pipeline() const;
+    const webgpu::raii::GenericRenderPipeline& render_tiles_pipeline() const;
+    const webgpu::raii::GenericRenderPipeline& render_atmosphere_pipeline() const;
+    const webgpu::raii::RenderPipeline& render_lines_pipeline() const;
     const webgpu::raii::GenericRenderPipeline& compose_pipeline() const;
-    const webgpu::raii::GenericRenderPipeline& atmosphere_pipeline() const;
-    const webgpu::raii::RenderPipeline& lines_render_pipeline() const;
 
     const webgpu::raii::CombinedComputePipeline& normals_compute_pipeline() const;
     const webgpu::raii::CombinedComputePipeline& snow_compute_pipeline() const;
@@ -67,15 +67,15 @@ public:
     bool pipelines_created() const;
 
 private:
-    void create_tile_pipeline();
+    void create_render_tiles_pipeline();
+    void create_render_atmosphere_pipeline();
+    void create_render_lines_pipeline();
     void create_compose_pipeline();
-    void create_atmosphere_pipeline();
     void create_shadow_pipeline();
     void create_normals_compute_pipeline();
     void create_snow_compute_pipeline();
     void create_downsample_compute_pipeline();
     void create_upsample_textures_compute_pipeline();
-    void create_lines_render_pipeline();
     void create_avalanche_trajectories_compute_pipeline();
     void create_avalanche_trajectories_buffer_to_texture_compute_pipeline();
     void create_avalanche_influence_area_compute_pipeline();
@@ -101,10 +101,10 @@ private:
     WGPUDevice m_device;
     ShaderModuleManager* m_shader_manager;
 
-    std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_tile_pipeline;
+    std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_render_tiles_pipeline;
+    std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_render_atmosphere_pipeline;
+    std::unique_ptr<webgpu::raii::RenderPipeline> m_render_lines_pipeline;
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_compose_pipeline;
-    std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_atmosphere_pipeline;
-    std::unique_ptr<webgpu::raii::RenderPipeline> m_lines_render_pipeline;
 
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_normals_compute_pipeline;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_snow_compute_pipeline;

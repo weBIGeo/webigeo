@@ -1,5 +1,6 @@
 /*****************************************************************************
  * weBIGeo
+ * Copyright (C) 2022 Gerald Kimmersdorfer
  * Copyright (C) 2024 Patrick Komon
  *
  * This program is free software: you can redistribute it and/or modify
@@ -16,7 +17,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-struct VertexOut {
-    @builtin(position) position : vec4f,
-    @location(0) texcoords : vec2f
-}
+struct camera_config {
+    position: vec4f,
+    view_matrix: mat4x4f,
+    proj_matrix: mat4x4f,
+    view_proj_matrix: mat4x4f,
+    inv_view_proj_matrix: mat4x4f,
+    inv_view_matrix: mat4x4f,
+    inv_proj_matrix: mat4x4f,
+    viewport_size: vec2f,
+    distance_scaling_factor: f32,
+    buffer2: f32,
+};

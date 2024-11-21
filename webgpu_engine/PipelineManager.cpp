@@ -31,13 +31,13 @@ PipelineManager::PipelineManager(WGPUDevice device, ShaderModuleManager& shader_
 {
 }
 
-const webgpu::raii::GenericRenderPipeline& PipelineManager::tile_pipeline() const { return *m_tile_pipeline; }
+const webgpu::raii::GenericRenderPipeline& PipelineManager::render_tiles_pipeline() const { return *m_render_tiles_pipeline; }
+
+const webgpu::raii::GenericRenderPipeline& PipelineManager::render_atmosphere_pipeline() const { return *m_render_atmosphere_pipeline; }
+
+const webgpu::raii::RenderPipeline& PipelineManager::render_lines_pipeline() const { return *m_render_lines_pipeline; }
 
 const webgpu::raii::GenericRenderPipeline& PipelineManager::compose_pipeline() const { return *m_compose_pipeline; }
-
-const webgpu::raii::GenericRenderPipeline& PipelineManager::atmosphere_pipeline() const { return *m_atmosphere_pipeline; }
-
-const webgpu::raii::RenderPipeline& PipelineManager::lines_render_pipeline() const { return *m_lines_render_pipeline; }
 
 const webgpu::raii::CombinedComputePipeline& PipelineManager::normals_compute_pipeline() const { return *m_normals_compute_pipeline; }
 
@@ -106,14 +106,16 @@ const webgpu::raii::BindGroupLayout& PipelineManager::d8_compute_bind_group_layo
 void PipelineManager::create_pipelines()
 {
     create_bind_group_layouts();
-    create_tile_pipeline();
+
+    create_render_tiles_pipeline();
+    create_render_atmosphere_pipeline();
+    create_render_lines_pipeline();
     create_compose_pipeline();
-    create_atmosphere_pipeline();
+
     create_normals_compute_pipeline();
     create_snow_compute_pipeline();
     create_downsample_compute_pipeline();
     create_upsample_textures_compute_pipeline();
-    create_lines_render_pipeline();
     create_avalanche_trajectories_compute_pipeline();
     create_avalanche_trajectories_buffer_to_texture_compute_pipeline();
     create_avalanche_influence_area_compute_pipeline();
@@ -142,24 +144,26 @@ void PipelineManager::create_bind_group_layouts()
 
 void PipelineManager::release_pipelines()
 {
-    m_tile_pipeline.release();
+    m_render_tiles_pipeline.release();
+    m_render_atmosphere_pipeline.release();
+    m_render_lines_pipeline.release();
     m_compose_pipeline.release();
-    m_atmosphere_pipeline.release();
+
     m_normals_compute_pipeline.release();
     m_snow_compute_pipeline.release();
     m_downsample_compute_pipeline.release();
     m_upsample_textures_compute_pipeline.release();
-    m_lines_render_pipeline.release();
     m_avalanche_trajectories_compute_pipeline.release();
     m_avalanche_trajectories_buffer_to_texture_compute_pipeline.release();
     m_avalanche_influence_area_compute_pipeline.release();
     m_d8_compute_pipeline.release();
+
     m_pipelines_created = false;
 }
 
 bool PipelineManager::pipelines_created() const { return m_pipelines_created; }
 
-void PipelineManager::create_tile_pipeline()
+void PipelineManager::create_render_tiles_pipeline()
 {
     webgpu::util::SingleVertexBufferInfo bounds_buffer_info(WGPUVertexStepMode_Instance);
     bounds_buffer_info.add_attribute<float, 4>(0);
@@ -179,12 +183,74 @@ void PipelineManager::create_tile_pipeline()
     format.color_formats.emplace_back(WGPUTextureFormat_RG16Uint); // normal
     format.color_formats.emplace_back(WGPUTextureFormat_R32Uint); // overlay
 
-    m_tile_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(m_device, m_shader_manager->tile(), m_shader_manager->tile(),
-        std::vector<webgpu::util::SingleVertexBufferInfo> {
-            bounds_buffer_info, texture_layer_buffer_info, tileset_id_buffer_info, zoomlevel_buffer_info, tile_id_buffer_info },
-        format,
-        std::vector<const webgpu::raii::BindGroupLayout*> {
-            m_shared_config_bind_group_layout.get(), m_camera_bind_group_layout.get(), m_tile_bind_group_layout.get(), m_overlay_bind_group_layout.get() });
+    m_render_tiles_pipeline
+        = std::make_unique<webgpu::raii::GenericRenderPipeline>(m_device, m_shader_manager->render_tiles(), m_shader_manager->render_tiles(),
+            std::vector<webgpu::util::SingleVertexBufferInfo> {
+                bounds_buffer_info, texture_layer_buffer_info, tileset_id_buffer_info, zoomlevel_buffer_info, tile_id_buffer_info },
+            format,
+            std::vector<const webgpu::raii::BindGroupLayout*> {
+                m_shared_config_bind_group_layout.get(), m_camera_bind_group_layout.get(), m_tile_bind_group_layout.get(), m_overlay_bind_group_layout.get() });
+}
+
+void PipelineManager::create_render_atmosphere_pipeline()
+{
+    webgpu::FramebufferFormat format {};
+    format.depth_format = WGPUTextureFormat_Undefined;  // no depth buffer needed
+    format.color_formats.emplace_back(WGPUTextureFormat_RGBA8Unorm);
+
+    m_render_atmosphere_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(m_device, m_shader_manager->render_atmosphere(),
+        m_shader_manager->render_atmosphere(), std::vector<webgpu::util::SingleVertexBufferInfo> {}, format,
+        std::vector<const webgpu::raii::BindGroupLayout*> { m_camera_bind_group_layout.get() });
+}
+
+void PipelineManager::create_render_lines_pipeline()
+{
+    WGPUBlendState blend_state {};
+    blend_state.color.operation = WGPUBlendOperation_Add;
+    blend_state.color.srcFactor = WGPUBlendFactor_One;
+    blend_state.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
+    blend_state.alpha.operation = WGPUBlendOperation_Add;
+    blend_state.alpha.srcFactor = WGPUBlendFactor_Zero;
+    blend_state.alpha.dstFactor = WGPUBlendFactor_One;
+
+    WGPUColorTargetState color_target_state {};
+    color_target_state.blend = &blend_state;
+    color_target_state.writeMask = WGPUColorWriteMask_All;
+    color_target_state.format = WGPUTextureFormat_BGRA8Unorm;
+
+    WGPUFragmentState fragment_state {};
+    fragment_state.module = m_shader_manager->render_lines().handle();
+    fragment_state.entryPoint = "fragmentMain";
+    fragment_state.constantCount = 0;
+    fragment_state.constants = nullptr;
+    fragment_state.targetCount = 1;
+    fragment_state.targets = &color_target_state;
+
+    std::vector<WGPUBindGroupLayout> bind_group_layout_handles { m_shared_config_bind_group_layout->handle(), m_camera_bind_group_layout->handle(),
+        m_depth_texture_bind_group_layout->handle(), m_lines_bind_group_layout->handle() };
+    webgpu::raii::PipelineLayout layout(m_device, bind_group_layout_handles);
+
+    WGPURenderPipelineDescriptor pipeline_desc {};
+    pipeline_desc.label = "line render pipeline";
+    pipeline_desc.vertex.module = m_shader_manager->render_lines().handle();
+    pipeline_desc.vertex.entryPoint = "vertexMain";
+    pipeline_desc.vertex.bufferCount = 0;
+    pipeline_desc.vertex.buffers = nullptr;
+    pipeline_desc.vertex.constantCount = 0;
+    pipeline_desc.vertex.constants = nullptr;
+    pipeline_desc.primitive.topology = WGPUPrimitiveTopology::WGPUPrimitiveTopology_LineStrip;
+    pipeline_desc.primitive.stripIndexFormat = WGPUIndexFormat::WGPUIndexFormat_Uint16;
+    pipeline_desc.primitive.frontFace = WGPUFrontFace::WGPUFrontFace_CCW;
+    pipeline_desc.primitive.cullMode = WGPUCullMode::WGPUCullMode_None;
+    pipeline_desc.fragment = &fragment_state;
+
+    pipeline_desc.depthStencil = nullptr;
+    pipeline_desc.multisample.count = 1;
+    pipeline_desc.multisample.mask = ~0u;
+    pipeline_desc.multisample.alphaToCoverageEnabled = false;
+    pipeline_desc.layout = layout.handle();
+
+    m_render_lines_pipeline = std::make_unique<webgpu::raii::RenderPipeline>(m_device, pipeline_desc);
 }
 
 void PipelineManager::create_compose_pipeline()
@@ -193,21 +259,10 @@ void PipelineManager::create_compose_pipeline()
     format.depth_format = WGPUTextureFormat_Depth24Plus; // ImGUI needs attached depth buffer
     format.color_formats.emplace_back(WGPUTextureFormat_BGRA8Unorm);
 
-    m_compose_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(m_device, m_shader_manager->screen_pass_vert(), m_shader_manager->compose_frag(),
+    m_compose_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(m_device, m_shader_manager->compose_pass(), m_shader_manager->compose_pass(),
         std::vector<webgpu::util::SingleVertexBufferInfo> {}, format,
         std::vector<const webgpu::raii::BindGroupLayout*> {
             m_shared_config_bind_group_layout.get(), m_camera_bind_group_layout.get(), m_compose_bind_group_layout.get() });
-}
-
-void PipelineManager::create_atmosphere_pipeline()
-{
-    webgpu::FramebufferFormat format {};
-    format.depth_format = WGPUTextureFormat_Undefined;  // no depth buffer needed
-    format.color_formats.emplace_back(WGPUTextureFormat_RGBA8Unorm);
-
-    m_atmosphere_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(m_device, m_shader_manager->screen_pass_vert(),
-        m_shader_manager->atmosphere_frag(), std::vector<webgpu::util::SingleVertexBufferInfo> {}, format,
-        std::vector<const webgpu::raii::BindGroupLayout*> { m_camera_bind_group_layout.get() });
 }
 
 void PipelineManager::create_shadow_pipeline() {
@@ -236,56 +291,6 @@ void PipelineManager::create_upsample_textures_compute_pipeline()
 {
     m_upsample_textures_compute_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(m_device, m_shader_manager->upsample_textures_compute(),
         std::vector<const webgpu::raii::BindGroupLayout*> { m_upsample_textures_compute_bind_group_layout.get() });
-}
-
-void PipelineManager::create_lines_render_pipeline()
-{
-    WGPUBlendState blend_state {};
-    blend_state.color.operation = WGPUBlendOperation_Add;
-    blend_state.color.srcFactor = WGPUBlendFactor_One;
-    blend_state.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
-    blend_state.alpha.operation = WGPUBlendOperation_Add;
-    blend_state.alpha.srcFactor = WGPUBlendFactor_Zero;
-    blend_state.alpha.dstFactor = WGPUBlendFactor_One;
-
-    WGPUColorTargetState color_target_state {};
-    color_target_state.blend = &blend_state;
-    color_target_state.writeMask = WGPUColorWriteMask_All;
-    color_target_state.format = WGPUTextureFormat_BGRA8Unorm;
-
-    WGPUFragmentState fragment_state {};
-    fragment_state.module = m_shader_manager->line_render().handle();
-    fragment_state.entryPoint = "fragmentMain";
-    fragment_state.constantCount = 0;
-    fragment_state.constants = nullptr;
-    fragment_state.targetCount = 1;
-    fragment_state.targets = &color_target_state;
-
-    std::vector<WGPUBindGroupLayout> bind_group_layout_handles { m_shared_config_bind_group_layout->handle(), m_camera_bind_group_layout->handle(),
-        m_depth_texture_bind_group_layout->handle(), m_lines_bind_group_layout->handle() };
-    webgpu::raii::PipelineLayout layout(m_device, bind_group_layout_handles);
-
-    WGPURenderPipelineDescriptor pipeline_desc {};
-    pipeline_desc.label = "line render pipeline";
-    pipeline_desc.vertex.module = m_shader_manager->line_render().handle();
-    pipeline_desc.vertex.entryPoint = "vertexMain";
-    pipeline_desc.vertex.bufferCount = 0;
-    pipeline_desc.vertex.buffers = nullptr;
-    pipeline_desc.vertex.constantCount = 0;
-    pipeline_desc.vertex.constants = nullptr;
-    pipeline_desc.primitive.topology = WGPUPrimitiveTopology::WGPUPrimitiveTopology_LineStrip;
-    pipeline_desc.primitive.stripIndexFormat = WGPUIndexFormat::WGPUIndexFormat_Uint16;
-    pipeline_desc.primitive.frontFace = WGPUFrontFace::WGPUFrontFace_CCW;
-    pipeline_desc.primitive.cullMode = WGPUCullMode::WGPUCullMode_None;
-    pipeline_desc.fragment = &fragment_state;
-
-    pipeline_desc.depthStencil = nullptr;
-    pipeline_desc.multisample.count = 1;
-    pipeline_desc.multisample.mask = ~0u;
-    pipeline_desc.multisample.alphaToCoverageEnabled = false;
-    pipeline_desc.layout = layout.handle();
-
-    m_lines_render_pipeline = std::make_unique<webgpu::raii::RenderPipeline>(m_device, pipeline_desc);
 }
 
 void PipelineManager::create_avalanche_trajectories_compute_pipeline()

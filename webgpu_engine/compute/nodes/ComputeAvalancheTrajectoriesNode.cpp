@@ -72,8 +72,19 @@ void ComputeAvalancheTrajectoriesNode::update_gpu_settings()
     m_settings_uniform.data.model2_friction_coeff = m_settings.simulation.model2.friction_coeff;
     m_settings_uniform.data.model2_drag_coeff = m_settings.simulation.model2.drag_coeff;
 
-    m_settings_uniform.data.trigger_point_min_steepness = m_settings.trigger_points.min_steepness / 90.0f;
-    m_settings_uniform.data.trigger_point_max_steepness = m_settings.trigger_points.max_steepness / 90.0f;
+    m_settings_uniform.data.trigger_point_min_slope_angle = glm::radians(m_settings.trigger_points.min_slope_angle);
+    m_settings_uniform.data.trigger_point_max_slope_angle = glm::radians(m_settings.trigger_points.max_slope_angle);
+
+    for (uint8_t i = 0; i < sizeof(m_settings.simulation.model_d8_with_weights.weights.size()); i++) {
+        m_settings_uniform.data.model_d8_with_weights_weights[i] = m_settings.simulation.model_d8_with_weights.weights[i];
+    }
+    m_settings_uniform.data.model_d8_with_weights_center_height_offset = m_settings.simulation.model_d8_with_weights.center_height_offset;
+
+    m_settings_uniform.data.runout_model_type = m_settings.simulation.active_runout_model;
+    m_settings_uniform.data.runout_perla_my = m_settings.simulation.perla.my;
+    m_settings_uniform.data.runout_perla_md = m_settings.simulation.perla.md;
+    m_settings_uniform.data.runout_perla_l = m_settings.simulation.perla.l;
+    m_settings_uniform.data.runout_perla_g = m_settings.simulation.perla.g;
 
     m_settings_uniform.data.source_zoomlevel = m_settings.simulation.zoomlevel;
     m_settings_uniform.update_gpu_data(m_queue);

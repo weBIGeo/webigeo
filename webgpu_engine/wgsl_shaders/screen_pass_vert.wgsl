@@ -17,7 +17,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "screen_pass_shared.wgsl"
+struct VertexOut {
+    @builtin(position) position : vec4f,
+    @location(0) texcoords : vec2f
+}
 
 @vertex
 fn vertexMain(@builtin(vertex_index) vertex_index : u32) -> VertexOut {

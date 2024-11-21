@@ -18,14 +18,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "shared_config.wgsl"
-#include "hashing.wgsl"
-#include "camera_config.wgsl"
-#include "encoder.wgsl"
-#include "tile_util.wgsl"
-#include "tile_hashmap.wgsl"
-#include "normals_util.wgsl"
-#include "snow.wgsl"
+#include "util/shared_config.wgsl"
+#include "util/hashing.wgsl"
+#include "util/camera_config.wgsl"
+#include "util/encoder.wgsl"
+#include "util/tile_util.wgsl"
+#include "util/tile_hashmap.wgsl"
+#include "util/normals_util.wgsl"
+#include "util/snow.wgsl"
 
 @group(0) @binding(0) var<uniform> config: shared_config;
 

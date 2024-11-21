@@ -283,7 +283,7 @@ void TileRendererInstancedSingleArray::draw(
     wgpuRenderPassEncoderSetVertexBuffer(render_pass, 3, m_zoom_level_buffer->handle(), 0, m_zoom_level_buffer->size_in_byte());
 
     // set pipeline and draw call
-    wgpuRenderPassEncoderSetPipeline(render_pass, m_pipeline_manager->tile_pipeline().pipeline().handle());
+    wgpuRenderPassEncoderSetPipeline(render_pass, m_pipeline_manager->render_tiles_pipeline().pipeline().handle());
     wgpuRenderPassEncoderDrawIndexed(render_pass, uint32_t(m_index_buffer_size), uint32_t(tile_list.size()), 0, 0, 0);
 }
 
@@ -444,7 +444,7 @@ void TileRendererInstancedSingleArrayMultiCall::draw(
     m_tile_id_buffer->write(m_queue, tile_ids.data(), tile_ids.size());
 
     // set pipeline
-    wgpuRenderPassEncoderSetPipeline(render_pass, m_pipeline_manager->tile_pipeline().pipeline().handle());
+    wgpuRenderPassEncoderSetPipeline(render_pass, m_pipeline_manager->render_tiles_pipeline().pipeline().handle());
 
     // set index buffer and vertex buffers
     wgpuRenderPassEncoderSetIndexBuffer(render_pass, m_index_buffer->handle(), WGPUIndexFormat_Uint16, 0, m_index_buffer->size_in_byte());

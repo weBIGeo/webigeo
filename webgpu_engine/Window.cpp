@@ -95,11 +95,11 @@ void Window::resize_framebuffer(int w, int h)
 {
     m_swapchain_size = glm::vec2(w, h);
 
-    m_gbuffer_format = webgpu::FramebufferFormat(m_pipeline_manager->tile_pipeline().framebuffer_format());
+    m_gbuffer_format = webgpu::FramebufferFormat(m_pipeline_manager->render_tiles_pipeline().framebuffer_format());
     m_gbuffer_format.size = glm::uvec2 { w, h };
     m_gbuffer = std::make_unique<webgpu::Framebuffer>(m_device, m_gbuffer_format);
 
-    webgpu::FramebufferFormat atmosphere_framebuffer_format(m_pipeline_manager->atmosphere_pipeline().framebuffer_format());
+    webgpu::FramebufferFormat atmosphere_framebuffer_format(m_pipeline_manager->render_atmosphere_pipeline().framebuffer_format());
     atmosphere_framebuffer_format.size = glm::uvec2(1, h);
     m_atmosphere_framebuffer = std::make_unique<webgpu::Framebuffer>(m_device, atmosphere_framebuffer_format);
 
@@ -143,7 +143,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
     {
         std::unique_ptr<webgpu::raii::RenderPassEncoder> render_pass = m_atmosphere_framebuffer->begin_render_pass(command_encoder);
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 0, m_camera_bind_group->handle(), 0, nullptr);
-        wgpuRenderPassEncoderSetPipeline(render_pass->handle(), m_pipeline_manager->atmosphere_pipeline().pipeline().handle());
+        wgpuRenderPassEncoderSetPipeline(render_pass->handle(), m_pipeline_manager->render_atmosphere_pipeline().pipeline().handle());
         wgpuRenderPassEncoderDraw(render_pass->handle(), 3, 1, 0, 0);
     }
 
@@ -398,8 +398,8 @@ void Window::paint_compute_pipeline_gui()
                     recreate_and_rerun_compute_pipeline();
                 }
 
-                ImGui::DragFloatRange2("Trigger point steepness limit", &m_compute_pipeline_settings.trigger_point_min_steepness,
-                    &m_compute_pipeline_settings.trigger_point_max_steepness, 0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp);
+                ImGui::DragFloatRange2("Trigger point steepness limit", &m_compute_pipeline_settings.trigger_point_min_slope_angle,
+                    &m_compute_pipeline_settings.trigger_point_max_slope_angle, 0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp);
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     recreate_and_rerun_compute_pipeline();
                 }
@@ -419,7 +419,7 @@ void Window::paint_compute_pipeline_gui()
                 // TODO refactor
                 // this ONLY works because the enum values for the respective combo items are 0, 1, 2 and 3
                 if (ImGui::Combo("Model", &m_compute_pipeline_settings.model_type,
-                        "Momentum (simple)\0Momentum (less simple)\0Gradients\0Discretized gradients\0D8 (no weights)\0")) {
+                        "Momentum (simple)\0Momentum (less simple)\0Gradients\0Discretized gradients\0D8 (no weights)\0D8 (with weights)\0")) {
                     recreate_and_rerun_compute_pipeline();
                 }
 
@@ -447,6 +447,53 @@ void Window::paint_compute_pipeline_gui()
                         recreate_and_rerun_compute_pipeline();
                     }
                     ImGui::SliderFloat("Friction coeff##model2", &m_compute_pipeline_settings.model2_friction_coeff, 0.0f, 1.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        recreate_and_rerun_compute_pipeline();
+                    }
+                } else if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::D8_WEIGHTS) {
+                    // TODO this will probably not work with presets, as, for the combo to change on preset change, we would need to have the selected index be
+                    // part of the preset - we will refactor presets anyway, so fix it then
+                    static int weight_preset_index = 0;
+                    if (ImGui::Combo("Weights", &weight_preset_index, "Uniform\0Proportional\0Cosine\0Gamma (2000)\0")) {
+                        if (weight_preset_index == 0) {
+                            m_compute_pipeline_settings.model5_weights = { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f }; // uniform
+                        } else if (weight_preset_index == 1) {
+                            m_compute_pipeline_settings.model5_weights = { 1.0f, 0.8f, 0.4f, 0.0f, 0.0f, 0.0f, 0.4f, 0.8f }; // proportional
+                        } else if (weight_preset_index == 2) {
+                            m_compute_pipeline_settings.model5_weights = { 1.0f, 0.707f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.707f }; // cosine
+                        } else if (weight_preset_index == 3) {
+                            m_compute_pipeline_settings.model5_weights = { 1.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f }; // gamma (2000)
+                        }
+                        recreate_and_rerun_compute_pipeline();
+                    }
+
+                    ImGui::SliderFloat(
+                        "Center height offset##d8 with weights", &m_compute_pipeline_settings.model_d8_with_weights_center_height_offset, 0.0f, 10.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        recreate_and_rerun_compute_pipeline();
+                    }
+                }
+
+                // TODO refactor
+                // this ONLY works because the enum values for the respective combo items are 0, 1
+                if (ImGui::Combo("Runout model", &m_compute_pipeline_settings.runout_model_type, "None\0Perla et al.\0")) {
+                    recreate_and_rerun_compute_pipeline();
+                }
+
+                if (m_compute_pipeline_settings.runout_model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType::PERLA) {
+                    ImGui::SliderFloat("My##runout_perla", &m_compute_pipeline_settings.perla.my, 0.004f, 0.6f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        recreate_and_rerun_compute_pipeline();
+                    }
+                    ImGui::SliderFloat("M/D##runout_perla", &m_compute_pipeline_settings.perla.md, 20.0f, 150.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        recreate_and_rerun_compute_pipeline();
+                    }
+                    ImGui::SliderFloat("L##runout_perla", &m_compute_pipeline_settings.perla.l, 1.0f, 15.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        recreate_and_rerun_compute_pipeline();
+                    }
+                    ImGui::SliderFloat("Gravity##runout_perla", &m_compute_pipeline_settings.perla.g, 0.0f, 15.0f, "%.2f");
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
                         recreate_and_rerun_compute_pipeline();
                     }
@@ -611,8 +658,8 @@ void Window::update_compute_pipeline_settings()
         // trajectories settings
         compute::nodes::ComputeAvalancheTrajectoriesNode::AvalancheTrajectoriesSettings trajectory_settings {};
         trajectory_settings.trigger_points.sampling_density = glm::vec2(m_compute_pipeline_settings.sampling_density);
-        trajectory_settings.trigger_points.min_steepness = m_compute_pipeline_settings.trigger_point_min_steepness;
-        trajectory_settings.trigger_points.max_steepness = m_compute_pipeline_settings.trigger_point_max_steepness;
+        trajectory_settings.trigger_points.min_slope_angle = m_compute_pipeline_settings.trigger_point_min_slope_angle;
+        trajectory_settings.trigger_points.max_slope_angle = m_compute_pipeline_settings.trigger_point_max_slope_angle;
         trajectory_settings.simulation.num_steps = m_compute_pipeline_settings.num_steps;
         trajectory_settings.simulation.step_length = m_compute_pipeline_settings.steps_length;
         trajectory_settings.simulation.zoomlevel = m_compute_pipeline_settings.source_zoomlevel;
@@ -624,6 +671,12 @@ void Window::update_compute_pipeline_settings()
         trajectory_settings.simulation.model2.mass = m_compute_pipeline_settings.model2_mass;
         trajectory_settings.simulation.model2.friction_coeff = m_compute_pipeline_settings.model2_friction_coeff;
         trajectory_settings.simulation.model2.drag_coeff = m_compute_pipeline_settings.model2_drag_coeff;
+        trajectory_settings.simulation.model_d8_with_weights.weights = m_compute_pipeline_settings.model5_weights;
+        trajectory_settings.simulation.model_d8_with_weights.center_height_offset = m_compute_pipeline_settings.model_d8_with_weights_center_height_offset;
+
+        trajectory_settings.simulation.active_runout_model
+            = compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType(m_compute_pipeline_settings.runout_model_type);
+        trajectory_settings.simulation.perla = m_compute_pipeline_settings.perla;
 
         auto& trajectories_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("compute_avalanche_trajectories_node");
         trajectories_node.set_area_of_influence_settings(trajectory_settings);

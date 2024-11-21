@@ -16,9 +16,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "color_mapping.wgsl"
-#include "tile_util.wgsl"
-#include "tile_hashmap.wgsl"
+#include "util/color_mapping.wgsl"
+#include "util/tile_util.wgsl"
+#include "util/tile_hashmap.wgsl"
 
 // input
 @group(0) @binding(0) var<storage> input_tile_ids: array<TileId>; // tiles ids to process
@@ -59,7 +59,8 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     }
 
     let buffer_index = get_storage_buffer_index(output_texture_array_index, vec2u(col, row), output_texture_size);
-    let risk_value = f32(input_storage_buffer[buffer_index]) / (2 << 16);
+    let risk_value = f32(input_storage_buffer[buffer_index]) / (1 << 16);
+    //let risk_value = f32(input_storage_buffer[buffer_index]) / 1000f;
     if (risk_value == 0.0) {
         return;
     }

@@ -17,7 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "filtering.wgsl"
+#include "util/filtering.wgsl"
 
 fn hash_tile_id_vec(id: vec3<u32>) -> u32 {
     let z = id.z * 46965u + 10859u;

@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "noise.wgsl"
+#include "util/noise.wgsl"
 
 //TODO find nice place to put
 fn calculate_falloff(dist: f32, lower: f32, upper: f32) -> f32 { return clamp(1.0 - (dist - lower) / (upper - lower), 0.0, 1.0); }
@@ -31,7 +31,7 @@ fn calculate_band_falloff(val: f32, min: f32, max: f32, smoothf: f32) -> f32 {
 
 fn overlay_snow(normal: vec3f, pos_ws: vec3f, snow_settings_angle: vec4f, snow_settings_alt: vec4f) -> vec4f {
     // Calculate steepness in deg where 90.0 = vertical (90°) and 0.0 = flat (0°)
-    let steepness_deg = (1.0 - dot(normal, vec3(0.0, 0.0, 1.0))) * 90.0;
+    let steepness_deg = acos(normal.z) / (PI / 2) * 90.0;
 
     let steepness_based_alpha = calculate_band_falloff(
                 steepness_deg,

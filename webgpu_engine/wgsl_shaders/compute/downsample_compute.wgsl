@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "tile_util.wgsl"
-#include "tile_hashmap.wgsl"
+#include "util/tile_util.wgsl"
+#include "util/tile_hashmap.wgsl"
 
 // input
 @group(0) @binding(0) var<storage> input_tile_ids: array<TileId>;

@@ -63,10 +63,16 @@ struct ComputePipelineSettings {
     float model2_friction_coeff = 0.01f;
     float model2_drag_coeff = 0.2f;
 
-    float trigger_point_min_steepness = 28.0f; // trajectories node
-    float trigger_point_max_steepness = 60.0f; // trajectories node
+    float trigger_point_min_slope_angle = 28.0f; // trajectories node
+    float trigger_point_max_slope_angle = 60.0f; // trajectories node
 
     int tile_source_index = 0;
+
+    std::array<float, 8> model5_weights = { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f };
+    float model_d8_with_weights_center_height_offset = 1.0f;
+
+    int runout_model_type = int(compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType::NONE);
+    compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutPerlaParams perla;
 };
 
 struct GuiErrorState {
