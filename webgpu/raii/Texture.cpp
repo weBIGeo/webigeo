@@ -86,27 +86,6 @@ uint8_t Texture::get_bytes_per_element(WGPUTextureFormat format)
 
 const uint16_t Texture::BYTES_PER_ROW_PADDING = 256u;
 
-// TODO: This should be a template function if possible which takes raster images
-// that fit the current texture format.
-void Texture::write(WGPUQueue queue, const nucleus::Raster<uint16_t>& data, uint32_t layer)
-{
-    assert(static_cast<uint32_t>(data.width()) == m_descriptor.size.width);
-    assert(static_cast<uint32_t>(data.height()) == m_descriptor.size.height);
-
-    WGPUImageCopyTexture image_copy_texture {};
-    image_copy_texture.texture = m_handle;
-    image_copy_texture.aspect = WGPUTextureAspect::WGPUTextureAspect_All;
-    image_copy_texture.mipLevel = 0;
-    image_copy_texture.origin = { 0, 0, layer };
-
-    WGPUTextureDataLayout texture_data_layout {};
-    texture_data_layout.bytesPerRow = uint32_t(sizeof(uint16_t) * data.width());
-    texture_data_layout.rowsPerImage = uint32_t(data.height());
-    texture_data_layout.offset = 0;
-    WGPUExtent3D copy_extent { m_descriptor.size.width, m_descriptor.size.height, 1 };
-    wgpuQueueWriteTexture(queue, &image_copy_texture, data.bytes(), uint32_t(data.size_in_bytes()), &texture_data_layout, &copy_extent);
-}
-
 void Texture::write(WGPUQueue queue, const nucleus::utils::ColourTexture& data, uint32_t layer)
 {
     assert(static_cast<uint32_t>(data.width()) == m_descriptor.size.width);

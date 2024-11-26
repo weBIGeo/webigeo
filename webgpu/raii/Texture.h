@@ -48,8 +48,26 @@ public:
 public:
     using GpuResource::GpuResource;
 
-    // TODO could make this a function template and pass type instead of using uint16_t? but not needed rn
-    void write(WGPUQueue queue, const nucleus::Raster<uint16_t>& data, uint32_t layer = 0);
+    template <typename RasterElementT> void write(WGPUQueue queue, const nucleus::Raster<RasterElementT>& data, uint32_t layer = 0)
+    {
+        // TODO maybe assert if RasterElementT and WGPUTextureFormat of this texture are compatible?
+
+        assert(static_cast<uint32_t>(data.width()) == m_descriptor.size.width);
+        assert(static_cast<uint32_t>(data.height()) == m_descriptor.size.height);
+
+        WGPUImageCopyTexture image_copy_texture {};
+        image_copy_texture.texture = m_handle;
+        image_copy_texture.aspect = WGPUTextureAspect::WGPUTextureAspect_All;
+        image_copy_texture.mipLevel = 0;
+        image_copy_texture.origin = { 0, 0, layer };
+
+        WGPUTextureDataLayout texture_data_layout {};
+        texture_data_layout.bytesPerRow = uint32_t(sizeof(RasterElementT) * data.width());
+        texture_data_layout.rowsPerImage = uint32_t(data.height());
+        texture_data_layout.offset = 0;
+        WGPUExtent3D copy_extent { m_descriptor.size.width, m_descriptor.size.height, 1 };
+        wgpuQueueWriteTexture(queue, &image_copy_texture, data.bytes(), uint32_t(data.size_in_bytes()), &texture_data_layout, &copy_extent);
+    }
 
     void write(WGPUQueue queue, const nucleus::utils::ColourTexture& data, uint32_t layer = 0);
 
