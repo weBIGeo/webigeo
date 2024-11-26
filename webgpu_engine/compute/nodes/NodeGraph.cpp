@@ -19,6 +19,7 @@
 
 #include "NodeGraph.h"
 
+#include "BufferToTextureNode.h"
 #include "ComputeAvalancheInfluenceAreaNode.h"
 #include "ComputeAvalancheTrajectoriesNode.h"
 #include "ComputeD8DirectionsNode.h"
@@ -324,10 +325,9 @@ std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_trajectories_compute_grap
         "compute_normals_node", std::make_unique<ComputeNormalsNode>(manager, device, normal_output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm)));
     ComputeAvalancheTrajectoriesNode* avalanche_trajectories_compute_node = static_cast<ComputeAvalancheTrajectoriesNode*>(node_graph->add_node(
         "compute_avalanche_trajectories_node", std::make_unique<ComputeAvalancheTrajectoriesNode>(manager, device, trajectories_output_resolution, capacity)));
-    ComputeAvalancheTrajectoriesBufferToTextureNode* avalanche_trajectories_buffer_to_texture_compute_node
-        = static_cast<ComputeAvalancheTrajectoriesBufferToTextureNode*>(node_graph->add_node("avalanche_trajectories_buffer_to_texture_compute_node",
-            std::make_unique<ComputeAvalancheTrajectoriesBufferToTextureNode>(
-                manager, device, trajectories_output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm)));
+    BufferToTextureNode* avalanche_trajectories_buffer_to_texture_compute_node
+        = static_cast<BufferToTextureNode*>(node_graph->add_node("avalanche_trajectories_buffer_to_texture_compute_node",
+            std::make_unique<BufferToTextureNode>(manager, device, trajectories_output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm)));
     Node* upsample_normals_textures_node
         = node_graph->add_node("upsample_textures_node", std::make_unique<UpsampleTexturesNode>(manager, device, upsample_output_resolution, capacity));
     DownsampleTilesNode* downsample_trajectory_tiles_node = static_cast<DownsampleTilesNode*>(

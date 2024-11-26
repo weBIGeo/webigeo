@@ -390,9 +390,9 @@ fn traces_overlay(id: vec3<u32>) {
         let found_output_tile = get_texture_array_index(current_tile_id, &output_texture_array_index, &output_tiles_map_key_buffer, &output_tiles_map_value_buffer);
         if (found_output_tile) {
             let buffer_index = get_storage_buffer_index(output_texture_array_index, output_coords, settings.output_resolution);
-            atomicMax(&output_storage_buffer[buffer_index], u32((start_slope_angle / (PI / 2)) * (1 << 16))); // map slope angle to [0,1]
-            //atomicMax(&output_storage_buffer[buffer_index], u32(settings.model5_center_height_offset * (1 << 16)));
-            //atomicMax(&output_storage_buffer[buffer_index], u32((length(velocity) / 25.0f) * (1 << 16)));
+            atomicMax(&output_storage_buffer[buffer_index], u32((start_slope_angle / (PI / 2)) * (1 << 31))); // map slope angle to [0,1]
+            //atomicMax(&output_storage_buffer[buffer_index], u32(settings.model5_center_height_offset * (1 << 31)));
+            //atomicMax(&output_storage_buffer[buffer_index], u32((length(velocity) / 25.0f) * (1 << 31)));
         }
 
         // read normal, get direction using model, check stopping criterion, update position

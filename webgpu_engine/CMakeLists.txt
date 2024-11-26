@@ -47,6 +47,7 @@ set(SOURCES
     compute/nodes/ComputeAvalancheTrajectoriesNode.h compute/nodes/ComputeAvalancheTrajectoriesNode.cpp
     compute/nodes/ComputeAvalancheInfluenceAreaNode.h compute/nodes/ComputeAvalancheInfluenceAreaNode.cpp
     compute/nodes/ComputeD8DirectionsNode.h compute/nodes/ComputeD8DirectionsNode.cpp
+    compute/nodes/BufferToTextureNode.h compute/nodes/BufferToTextureNode.cpp
 )
 
 qt_add_library(webgpu_engine STATIC ${SOURCES})
@@ -66,7 +67,7 @@ qt_add_resources(webgpu_engine "shaders"
         "wgsl_shaders/compute/snow_compute.wgsl"
         "wgsl_shaders/compute/upsample_textures_compute.wgsl"
         "wgsl_shaders/compute/avalanche_trajectories_compute.wgsl"
-        "wgsl_shaders/compute/avalanche_trajectories_buffer_to_texture_compute.wgsl"
+        "wgsl_shaders/compute/buffer_to_texture_compute.wgsl"
         "wgsl_shaders/compute/avalanche_influence_area_compute.wgsl"
         "wgsl_shaders/compute/d8_compute.wgsl"
 

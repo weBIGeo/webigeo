@@ -41,7 +41,7 @@ public:
     const webgpu::raii::CombinedComputePipeline& downsample_compute_pipeline() const;
     const webgpu::raii::CombinedComputePipeline& upsample_textures_compute_pipeline() const;
     const webgpu::raii::CombinedComputePipeline& avalanche_trajectories_compute_pipeline() const;
-    const webgpu::raii::CombinedComputePipeline& avalanche_trajectories_buffer_to_texture_compute_pipeline() const;
+    const webgpu::raii::CombinedComputePipeline& buffer_to_texture_compute_pipeline() const;
     const webgpu::raii::CombinedComputePipeline& avalanche_influence_area_compute_pipeline() const;
     const webgpu::raii::CombinedComputePipeline& d8_compute_pipeline() const;
 
@@ -57,7 +57,7 @@ public:
     const webgpu::raii::BindGroupLayout& lines_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& depth_texture_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& avalanche_trajectories_bind_group_layout() const;
-    const webgpu::raii::BindGroupLayout& avalanche_trajectories_buffer_to_texture_bind_group_layout() const;
+    const webgpu::raii::BindGroupLayout& buffer_to_texture_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& avalanche_influence_area_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& d8_compute_bind_group_layout() const;
 
@@ -77,7 +77,7 @@ private:
     void create_downsample_compute_pipeline();
     void create_upsample_textures_compute_pipeline();
     void create_avalanche_trajectories_compute_pipeline();
-    void create_avalanche_trajectories_buffer_to_texture_compute_pipeline();
+    void create_buffer_to_texture_compute_pipeline();
     void create_avalanche_influence_area_compute_pipeline();
     void create_d8_compute_pipeline();
 
@@ -93,7 +93,7 @@ private:
     void create_lines_bind_group_layout();
     void create_depth_texture_bind_group_layout();
     void create_avalanche_trajectory_bind_group_layout();
-    void create_avalanche_trajectory_buffer_to_texture_bind_group_layout();
+    void create_buffer_to_texture_bind_group_layout();
     void create_avalanche_influence_area_bind_group_layout();
     void create_d8_compute_bind_group_layout();
 
