@@ -175,7 +175,7 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
             } else if (conf.overlay_mode == 103u) {
                 //TODO implement
                 //overlay_color = vec4(color_from_id_hash(uint(sampled_shadow_layer)), 1.0);
-            } else if ((conf.overlay_mode == 1u) || (conf.overlay_mode == 99u)) {
+            } else if ((conf.overlay_mode >= 1u) || (conf.overlay_mode <= 99u)) {
                 overlay_color = unpack4x8unorm(textureLoad(overlay_texture, tci, 0).r);
             }
             overlay_color.a *= conf.overlay_strength;
@@ -213,7 +213,7 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         } else if (conf.overlay_mode == 103u) {
             //TODO implement
             //overlay_color = vec4(color_from_id_hash(uint(sampled_shadow_layer)), 1.0);
-        } else if ((conf.overlay_mode == 1u) || (conf.overlay_mode == 99u)) {
+        } else if ((conf.overlay_mode >= 1u) || (conf.overlay_mode <= 99u)) {
             overlay_color = unpack4x8unorm(textureLoad(overlay_texture, tci, 0).r);
         }
         overlay_color.a *= conf.overlay_strength;

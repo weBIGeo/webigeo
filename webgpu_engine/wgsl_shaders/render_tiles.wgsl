@@ -235,6 +235,8 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
             if (found) {
                 overlay_color = sampled_overlay_color;
             }
+        } else {
+            overlay_color = vec4f(vertex_out.color.xyz, 1);
         }
         //albedo = mix(albedo, overlay_color.xyz, config.overlay_strength * overlay_color.w);
     }
