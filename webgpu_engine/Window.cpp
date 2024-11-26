@@ -207,7 +207,8 @@ void Window::paint_gui()
                 m_needs_redraw = true;
             }
         }
-        if (m_shared_config_ubo->data.m_overlay_mode >= 100) {
+
+        if (m_shared_config_ubo->data.m_overlay_mode > 0) {
             if (ImGui::Checkbox("Overlay Post Shading", (bool*)&m_shared_config_ubo->data.m_overlay_postshading_enabled)) {
                 m_needs_redraw = true;
             }
