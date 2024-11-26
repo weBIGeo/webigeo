@@ -103,6 +103,17 @@ struct uboCameraConfig {
     float buffer2;
 };
 
+// contains settings (including world space aabb) for image overlay (used in compose step)
+struct ImageOverlaySettings {
+    glm::vec2 aabb_min = { 0.0f, 0.0f };
+    glm::vec2 aabb_max = { 0.0f, 0.0f };
+
+    float alpha = 1.0f;
+    float padding0;
+    float padding1;
+    float padding2;
+};
+
 //TODO
 /*
 struct uboShadowConfig {

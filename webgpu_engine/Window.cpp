@@ -24,7 +24,9 @@
 #include "compute/nodes/DownsampleTilesNode.h"
 #include "compute/nodes/SelectTilesNode.h"
 #include "nucleus/track/GPX.h"
+#include "nucleus/utils/image_loader.h"
 #include "webgpu/raii/RenderPassEncoder.h"
+#include <QFile>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
@@ -87,6 +89,12 @@ void Window::initialise_gpu()
 
     m_track_renderer = std::make_unique<TrackRenderer>(m_device, *m_pipeline_manager);
 
+    m_image_overlay_settings_uniform_buffer = std::make_unique<Buffer<ImageOverlaySettings>>(m_device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
+    m_image_overlay_settings_uniform_buffer->data.aabb_min = glm::fvec2(0);
+    m_image_overlay_settings_uniform_buffer->data.aabb_max = glm::fvec2(0);
+    m_image_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
+    create_image_overlay_texture(1, 1);
+
     qInfo() << "gpu_ready_changed";
     emit gpu_ready_changed(true);
 }
@@ -103,14 +111,7 @@ void Window::resize_framebuffer(int w, int h)
     atmosphere_framebuffer_format.size = glm::uvec2(1, h);
     m_atmosphere_framebuffer = std::make_unique<webgpu::Framebuffer>(m_device, atmosphere_framebuffer_format);
 
-    m_compose_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->compose_bind_group_layout(),
-        std::initializer_list<WGPUBindGroupEntry> {
-            m_gbuffer->color_texture_view(0).create_bind_group_entry(0), // albedo texture
-            m_gbuffer->color_texture_view(1).create_bind_group_entry(1), // position texture
-            m_gbuffer->color_texture_view(2).create_bind_group_entry(2), // normal texture
-            m_atmosphere_framebuffer->color_texture_view(0).create_bind_group_entry(3), // atmosphere texture
-            m_gbuffer->color_texture_view(3).create_bind_group_entry(4), // overlay texture
-        });
+    recreate_compose_bind_group();
 
     m_depth_texture_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->depth_texture_bind_group_layout(),
         std::initializer_list<WGPUBindGroupEntry> {
@@ -249,6 +250,53 @@ void Window::paint_gui()
                 update_compute_pipeline_settings();
             }
         }
+    }
+
+    if (ImGui::CollapsingHeader("Image overlay", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::Button("Open overlay image file ...", ImVec2(350, 20))) {
+#ifdef __EMSCRIPTEN__
+            WebInterop::instance().open_file_dialog(".png");
+#else
+            IGFD::FileDialogConfig config;
+            config.path = ".";
+            ImGuiFileDialog::Instance()->OpenDialog("OverlayImageFileDialog", "Choose File", ".png,.*", config);
+#endif
+        }
+
+#ifndef __EMSCRIPTEN__
+        if (ImGuiFileDialog::Instance()->Display("OverlayImageFileDialog")) {
+            if (ImGuiFileDialog::Instance()->IsOk()) { // action if OK
+                std::string file_path = ImGuiFileDialog::Instance()->GetFilePathName();
+                update_image_overlay_texture(file_path);
+            }
+            ImGuiFileDialog::Instance()->Close();
+        }
+#endif
+
+        if (ImGui::Button("Open overlay aabb file ...", ImVec2(350, 20))) {
+#ifdef __EMSCRIPTEN__
+            WebInterop::instance().open_file_dialog(".txt");
+#else
+            IGFD::FileDialogConfig config;
+            config.path = ".";
+            ImGuiFileDialog::Instance()->OpenDialog("OverlayAabbFileDialog", "Choose File", ".txt,.*", config);
+#endif
+        }
+    }
+
+#ifndef __EMSCRIPTEN__
+    if (ImGuiFileDialog::Instance()->Display("OverlayAabbFileDialog")) {
+        if (ImGuiFileDialog::Instance()->IsOk()) { // action if OK
+            std::string file_path = ImGuiFileDialog::Instance()->GetFilePathName();
+            update_image_overlay_aabb_and_focus(file_path);
+        }
+        ImGuiFileDialog::Instance()->Close();
+    }
+#endif
+
+    if (ImGui::SliderFloat("Strength##image overlay", &m_image_overlay_settings_uniform_buffer->data.alpha, 0.0f, 1.0f, "%.2f")) {
+        m_image_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
+        m_needs_redraw = true;
     }
 
     if (ImGui::CollapsingHeader("Track", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -805,6 +853,33 @@ void Window::apply_compute_pipeline_preset(size_t preset_index)
     m_compute_pipeline_settings.target_region = old_region;
 }
 
+void Window::create_image_overlay_texture(unsigned int width, unsigned int height)
+{
+    WGPUTextureDescriptor texture_desc {};
+    texture_desc.label = "image overlay texture";
+    texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
+    texture_desc.size = { uint32_t(width), uint32_t(height), uint32_t(1) };
+    texture_desc.mipLevelCount = 1;
+    texture_desc.sampleCount = 1;
+    texture_desc.format = WGPUTextureFormat::WGPUTextureFormat_RGBA8Unorm;
+    texture_desc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
+
+    WGPUSamplerDescriptor sampler_desc {};
+    sampler_desc.label = "image overlay sampler";
+    sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
+    sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
+    sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
+    sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Linear;
+    sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Linear;
+    sampler_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Linear;
+    sampler_desc.lodMinClamp = 0.0f;
+    sampler_desc.lodMaxClamp = 1.0f;
+    sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
+    sampler_desc.maxAnisotropy = 1;
+
+    m_image_overlay_texture = std::make_unique<webgpu::raii::TextureWithSampler>(m_device, texture_desc, sampler_desc);
+}
+
 void Window::display_message(const std::string& message)
 {
     m_gui_error_state.text = message;
@@ -931,6 +1006,67 @@ void Window::load_track_and_focus(const std::string& path)
     m_needs_redraw = true;
 }
 
+void Window::update_image_overlay_texture(const std::string& image_file_path)
+{
+    nucleus::Raster<glm::u8vec4> image = nucleus::utils::image_loader::rgba8(QString::fromStdString(image_file_path));
+    create_image_overlay_texture(image.width(), image.height());
+    m_image_overlay_texture->texture().write(m_queue, image);
+    recreate_compose_bind_group();
+}
+
+bool Window::update_image_overlay_aabb(const std::string& aabb_file_path)
+{
+    QFile aabb_file(QString::fromStdString(aabb_file_path));
+    if (!aabb_file.open(QIODevice::ReadOnly)) {
+        qCritical() << "failed to load aabb file from " << aabb_file_path;
+        return false;
+    }
+    QTextStream file_contents(&aabb_file);
+
+    // parse extent file (very barebones rn, in the future we want to use geotiff anyway)
+    // extent file contains the aabb of the aabb region (in world coordinates) the image overlay texture is associated with
+    // each line contains exactly one floating point number (. as separator) with the following meaning:
+    //   min_x
+    //   min_y
+    //   max_x
+    //   max_y
+    std::array<float, 4> contents;
+    bool float_conversion_ok = false;
+    for (size_t i = 0; i < contents.size(); i++) {
+        QString line = file_contents.readLine();
+        contents[i] = line.toFloat(&float_conversion_ok);
+        if (!float_conversion_ok) {
+            qCritical() << "failed to parse aabb file " << aabb_file_path << ": could not convert " << line << "to float";
+            return false;
+        }
+    }
+
+    m_image_overlay_settings_uniform_buffer->data.aabb_min = glm::fvec2 { contents[0], contents[1] };
+    m_image_overlay_settings_uniform_buffer->data.aabb_max = glm::fvec2 { contents[2], contents[3] };
+    m_image_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
+
+    qDebug() << "updated image overlay aabb to [" << m_image_overlay_settings_uniform_buffer->data.aabb_min.x << ", "
+             << m_image_overlay_settings_uniform_buffer->data.aabb_min.y << "] [" << m_image_overlay_settings_uniform_buffer->data.aabb_max.x << ", "
+             << m_image_overlay_settings_uniform_buffer->data.aabb_max.y << "]";
+
+    return true;
+}
+
+void Window::update_image_overlay_aabb_and_focus(const std::string& aabb_file_path)
+{
+    bool update_successful = update_image_overlay_aabb(aabb_file_path);
+    if (!update_successful) {
+        return;
+    }
+
+    glm::dvec2 pos = glm::dvec2(m_image_overlay_settings_uniform_buffer->data.aabb_min + m_image_overlay_settings_uniform_buffer->data.aabb_max) / 2.0;
+    auto size_x = m_image_overlay_settings_uniform_buffer->data.aabb_max.x - m_image_overlay_settings_uniform_buffer->data.aabb_min.x;
+    auto size_y = m_image_overlay_settings_uniform_buffer->data.aabb_max.y - m_image_overlay_settings_uniform_buffer->data.aabb_min.y;
+    nucleus::camera::Definition new_camera_definition = { glm::dvec3 { pos.x, pos.y, std::max(size_x, size_y) }, { pos.x, pos.y, 0 } };
+    new_camera_definition.set_viewport_size(m_camera.viewport_size());
+    emit set_camera_definition_requested(new_camera_definition);
+}
+
 void Window::reload_shaders()
 {
     qDebug() << "reloading shaders...";
@@ -957,6 +1093,21 @@ void Window::create_bind_groups()
 
     m_camera_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->camera_bind_group_layout(),
         std::initializer_list<WGPUBindGroupEntry> { m_camera_config_ubo->raw_buffer().create_bind_group_entry(0) });
+}
+
+void Window::recreate_compose_bind_group()
+{
+    m_compose_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->compose_bind_group_layout(),
+        std::initializer_list<WGPUBindGroupEntry> {
+            m_gbuffer->color_texture_view(0).create_bind_group_entry(0), // albedo texture
+            m_gbuffer->color_texture_view(1).create_bind_group_entry(1), // position texture
+            m_gbuffer->color_texture_view(2).create_bind_group_entry(2), // normal texture
+            m_atmosphere_framebuffer->color_texture_view(0).create_bind_group_entry(3), // atmosphere texture
+            m_gbuffer->color_texture_view(3).create_bind_group_entry(4), // overlay texture
+            m_image_overlay_settings_uniform_buffer->raw_buffer().create_bind_group_entry(5), // image overlay aabb
+            m_image_overlay_texture->texture_view().create_bind_group_entry(6), // image overlay texture (in uv space)
+            m_image_overlay_texture->sampler().create_bind_group_entry(7), // image overlay sampler
+        });
 }
 
 void Window::update_required_gpu_limits(WGPULimits& limits, const WGPULimits& supported_limits)

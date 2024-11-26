@@ -134,6 +134,7 @@ private:
 
     void create_buffers();
     void create_bind_groups();
+    void recreate_compose_bind_group();
 
     // A helper function for the depth and position method.
     // ATTENTION: This function is synchronous and will hold rendering. Use with caution!
@@ -149,6 +150,11 @@ private:
     void recreate_and_rerun_compute_pipeline();
     void init_compute_pipeline_presets();
     void apply_compute_pipeline_preset(size_t preset_index);
+
+    void create_image_overlay_texture(unsigned int width, unsigned int height);
+    void update_image_overlay_texture(const std::string& image_file_path);
+    bool update_image_overlay_aabb(const std::string& aabb_file_path);
+    void update_image_overlay_aabb_and_focus(const std::string& aabb_file_path);
 
     void display_message(const std::string& message);
 
@@ -202,7 +208,10 @@ private:
             .url_pattern = nucleus::tile_scheduler::TileLoadService::UrlPattern::ZXY,
             .file_extension = ".png",
         },
-    }; // namespace webgpu_engine
+    };
+
+    std::unique_ptr<webgpu::raii::TextureWithSampler> m_image_overlay_texture;
+    std::unique_ptr<Buffer<ImageOverlaySettings>> m_image_overlay_settings_uniform_buffer;
 };
 
 } // namespace webgpu_engine

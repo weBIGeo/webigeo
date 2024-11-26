@@ -410,9 +410,33 @@ void PipelineManager::create_compose_bind_group_layout()
     overlay_texture_entry.texture.sampleType = WGPUTextureSampleType_Uint;
     overlay_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
+    WGPUBindGroupLayoutEntry image_overlay_region_entry {};
+    image_overlay_region_entry.binding = 5;
+    image_overlay_region_entry.visibility = WGPUShaderStage_Fragment;
+    image_overlay_region_entry.buffer.type = WGPUBufferBindingType_Uniform;
+
+    WGPUBindGroupLayoutEntry image_overlay_texture_entry {};
+    image_overlay_texture_entry.binding = 6;
+    image_overlay_texture_entry.visibility = WGPUShaderStage_Fragment;
+    image_overlay_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
+    image_overlay_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+    WGPUBindGroupLayoutEntry image_overlay_texture_sampler_entry {};
+    image_overlay_texture_sampler_entry.binding = 7;
+    image_overlay_texture_sampler_entry.visibility = WGPUShaderStage_Fragment;
+    image_overlay_texture_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
+
     m_compose_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
         std::vector<WGPUBindGroupLayoutEntry> {
-            albedo_texture_entry, position_texture_entry, normal_texture_entry, atmosphere_texture_entry, overlay_texture_entry },
+            albedo_texture_entry,
+            position_texture_entry,
+            normal_texture_entry,
+            atmosphere_texture_entry,
+            overlay_texture_entry,
+            image_overlay_region_entry,
+            image_overlay_texture_entry,
+            image_overlay_texture_sampler_entry,
+        },
         "compose bind group layout");
 }
 

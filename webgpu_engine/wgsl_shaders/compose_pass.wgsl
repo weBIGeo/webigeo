@@ -35,6 +35,19 @@
 @group(2) @binding(3) var atmosphere_texture : texture_2d<f32>;
 @group(2) @binding(4) var overlay_texture : texture_2d<u32>;
 
+@group(2) @binding(5) var<uniform> image_overlay_settings: ImageOverlaySettings;
+@group(2) @binding(6) var image_overlay_texture: texture_2d<f32>;
+@group(2) @binding(7) var image_overlay_sampler: sampler;
+
+struct ImageOverlaySettings {
+    aabb_min: vec2f,
+    aabb_max: vec2f,
+    alpha: f32,
+    padding0: f32,
+    padding1: f32,
+    padding2: f32,
+}
+
 // Calculates the diffuse and specular illumination contribution for the given
 // parameters according to the Blinn-Phong lighting model.
 // All parameters must be normalized.
@@ -113,11 +126,17 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
     }
     
     let sampled_shadow_layer: i32 = -1;
+    
+    let origin = camera.position.xyz;
+    let pos_ws = pos_cws + origin;
+
+    // sampling from texture needs to happen in uniform control flow, therefore this is outside the if
+    // later, the sampled value is only used if we are in the overlay region (specified in image overlay settings uniform)
+    let image_overlay_uv = (pos_ws.xy - image_overlay_settings.aabb_min) / (image_overlay_settings.aabb_max - image_overlay_settings.aabb_min);
+    let image_overlay_color = textureSample(image_overlay_texture, image_overlay_sampler, vec2f(image_overlay_uv.x, 1 - image_overlay_uv.y)); 
 
     // Don't do shading if not visible anyway and also don't for pixels where there is no geometry (depth==0.0)
     if (dist > 0.0) {
-        let origin = camera.position.xyz;
-        let pos_ws = pos_cws + origin;
         let ray_direction = pos_cws / dist;
         var material_light_response = conf.material_light_response;
 
@@ -175,6 +194,11 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
     let atmospheric_color = textureLoad(atmosphere_texture, vec2u(0,tci.y), 0).rgb;
     //let atmospheric_color = textureSample(atmosphere_texture, compose_sampler_filtering, vertex_out.texcoords.xy).rgb;
     var out_Color = vec4f(mix(atmospheric_color, shaded_color, alpha), 1.0);
+
+    if (dist > 0.0 && all(pos_ws.xy >= image_overlay_settings.aabb_min) && all(pos_ws.xy <= image_overlay_settings.aabb_max)) {
+        //return vec4f(1, 0, 0, 1);
+        out_Color = vec4(mix(out_Color.rgb, image_overlay_color.rgb, image_overlay_settings.alpha), out_Color.a);
+    }
 
     if (bool(conf.overlay_postshading_enabled)) {
         var overlay_color = vec4f(0.0);
