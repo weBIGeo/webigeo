@@ -1,6 +1,7 @@
 /*****************************************************************************
  * weBIGeo
  * Copyright (C) 2024 Patrick Komon
+ * Copyright (C) 2024 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -82,6 +83,17 @@ public:
     void clear() { m_stored_map.clear(); }
 
     const ValueType& value_at(const KeyType& id) const { return m_stored_map.at(id); }
+
+    const KeyType& key_with_value(const ValueType& value) const
+    {
+        // Iterate through all key value pairs and return the id for the given value
+        for (const auto& key_value_pair : m_stored_map) {
+            if (key_value_pair.second == value) {
+                return key_value_pair.first;
+            }
+        }
+        return KeyType();
+    }
 
     /// Update GPU buffers.
     void update_gpu_data()

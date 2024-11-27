@@ -35,7 +35,7 @@ CreateHashMapNode::CreateHashMapNode(WGPUDevice device, const glm::uvec2& resolu
     , m_device { device }
     , m_queue { wgpuDeviceGetQueue(device) }
     , m_output_tile_id_to_index(device, tile::Id { unsigned(-1), {} }, -1)
-    , m_output_tile_textures(device, resolution, capacity, format, WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst)
+    , m_output_tile_textures(device, resolution, capacity, format, WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc)
 {
     m_output_tile_id_to_index.update_gpu_data();
 }

@@ -47,6 +47,7 @@ set(SOURCES
     compute/nodes/ComputeAvalancheTrajectoriesNode.h compute/nodes/ComputeAvalancheTrajectoriesNode.cpp
     compute/nodes/ComputeAvalancheInfluenceAreaNode.h compute/nodes/ComputeAvalancheInfluenceAreaNode.cpp
     compute/nodes/ComputeD8DirectionsNode.h compute/nodes/ComputeD8DirectionsNode.cpp
+    compute/nodes/TileExportNode.h compute/nodes/TileExportNode.cpp
     compute/nodes/BufferToTextureNode.h compute/nodes/BufferToTextureNode.cpp
 )
 

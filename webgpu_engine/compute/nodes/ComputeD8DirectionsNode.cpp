@@ -40,7 +40,8 @@ ComputeD8DirectionsNode::ComputeD8DirectionsNode(
     , m_capacity(capacity)
     , m_input_tile_ids(device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc, capacity, "d8 direction compute, tile id buffer")
     , m_output_tile_map(device, tile::Id { unsigned(-1), {} }, -1)
-    , m_output_texture(device, output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm)
+    , m_output_texture(device, output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm,
+          WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc)
 {
     m_output_tile_map.clear();
     m_output_tile_map.update_gpu_data();

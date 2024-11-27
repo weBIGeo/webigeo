@@ -30,6 +30,7 @@
 #include "RequestTilesNode.h"
 #include "SelectTilesNode.h"
 #include "UpsampleTexturesNode.h"
+#include "compute/nodes/TileExportNode.h"
 #include <QDebug>
 #include <memory>
 
@@ -470,6 +471,10 @@ std::unique_ptr<NodeGraph> NodeGraph::create_d8_compute_graph(const PipelineMana
     ComputeD8DirectionsNode* d8_compute_node = static_cast<ComputeD8DirectionsNode*>(
         node_graph->add_node("d8_compute_node", std::make_unique<ComputeD8DirectionsNode>(manager, device, normal_output_resolution, capacity)));
 
+    TileExportNode::ExportSettings export_settings = { true, true, true, true, "height_tiles" };
+    TileExportNode* tile_export_node
+        = static_cast<TileExportNode*>(node_graph->add_node("tile_export_node", std::make_unique<TileExportNode>(device, export_settings)));
+
     // connect height request inputs
     tile_select_node->output_socket("tile ids").connect(height_request_node->input_socket("tile ids"));
 
@@ -486,6 +491,17 @@ std::unique_ptr<NodeGraph> NodeGraph::create_d8_compute_graph(const PipelineMana
     tile_select_node->output_socket("tile ids").connect(d8_compute_node->input_socket("tile ids"));
     hash_map_node->output_socket("hash map").connect(d8_compute_node->input_socket("hash map"));
     hash_map_node->output_socket("textures").connect(d8_compute_node->input_socket("height textures"));
+
+    // connect tile export inputs
+    tile_select_node->output_socket("tile ids").connect(tile_export_node->input_socket("tile ids"));
+
+    // Export height data
+    hash_map_node->output_socket("hash map").connect(tile_export_node->input_socket("hash map"));
+    hash_map_node->output_socket("textures").connect(tile_export_node->input_socket("textures"));
+
+    // Export d8 overlay
+    // d8_compute_node->output_socket("hash map").connect(tile_export_node->input_socket("hash map"));
+    // d8_compute_node->output_socket("d8 direction textures").connect(tile_export_node->input_socket("textures"));
 
     node_graph->m_output_normals_hash_map_ptr = &normal_compute_node->hash_map();
     node_graph->m_output_normals_texture_storage_ptr = &normal_compute_node->texture_storage();
