@@ -87,7 +87,7 @@ fn sample_height_by_uv(
     return select(0, bilinear_sample_u32(height_tiles_texture, height_tiles_sampler, uv, texture_array_index), found);
 }
 
-fn sample_height_by_index(
+fn load_height_by_position(
     tile_id: TileId,
     pos: vec2u,
     map_key_buffer: ptr<storage, array<TileId>>,
@@ -99,18 +99,17 @@ fn sample_height_by_index(
     return select(0, textureLoad(height_textures, pos, texture_array_index, 0).r, found);
 }
 
-fn sample_height_with_neighbors(
-    texture_size: u32,
+fn load_height_with_neighbors(
     tile_id: TileId,
     pos: vec2i,
     map_key_buffer: ptr<storage, array<TileId>>,
     map_value_buffer: ptr<storage, array<u32>>,
     height_tiles_texture: texture_2d_array<u32>,
-    height_tiles_sampler: sampler
 ) -> u32 {
+    let height_texture_size = textureDimensions(height_tiles_texture);
     var target_tile_id: TileId;
     var target_pos: vec2u;
-    get_neighboring_tile_id_and_pos(texture_size, tile_id, pos, &target_tile_id, &target_pos);
-    
-    return sample_height_by_index(target_tile_id, target_pos, map_key_buffer, map_value_buffer, height_tiles_texture);
+    get_neighboring_tile_id_and_pos(height_texture_size.x, tile_id, pos, &target_tile_id, &target_pos);
+
+    return load_height_by_position(target_tile_id, target_pos, map_key_buffer, map_value_buffer, height_tiles_texture);
 }

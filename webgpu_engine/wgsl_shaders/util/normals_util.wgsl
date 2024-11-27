@@ -74,19 +74,19 @@ fn normal_by_finite_difference_method_with_neighbors(
     let uv_tex = vec2i(floor(uv * vec2f(height_texture_size - 1)));
 
     let hL_uv = uv_tex - vec2<i32>(1, 0);
-    let hL_sample = sample_height_with_neighbors(height_texture_size.x, tile_id, hL_uv, tiles_map_key_buffer, tiles_map_value_buffer, height_tiles_texture, height_tiles_sampler);
+    let hL_sample = load_height_with_neighbors(tile_id, hL_uv, tiles_map_key_buffer, tiles_map_value_buffer, height_tiles_texture);
     let hL = f32(hL_sample) * altitude_correction_factor;
 
     let hR_uv = uv_tex + vec2<i32>(1, 0);
-    let hR_sample = sample_height_with_neighbors(height_texture_size.x, tile_id, hR_uv, tiles_map_key_buffer, tiles_map_value_buffer, height_tiles_texture, height_tiles_sampler);
+    let hR_sample = load_height_with_neighbors(tile_id, hR_uv, tiles_map_key_buffer, tiles_map_value_buffer, height_tiles_texture);
     let hR = f32(hR_sample) * altitude_correction_factor;
 
     let hD_uv = uv_tex + vec2<i32>(0, 1);
-    let hD_sample = sample_height_with_neighbors(height_texture_size.x, tile_id, hD_uv, tiles_map_key_buffer, tiles_map_value_buffer, height_tiles_texture, height_tiles_sampler);
+    let hD_sample = load_height_with_neighbors(tile_id, hD_uv, tiles_map_key_buffer, tiles_map_value_buffer, height_tiles_texture);
     let hD = f32(hD_sample) * altitude_correction_factor;
 
     let hU_uv = uv_tex - vec2<i32>(0, 1);
-    let hU_sample = sample_height_with_neighbors(height_texture_size.x, tile_id, hU_uv, tiles_map_key_buffer, tiles_map_value_buffer, height_tiles_texture, height_tiles_sampler);
+    let hU_sample = load_height_with_neighbors(tile_id, hU_uv, tiles_map_key_buffer, tiles_map_value_buffer, height_tiles_texture);
     let hU = f32(hU_sample) * altitude_correction_factor;
 
     return normalize(vec3<f32>(hL - hR, hD - hU, height));

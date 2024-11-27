@@ -37,7 +37,7 @@
 fn get_height_value(tile_id: TileId, uv: vec2f) -> u32 {
     let height_texture_size = textureDimensions(input_height_tiles);
     let tex_pos = vec2i(floor(uv * vec2f(height_texture_size - 1)));
-    return sample_height_with_neighbors(height_texture_size.x, tile_id, tex_pos, &map_key_buffer, &map_value_buffer, input_height_tiles, input_sampler);
+    return load_height_with_neighbors(tile_id, tex_pos, &map_key_buffer, &map_value_buffer, input_height_tiles);
 }
 
 @compute @workgroup_size(1, 16, 16)
@@ -57,23 +57,21 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
 
     let col = id.y; // in [0, texture_dimension(output_tiles).x - 1]
     let row = id.z; // in [0, texture_dimension(output_tiles).y - 1]
-    let uv = vec2f(f32(col), f32(row)) / vec2f(output_texture_size - 1) + 1f / (2f * vec2f(output_texture_size - 1));
+    let tex_pos = vec2i(i32(col), i32(row));
 
-    const directions = array<vec2f, 8>(vec2f(1, 0), vec2f(1, 1), vec2f(0, 1), vec2f(-1, 1), vec2f(-1, 0), vec2f(-1, -1), vec2f(0, -1), vec2f(1, -1));
+    const directions = array<vec2i, 8>(vec2i(1, 0), vec2i(1, 1), vec2i(0, 1), vec2i(-1, 1), vec2i(-1, 0), vec2i(-1, -1), vec2i(0, -1), vec2i(1, -1));
 
-    let step_size = vec2f(1) / (vec2f(output_texture_size - 1));
     var min_height: u32 = 1 << 31; //TODO
     var min_index: u32; //TODO
     for (var i: u32 = 0; i < 8; i++) {
-        let height_value = get_height_value(tile_id, uv + step_size * directions[i]);
+        let height_value = load_height_with_neighbors(tile_id, tex_pos + directions[i], &map_key_buffer, &map_value_buffer, input_height_tiles);
         if (height_value < min_height) {
             min_height = height_value;
             min_index = i;
         }
     }
     let encoded_direction: u32 = 1u << min_index;
-    //textureStore(output_tiles, vec2(col, row), id.x, vec4f(encoded_direction, 0, 0, 0));
-    textureStore(output_tiles, vec2(col, row), id.x, vec4f(f32(min_index) / 8f, 0, 0, 1));
-    //textureStore(output_tiles, vec2(col, row), id.x, vec4f(uv.x, uv.y, 0, 1));
-
+    textureStore(output_tiles, tex_pos, id.x, vec4f(min_index / 8.0, 1));
+    //textureStore(output_tiles, tex_pos, id.x, vec4f((vec2f(f32(directions[min_index].x), f32(-directions[min_index].y)) + 1) * 0.5, 0, 1));
+    //textureStore(output_tiles, tex_pos, id.x, vec4f(uv.x, uv.y, 0, 1));
 }
