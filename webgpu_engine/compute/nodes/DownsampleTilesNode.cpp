@@ -88,17 +88,12 @@ void DownsampleTilesNode::run_impl()
 
     // (re)create bind group
     // TODO re-create bind groups only when input handles change
-    WGPUBindGroupEntry input_tile_ids_entry = m_input_tile_ids.create_bind_group_entry(0);
-    WGPUBindGroupEntry input_hash_map_key_buffer_entry = hash_map.key_buffer().create_bind_group_entry(1);
-    WGPUBindGroupEntry input_hash_map_value_buffer_entry = hash_map.value_buffer().create_bind_group_entry(2);
-    WGPUBindGroupEntry input_texture_array_entry = hashmap_textures.texture().texture_view().create_bind_group_entry(3);
-    WGPUBindGroupEntry output_texture_array_entry = m_internal_storage_texture->texture().texture_view().create_bind_group_entry(4);
     std::vector<WGPUBindGroupEntry> entries {
-        input_tile_ids_entry,
-        input_hash_map_key_buffer_entry,
-        input_hash_map_value_buffer_entry,
-        input_texture_array_entry,
-        output_texture_array_entry,
+        m_input_tile_ids.create_bind_group_entry(0),
+        hash_map.key_buffer().create_bind_group_entry(1),
+        hash_map.value_buffer().create_bind_group_entry(2),
+        hashmap_textures.texture().texture_view().create_bind_group_entry(3),
+        m_internal_storage_texture->texture().texture_view().create_bind_group_entry(4),
     };
     m_compute_bind_group = std::make_unique<webgpu::raii::BindGroup>(
         m_device, m_pipeline_manager->downsample_compute_bind_group_layout(), entries, "compute: downsample bind group");

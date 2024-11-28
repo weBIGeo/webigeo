@@ -134,34 +134,20 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
     // TODO re-create bind groups only when input handles change
     // TODO adapter shader code
     // TODO compute bounds in other node!
-    WGPUBindGroupEntry input_tile_ids_entry = m_input_tile_ids.create_bind_group_entry(0);
-    WGPUBindGroupEntry input_bounds_entry = m_tile_bounds.create_bind_group_entry(1);
-    WGPUBindGroupEntry input_settings_buffer_entry = m_settings_uniform.raw_buffer().create_bind_group_entry(2);
-    WGPUBindGroupEntry input_hash_map_key_buffer_entry = hash_map.key_buffer().create_bind_group_entry(3);
-    WGPUBindGroupEntry input_hash_map_value_buffer_entry = hash_map.value_buffer().create_bind_group_entry(4);
-    WGPUBindGroupEntry input_normals_texture_array_entry = normal_textures.texture().texture_view().create_bind_group_entry(5);
-    WGPUBindGroupEntry input_normals_texture_sampler_entry = normal_textures.texture().sampler().create_bind_group_entry(6);
-    WGPUBindGroupEntry input_heights_texture_array_entry = height_textures.texture().texture_view().create_bind_group_entry(7);
-    WGPUBindGroupEntry input_heights_texture_sampler_entry = height_textures.texture().sampler().create_bind_group_entry(8);
-    WGPUBindGroupEntry input_release_point_texture_array_entry = release_point_textures.texture().texture_view().create_bind_group_entry(9);
-    WGPUBindGroupEntry output_hash_map_key_buffer_entry = m_output_tile_map.key_buffer().create_bind_group_entry(10);
-    WGPUBindGroupEntry output_hash_map_value_buffer_entry = m_output_tile_map.value_buffer().create_bind_group_entry(11);
-    WGPUBindGroupEntry output_storage_buffer_entry = m_output_storage_buffer.create_bind_group_entry(12);
-
     std::vector<WGPUBindGroupEntry> entries {
-        input_tile_ids_entry,
-        input_bounds_entry,
-        input_settings_buffer_entry,
-        input_hash_map_key_buffer_entry,
-        input_hash_map_value_buffer_entry,
-        input_normals_texture_array_entry,
-        input_normals_texture_sampler_entry,
-        input_heights_texture_array_entry,
-        input_heights_texture_sampler_entry,
-        input_release_point_texture_array_entry,
-        output_hash_map_key_buffer_entry,
-        output_hash_map_value_buffer_entry,
-        output_storage_buffer_entry,
+        m_input_tile_ids.create_bind_group_entry(0),
+        m_tile_bounds.create_bind_group_entry(1),
+        m_settings_uniform.raw_buffer().create_bind_group_entry(2),
+        hash_map.key_buffer().create_bind_group_entry(3),
+        hash_map.value_buffer().create_bind_group_entry(4),
+        normal_textures.texture().texture_view().create_bind_group_entry(5),
+        normal_textures.texture().sampler().create_bind_group_entry(6),
+        height_textures.texture().texture_view().create_bind_group_entry(7),
+        height_textures.texture().sampler().create_bind_group_entry(8),
+        release_point_textures.texture().texture_view().create_bind_group_entry(9),
+        m_output_tile_map.key_buffer().create_bind_group_entry(10),
+        m_output_tile_map.value_buffer().create_bind_group_entry(11),
+        m_output_storage_buffer.create_bind_group_entry(12),
     };
     webgpu::raii::BindGroup compute_bind_group(
         m_device, m_pipeline_manager->avalanche_trajectories_bind_group_layout(), entries, "avalanche trajectories compute bind group");
