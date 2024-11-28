@@ -981,20 +981,14 @@ void PipelineManager::create_release_points_compute_bind_group_layout()
     input_hashmap_value_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
     input_hashmap_value_buffer_entry.buffer.minBindingSize = 0;
 
-    WGPUBindGroupLayoutEntry input_height_textures_entry {};
-    input_height_textures_entry.binding = 4;
-    input_height_textures_entry.visibility = WGPUShaderStage_Compute;
-    input_height_textures_entry.texture.sampleType = WGPUTextureSampleType_Uint;
-    input_height_textures_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
-
     WGPUBindGroupLayoutEntry input_normal_textures_entry {};
-    input_normal_textures_entry.binding = 5;
+    input_normal_textures_entry.binding = 4;
     input_normal_textures_entry.visibility = WGPUShaderStage_Compute;
     input_normal_textures_entry.texture.sampleType = WGPUTextureSampleType_Float;
     input_normal_textures_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
 
     WGPUBindGroupLayoutEntry output_tiles_entry {};
-    output_tiles_entry.binding = 6;
+    output_tiles_entry.binding = 5;
     output_tiles_entry.visibility = WGPUShaderStage_Compute;
     output_tiles_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2DArray;
     output_tiles_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
@@ -1002,7 +996,7 @@ void PipelineManager::create_release_points_compute_bind_group_layout()
 
     m_release_point_compute_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
         std::vector<WGPUBindGroupLayoutEntry> { input_tile_ids_entry, input_settings, input_hashmap_key_buffer_entry, input_hashmap_value_buffer_entry,
-            input_height_textures_entry, input_normal_textures_entry, output_tiles_entry },
+            input_normal_textures_entry, output_tiles_entry },
         "release point compute bind group layout");
 }
 }

@@ -31,7 +31,7 @@
 //currently, format r8uint cannot be used for storage texture with write access (apparently only 32 bit formats can be used)
 //TODO use storage buffer instead for now!
 //  ASAP! saves 3 byte per texel (75%) immediately, could optimize further (just 3 bit per texel for current impl)
-@group(0) @binding(6) var output_tiles: texture_storage_2d_array<rgba8unorm, write>; // release point tiles (output)
+@group(0) @binding(5) var output_tiles: texture_storage_2d_array<rgba8unorm, write>; // release point tiles (output)
 
 struct ReleasePointSettings {
     min_slope_angle: f32, // in rad
@@ -53,7 +53,7 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     // id.yz in [0, texture_dimensions(output_tiles) - 1]
 
     let tile_id = input_tile_ids[id.x];
-    let input_texture_size = textureDimensions(input_height_tiles);
+    let input_texture_size = textureDimensions(input_normal_tiles);
 
     let col = id.y; // in [0, texture_dimension(output_tiles).x - 1]
     let row = id.z; // in [0, texture_dimension(output_tiles).y - 1]
@@ -66,7 +66,6 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
         return;
     }
 
-    let height = textureLoad(input_height_tiles, tex_pos, texture_array_index, 0).r;
     let normal = textureLoad(input_normal_tiles, tex_pos, texture_array_index, 0).xyz * 2 - 1;
     let slope_angle = acos(normal.z); // slope angle in rad (0 flat, pi/2 vertical)
 
