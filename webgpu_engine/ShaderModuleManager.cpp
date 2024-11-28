@@ -46,6 +46,7 @@ void ShaderModuleManager::create_shader_modules()
     m_buffer_to_texture_compute_module = create_shader_module_for_file("compute/buffer_to_texture_compute.wgsl");
     m_avalanche_influence_area_compute_module = create_shader_module_for_file("compute/avalanche_influence_area_compute.wgsl");
     m_d8_compute_module = create_shader_module_for_file("compute/d8_compute.wgsl");
+    m_release_point_compute_module = create_shader_module_for_file("compute/compute_release_points.wgsl");
 }
 
 void ShaderModuleManager::release_shader_modules()
@@ -64,6 +65,8 @@ void ShaderModuleManager::release_shader_modules()
     m_avalanche_trajectories_compute_module.release();
     m_buffer_to_texture_compute_module.release();
     m_avalanche_influence_area_compute_module.release();
+    m_d8_compute_module.release();
+    m_release_point_compute_module.release();
 }
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::render_tiles() const { return *m_render_tiles_shader_module; }
@@ -89,6 +92,8 @@ const webgpu::raii::ShaderModule& ShaderModuleManager::buffer_to_texture_compute
 const webgpu::raii::ShaderModule& ShaderModuleManager::avalanche_influence_area_compute() const { return *m_avalanche_influence_area_compute_module; }
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::d8_compute() const { return *m_d8_compute_module; }
+
+const webgpu::raii::ShaderModule& ShaderModuleManager::release_point_compute() const { return *m_release_point_compute_module; }
 
 std::string ShaderModuleManager::load_and_preprocess_without_cache(const std::string& path)
 {

@@ -51,6 +51,7 @@ public:
     const webgpu::raii::ShaderModule& buffer_to_texture_compute() const;
     const webgpu::raii::ShaderModule& avalanche_influence_area_compute() const;
     const webgpu::raii::ShaderModule& d8_compute() const;
+    const webgpu::raii::ShaderModule& release_point_compute() const;
 
     static std::string load_and_preprocess_without_cache(const std::string& path);
     static std::unique_ptr<webgpu::raii::ShaderModule> create_shader_module(WGPUDevice device, const std::string& label, const std::string& code);
@@ -80,6 +81,7 @@ private:
     std::unique_ptr<webgpu::raii::ShaderModule> m_buffer_to_texture_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_avalanche_influence_area_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_d8_compute_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_release_point_compute_module;
 };
 
 } // namespace webgpu_engine

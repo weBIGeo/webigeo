@@ -44,6 +44,7 @@ public:
     const webgpu::raii::CombinedComputePipeline& buffer_to_texture_compute_pipeline() const;
     const webgpu::raii::CombinedComputePipeline& avalanche_influence_area_compute_pipeline() const;
     const webgpu::raii::CombinedComputePipeline& d8_compute_pipeline() const;
+    const webgpu::raii::CombinedComputePipeline& release_point_compute_pipeline() const;
 
     const webgpu::raii::BindGroupLayout& shared_config_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& camera_bind_group_layout() const;
@@ -60,6 +61,7 @@ public:
     const webgpu::raii::BindGroupLayout& buffer_to_texture_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& avalanche_influence_area_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& d8_compute_bind_group_layout() const;
+    const webgpu::raii::BindGroupLayout& release_point_compute_bind_group_layout() const;
 
     void create_pipelines();
     void create_bind_group_layouts();
@@ -80,6 +82,7 @@ private:
     void create_buffer_to_texture_compute_pipeline();
     void create_avalanche_influence_area_compute_pipeline();
     void create_d8_compute_pipeline();
+    void create_release_point_compute_pipeline();
 
     void create_shared_config_bind_group_layout();
     void create_camera_bind_group_layout();
@@ -96,6 +99,7 @@ private:
     void create_buffer_to_texture_bind_group_layout();
     void create_avalanche_influence_area_bind_group_layout();
     void create_d8_compute_bind_group_layout();
+    void create_release_points_compute_bind_group_layout();
 
 private:
     WGPUDevice m_device;
@@ -114,6 +118,7 @@ private:
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_avalanche_trajectories_buffer_to_texture_compute_pipeline;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_avalanche_influence_area_compute_pipeline;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_d8_compute_pipeline;
+    std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_release_point_compute_pipeline;
 
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_shared_config_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_camera_bind_group_layout;
@@ -130,6 +135,7 @@ private:
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_avalanche_trajectories_buffer_to_texture_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_avalanche_influence_area_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_d8_compute_bind_group_layout;
+    std::unique_ptr<webgpu::raii::BindGroupLayout> m_release_point_compute_bind_group_layout;
 
     bool m_pipelines_created = false;
 };

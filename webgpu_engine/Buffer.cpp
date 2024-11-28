@@ -22,6 +22,7 @@
 #include "UniformBufferObjects.h"
 #include "compute/nodes/ComputeAvalancheInfluenceAreaNode.h"
 #include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
+#include "compute/nodes/ComputeReleasePointsNode.h"
 #include "compute/nodes/ComputeSnowNode.h"
 
 namespace webgpu_engine {
@@ -53,6 +54,7 @@ template class Buffer<uboCameraConfig>;
 template class Buffer<compute::nodes::ComputeSnowNode::SnowSettings>;
 template class Buffer<compute::nodes::ComputeAvalancheTrajectoriesNode::AvalancheTrajectoriesSettingsUniform>;
 template class Buffer<compute::nodes::ComputeAvalancheInfluenceAreaNode::AvalancheInfluenceAreaSettings>;
+template class Buffer<compute::nodes::ComputeReleasePointsNode::ReleasePointsSettings>;
 template class Buffer<TrackRenderer::LineConfig>;
 template class Buffer<ImageOverlaySettings>;
 // TODO

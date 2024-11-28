@@ -49,6 +49,7 @@ set(SOURCES
     compute/nodes/ComputeD8DirectionsNode.h compute/nodes/ComputeD8DirectionsNode.cpp
     compute/nodes/TileExportNode.h compute/nodes/TileExportNode.cpp
     compute/nodes/BufferToTextureNode.h compute/nodes/BufferToTextureNode.cpp
+    compute/nodes/ComputeReleasePointsNode.h compute/nodes/ComputeReleasePointsNode.cpp
 )
 
 qt_add_library(webgpu_engine STATIC ${SOURCES})
