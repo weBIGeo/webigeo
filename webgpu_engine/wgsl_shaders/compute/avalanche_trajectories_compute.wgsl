@@ -102,12 +102,12 @@ fn get_slope_angle(normal: vec3f) -> f32 {
 
 // map overlay (non-overlapping) uv coordinate to normal texture (overlapping) uv coordinate
 fn get_normal_uv(overlay_uv: vec2f) -> vec2f {
-    return overlay_uv * vec2f(textureDimensions(input_normal_tiles) - 1) / vec2f(textureDimensions(input_normal_tiles)) + 1f / (2f * vec2f(textureDimensions(input_normal_tiles)));
+    return overlay_uv * vec2f(textureDimensions(input_normal_tiles) - 1) / vec2f(textureDimensions(input_normal_tiles)) + 1f / (2f * vec2f(settings.output_resolution));
 }
 
 // map overlay (non-overlapping) uv coordinate to height texture (overlapping) uv coordinate
 fn get_height_uv(overlay_uv: vec2f) -> vec2f {
-    return overlay_uv * vec2f(textureDimensions(input_height_tiles) - 1) / vec2f(textureDimensions(input_height_tiles)) + 1f / (2f * vec2f(textureDimensions(input_height_tiles)));
+    return overlay_uv * vec2f(textureDimensions(input_height_tiles) - 1) / vec2f(textureDimensions(input_height_tiles)) + 1f / (2f * vec2f(settings.output_resolution));
 }
 
 // get normal for a specific overlay tile id and uv.
@@ -354,7 +354,7 @@ fn traces_overlay(id: vec3<u32>) {
 
     // a texel's uv coordinate should be its center, therefore shift down and right by half a texel
     // the overlay uv coordinates and height/normal tile uv coordinates are NOT the same because height/normal textures are overlapping
-    let overlay_uv = vec2f(f32(col), f32(row)) / vec2f(settings.output_resolution - 1) + 1f / (2f * vec2f(settings.output_resolution - 1));
+    let overlay_uv = vec2f(f32(col), f32(row)) / vec2f(settings.output_resolution) + 1f / (2f * vec2f(settings.output_resolution));
 
     if (!should_paint(col, row, tile_id)) {
         return;
