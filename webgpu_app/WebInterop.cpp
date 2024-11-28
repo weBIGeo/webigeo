@@ -30,7 +30,7 @@ void global_mouse_button_event(int button, int action, int mods, double xpos, do
 
 void global_mouse_position_event(int button, double xpos, double ypos) { WebInterop::_mouse_position_event(button, xpos, ypos); }
 
-void global_file_uploaded(const char* filename) { WebInterop::_file_uploaded(filename); }
+void global_file_uploaded(const char* filename, const char* tag) { WebInterop::_file_uploaded(filename, tag); }
 
 void WebInterop::_mouse_button_event(int button, int action, int mods, double xpos, double ypos)
 {
@@ -50,16 +50,17 @@ void WebInterop::_mouse_position_event([[maybe_unused]] int button, double xpos,
     emit instance().mouse_position_event(xpos, ypos);
 }
 
-void WebInterop::_file_uploaded(const char* filename)
+void WebInterop::_file_uploaded(const char* filename, const char* tag)
 {
-    std::string file(filename);
-    qDebug() << "File uploaded: " << file;
-    emit instance().file_uploaded(file);
+    std::string filename_str(filename);
+    std::string tag_str(tag);
+    qDebug() << "File uploaded: " << filename_str << " with tag: " << tag_str;
+    emit instance().file_uploaded(filename_str, tag_str);
 }
 
-void WebInterop::open_file_dialog(const std::string& filter)
+void WebInterop::open_file_dialog(const std::string& filter, const std::string& tag)
 {
-    EM_ASM_({ eminstance.hacks.uploadFileWithDialog(UTF8ToString($0)); }, filter.c_str());
+    EM_ASM_({ eminstance.hacks.uploadFileWithDialog(UTF8ToString($0), UTF8ToString($1)); }, filter.c_str(), tag.c_str());
 }
 
 glm::uvec2 WebInterop::get_body_size()

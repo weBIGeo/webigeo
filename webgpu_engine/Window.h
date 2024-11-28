@@ -125,6 +125,9 @@ public slots:
     void load_track_and_focus(const std::string& path);
     void reload_shaders();
 
+private slots:
+    void file_upload_handler(const std::string& filename, const std::string& tag);
+
 signals:
     void set_camera_definition_requested(nucleus::camera::Definition definition);
 

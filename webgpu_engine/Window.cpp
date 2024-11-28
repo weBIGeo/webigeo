@@ -52,7 +52,7 @@ Window::Window()
     : m_tile_manager { std::make_unique<TileManager>() }
 {
 #ifdef __EMSCRIPTEN__
-    connect(&WebInterop::instance(), &WebInterop::file_uploaded, this, &Window::load_track_and_focus);
+    connect(&WebInterop::instance(), &WebInterop::file_uploaded, this, &Window::file_upload_handler);
 #endif
 }
 
@@ -256,7 +256,7 @@ void Window::paint_gui()
     if (ImGui::CollapsingHeader("Image overlay", ImGuiTreeNodeFlags_DefaultOpen)) {
         if (ImGui::Button("Open overlay image file ...", ImVec2(350, 20))) {
 #ifdef __EMSCRIPTEN__
-            WebInterop::instance().open_file_dialog(".png");
+            WebInterop::instance().open_file_dialog(".png", "overlay_png");
 #else
             IGFD::FileDialogConfig config;
             config.path = ".";
@@ -267,33 +267,30 @@ void Window::paint_gui()
 #ifndef __EMSCRIPTEN__
         if (ImGuiFileDialog::Instance()->Display("OverlayImageFileDialog")) {
             if (ImGuiFileDialog::Instance()->IsOk()) { // action if OK
-                std::string file_path = ImGuiFileDialog::Instance()->GetFilePathName();
-                update_image_overlay_texture(file_path);
+                std::string filename_str = ImGuiFileDialog::Instance()->GetFilePathName();
+                auto filename = std::filesystem::path(filename_str);
+                // Look if a file with the same name but "_aabb.txt" exists (eg. "18.png" -> "18_aabb.txt")
+                // if so call update_image_overlay_aabb_and_focus with the file path to the txt file
+                auto aabb_filename = filename.stem().string() + "_aabb.txt";
+                auto aabb_filepath = filename.parent_path() / aabb_filename;
+                if (std::filesystem::exists(aabb_filepath)) {
+                    update_image_overlay_texture(filename_str);
+                    update_image_overlay_aabb_and_focus(aabb_filepath.string());
+                } else {
+                    qCritical() << "No AABB file found for image overlay.";
+                }
             }
             ImGuiFileDialog::Instance()->Close();
         }
 #endif
 
-        if (ImGui::Button("Open overlay aabb file ...", ImVec2(350, 20))) {
 #ifdef __EMSCRIPTEN__
-            WebInterop::instance().open_file_dialog(".txt");
-#else
-            IGFD::FileDialogConfig config;
-            config.path = ".";
-            ImGuiFileDialog::Instance()->OpenDialog("OverlayAabbFileDialog", "Choose File", ".txt,.*", config);
-#endif
+        // NOTE: In the web we can't check the filesystem for the aabb file so the user has to open it separately
+        if (ImGui::Button("Open overlay aabb file ...", ImVec2(350, 20))) {
+            WebInterop::instance().open_file_dialog(".txt", "overlay_aabb_txt");
         }
-    }
-
-#ifndef __EMSCRIPTEN__
-    if (ImGuiFileDialog::Instance()->Display("OverlayAabbFileDialog")) {
-        if (ImGuiFileDialog::Instance()->IsOk()) { // action if OK
-            std::string file_path = ImGuiFileDialog::Instance()->GetFilePathName();
-            update_image_overlay_aabb_and_focus(file_path);
-        }
-        ImGuiFileDialog::Instance()->Close();
-    }
 #endif
+    }
 
     if (ImGui::SliderFloat("Strength##image overlay", &m_image_overlay_settings_uniform_buffer->data.alpha, 0.0f, 1.0f, "%.2f")) {
         m_image_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
@@ -303,7 +300,7 @@ void Window::paint_gui()
     if (ImGui::CollapsingHeader("Track", ImGuiTreeNodeFlags_DefaultOpen)) {
         if (ImGui::Button("Open GPX file ...", ImVec2(350, 20))) {
 #ifdef __EMSCRIPTEN__
-            WebInterop::instance().open_file_dialog(".gpx");
+            WebInterop::instance().open_file_dialog(".gpx", "track");
 #else
             IGFD::FileDialogConfig config;
             config.path = ".";
@@ -963,6 +960,19 @@ void Window::update_gpu_quads([[maybe_unused]] const std::vector<nucleus::tile_s
 }
 
 void Window::request_redraw() { m_needs_redraw = true; }
+
+void Window::file_upload_handler(const std::string& filename, const std::string& tag)
+{
+    if (tag == "track") {
+        load_track_and_focus(filename);
+    } else if (tag == "overlay_png") {
+        update_image_overlay_texture(filename);
+    } else if (tag == "overlay_aabb_txt") {
+        update_image_overlay_aabb_and_focus(filename);
+    } else {
+        qWarning() << "Unknown file upload tag: " << QString::fromStdString(tag);
+    }
+}
 
 void Window::load_track_and_focus(const std::string& path)
 {

@@ -29,7 +29,7 @@
 extern "C" {
 [[maybe_unused]] void global_mouse_button_event(int button, int action, int mods, double xpos, double ypos);
 [[maybe_unused]] void global_mouse_position_event(int button, double xpos, double ypos);
-[[maybe_unused]] void global_file_uploaded(const char* filename);
+[[maybe_unused]] void global_file_uploaded(const char* filename, const char* tag);
 }
 
 // The WebInterop class acts as bridge between the C++ code and the JavaScript code.
@@ -52,9 +52,9 @@ public:
     static void _mouse_button_event(int button, int action, int mods, double xpos, double ypos);
     static void _mouse_position_event(int button, double xpos, double ypos);
 
-    static void _file_uploaded(const char* filename);
+    static void _file_uploaded(const char* filename, const char* tag);
 
-    void open_file_dialog(const std::string& filter);
+    void open_file_dialog(const std::string& filter, const std::string& tag);
 
     glm::uvec2 get_body_size();
 
@@ -64,7 +64,7 @@ signals:
     void mouse_button_event(int button, int action, int mods, double xpos, double ypos);
     void mouse_position_event(double xpos, double ypos);
 
-    void file_uploaded(const std::string& filename);
+    void file_uploaded(const std::string& filename, const std::string& tag);
 
 private:
     // Private constructor

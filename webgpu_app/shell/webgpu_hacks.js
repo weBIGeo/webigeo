@@ -94,7 +94,7 @@ class WeBIGeoHacks {
     this.webgpuTimingsAvailable = true;
   }
 
-  uploadFileWithDialog(filter) {
+  uploadFileWithDialog(filter, tag) {
     // Create a file input element if not already created
     var fileInput = document.getElementById('fileInputDialog');
     if (!fileInput) {
@@ -118,7 +118,7 @@ class WeBIGeoHacks {
           eminstance.FS.writeFile(dstFileName, data);
 
           // Call the global_file_uploaded function in the Emscripten module (WebInterop)
-          await eminstance.ccall("global_file_uploaded", null, ["string"], [dstFileName], { async: true });
+          await eminstance.ccall("global_file_uploaded", null, ["string", "string"], [dstFileName, tag], { async: true });
 
           fileInput.remove();
         };
