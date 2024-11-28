@@ -34,12 +34,6 @@
 //TODO use storage buffer instead for now!
 //  ASAP! saves 3 byte per texel (75%) immediately, could optimize further (just 3 bit per texel for current impl)
 
-fn get_height_value(tile_id: TileId, uv: vec2f) -> u32 {
-    let height_texture_size = textureDimensions(input_height_tiles);
-    let tex_pos = vec2i(floor(uv * vec2f(height_texture_size - 1)));
-    return load_height_with_neighbors(tile_id, tex_pos, &map_key_buffer, &map_value_buffer, input_height_tiles);
-}
-
 @compute @workgroup_size(1, 16, 16)
 fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     // id.x  in [0, num_tiles]
@@ -71,7 +65,7 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
         }
     }
     let encoded_direction: u32 = 1u << min_index;
-    textureStore(output_tiles, tex_pos, id.x, vec4f(min_index / 8.0, 1));
+    textureStore(output_tiles, tex_pos, id.x, vec4f(f32(min_index) / 8.0, 0, 0, 1));
     //textureStore(output_tiles, tex_pos, id.x, vec4f((vec2f(f32(directions[min_index].x), f32(-directions[min_index].y)) + 1) * 0.5, 0, 1));
     //textureStore(output_tiles, tex_pos, id.x, vec4f(uv.x, uv.y, 0, 1));
 }
