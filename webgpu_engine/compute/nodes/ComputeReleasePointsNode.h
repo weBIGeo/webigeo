@@ -25,29 +25,17 @@
 
 namespace webgpu_engine::compute::nodes {
 
-// Takes a list of tile ids, a tile id-to-index hashmap and a int32 storage buffer.
-// The storage buffer contains raster data per tile. The resolution has to be specified as output_resolution on construction.
-//
-// Data for tile_id, row_index (from top to bottom) and col_index (from left to right) is stored in the buffer at index
-//
-//     hashmap.get_index(tile_id) * tile_dimensions.x * tile_dimensions.y + row_index * tile_dimensions.x + col_index
-//
-// where tile_dimensions is the per-tile resolution.
-//
-// Each entry is expected to be between 0 and 2^32-1 (i.e. using full uint32).
-// The entries are mapped to colors based on a color mapping function (defined in shader code).
-//
-// TODO: add settings struct, be able to change color mapping during runtime (without changing shader source and recompiling)
+// TODO doc
 class ComputeReleasePointsNode : public Node {
     Q_OBJECT
 
 public:
     // also used as uniform
     struct ReleasePointsSettings {
-        float min_slope_angle; // min slope angle [rad]
-        float max_slope_angle; // max slope angle [rad]
-        float padding1;
-        float padding2;
+        float min_slope_angle = 28.0f; // min slope angle [rad]
+        float max_slope_angle = 60.0f; // max slope angle [rad]
+        float padding1 = 0.0f;
+        float padding2 = 0.0f;
     };
 
 public:

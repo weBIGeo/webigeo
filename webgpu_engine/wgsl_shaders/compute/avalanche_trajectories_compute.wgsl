@@ -69,12 +69,13 @@ struct AvalancheTrajectoriesSettings {
 @group(0) @binding(6) var input_normal_tiles_sampler: sampler; // normal sampler
 @group(0) @binding(7) var input_height_tiles: texture_2d_array<u32>; // height tiles
 @group(0) @binding(8) var input_height_tiles_sampler: sampler; // height sampler
+@group(0) @binding(9) var input_release_point_textures: texture_2d_array<f32>; // release point tiles
 
-@group(0) @binding(9) var<storage> output_tiles_map_key_buffer: array<TileId>; // hash map key buffer for output tiles
-@group(0) @binding(10) var<storage> output_tiles_map_value_buffer: array<u32>; // hash map value buffer, contains texture array indice for output tiles
+@group(0) @binding(10) var<storage> output_tiles_map_key_buffer: array<TileId>; // hash map key buffer for output tiles
+@group(0) @binding(11) var<storage> output_tiles_map_value_buffer: array<u32>; // hash map value buffer, contains texture array indice for output tiles
 
 // output
-@group(0) @binding(11) var<storage, read_write> output_storage_buffer: array<atomic<u32>>; // trajectory tiles
+@group(0) @binding(12) var<storage, read_write> output_storage_buffer: array<atomic<u32>>; // trajectory tiles
 
 // note: as of writing this, wgsl only supports atomic access for storage buffers and only for u32 and i32
 //       therefore, we first write the risk value (along the trajectory as raster) into a buffer,
@@ -146,14 +147,21 @@ fn get_height(tile_id: TileId, overlay_uv: vec2f, zoomlevel: u32, height: ptr<fu
     return true;
 }
 
-// checks if specific position is a trigger point for avalanches (using min/max slope angle in settings)
-fn is_trigger_point(slope_angle: f32) -> bool {
-    // check if slope angle is in allowed interval
-    if (slope_angle < settings.trigger_point_min_slope_angle || slope_angle > settings.trigger_point_max_slope_angle) {
+// checks if specific position is a release point for avalanches (using release point texture)
+fn is_release_point(tile_id: TileId, overlay_uv: vec2f, zoomlevel: u32) -> bool {
+    var source_tile_id: TileId = tile_id;
+    var source_uv: vec2f = overlay_uv;
+    calc_tile_id_and_uv_for_zoom_level(tile_id, overlay_uv, zoomlevel, &source_tile_id, &source_uv);
+    let release_point_texture_uv = get_height_uv(source_uv);
+    var texture_array_index: u32;
+    let found = get_texture_array_index(source_tile_id, &texture_array_index, &map_key_buffer, &map_value_buffer);
+    if (!found) {
         return false;
     }
-
-    return true;
+    let release_point_texture_size = textureDimensions(input_release_point_textures);
+    let release_point_texture_pos = vec2u(release_point_texture_uv * vec2f(release_point_texture_size));
+    let mask = textureLoad(input_release_point_textures, release_point_texture_pos, texture_array_index, 0).rgba;
+    return mask.a > 0;
 }
 
 // takes tile id and arbitrary uv coordinates (not restricted to [0,1])
@@ -365,7 +373,7 @@ fn traces_overlay(id: vec3<u32>) {
     get_normal(tile_id, overlay_uv, settings.source_zoomlevel, &start_normal);
     let start_slope_angle = get_slope_angle(start_normal);
 
-    if (!is_trigger_point(start_slope_angle)) {
+    if (!is_release_point(tile_id, overlay_uv, settings.source_zoomlevel)) {
         return;
     }
 

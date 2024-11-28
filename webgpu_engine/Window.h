@@ -63,8 +63,8 @@ struct ComputePipelineSettings {
     float model2_friction_coeff = 0.01f;
     float model2_drag_coeff = 0.2f;
 
-    float trigger_point_min_slope_angle = 28.0f; // trajectories node
-    float trigger_point_max_slope_angle = 60.0f; // trajectories node
+    float trigger_point_min_slope_angle = 28.0f; // release points node
+    float trigger_point_max_slope_angle = 60.0f; // release points node
 
     int tile_source_index = 0;
 

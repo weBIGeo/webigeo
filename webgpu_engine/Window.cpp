@@ -20,6 +20,7 @@
 #include "Window.h"
 #include "compute/nodes/ComputeAvalancheInfluenceAreaNode.h"
 #include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
+#include "compute/nodes/ComputeReleasePointsNode.h"
 #include "compute/nodes/ComputeSnowNode.h"
 #include "compute/nodes/DownsampleTilesNode.h"
 #include "compute/nodes/SelectTilesNode.h"
@@ -701,11 +702,16 @@ void Window::update_compute_pipeline_settings()
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_source_tiles_node")
             .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.source_zoomlevel);
 
+        // release points settings
+        compute::nodes::ComputeReleasePointsNode::ReleasePointsSettings release_points_settings {};
+        release_points_settings.min_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_min_slope_angle);
+        release_points_settings.max_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_max_slope_angle);
+        auto& release_points_node = m_compute_graph->get_node_as<compute::nodes::ComputeReleasePointsNode>("release_points_node");
+        release_points_node.set_settings(release_points_settings);
+
         // trajectories settings
         compute::nodes::ComputeAvalancheTrajectoriesNode::AvalancheTrajectoriesSettings trajectory_settings {};
         trajectory_settings.trigger_points.sampling_density = glm::vec2(m_compute_pipeline_settings.sampling_density);
-        trajectory_settings.trigger_points.min_slope_angle = m_compute_pipeline_settings.trigger_point_min_slope_angle;
-        trajectory_settings.trigger_points.max_slope_angle = m_compute_pipeline_settings.trigger_point_max_slope_angle;
         trajectory_settings.simulation.num_steps = m_compute_pipeline_settings.num_steps;
         trajectory_settings.simulation.step_length = m_compute_pipeline_settings.steps_length;
         trajectory_settings.simulation.zoomlevel = m_compute_pipeline_settings.source_zoomlevel;

@@ -24,6 +24,7 @@
 #include "ComputeAvalancheTrajectoriesNode.h"
 #include "ComputeD8DirectionsNode.h"
 #include "ComputeNormalsNode.h"
+#include "ComputeReleasePointsNode.h"
 #include "ComputeSnowNode.h"
 #include "CreateHashMapNode.h"
 #include "DownsampleTilesNode.h"
@@ -335,6 +336,8 @@ std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_trajectories_compute_grap
         node_graph->add_node("downsample_trajectory_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity)));
     DownsampleTilesNode* downsample_normals_tiles_node = static_cast<DownsampleTilesNode*>(
         node_graph->add_node("downsample_normals_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity)));
+    ComputeReleasePointsNode* release_points_node = static_cast<ComputeReleasePointsNode*>(
+        node_graph->add_node("release_points_node", std::make_unique<ComputeReleasePointsNode>(manager, device, input_resolution, capacity)));
 
     // connect tile request node inputs
     source_tile_select_node->output_socket("tile ids").connect(height_request_node->input_socket("tile ids"));
@@ -348,11 +351,17 @@ std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_trajectories_compute_grap
     hash_map_node->output_socket("hash map").connect(normal_compute_node->input_socket("hash map"));
     hash_map_node->output_socket("textures").connect(normal_compute_node->input_socket("height textures"));
 
+    // connect release points node inputs
+    release_points_node->input_socket("tile ids").connect(source_tile_select_node->output_socket("tile ids"));
+    release_points_node->input_socket("hash map").connect(hash_map_node->output_socket("hash map"));
+    release_points_node->input_socket("normal textures").connect(normal_compute_node->output_socket("normal textures"));
+
     // connect trajectories node inputs
     target_tile_select_node->output_socket("tile ids").connect(avalanche_trajectories_compute_node->input_socket("tile ids"));
     normal_compute_node->output_socket("hash map").connect(avalanche_trajectories_compute_node->input_socket("hash map"));
     normal_compute_node->output_socket("normal textures").connect(avalanche_trajectories_compute_node->input_socket("normal textures"));
     hash_map_node->output_socket("textures").connect(avalanche_trajectories_compute_node->input_socket("height textures"));
+    release_points_node->output_socket("release point textures").connect(avalanche_trajectories_compute_node->input_socket("release point textures"));
 
     // connect trajectories buffer to texture node inputs
     target_tile_select_node->output_socket("tile ids").connect(avalanche_trajectories_buffer_to_texture_compute_node->input_socket("tile ids"));

@@ -112,6 +112,7 @@ private:
         float model2_friction_coeff;
         float model2_drag_coeff;
 
+        // TODO remove
         float trigger_point_min_slope_angle; // in radians
         float trigger_point_max_slope_angle; // in radians
 

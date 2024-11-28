@@ -33,6 +33,7 @@ ComputeAvalancheTrajectoriesNode::ComputeAvalancheTrajectoriesNode(
               InputSocket(*this, "hash map", data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()),
               InputSocket(*this, "normal textures", data_type<TileStorageTexture*>()),
               InputSocket(*this, "height textures", data_type<TileStorageTexture*>()),
+              InputSocket(*this, "release point textures", data_type<TileStorageTexture*>()),
           },
           {
               OutputSocket(*this, "hash map", data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), [this]() { return &m_output_tile_map; }),
@@ -99,6 +100,7 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
     const auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(input_socket("hash map").get_connected_data());
     const auto& normal_textures = *std::get<data_type<TileStorageTexture*>()>(input_socket("normal textures").get_connected_data());
     const auto& height_textures = *std::get<data_type<TileStorageTexture*>()>(input_socket("height textures").get_connected_data());
+    const auto& release_point_textures = *std::get<data_type<TileStorageTexture*>()>(input_socket("release point textures").get_connected_data());
 
     if (tile_ids.size() > m_capacity) {
         emit run_failed(NodeRunFailureInfo(*this,
@@ -141,9 +143,10 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
     WGPUBindGroupEntry input_normals_texture_sampler_entry = normal_textures.texture().sampler().create_bind_group_entry(6);
     WGPUBindGroupEntry input_heights_texture_array_entry = height_textures.texture().texture_view().create_bind_group_entry(7);
     WGPUBindGroupEntry input_heights_texture_sampler_entry = height_textures.texture().sampler().create_bind_group_entry(8);
-    WGPUBindGroupEntry output_hash_map_key_buffer_entry = m_output_tile_map.key_buffer().create_bind_group_entry(9);
-    WGPUBindGroupEntry output_hash_map_value_buffer_entry = m_output_tile_map.value_buffer().create_bind_group_entry(10);
-    WGPUBindGroupEntry output_storage_buffer_entry = m_output_storage_buffer.create_bind_group_entry(11);
+    WGPUBindGroupEntry input_release_point_texture_array_entry = release_point_textures.texture().texture_view().create_bind_group_entry(9);
+    WGPUBindGroupEntry output_hash_map_key_buffer_entry = m_output_tile_map.key_buffer().create_bind_group_entry(10);
+    WGPUBindGroupEntry output_hash_map_value_buffer_entry = m_output_tile_map.value_buffer().create_bind_group_entry(11);
+    WGPUBindGroupEntry output_storage_buffer_entry = m_output_storage_buffer.create_bind_group_entry(12);
 
     std::vector<WGPUBindGroupEntry> entries {
         input_tile_ids_entry,
@@ -155,6 +158,7 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
         input_normals_texture_sampler_entry,
         input_heights_texture_array_entry,
         input_heights_texture_sampler_entry,
+        input_release_point_texture_array_entry,
         output_hash_map_key_buffer_entry,
         output_hash_map_value_buffer_entry,
         output_storage_buffer_entry,
