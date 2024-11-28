@@ -1,6 +1,7 @@
 /*****************************************************************************
  * weBIGeo
  * Copyright (C) 2024 Gerald Kimmersdorfer
+ * Copyright (C) 2024 Patrick Komon
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -58,7 +59,7 @@ void TileExportNode::run_impl()
     m_tile_size = glm::uvec2(textures.texture().texture().width(), textures.texture().texture().height());
 
     for (size_t i = 0; i < tile_ids.size(); i++) {
-        textures.texture().texture().read_back_async(m_device, i, [this, &hash_map, &textures](size_t layer_index, std::shared_ptr<QByteArray> data) {
+        textures.texture().texture().read_back_async(m_device, i, [this, &hash_map](size_t layer_index, std::shared_ptr<QByteArray> data) {
             // const auto& tile_id = tile_ids[layer_index];
             const auto& tile_id = hash_map.key_with_value(layer_index);
             m_tile_data[tile_id] = data;
@@ -111,6 +112,7 @@ void TileExportNode::readback_done()
     // Make sure output directory exists
     const auto parent_directory = std::filesystem::path(m_settings.output_directory);
     std::filesystem::create_directory(parent_directory);
+    qDebug() << "Writing files to " << std::filesystem::canonical(parent_directory).string();
 
     if (m_settings.stitch_tiles) {
         // iterate through all tiles and save the bounds for each zoom level
