@@ -382,6 +382,27 @@ std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_trajectories_compute_grap
     normal_compute_node->output_socket("hash map").connect(downsample_normals_tiles_node->input_socket("hash map"));
     upsample_normals_textures_node->output_socket("output textures").connect(downsample_normals_tiles_node->input_socket("textures"));
 
+    // === SETUP EXPORT NODES ===
+    {
+        TileExportNode::ExportSettings export_settings_rp = { true, true, true, true, "rp_export" };
+        TileExportNode* rp_export_node
+            = static_cast<TileExportNode*>(node_graph->add_node("rp_export", std::make_unique<TileExportNode>(device, export_settings_rp)));
+
+        TileExportNode::ExportSettings export_settings_height = { true, true, true, true, "height_export" };
+        TileExportNode* height_export_node
+            = static_cast<TileExportNode*>(node_graph->add_node("height_export", std::make_unique<TileExportNode>(device, export_settings_height)));
+
+        // Connect release points export node
+        rp_export_node->input_socket("tile ids").connect(source_tile_select_node->output_socket("tile ids"));
+        rp_export_node->input_socket("hash map").connect(hash_map_node->output_socket("hash map"));
+        rp_export_node->input_socket("textures").connect(release_points_node->output_socket("release point textures"));
+
+        // Connect height tiles export node
+        height_export_node->input_socket("tile ids").connect(source_tile_select_node->output_socket("tile ids"));
+        height_export_node->input_socket("hash map").connect(hash_map_node->output_socket("hash map"));
+        height_export_node->input_socket("textures").connect(hash_map_node->output_socket("textures"));
+    }
+
     node_graph->m_output_normals_hash_map_ptr = &downsample_normals_tiles_node->hash_map();
     node_graph->m_output_normals_texture_storage_ptr = &downsample_normals_tiles_node->texture_storage();
 

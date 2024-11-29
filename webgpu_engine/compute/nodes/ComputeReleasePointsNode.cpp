@@ -38,7 +38,8 @@ ComputeReleasePointsNode::ComputeReleasePointsNode(
     , m_queue(wgpuDeviceGetQueue(device))
     , m_settings_uniform(device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
     , m_input_tile_ids(device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc, capacity, "release points compute, tile ids")
-    , m_output_texture(device, output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm)
+    , m_output_texture(device, output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm,
+          WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc)
 {
 }
 
