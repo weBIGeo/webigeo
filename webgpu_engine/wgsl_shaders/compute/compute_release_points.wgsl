@@ -36,8 +36,11 @@
 struct ReleasePointSettings {
     min_slope_angle: f32, // in rad
     max_slope_angle: f32, // in rad
-    padding1: f32,
-    padding2: f32,
+    sampling_interval: vec2u
+}
+
+fn should_paint(col: u32, row: u32, tile_id: TileId) -> bool {
+    return (col % settings.sampling_interval.x == 0) && (row % settings.sampling_interval.y == 0);
 }
 
 @compute @workgroup_size(1, 16, 16)
@@ -69,7 +72,7 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     let normal = textureLoad(input_normal_tiles, tex_pos, texture_array_index, 0).xyz * 2 - 1;
     let slope_angle = acos(normal.z); // slope angle in rad (0 flat, pi/2 vertical)
 
-    if (slope_angle < settings.min_slope_angle || slope_angle > settings.max_slope_angle) {
+    if (slope_angle < settings.min_slope_angle || slope_angle > settings.max_slope_angle || !should_paint(col, row, tile_id)) {
         textureStore(output_tiles, tex_pos, id.x, vec4f(0, 0, 0, 0));
     } else {
         textureStore(output_tiles, tex_pos, id.x, vec4f(1, 0, 0, 1));

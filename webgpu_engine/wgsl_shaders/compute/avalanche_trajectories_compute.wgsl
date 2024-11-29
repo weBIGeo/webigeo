@@ -26,7 +26,7 @@
 
 struct AvalancheTrajectoriesSettings {
     output_resolution: vec2u,
-    sampling_interval: vec2u, // n means starting a trajectory at every n-th texel
+    sampling_interval: vec2u, // n means starting a trajectory at every n-th texel TODO: maybe remove as it is not used anymore (job of compute release points)
 
     num_steps: u32, // maximum number of steps (along gradient)
     step_length: f32, // length of one simulation step in world space
@@ -84,11 +84,12 @@ struct AvalancheTrajectoriesSettings {
 
 // ***** UTILITY FUNCTIONS *****
 
+// NOT NECESSARY ANYMORE SINCE DONE IN COMPUTE RELEASE POINTS
 // checks if thread should do something (based on sampling interval)
 // TODO: just start correct number of threads from CPU side
-fn should_paint(col: u32, row: u32, tile_id: TileId) -> bool {
-    return (col % settings.sampling_interval.x == 0) && (row % settings.sampling_interval.y == 0);
-}
+// fn should_paint(col: u32, row: u32, tile_id: TileId) -> bool {
+//    return (col % settings.sampling_interval.x == 0) && (row % settings.sampling_interval.y == 0);
+//}
 
 // returns index into the storage buffer for a 2d (texture) position
 fn get_storage_buffer_index(texture_layer: u32, coords: vec2u, output_texture_size: vec2u) -> u32 {
@@ -364,7 +365,11 @@ fn traces_overlay(id: vec3<u32>) {
     // the overlay uv coordinates and height/normal tile uv coordinates are NOT the same because height/normal textures are overlapping
     let overlay_uv = vec2f(f32(col), f32(row)) / vec2f(settings.output_resolution) + 1f / (2f * vec2f(settings.output_resolution));
 
-    if (!should_paint(col, row, tile_id)) {
+    //if (!should_paint(col, row, tile_id)) {
+    //    return;
+    //}
+
+    if (!is_release_point(tile_id, overlay_uv, settings.source_zoomlevel)) {
         return;
     }
 
@@ -373,9 +378,7 @@ fn traces_overlay(id: vec3<u32>) {
     get_normal(tile_id, overlay_uv, settings.source_zoomlevel, &start_normal);
     let start_slope_angle = get_slope_angle(start_normal);
 
-    if (!is_release_point(tile_id, overlay_uv, settings.source_zoomlevel)) {
-        return;
-    }
+
 
     var max_slope_angle = 0.0;
     var velocity = vec3f(0, 0, 0);

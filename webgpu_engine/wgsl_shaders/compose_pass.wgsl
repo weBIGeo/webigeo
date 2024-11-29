@@ -197,7 +197,7 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
 
     if (dist > 0.0 && all(pos_ws.xy >= image_overlay_settings.aabb_min) && all(pos_ws.xy <= image_overlay_settings.aabb_max)) {
         //return vec4f(1, 0, 0, 1);
-        out_Color = vec4(mix(out_Color.rgb, image_overlay_color.rgb, image_overlay_settings.alpha), out_Color.a);
+        out_Color = vec4(mix(out_Color.rgb, image_overlay_color.rgb, image_overlay_color.a * image_overlay_settings.alpha), out_Color.a);
     }
 
     if (bool(conf.overlay_postshading_enabled)) {

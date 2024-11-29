@@ -34,8 +34,7 @@ public:
     struct ReleasePointsSettings {
         float min_slope_angle = 28.0f; // min slope angle [rad]
         float max_slope_angle = 60.0f; // max slope angle [rad]
-        float padding1 = 0.0f;
-        float padding2 = 0.0f;
+        glm::uvec2 sampling_density; // sampling density in x and y direction
     };
 
 public:
