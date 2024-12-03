@@ -109,9 +109,9 @@ struct ImageOverlaySettings {
     glm::vec2 aabb_max = { 0.0f, 0.0f };
 
     float alpha = 1.0f;
-    float padding0;
-    float padding1;
-    float padding2;
+    uint32_t mode = 1;
+    float float_decoding_lower_bound = 0.0f;
+    float float_decoding_upper_bound = 20.0f;
 };
 
 //TODO

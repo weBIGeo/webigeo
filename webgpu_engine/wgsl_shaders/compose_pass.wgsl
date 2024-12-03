@@ -43,9 +43,9 @@ struct ImageOverlaySettings {
     aabb_min: vec2f,
     aabb_max: vec2f,
     alpha: f32,
-    padding0: f32,
-    padding1: f32,
-    padding2: f32,
+    mode: u32, // 0: overlay, 1: encoded float
+    float_decoding_lower_bound: f32,
+    float_decoding_upper_bound: f32,
 }
 
 // Calculates the diffuse and specular illumination contribution for the given
@@ -95,6 +95,16 @@ fn calculate_illumination(
     let diffAndSpecIllumination: vec3<f32> = dirColor * calc_blinn_phong_contribution(toLightDirWS, toEyeNrmWS, fragNorm, diff, spec, shini);
 
     return ambientIllumination + diffAndSpecIllumination * (1.0 - shadow_term);
+}
+
+const FLOAT_MIN_ENCODING: f32 = -10000.0;
+const FLOAT_MAX_ENCODING: f32 = 10000.0;
+
+fn decode_rgba_to_normalized_value(rgba: vec4<f32>) -> f32 {
+    let rgba_u8: vec4<u32> = vec4<u32>(rgba * 255.0);
+    let packed_value: u32 = (rgba_u8.r << 24) | (rgba_u8.g << 16) | (rgba_u8.b << 8) | rgba_u8.a;
+    let normalized_value: f32 = f32(packed_value) / 4294967295.0;
+    return normalized_value * (FLOAT_MAX_ENCODING - FLOAT_MIN_ENCODING) + FLOAT_MIN_ENCODING;
 }
 
 
@@ -196,8 +206,16 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
     var out_Color = vec4f(mix(atmospheric_color, shaded_color, alpha), 1.0);
 
     if (dist > 0.0 && all(pos_ws.xy >= image_overlay_settings.aabb_min) && all(pos_ws.xy <= image_overlay_settings.aabb_max)) {
-        //return vec4f(1, 0, 0, 1);
-        out_Color = vec4(mix(out_Color.rgb, image_overlay_color.rgb, image_overlay_color.a * image_overlay_settings.alpha), out_Color.a);
+        if (image_overlay_settings.mode == 0u) {
+            out_Color = vec4f(mix(out_Color.rgb, image_overlay_color.rgb, image_overlay_color.a * image_overlay_settings.alpha), out_Color.a);
+        } else if (image_overlay_settings.mode == 1u) {
+            let decoded_float_value = decode_rgba_to_normalized_value(image_overlay_color.rgba);
+            let encoded_float_value = (decoded_float_value - image_overlay_settings.float_decoding_lower_bound) / (image_overlay_settings.float_decoding_upper_bound - image_overlay_settings.float_decoding_lower_bound);
+            if (encoded_float_value > 0.0 && encoded_float_value < 1.0) {
+                let overlay_color = vec3(1.0 - encoded_float_value, 0, 0) ;
+                out_Color = vec4f(mix(out_Color.rgb, overlay_color , image_overlay_settings.alpha), out_Color.a);
+            }  
+        }
     }
 
     if (bool(conf.overlay_postshading_enabled)) {

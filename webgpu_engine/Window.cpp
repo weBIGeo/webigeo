@@ -270,13 +270,27 @@ void Window::paint_gui()
             if (ImGuiFileDialog::Instance()->IsOk()) { // action if OK
                 std::string filename_str = ImGuiFileDialog::Instance()->GetFilePathName();
                 auto filename = std::filesystem::path(filename_str);
-                // Look if a file with the same name but "_aabb.txt" exists (eg. "18.png" -> "18_aabb.txt")
-                // if so call update_image_overlay_aabb_and_focus with the file path to the txt file
-                auto aabb_filename = filename.stem().string() + "_aabb.txt";
-                auto aabb_filepath = filename.parent_path() / aabb_filename;
+
+                // Construct the default AABB file path
+                auto aabb_filepath = filename.parent_path() / (filename.stem().string() + "_aabb.txt");
+
+                // If the default AABB file does not exist, try with the trackname
+                if (!std::filesystem::exists(aabb_filepath)) {
+                    // Extract trackname from the filename until the first '_'
+                    std::string filename_stem = filename.stem().string();
+                    size_t underscore_pos = filename_stem.find('_');
+                    std::string trackname = (underscore_pos != std::string::npos) ? filename_stem.substr(0, underscore_pos) // Before the first '_'
+                                                                                  : filename_stem; // Entire stem if no '_'
+
+                    // Construct the new AABB file path using trackname
+                    aabb_filepath = filename.parent_path() / (trackname + "_aabb.txt");
+                }
+
+                // If the AABB file exists, call the appropriate functions
                 if (std::filesystem::exists(aabb_filepath)) {
                     update_image_overlay_texture(filename_str);
                     update_image_overlay_aabb_and_focus(aabb_filepath.string());
+                    m_needs_redraw = true;
                 } else {
                     qCritical() << "No AABB file found for image overlay.";
                 }
@@ -296,6 +310,19 @@ void Window::paint_gui()
     if (ImGui::SliderFloat("Strength##image overlay", &m_image_overlay_settings_uniform_buffer->data.alpha, 0.0f, 1.0f, "%.2f")) {
         m_image_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
         m_needs_redraw = true;
+    }
+
+    if (ImGui::Combo("Mode##image overlay", (int*)&(m_image_overlay_settings_uniform_buffer->data.mode), "Alpha-Blend\0Encoded Float\0")) {
+        m_image_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
+        m_needs_redraw = true;
+    }
+
+    if (m_image_overlay_settings_uniform_buffer->data.mode == 1) {
+        if (ImGui::DragFloatRange2("Float Map Range", &m_image_overlay_settings_uniform_buffer->data.float_decoding_lower_bound,
+                &m_image_overlay_settings_uniform_buffer->data.float_decoding_upper_bound, 0.1f, -10000, 10000)) {
+            m_image_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
+            m_needs_redraw = true;
+        }
     }
 
     if (ImGui::CollapsingHeader("Track", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -874,8 +901,8 @@ void Window::create_image_overlay_texture(unsigned int width, unsigned int heigh
     sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Linear;
-    sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Linear;
+    sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
+    sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
     sampler_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Linear;
     sampler_desc.lodMinClamp = 0.0f;
     sampler_desc.lodMaxClamp = 1.0f;
@@ -1059,8 +1086,15 @@ bool Window::update_image_overlay_aabb(const std::string& aabb_file_path)
         }
     }
 
-    m_image_overlay_settings_uniform_buffer->data.aabb_min = glm::fvec2 { contents[0], contents[1] };
-    m_image_overlay_settings_uniform_buffer->data.aabb_max = glm::fvec2 { contents[2], contents[3] };
+    // Make sure the aabb actually changed
+    glm::fvec2 new_min = glm::fvec2 { contents[0], contents[1] };
+    glm::fvec2 new_max = glm::fvec2 { contents[2], contents[3] };
+    if (new_min == m_image_overlay_settings_uniform_buffer->data.aabb_min && new_max == m_image_overlay_settings_uniform_buffer->data.aabb_max) {
+        return false;
+    }
+
+    m_image_overlay_settings_uniform_buffer->data.aabb_min = new_min;
+    m_image_overlay_settings_uniform_buffer->data.aabb_max = new_max;
     m_image_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
 
     qDebug() << "updated image overlay aabb to [" << m_image_overlay_settings_uniform_buffer->data.aabb_min.x << ", "
