@@ -43,4 +43,24 @@ void rgba8_as_png(const Raster<glm::u8vec4>& data, const QString& filename)
         qCritical() << "Failed to write image" << filename;
     }
 }
+
+void rgba8_as_png(const QByteArray& data, const glm::uvec2& resolution, const QString& filename)
+{
+    assert(resolution.x > 0);
+    assert(resolution.y > 0);
+    assert(data.size() == static_cast<int>(resolution.x * resolution.y * 4)); // Ensure data size matches resolution
+
+    int result = stbi_write_png(filename.toUtf8().constData(), // File name
+        static_cast<int>(resolution.x), // Image width
+        static_cast<int>(resolution.y), // Image height
+        4, // Number of color components (RGBA)
+        data.constData(), // Pointer to the image data
+        static_cast<int>(resolution.x * 4) // Stride in bytes (width * number of components)
+    );
+
+    if (result == 0) {
+        qCritical() << "Failed to write image" << filename;
+    }
+}
+
 } // namespace nucleus::utils::image_writer

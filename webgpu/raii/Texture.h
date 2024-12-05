@@ -122,6 +122,9 @@ public:
     /// read back single texture layer of this texture
     void read_back_async(WGPUDevice device, size_t layer_index, ReadBackCallback callback);
 
+    /// should only be used for debugging purposes
+    void save_to_file(WGPUDevice device, const std::string& filename, size_t layer_index = 0);
+
     WGPUTextureViewDescriptor default_texture_view_descriptor() const;
 
     std::unique_ptr<TextureView> create_view() const;

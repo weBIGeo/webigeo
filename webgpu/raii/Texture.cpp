@@ -19,6 +19,7 @@
 
 #include "Texture.h"
 #include <QDebug>
+#include <nucleus/utils/image_writer.h>
 
 namespace webgpu::raii {
 
@@ -158,6 +159,13 @@ void Texture::read_back_async(WGPUDevice device, size_t layer_index, ReadBackCal
 
     wgpuBufferMapAsync(
         m_read_back_states.back().buffer->handle(), WGPUMapMode_Read, 0, uint32_t(m_read_back_states.back().buffer->size_in_byte()), on_buffer_mapped, this);
+}
+
+void Texture::save_to_file(WGPUDevice device, const std::string& filename, size_t layer_index)
+{
+    read_back_async(device, layer_index, [this, filename]([[maybe_unused]] size_t layer_index, std::shared_ptr<QByteArray> data) {
+        nucleus::utils::image_writer::rgba8_as_png(*data.get(), glm::uvec2(width(), height()), QString::fromStdString(filename));
+    });
 }
 
 WGPUTextureViewDescriptor Texture::default_texture_view_descriptor() const
