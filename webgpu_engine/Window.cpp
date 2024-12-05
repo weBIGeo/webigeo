@@ -319,7 +319,7 @@ void Window::paint_gui()
 
     if (m_image_overlay_settings_uniform_buffer->data.mode == 1) {
         if (ImGui::DragFloatRange2("Float Map Range", &m_image_overlay_settings_uniform_buffer->data.float_decoding_lower_bound,
-                &m_image_overlay_settings_uniform_buffer->data.float_decoding_upper_bound, 0.1f, -10000, 10000)) {
+                &m_image_overlay_settings_uniform_buffer->data.float_decoding_upper_bound, 1.0f, -10000, 10000)) {
             m_image_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
             m_needs_redraw = true;
         }
