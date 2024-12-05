@@ -32,6 +32,7 @@
 #include "SelectTilesNode.h"
 #include "UpsampleTexturesNode.h"
 #include "compute/nodes/TileExportNode.h"
+#include "compute/nodes/TileStitchNode.h"
 #include <QDebug>
 #include <memory>
 
@@ -339,8 +340,20 @@ std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_trajectories_compute_grap
     ComputeReleasePointsNode* release_points_node = static_cast<ComputeReleasePointsNode*>(
         node_graph->add_node("release_points_node", std::make_unique<ComputeReleasePointsNode>(manager, device, input_resolution, capacity)));
 
+    TileStitchNode::StitchSettings stitch_setting = { .tile_size = input_resolution,
+        .tile_has_border = true,
+        .texture_format = WGPUTextureFormat::WGPUTextureFormat_RGBA8Unorm,
+        .texture_usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc };
+
+    TileStitchNode* stitch_node
+        = static_cast<TileStitchNode*>(node_graph->add_node("stitch_node", std::make_unique<TileStitchNode>(manager, device, stitch_setting)));
+
     // connect tile request node inputs
     source_tile_select_node->output_socket("tile ids").connect(height_request_node->input_socket("tile ids"));
+
+    // STITCH TILES
+    source_tile_select_node->output_socket("tile ids").connect(stitch_node->input_socket("tile ids"));
+    height_request_node->output_socket("tile data").connect(stitch_node->input_socket("texture data"));
 
     // connect hash map node inputs
     source_tile_select_node->output_socket("tile ids").connect(hash_map_node->input_socket("tile ids"));

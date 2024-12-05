@@ -1,5 +1,6 @@
 /*****************************************************************************
  * weBIGeo
+ * Copyright (C) 2024 Gerald Kimmersdorfer
  * Copyright (C) 2024 Patrick Komon
  *
  * This program is free software: you can redistribute it and/or modify
@@ -35,7 +36,7 @@ using DataType = size_t;
 
 /// datatypes that can be used with nodes have to be declared here.
 using Data = std::variant<const std::vector<tile::Id>*, const std::vector<QByteArray>*, TileStorageTexture*, GpuHashMap<tile::Id, uint32_t, GpuTileId>*,
-    webgpu::raii::RawBuffer<uint32_t>*>;
+    webgpu::raii::RawBuffer<uint32_t>*, const webgpu::raii::TextureWithSampler*>;
 
 using SocketIndex = size_t;
 
