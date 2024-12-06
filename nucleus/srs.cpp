@@ -27,10 +27,14 @@ constexpr double cOriginShift = cEarthCircumference / 2.0;
 
 namespace nucleus::srs {
 
+double tile_width(int zoom_level) { return cEarthCircumference / number_of_horizontal_tiles_for_zoom_level(zoom_level); }
+
+double tile_height(int zoom_level) { return cEarthCircumference / number_of_vertical_tiles_for_zoom_level(zoom_level); }
+
 tile::SrsBounds tile_bounds(const tile::Id& tile)
 {
-    const auto width_of_a_tile = cEarthCircumference / number_of_horizontal_tiles_for_zoom_level(tile.zoom_level);
-    const auto height_of_a_tile = cEarthCircumference / number_of_vertical_tiles_for_zoom_level(tile.zoom_level);
+    const auto width_of_a_tile = tile_width(tile.zoom_level);
+    const auto height_of_a_tile = tile_height(tile.zoom_level);
     glm::dvec2 absolute_min = { -cOriginShift, -cOriginShift };
     const auto min = absolute_min + glm::dvec2 { tile.coords.x * width_of_a_tile, tile.coords.y * height_of_a_tile };
     const auto max = min + glm::dvec2 { width_of_a_tile, height_of_a_tile };
@@ -138,4 +142,5 @@ tile::Id unpack(const glm::vec<2, uint32_t>& packed)
     id.coords.y = packed.y & ((1u << (32 - 3)) - 1);
     return id;
 }
-}
+
+} // namespace nucleus::srs
