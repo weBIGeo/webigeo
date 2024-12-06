@@ -164,7 +164,54 @@ void Texture::read_back_async(WGPUDevice device, size_t layer_index, ReadBackCal
 void Texture::save_to_file(WGPUDevice device, const std::string& filename, size_t layer_index)
 {
     read_back_async(device, layer_index, [this, filename]([[maybe_unused]] size_t layer_index, std::shared_ptr<QByteArray> data) {
-        nucleus::utils::image_writer::rgba8_as_png(*data.get(), glm::uvec2(width(), height()), QString::fromStdString(filename));
+        switch (this->m_descriptor.format) {
+        case WGPUTextureFormat::WGPUTextureFormat_RGBA8Unorm:
+        case WGPUTextureFormat::WGPUTextureFormat_RGBA8UnormSrgb:
+        case WGPUTextureFormat::WGPUTextureFormat_RGBA8Uint:
+            nucleus::utils::image_writer::rgba8_as_png(*data, glm::uvec2(width(), height()), QString::fromStdString(filename));
+            break;
+
+        // NOTE: If single float format we output the min/max/avg values (for the possibility of a first check
+        // and then crop the data and normalize it such that we can write it as uint32_t split into the rgb channels.
+        // We do the same with the overlays, and therefore can use the python script to convert
+        // this image back to a tiff for investigation.
+        case WGPUTextureFormat::WGPUTextureFormat_R32Float: {
+            const float* float_data = reinterpret_cast<const float*>(data->data());
+            size_t num_floats = data->size() / sizeof(float);
+
+            float min_value_found = std::numeric_limits<float>::max();
+            float max_value_found = std::numeric_limits<float>::lowest();
+            double sum = 0.0;
+            std::vector<uint32_t> packed_data(num_floats);
+
+            // Constants for normalization
+            constexpr float min_value = -10000.0f;
+            constexpr float max_value = 10000.0f;
+            constexpr float range = max_value - min_value;
+
+            for (size_t i = 0; i < num_floats; ++i) {
+                float value = float_data[i];
+                min_value_found = std::min(min_value_found, value);
+                max_value_found = std::max(max_value_found, value);
+                sum += value;
+                float clamped = std::max(min_value, std::min(max_value, value));
+                float normalized = (clamped - min_value) / range;
+                uint32_t packed = static_cast<uint32_t>(normalized * std::numeric_limits<uint32_t>::max());
+                packed_data[i] = packed;
+            }
+            float average_value = static_cast<float>(sum / num_floats);
+            qDebug() << "Float texture data: " << "min:" << min_value_found << "max:" << max_value_found << "avg:" << average_value;
+
+            QByteArray packed_byte_array(reinterpret_cast<const char*>(packed_data.data()), packed_data.size() * sizeof(uint32_t));
+            nucleus::utils::image_writer::rgba8_as_png(packed_byte_array, glm::uvec2(width(), height()), QString::fromStdString(filename));
+        } break;
+
+        default:
+            qCritical() << "Cannot save texture to file: unsupported format.";
+            return;
+        }
+
+        qDebug() << "Texture saved to file: " << QString::fromStdString(filename);
     });
 }
 
