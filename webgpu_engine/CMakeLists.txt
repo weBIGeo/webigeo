@@ -51,6 +51,7 @@ set(SOURCES
     compute/nodes/BufferToTextureNode.h compute/nodes/BufferToTextureNode.cpp
     compute/nodes/ComputeReleasePointsNode.h compute/nodes/ComputeReleasePointsNode.cpp
     compute/nodes/TileStitchNode.h compute/nodes/TileStitchNode.cpp
+    compute/nodes/HeightDecodeNode.h compute/nodes/HeightDecodeNode.cpp
 )
 
 qt_add_library(webgpu_engine STATIC ${SOURCES})
