@@ -56,6 +56,38 @@ fn normal_by_finite_difference_method(
     return normalize(vec3<f32>(hL - hR, hD - hU, height));
 }
 
+fn normal_by_finite_difference_method_texture_f32(
+    pos: vec2<u32>,
+    quad_width: f32,
+    quad_height: f32,
+    altitude_correction_factor: f32,
+    texture: texture_2d<f32>) -> vec3<f32>
+{
+    let height_texture_size = textureDimensions(texture);
+    // from here: https://stackoverflow.com/questions/6656358/calculating-normals-in-a-triangle-mesh/21660173#21660173
+    let height = quad_width + quad_height;
+    
+    let upper_bounds = vec2<i32>(height_texture_size - 1);
+    let lower_bounds = vec2<i32>(0, 0);
+    let hL_uv = clamp(vec2i(pos) - vec2<i32>(1, 0), lower_bounds, upper_bounds);
+    let hL_sample = textureLoad(texture, hL_uv, 0);
+    let hL = f32(hL_sample.r) * altitude_correction_factor;
+
+    let hR_uv = clamp(vec2i(pos) + vec2<i32>(1, 0), lower_bounds, upper_bounds);
+    let hR_sample = textureLoad(texture, hR_uv, 0);
+    let hR = f32(hR_sample.r) * altitude_correction_factor;
+
+    let hD_uv = clamp(vec2i(pos) + vec2<i32>(0, 1), lower_bounds, upper_bounds);
+    let hD_sample = textureLoad(texture, hD_uv, 0);
+    let hD = f32(hD_sample.r) * altitude_correction_factor;
+
+    let hU_uv = clamp(vec2i(pos) - vec2<i32>(0, 1), lower_bounds, upper_bounds);
+    let hU_sample = textureLoad(texture, hU_uv, 0);
+    let hU = f32(hU_sample.r) * altitude_correction_factor;
+
+    return normalize(vec3<f32>(hL - hR, hD - hU, height));
+}
+
 fn normal_by_finite_difference_method_with_neighbors(
     uv: vec2<f32>,
     quad_width: f32,

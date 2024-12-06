@@ -40,5 +40,6 @@ public slots:
 private:
     TileIdGenerator m_tile_id_generator;
     std::vector<tile::Id> m_output_tile_ids;
+    geometry::Aabb<2, double> m_output_bounds;
 };
 } // namespace webgpu_engine::compute::nodes

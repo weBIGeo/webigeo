@@ -33,8 +33,10 @@ SelectTilesNode::SelectTilesNode(TileIdGenerator tile_id_generator)
     : Node({},
           {
               OutputSocket(*this, "tile ids", data_type<const std::vector<tile::Id>*>(), [this]() { return &m_output_tile_ids; }),
+              OutputSocket(*this, "region aabb", data_type<const geometry::Aabb<2, double>*>(), [this]() { return &m_output_bounds; }),
           })
     , m_tile_id_generator(tile_id_generator)
+    , m_output_bounds { glm::dvec2(std::numeric_limits<double>::max()), glm::dvec2(std::numeric_limits<double>::min()) }
 {
 }
 
@@ -51,7 +53,6 @@ void SelectTilesNode::select_tiles_in_world_aabb(const geometry::Aabb<3, double>
         };
         return region.get_tiles();
     });
-    qDebug() << Qt::fixed << "selected aabb=[(" << aabb.min.x << ", " << aabb.min.y << "), (" << aabb.max.x << ", " << aabb.max.y << ")]";
 }
 
 void SelectTilesNode::run_impl()
@@ -65,6 +66,13 @@ void SelectTilesNode::run_impl()
         return;
     }
     qDebug() << tile_ids.size() << " tiles selected";
+
+    m_output_bounds = { glm::dvec2(std::numeric_limits<double>::max()), glm::dvec2(std::numeric_limits<double>::min()) };
+    for (const auto& tile_id : tile_ids) {
+        m_output_bounds.expand_by(nucleus::srs::tile_bounds(tile_id));
+    }
+    qDebug() << Qt::fixed << "selected aabb=[(" << m_output_bounds.min.x << ", " << m_output_bounds.min.y << "), (" << m_output_bounds.max.x << ", "
+             << m_output_bounds.max.y << ")]";
 
     m_output_tile_ids.insert(m_output_tile_ids.begin(), tile_ids.begin(), tile_ids.end());
     emit run_completed();

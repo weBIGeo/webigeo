@@ -80,8 +80,6 @@ const webgpu::raii::BindGroupLayout& PipelineManager::normals_compute_bind_group
 
 const webgpu::raii::BindGroupLayout& PipelineManager::snow_compute_bind_group_layout() const { return *m_snow_compute_bind_group_layout; }
 
-const webgpu::raii::BindGroupLayout& PipelineManager::overlay_bind_group_layout() const { return *m_overlay_bind_group_layout; }
-
 const webgpu::raii::BindGroupLayout& PipelineManager::downsample_compute_bind_group_layout() const { return *m_downsample_compute_bind_group_layout; }
 
 const webgpu::raii::BindGroupLayout& PipelineManager::upsample_textures_compute_bind_group_layout() const
@@ -141,7 +139,6 @@ void PipelineManager::create_bind_group_layouts()
     create_compose_bind_group_layout();
     create_normals_compute_bind_group_layout();
     create_snow_compute_bind_group_layout();
-    create_overlay_bind_group_layout();
     create_downsample_compute_bind_group_layout();
     create_upsample_textures_compute_bind_group_layout();
     create_lines_bind_group_layout();
@@ -200,10 +197,18 @@ void PipelineManager::create_render_tiles_pipeline()
     m_render_tiles_pipeline
         = std::make_unique<webgpu::raii::GenericRenderPipeline>(m_device, m_shader_manager->render_tiles(), m_shader_manager->render_tiles(),
             std::vector<webgpu::util::SingleVertexBufferInfo> {
-                bounds_buffer_info, texture_layer_buffer_info, tileset_id_buffer_info, zoomlevel_buffer_info, tile_id_buffer_info },
+                bounds_buffer_info,
+                texture_layer_buffer_info,
+                tileset_id_buffer_info,
+                zoomlevel_buffer_info,
+                tile_id_buffer_info,
+            },
             format,
             std::vector<const webgpu::raii::BindGroupLayout*> {
-                m_shared_config_bind_group_layout.get(), m_camera_bind_group_layout.get(), m_tile_bind_group_layout.get(), m_overlay_bind_group_layout.get() });
+                m_shared_config_bind_group_layout.get(),
+                m_camera_bind_group_layout.get(),
+                m_tile_bind_group_layout.get(),
+            });
 }
 
 void PipelineManager::create_render_atmosphere_pipeline()
@@ -452,6 +457,22 @@ void PipelineManager::create_compose_bind_group_layout()
     image_overlay_texture_sampler_entry.visibility = WGPUShaderStage_Fragment;
     image_overlay_texture_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
 
+    WGPUBindGroupLayoutEntry compute_overlay_region_entry {};
+    compute_overlay_region_entry.binding = 8;
+    compute_overlay_region_entry.visibility = WGPUShaderStage_Fragment;
+    compute_overlay_region_entry.buffer.type = WGPUBufferBindingType_Uniform;
+
+    WGPUBindGroupLayoutEntry compute_overlay_texture_entry {};
+    compute_overlay_texture_entry.binding = 9;
+    compute_overlay_texture_entry.visibility = WGPUShaderStage_Fragment;
+    compute_overlay_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
+    compute_overlay_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+    WGPUBindGroupLayoutEntry compute_overlay_texture_sampler_entry {};
+    compute_overlay_texture_sampler_entry.binding = 10;
+    compute_overlay_texture_sampler_entry.visibility = WGPUShaderStage_Fragment;
+    compute_overlay_texture_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
+
     m_compose_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
         std::vector<WGPUBindGroupLayoutEntry> {
             albedo_texture_entry,
@@ -462,57 +483,40 @@ void PipelineManager::create_compose_bind_group_layout()
             image_overlay_region_entry,
             image_overlay_texture_entry,
             image_overlay_texture_sampler_entry,
+            compute_overlay_region_entry,
+            compute_overlay_texture_entry,
+            compute_overlay_texture_sampler_entry,
         },
         "compose bind group layout");
 }
 
 void PipelineManager::create_normals_compute_bind_group_layout()
 {
-    WGPUBindGroupLayoutEntry compute_input_tile_ids_entry {};
-    compute_input_tile_ids_entry.binding = 0;
-    compute_input_tile_ids_entry.visibility = WGPUShaderStage_Compute;
-    compute_input_tile_ids_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    compute_input_tile_ids_entry.buffer.minBindingSize = 0;
+    WGPUBindGroupLayoutEntry input_tile_ids_entry {};
+    input_tile_ids_entry.binding = 0;
+    input_tile_ids_entry.visibility = WGPUShaderStage_Compute;
+    input_tile_ids_entry.buffer.type = WGPUBufferBindingType_Uniform;
+    input_tile_ids_entry.buffer.minBindingSize = 0;
 
-    WGPUBindGroupLayoutEntry compute_input_bounds_entry {};
-    compute_input_bounds_entry.binding = 1;
-    compute_input_bounds_entry.visibility = WGPUShaderStage_Compute;
-    compute_input_bounds_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    compute_input_bounds_entry.buffer.minBindingSize = 0;
+    WGPUBindGroupLayoutEntry input_height_texture_entry {};
+    input_height_texture_entry.binding = 1;
+    input_height_texture_entry.visibility = WGPUShaderStage_Compute;
+    input_height_texture_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
+    input_height_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
-    WGPUBindGroupLayoutEntry compute_key_buffer_entry {};
-    compute_key_buffer_entry.binding = 2;
-    compute_key_buffer_entry.visibility = WGPUShaderStage_Compute;
-    compute_key_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    compute_key_buffer_entry.buffer.minBindingSize = 0;
-
-    WGPUBindGroupLayoutEntry compute_value_buffer_entry {};
-    compute_value_buffer_entry.binding = 3;
-    compute_value_buffer_entry.visibility = WGPUShaderStage_Compute;
-    compute_value_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    compute_value_buffer_entry.buffer.minBindingSize = 0;
-
-    WGPUBindGroupLayoutEntry compute_input_height_textures_entry {};
-    compute_input_height_textures_entry.binding = 4;
-    compute_input_height_textures_entry.visibility = WGPUShaderStage_Compute;
-    compute_input_height_textures_entry.texture.sampleType = WGPUTextureSampleType_Uint;
-    compute_input_height_textures_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
-
-    WGPUBindGroupLayoutEntry compute_input_height_textures_sampler_entry {};
-    compute_input_height_textures_sampler_entry.binding = 5;
-    compute_input_height_textures_sampler_entry.visibility = WGPUShaderStage_Compute;
-    compute_input_height_textures_sampler_entry.sampler.type = WGPUSamplerBindingType_NonFiltering;
-
-    WGPUBindGroupLayoutEntry compute_output_tiles_entry {};
-    compute_output_tiles_entry.binding = 6;
-    compute_output_tiles_entry.visibility = WGPUShaderStage_Compute;
-    compute_output_tiles_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2DArray;
-    compute_output_tiles_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
-    compute_output_tiles_entry.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
+    WGPUBindGroupLayoutEntry output_normal_texture_entry {};
+    output_normal_texture_entry.binding = 2;
+    output_normal_texture_entry.visibility = WGPUShaderStage_Compute;
+    output_normal_texture_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+    output_normal_texture_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
+    output_normal_texture_entry.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
 
     m_normals_compute_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
-        std::vector<WGPUBindGroupLayoutEntry> { compute_input_tile_ids_entry, compute_input_bounds_entry, compute_key_buffer_entry, compute_value_buffer_entry,
-            compute_input_height_textures_entry, compute_input_height_textures_sampler_entry, compute_output_tiles_entry },
+        std::vector<WGPUBindGroupLayoutEntry> {
+            input_tile_ids_entry,
+            input_height_texture_entry,
+            output_normal_texture_entry,
+        },
         "normals compute bind group layout");
 }
 
@@ -570,55 +574,6 @@ void PipelineManager::create_snow_compute_bind_group_layout()
         std::vector<WGPUBindGroupLayoutEntry> { input_tile_ids_entry, input_bounds_entry, input_snow_settings, key_buffer_entry, value_buffer_entry,
             input_height_textures_entry, input_height_texture_sampler, output_tiles_entry },
         "snow compute bind group layout");
-}
-
-void PipelineManager::create_overlay_bind_group_layout()
-{
-    WGPUBindGroupLayoutEntry normals_key_buffer_entry {};
-    normals_key_buffer_entry.binding = 0;
-    normals_key_buffer_entry.visibility = WGPUShaderStage_Fragment;
-    normals_key_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    normals_key_buffer_entry.buffer.minBindingSize = 0;
-
-    WGPUBindGroupLayoutEntry normals_value_buffer_entry {};
-    normals_value_buffer_entry.binding = 1;
-    normals_value_buffer_entry.visibility = WGPUShaderStage_Fragment;
-    normals_value_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    normals_value_buffer_entry.buffer.minBindingSize = 0;
-
-    WGPUBindGroupLayoutEntry normals_textures_entry {};
-    normals_textures_entry.binding = 2;
-    normals_textures_entry.visibility = WGPUShaderStage_Fragment;
-    normals_textures_entry.texture.sampleType = WGPUTextureSampleType_Float;
-    normals_textures_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
-
-    WGPUBindGroupLayoutEntry overlay_key_buffer_entry {};
-    overlay_key_buffer_entry.binding = 3;
-    overlay_key_buffer_entry.visibility = WGPUShaderStage_Fragment;
-    overlay_key_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    overlay_key_buffer_entry.buffer.minBindingSize = 0;
-
-    WGPUBindGroupLayoutEntry overlay_value_buffer_entry {};
-    overlay_value_buffer_entry.binding = 4;
-    overlay_value_buffer_entry.visibility = WGPUShaderStage_Fragment;
-    overlay_value_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    overlay_value_buffer_entry.buffer.minBindingSize = 0;
-
-    WGPUBindGroupLayoutEntry overlay_textures_entry {};
-    overlay_textures_entry.binding = 5;
-    overlay_textures_entry.visibility = WGPUShaderStage_Fragment;
-    overlay_textures_entry.texture.sampleType = WGPUTextureSampleType_Float;
-    overlay_textures_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
-
-    WGPUBindGroupLayoutEntry overlay_sampler_entry {};
-    overlay_sampler_entry.binding = 6;
-    overlay_sampler_entry.visibility = WGPUShaderStage_Fragment;
-    overlay_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
-
-    m_overlay_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
-        std::vector<WGPUBindGroupLayoutEntry> { normals_key_buffer_entry, normals_value_buffer_entry, normals_textures_entry, overlay_key_buffer_entry,
-            overlay_value_buffer_entry, overlay_textures_entry, overlay_sampler_entry },
-        "overlay bind group layout");
 }
 
 void PipelineManager::create_downsample_compute_bind_group_layout()

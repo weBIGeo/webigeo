@@ -37,15 +37,6 @@
 @group(2) @binding(3) var ortho_texture: texture_2d_array<f32>;
 @group(2) @binding(4) var ortho_sampler: sampler;
 
-@group(3) @binding(0) var<storage> normal_hashmap_key_buffer: array<TileId>; // hash map key buffer
-@group(3) @binding(1) var<storage> normal_hashmap_value_buffer: array<u32>; // hash map value buffer, contains texture array indices
-@group(3) @binding(2) var normals_texture: texture_2d_array<f32>; // overlay tiles
-
-@group(3) @binding(3) var<storage> overlay_hashmap_key_buffer: array<TileId>; // hash map key buffer
-@group(3) @binding(4) var<storage> overlay_hashmap_value_buffer: array<u32>; // hash map value buffer, contains texture array indices
-@group(3) @binding(5) var overlay_texture: texture_2d_array<f32>; // overlay tiles
-@group(3) @binding(6) var overlay_sampler: sampler;
-
 struct VertexIn {
     @location(0) bounds: vec4f,
     @location(1) texture_layer: i32,
@@ -193,20 +184,6 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
             normal = normal_by_fragment_position_interpolation(vertex_out.pos_cws);
         }
 
-        // replace per vertex normals with better normals, if present
-        var texure_array_index: u32;
-        let found = get_texture_array_index(tile_id, &texure_array_index, &normal_hashmap_key_buffer, &normal_hashmap_value_buffer);
-        
-        // remap texture coordinates to skip first and last half texel (so uv grid spans only texel centers)
-        let normal_texture_size = textureDimensions(normals_texture);
-        let normal_uv = vertex_out.uv * (vec2f(normal_texture_size - 1) / vec2f(normal_texture_size)) + 1f / (2f * vec2f(normal_texture_size));
-        let normal_texture_texel_value = textureSample(normals_texture, ortho_sampler, normal_uv, texure_array_index).xyzw;
-
-        if (found && normal_texture_texel_value.w != 0.0f) {
-            normal = normal_texture_texel_value.xyz * 2.0 - 1.0;
-            dist = -1.0; // temporary such that we know in compose if we are inside the precalculated area
-        }
-
         frag_out.normal_enc = octNormalEncode2u16(normal);
     }
 
@@ -216,25 +193,6 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
     if (config.overlay_mode > 0u && config.overlay_mode < 100u) {
         if (config.overlay_mode == 1) {
             overlay_color = vec4f(normal * 0.5 + 0.5, 1.0);
-        } else if (config.overlay_mode == 99) { // compute overlay
-            //TODO we should probably write overlay color into a separate gbuffer texture and do blending in compose shader (?) 
-            
-            var texure_array_index: u32;
-            let found = get_texture_array_index(tile_id, &texure_array_index, &overlay_hashmap_key_buffer, &overlay_hashmap_value_buffer);
-
-            // NOTE on uv remapping:
-            //  - does make sense for normals texture (see above), bc each texel CENTER (height) is associated with a vertex
-            //  - textures that are to be used as overlay, should be generated such that their texel BORDER aligns with the vertex grid
-            //  - therefore no remapping needed here
-            //  - and for this reason, directly using the normal texture as overlay looks incorrect
-
-            // textureSample needs to happen in uniform control flow
-            // therefore: if texture was found, sample correct texture array index, otherwise sample from texture 0
-            let sampled_overlay_color = textureSample(overlay_texture, overlay_sampler, vertex_out.uv, texure_array_index).rgba;
-    
-            if (found) {
-                overlay_color = sampled_overlay_color;
-            }
         } else {
             overlay_color = vec4f(vertex_out.color.xyz, 1);
         }

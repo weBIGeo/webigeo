@@ -22,6 +22,7 @@
 #include "UniformBufferObjects.h"
 #include "compute/nodes/ComputeAvalancheInfluenceAreaNode.h"
 #include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
+#include "compute/nodes/ComputeNormalsNode.h"
 #include "compute/nodes/ComputeReleasePointsNode.h"
 #include "compute/nodes/ComputeSnowNode.h"
 
@@ -51,6 +52,7 @@ template <typename T> const webgpu::raii::RawBuffer<T>& Buffer<T>::raw_buffer() 
 // IMPORTANT: All possible Template Classes need to be defined here:
 template class Buffer<uboSharedConfig>;
 template class Buffer<uboCameraConfig>;
+template class Buffer<compute::nodes::ComputeNormalsNode::NormalsSettingsUniform>;
 template class Buffer<compute::nodes::ComputeSnowNode::SnowSettings>;
 template class Buffer<compute::nodes::ComputeAvalancheTrajectoriesNode::AvalancheTrajectoriesSettingsUniform>;
 template class Buffer<compute::nodes::ComputeAvalancheInfluenceAreaNode::AvalancheInfluenceAreaSettings>;

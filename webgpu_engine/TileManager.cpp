@@ -81,8 +81,6 @@ void TileManager::draw(WGPURenderPassEncoder render_pass, const nucleus::camera:
     m_renderer->draw(render_pass, camera, tile_only_list);
 }
 
-void TileManager::set_node_graph(const compute::nodes::NodeGraph& node_graph) { m_renderer->set_node_graph(node_graph); }
-
 void TileManager::remove_tile(const tile::Id& tile_id)
 {
     const auto t = std::find(m_loaded_tiles.begin(), m_loaded_tiles.end(), tile_id);
@@ -287,8 +285,6 @@ void TileRendererInstancedSingleArray::draw(
     wgpuRenderPassEncoderDrawIndexed(render_pass, uint32_t(m_index_buffer_size), uint32_t(tile_list.size()), 0, 0, 0);
 }
 
-void TileRendererInstancedSingleArray::set_node_graph([[maybe_unused]] const compute::nodes::NodeGraph& node_graph) { }
-
 TileRendererInstancedSingleArrayMultiCall::TileRendererInstancedSingleArrayMultiCall(
     WGPUDevice device, WGPUQueue queue, const PipelineManager& pipeline_manager)
     : m_device { device }
@@ -454,8 +450,6 @@ void TileRendererInstancedSingleArrayMultiCall::draw(
     wgpuRenderPassEncoderSetVertexBuffer(render_pass, 3, m_zoom_level_buffer->handle(), 0, m_zoom_level_buffer->size_in_byte());
     wgpuRenderPassEncoderSetVertexBuffer(render_pass, 4, m_tile_id_buffer->handle(), 0, m_tile_id_buffer->size_in_byte());
 
-    wgpuRenderPassEncoderSetBindGroup(render_pass, 3, m_overlay_bind_group->handle(), 0, nullptr);
-
     size_t start_instance_index = 0;
     for (size_t texture_array_index = 0; texture_array_index < counts_per_texture_arrays.size(); texture_array_index++) {
         size_t count = counts_per_texture_arrays.at(texture_array_index);
@@ -469,23 +463,6 @@ void TileRendererInstancedSingleArrayMultiCall::draw(
         wgpuRenderPassEncoderDrawIndexed(render_pass, uint32_t(m_index_buffer_size), uint32_t(count), 0, 0, start_instance_index);
         start_instance_index += count;
     }
-}
-
-void TileRendererInstancedSingleArrayMultiCall::set_node_graph(const compute::nodes::NodeGraph& node_graph)
-{
-    // create binding group for compute graph output
-    WGPUBindGroupEntry normal_hashmap_key_buffer_entry = node_graph.output_normals_hash_map().key_buffer().create_bind_group_entry(0);
-    WGPUBindGroupEntry normal_hashmap_value_buffer_entry = node_graph.output_normals_hash_map().value_buffer().create_bind_group_entry(1);
-    WGPUBindGroupEntry normal_texture_array_entry = node_graph.output_normals_texture_storage().texture().texture_view().create_bind_group_entry(2);
-
-    WGPUBindGroupEntry overlay_hashmap_key_buffer_entry = node_graph.output_overlay_hash_map().key_buffer().create_bind_group_entry(3);
-    WGPUBindGroupEntry overlay_hashmap_value_buffer_entry = node_graph.output_overlay_hash_map().value_buffer().create_bind_group_entry(4);
-    WGPUBindGroupEntry overlay_texture_array_entry = node_graph.output_overlay_texture_storage().texture().texture_view().create_bind_group_entry(5);
-    WGPUBindGroupEntry overlay_sampler_entry = node_graph.output_overlay_texture_storage().texture().sampler().create_bind_group_entry(6);
-
-    std::vector<WGPUBindGroupEntry> entries { normal_hashmap_key_buffer_entry, normal_hashmap_value_buffer_entry, normal_texture_array_entry,
-        overlay_hashmap_key_buffer_entry, overlay_hashmap_value_buffer_entry, overlay_texture_array_entry, overlay_sampler_entry };
-    m_overlay_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->overlay_bind_group_layout(), entries, "overlay bind group");
 }
 
 } // namespace webgpu_engine

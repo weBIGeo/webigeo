@@ -53,7 +53,6 @@ public:
     const webgpu::raii::BindGroupLayout& compose_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& normals_compute_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& snow_compute_bind_group_layout() const;
-    const webgpu::raii::BindGroupLayout& overlay_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& downsample_compute_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& upsample_textures_compute_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& lines_bind_group_layout() const;
@@ -93,7 +92,6 @@ private:
     void create_compose_bind_group_layout();
     void create_normals_compute_bind_group_layout();
     void create_snow_compute_bind_group_layout();
-    void create_overlay_bind_group_layout();
     void create_downsample_compute_bind_group_layout();
     void create_upsample_textures_compute_bind_group_layout();
     void create_lines_bind_group_layout();
@@ -130,7 +128,6 @@ private:
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_tile_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_compose_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_normals_compute_bind_group_layout;
-    std::unique_ptr<webgpu::raii::BindGroupLayout> m_overlay_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_downsample_compute_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_snow_compute_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_upsample_textures_compute_bind_group_layout;

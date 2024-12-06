@@ -124,6 +124,7 @@ public slots:
     void request_redraw();
     void load_track_and_focus(const std::string& path);
     void reload_shaders();
+    void on_pipeline_run_completed();
 
 private slots:
     void file_upload_handler(const std::string& filename, const std::string& tag);
@@ -148,13 +149,13 @@ private:
 
     void select_last_loaded_track_region();
     void refresh_compute_pipeline_settings(const geometry::Aabb3d& world_aabb, const nucleus::track::Point& focused_track_point_coords);
-    void create_and_set_compute_pipeline(ComputePipelineType pipeline_type);
+    void create_and_set_compute_pipeline(ComputePipelineType pipeline_type, bool should_recreate_compose_bind_group = true);
     void update_compute_pipeline_settings();
     void recreate_and_rerun_compute_pipeline();
     void init_compute_pipeline_presets();
     void apply_compute_pipeline_preset(size_t preset_index);
 
-    void create_image_overlay_texture(unsigned int width, unsigned int height);
+    static std::unique_ptr<webgpu::raii::TextureWithSampler> create_overlay_texture(WGPUDevice device, unsigned int width, unsigned int height);
     void update_image_overlay_texture(const std::string& image_file_path);
     bool update_image_overlay_aabb(const std::string& aabb_file_path);
     void update_image_overlay_aabb_and_focus(const std::string& aabb_file_path);
@@ -215,6 +216,9 @@ private:
 
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_image_overlay_texture;
     std::unique_ptr<Buffer<ImageOverlaySettings>> m_image_overlay_settings_uniform_buffer;
+
+    std::unique_ptr<webgpu::raii::TextureWithSampler> m_compute_overlay_dummy_texture;
+    std::unique_ptr<Buffer<ImageOverlaySettings>> m_compute_overlay_settings_uniform_buffer;
 };
 
 } // namespace webgpu_engine

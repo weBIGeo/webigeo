@@ -39,6 +39,10 @@
 @group(2) @binding(6) var image_overlay_texture: texture_2d<f32>;
 @group(2) @binding(7) var image_overlay_sampler: sampler;
 
+@group(2) @binding(8) var<uniform> compute_overlay_settings: ImageOverlaySettings;
+@group(2) @binding(9) var compute_overlay_texture: texture_2d<f32>;
+@group(2) @binding(10) var compute_overlay_sampler: sampler;
+
 struct ImageOverlaySettings {
     aabb_min: vec2f,
     aabb_max: vec2f,
@@ -145,6 +149,9 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
     let image_overlay_uv = (pos_ws.xy - image_overlay_settings.aabb_min) / (image_overlay_settings.aabb_max - image_overlay_settings.aabb_min);
     let image_overlay_color = textureSample(image_overlay_texture, image_overlay_sampler, vec2f(image_overlay_uv.x, 1 - image_overlay_uv.y)); 
 
+    let compute_overlay_uv = (pos_ws.xy - compute_overlay_settings.aabb_min) / (compute_overlay_settings.aabb_max - compute_overlay_settings.aabb_min);
+    let compute_overlay_color = textureSample(compute_overlay_texture, compute_overlay_sampler, vec2f(compute_overlay_uv.x, 1 - compute_overlay_uv.y)); 
+
     // Don't do shading if not visible anyway and also don't for pixels where there is no geometry (depth==0.0)
     if (dist > 0.0) {
         let ray_direction = pos_cws / dist;
@@ -216,6 +223,11 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
                 out_Color = vec4f(mix(out_Color.rgb, overlay_color , image_overlay_settings.alpha), out_Color.a);
             }  
         }
+    }
+
+    if (dist > 0.0 && all(pos_ws.xy >= compute_overlay_settings.aabb_min) && all(pos_ws.xy <= compute_overlay_settings.aabb_max)) {
+        out_Color = vec4f(mix(out_Color.rgb, compute_overlay_color.rgb, compute_overlay_color.a * compute_overlay_settings.alpha), out_Color.a);
+        // could support F32 decoding here too (similar to image overlay), but not needed for now
     }
 
     if (bool(conf.overlay_postshading_enabled)) {
