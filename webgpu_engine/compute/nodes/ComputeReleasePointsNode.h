@@ -30,38 +30,43 @@ class ComputeReleasePointsNode : public Node {
     Q_OBJECT
 
 public:
-    // also used as uniform
     struct ReleasePointsSettings {
-        float min_slope_angle = 28.0f; // min slope angle [rad]
-        float max_slope_angle = 60.0f; // max slope angle [rad]
+        WGPUTextureFormat texture_format = WGPUTextureFormat_RGBA8Unorm;
+        WGPUTextureUsage texture_usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
+        float min_slope_angle = glm::radians(28.0f); // min slope angle [rad]
+        float max_slope_angle = glm::radians(60.0f); // max slope angle [rad]
         glm::uvec2 sampling_density; // sampling density in x and y direction
+    };
+
+    struct ReleasePointsSettingsUniform {
+        float min_slope_angle;
+        float max_slope_angle;
+        glm::uvec2 sampling_density;
     };
 
 public:
     static glm::uvec3 SHADER_WORKGROUP_SIZE; // TODO currently hardcoded in shader! can we somehow not hardcode it? maybe using overrides
 
-    ComputeReleasePointsNode(const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity);
+    ComputeReleasePointsNode(const PipelineManager& pipeline_manager, WGPUDevice device);
+    ComputeReleasePointsNode(const PipelineManager& pipeline_manager, WGPUDevice device, const ReleasePointsSettings& settings);
 
-    void set_settings(const ReleasePointsSettings& settings) { m_settings_uniform.data = settings; }
-
-    const TileStorageTexture& texture_storage() const { return m_output_texture; }
-    TileStorageTexture& texture_storage() { return m_output_texture; }
+    void set_settings(const ReleasePointsSettings& settings) { m_settings = settings; }
 
 public slots:
     void run_impl() override;
+
+private:
+    static std::unique_ptr<webgpu::raii::TextureWithSampler> create_release_points_texture(
+        WGPUDevice device, uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage);
 
 private:
     const PipelineManager* m_pipeline_manager;
     WGPUDevice m_device;
     WGPUQueue m_queue;
 
-    webgpu_engine::Buffer<ReleasePointsSettings> m_settings_uniform;
-
-    // input
-    webgpu::raii::RawBuffer<GpuTileId> m_input_tile_ids;
-
-    // output
-    TileStorageTexture m_output_texture; // texture per tile
+    ReleasePointsSettings m_settings;
+    webgpu_engine::Buffer<ReleasePointsSettingsUniform> m_settings_uniform;
+    std::unique_ptr<webgpu::raii::TextureWithSampler> m_output_texture;
 };
 
 } // namespace webgpu_engine::compute::nodes

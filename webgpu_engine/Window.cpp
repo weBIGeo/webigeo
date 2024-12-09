@@ -424,13 +424,14 @@ void Window::paint_compute_pipeline_gui()
             recreate_and_rerun_compute_pipeline();
         }
 
-        static int current_item = 2;
+        static int current_item = 0;
         const std::vector<std::pair<std::string, ComputePipelineType>> overlays = {
             { "Normals", ComputePipelineType::NORMALS },
             { "Snow + Normals", ComputePipelineType::NORMALS_AND_SNOW },
             { "Avalanche trajectories + Normals", ComputePipelineType::AVALANCHE_TRAJECTORIES },
             { "Avalanche influence area + Normals", ComputePipelineType::AVALANCHE_INFLUENCE_AREA },
             { "D8 directions", ComputePipelineType::D8_DIRECTIONS },
+            { "Release points", ComputePipelineType::RELEASE_POINTS },
         };
         const char* current_item_label = overlays[current_item].first.c_str();
         if (ImGui::BeginCombo("Type", current_item_label)) {
@@ -629,6 +630,23 @@ void Window::paint_compute_pipeline_gui()
                         update_compute_pipeline_settings();
                     }
                 }
+            } else if (m_active_compute_pipeline_type == ComputePipelineType::RELEASE_POINTS) {
+                // TODO remove duplicate code!
+
+                const uint32_t min_sampling_density = 1;
+                const uint32_t max_sampling_density = 256;
+                // 1-> every pixel
+                ImGui::SliderScalar("Sampling density", ImGuiDataType_U32, &m_compute_pipeline_settings.sampling_density, &min_sampling_density,
+                    &max_sampling_density, "%u", ImGuiSliderFlags_Logarithmic);
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    recreate_and_rerun_compute_pipeline();
+                }
+
+                ImGui::DragFloatRange2("Trigger point steepness limit", &m_compute_pipeline_settings.trigger_point_min_slope_angle,
+                    &m_compute_pipeline_settings.trigger_point_max_slope_angle, 0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp);
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    recreate_and_rerun_compute_pipeline();
+                }
             }
             ImGui::PopItemWidth();
             ImGui::TreePop();
@@ -676,6 +694,8 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, 
         m_compute_graph = compute::nodes::NodeGraph::create_avalanche_influence_area_compute_graph(*m_pipeline_manager, m_device);
     } else if (pipeline_type == ComputePipelineType::D8_DIRECTIONS) {
         m_compute_graph = compute::nodes::NodeGraph::create_d8_compute_graph(*m_pipeline_manager, m_device);
+    } else if (pipeline_type == ComputePipelineType::RELEASE_POINTS) {
+        m_compute_graph = compute::nodes::NodeGraph::create_release_points_compute_graph(*m_pipeline_manager, m_device);
     }
 
     update_compute_pipeline_settings();
@@ -693,13 +713,14 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, 
         // we usually need to recreate the compose bind group, because it might have now-outdated texture bindings from the last (now-destroyed) pipeline
         // however, we dont want this to happen when initializing, because at that point we dont have a gbuffer yet (which is required for creating the bind
         // group)
+        clear_compute_overlay();
         recreate_compose_bind_group();
     }
 }
 
 void Window::update_compute_pipeline_settings()
 {
-    if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS) {
+    if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS || m_active_compute_pipeline_type == ComputePipelineType::RELEASE_POINTS) {
         // tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
             .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.max_target_zoomlevel);
@@ -707,6 +728,14 @@ void Window::update_compute_pipeline_settings()
         // tile source
         m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node")
             .set_settings(m_tile_source_settings.at(m_compute_pipeline_settings.tile_source_index));
+
+        if (m_active_compute_pipeline_type == ComputePipelineType::RELEASE_POINTS) {
+            compute::nodes::ComputeReleasePointsNode::ReleasePointsSettings settings;
+            settings.min_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_min_slope_angle);
+            settings.max_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_max_slope_angle);
+            settings.sampling_density = glm::uvec2(m_compute_pipeline_settings.sampling_density);
+            m_compute_graph->get_node_as<compute::nodes::ComputeReleasePointsNode>("compute_release_points_node").set_settings(settings);
+        }
 
     } else if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS_AND_SNOW) {
         // tile selection
@@ -745,7 +774,7 @@ void Window::update_compute_pipeline_settings()
             .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.source_zoomlevel);
 
         // release points settings
-        compute::nodes::ComputeReleasePointsNode::ReleasePointsSettings release_points_settings {};
+        compute::nodes::ComputeReleasePointsNode::ReleasePointsSettings release_points_settings;
         release_points_settings.min_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_min_slope_angle);
         release_points_settings.max_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_max_slope_angle);
         release_points_settings.sampling_density = glm::uvec2(m_compute_pipeline_settings.sampling_density);
@@ -1134,6 +1163,27 @@ void Window::update_image_overlay_aabb_and_focus(const std::string& aabb_file_pa
     emit set_camera_definition_requested(new_camera_definition);
 }
 
+void Window::clear_compute_overlay()
+{
+    m_compute_overlay_texture_view = nullptr;
+    m_compute_overlay_sampler = nullptr;
+    recreate_compose_bind_group();
+}
+
+void Window::update_compute_overlay_texture(const webgpu::raii::TextureWithSampler& texture_with_sampler)
+{
+    m_compute_overlay_texture_view = &texture_with_sampler.texture_view();
+    m_compute_overlay_sampler = &texture_with_sampler.sampler();
+    recreate_compose_bind_group();
+}
+
+void Window::update_compute_overlay_aabb(const geometry::Aabb<2, double>& aabb)
+{
+    m_compute_overlay_settings_uniform_buffer->data.aabb_min = glm::fvec2(aabb.min);
+    m_compute_overlay_settings_uniform_buffer->data.aabb_max = glm::fvec2(aabb.max);
+    m_compute_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
+}
+
 void Window::reload_shaders()
 {
     qDebug() << "reloading shaders...";
@@ -1147,16 +1197,24 @@ void Window::reload_shaders()
 
 void Window::on_pipeline_run_completed()
 {
-    if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS) {
-        // recreate compose bind group because we might have gotten new textures to render
-        recreate_compose_bind_group();
+    // update compute overlay texture and aabb with compute pipeline outputs
+    if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS || m_active_compute_pipeline_type == ComputePipelineType::RELEASE_POINTS) {
+
+        const webgpu::raii::TextureWithSampler* texture = nullptr;
+        if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS) {
+            texture = std::get<const webgpu::raii::TextureWithSampler*>(
+                m_compute_graph->get_node("compute_normals_node").output_socket("normal texture").get_data());
+        } else if (m_active_compute_pipeline_type == ComputePipelineType::RELEASE_POINTS) {
+            texture = std::get<const webgpu::raii::TextureWithSampler*>(
+                m_compute_graph->get_node("compute_release_points_node").output_socket("release point texture").get_data());
+        }
+        assert(texture != nullptr);
+        update_compute_overlay_texture(*texture);
 
         auto& select_tiles_node = m_compute_graph->get_node_as<compute::nodes::SelectTilesNode&>("select_tiles_node");
         geometry::Aabb<2, double> selected_aabb = *std::get<const geometry::Aabb<2, double>*>(select_tiles_node.output_socket("region aabb").get_data());
         selected_aabb.max -= glm::dvec2(nucleus::srs::tile_width(18) / 65, nucleus::srs::tile_height(18) / 65); // stitch node ignores last col/row
-        m_compute_overlay_settings_uniform_buffer->data.aabb_min = glm::fvec2(selected_aabb.min);
-        m_compute_overlay_settings_uniform_buffer->data.aabb_max = glm::fvec2(selected_aabb.max);
-        m_compute_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
+        update_compute_overlay_aabb(selected_aabb);
     }
 }
 
@@ -1180,17 +1238,12 @@ void Window::create_bind_groups()
 void Window::recreate_compose_bind_group()
 {
     // default bindings - we need to bind something, in case compute graph not finished yet (or has been cleared)
-    WGPUBindGroupEntry compute_overlay_texture_entry = m_compute_overlay_dummy_texture->texture_view().create_bind_group_entry(9);
-    WGPUBindGroupEntry compute_overlay_sampler_entry = m_compute_overlay_dummy_texture->sampler().create_bind_group_entry(10);
-
-    if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS) {
-        const webgpu::raii::TextureWithSampler* texture
-            = std::get<const webgpu::raii::TextureWithSampler*>(m_compute_graph->get_node("compute_normals_node").output_socket("normal texture").get_data());
-        if (texture != nullptr) {
-            compute_overlay_texture_entry = texture->texture_view().create_bind_group_entry(9);
-            compute_overlay_sampler_entry = texture->sampler().create_bind_group_entry(10);
-        }
-    }
+    const webgpu::raii::TextureView& compute_overlay_texture_view
+        = m_compute_overlay_texture_view != nullptr ? *m_compute_overlay_texture_view : m_compute_overlay_dummy_texture->texture_view();
+    const webgpu::raii::Sampler& compute_overlay_sampler
+        = m_compute_overlay_sampler != nullptr ? *m_compute_overlay_sampler : m_compute_overlay_dummy_texture->sampler();
+    WGPUBindGroupEntry compute_overlay_texture_entry = compute_overlay_texture_view.create_bind_group_entry(9);
+    WGPUBindGroupEntry compute_overlay_sampler_entry = compute_overlay_sampler.create_bind_group_entry(10);
 
     m_compose_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->compose_bind_group_layout(),
         std::initializer_list<WGPUBindGroupEntry> {

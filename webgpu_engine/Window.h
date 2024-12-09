@@ -89,6 +89,7 @@ public:
         AVALANCHE_TRAJECTORIES = 2,
         AVALANCHE_INFLUENCE_AREA = 3,
         D8_DIRECTIONS = 4,
+        RELEASE_POINTS = 5,
     };
 
 public:
@@ -160,6 +161,10 @@ private:
     bool update_image_overlay_aabb(const std::string& aabb_file_path);
     void update_image_overlay_aabb_and_focus(const std::string& aabb_file_path);
 
+    void clear_compute_overlay();
+    void update_compute_overlay_texture(const webgpu::raii::TextureWithSampler& texture_with_sampler);
+    void update_compute_overlay_aabb(const geometry::Aabb<2, double>& aabb);
+
     void display_message(const std::string& message);
 
 private:
@@ -219,6 +224,9 @@ private:
 
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_compute_overlay_dummy_texture;
     std::unique_ptr<Buffer<ImageOverlaySettings>> m_compute_overlay_settings_uniform_buffer;
+
+    const webgpu::raii::TextureView* m_compute_overlay_texture_view = nullptr; // will be set to correct texture view after pipeline run completion
+    const webgpu::raii::Sampler* m_compute_overlay_sampler = nullptr; // will be set to correct sampler after pipeline run completion
 };
 
 } // namespace webgpu_engine

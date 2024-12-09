@@ -154,7 +154,7 @@ void NodeGraph::emit_graph_failure(NodeRunFailureInfo info)
     emit run_failed(GraphRunFailureInfo(it->first, info));
 }
 
-std::unique_ptr<NodeGraph> NodeGraph::create_normal_compute_graph(const PipelineManager& manager, WGPUDevice device)
+static std::unique_ptr<NodeGraph> create_normal_compute_graph_unconnected(const PipelineManager& manager, WGPUDevice device)
 {
     const glm::uvec2 input_resolution = { 65, 65 };
 
@@ -194,8 +194,25 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_compute_graph(const Pipeline
     normal_compute_node->input_socket("bounds").connect(tile_select_node->output_socket("region aabb"));
     normal_compute_node->input_socket("height texture").connect(height_decode_node->output_socket("decoded texture"));
 
-    node_graph->connect_node_signals_and_slots();
+    return node_graph;
+}
 
+std::unique_ptr<NodeGraph> NodeGraph::create_normal_compute_graph(const PipelineManager& manager, WGPUDevice device)
+{
+    auto node_graph = create_normal_compute_graph_unconnected(manager, device);
+    node_graph->connect_node_signals_and_slots();
+    return node_graph;
+}
+
+std::unique_ptr<NodeGraph> NodeGraph::create_release_points_compute_graph(const PipelineManager& manager, WGPUDevice device)
+{
+    auto node_graph = create_normal_compute_graph_unconnected(manager, device);
+
+    // add and connect release points node
+    Node* release_points_node = node_graph->add_node("compute_release_points_node", std::make_unique<ComputeReleasePointsNode>(manager, device));
+    release_points_node->input_socket("normal texture").connect(node_graph->get_node("compute_normals_node").output_socket("normal texture"));
+
+    node_graph->connect_node_signals_and_slots();
     return node_graph;
 }
 
@@ -332,8 +349,8 @@ std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_trajectories_compute_grap
         node_graph->add_node("downsample_trajectory_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity)));
     DownsampleTilesNode* downsample_normals_tiles_node = static_cast<DownsampleTilesNode*>(
         node_graph->add_node("downsample_normals_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity)));
-    ComputeReleasePointsNode* release_points_node = static_cast<ComputeReleasePointsNode*>(
-        node_graph->add_node("release_points_node", std::make_unique<ComputeReleasePointsNode>(manager, device, input_resolution, capacity)));
+    ComputeReleasePointsNode* release_points_node
+        = static_cast<ComputeReleasePointsNode*>(node_graph->add_node("release_points_node", std::make_unique<ComputeReleasePointsNode>(manager, device)));
 
     TileStitchNode::StitchSettings stitch_setting = { .tile_size = input_resolution,
         .tile_has_border = true,

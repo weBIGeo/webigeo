@@ -56,7 +56,7 @@ template class Buffer<compute::nodes::ComputeNormalsNode::NormalsSettingsUniform
 template class Buffer<compute::nodes::ComputeSnowNode::SnowSettings>;
 template class Buffer<compute::nodes::ComputeAvalancheTrajectoriesNode::AvalancheTrajectoriesSettingsUniform>;
 template class Buffer<compute::nodes::ComputeAvalancheInfluenceAreaNode::AvalancheInfluenceAreaSettings>;
-template class Buffer<compute::nodes::ComputeReleasePointsNode::ReleasePointsSettings>;
+template class Buffer<compute::nodes::ComputeReleasePointsNode::ReleasePointsSettingsUniform>;
 template class Buffer<TrackRenderer::LineConfig>;
 template class Buffer<ImageOverlaySettings>;
 // TODO
