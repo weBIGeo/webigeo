@@ -31,7 +31,7 @@ struct BufferToTextureSettings {
 
 fn read_buffer_at(pos: vec2u) -> u32 {
     let index = pos.y * settings.input_resolution.x + pos.x;
-    return input_storage_buffer[index];  
+    return input_storage_buffer[index];
 }
 
 @compute @workgroup_size(16, 16, 1)

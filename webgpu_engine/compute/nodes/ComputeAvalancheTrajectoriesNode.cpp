@@ -18,7 +18,6 @@
 
 #include "ComputeAvalancheTrajectoriesNode.h"
 
-#include "nucleus/srs.h"
 #include <QDebug>
 
 namespace webgpu_engine::compute::nodes {
@@ -26,6 +25,12 @@ namespace webgpu_engine::compute::nodes {
 glm::uvec3 ComputeAvalancheTrajectoriesNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
 
 ComputeAvalancheTrajectoriesNode::ComputeAvalancheTrajectoriesNode(const PipelineManager& pipeline_manager, WGPUDevice device)
+    : ComputeAvalancheTrajectoriesNode(pipeline_manager, device, AvalancheTrajectoriesSettings())
+{
+}
+
+ComputeAvalancheTrajectoriesNode::ComputeAvalancheTrajectoriesNode(
+    const PipelineManager& pipeline_manager, WGPUDevice device, const AvalancheTrajectoriesSettings& settings)
     : Node(
           {
               InputSocket(*this, "region aabb", data_type<const geometry::Aabb<2, double>*>()),
@@ -40,6 +45,7 @@ ComputeAvalancheTrajectoriesNode::ComputeAvalancheTrajectoriesNode(const Pipelin
     , m_pipeline_manager { &pipeline_manager }
     , m_device { device }
     , m_queue(wgpuDeviceGetQueue(m_device))
+    , m_settings { settings }
     , m_settings_uniform(device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
     , m_sampler(create_sampler(m_device))
 {
@@ -95,18 +101,20 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
         return;
     }
 
+    m_output_dimensions = glm::uvec2(input_width, input_height) * m_settings.resolution_multiplier;
+
+    qDebug() << "input resolution: " << input_width << "x" << input_height;
+    qDebug() << "output resolution: " << m_output_dimensions.x << "x" << m_output_dimensions.y;
+
     // create output storage buffer
     m_output_storage_buffer
         = std::make_unique<webgpu::raii::RawBuffer<uint32_t>>(m_device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc,
-            input_width * input_height, "avalanche trajectories compute output storage");
+            m_output_dimensions.x * m_output_dimensions.y, "avalanche trajectories compute output storage");
 
     // update input settings on GPU side
-    m_settings_uniform.data.output_resolution.x = uint32_t(input_width);
-    m_settings_uniform.data.output_resolution.y = uint32_t(input_height);
+    m_settings_uniform.data.output_resolution = m_output_dimensions;
     m_settings_uniform.data.region_size = glm::fvec2(region_aabb->size());
     update_gpu_settings();
-
-    m_output_dimensions = glm::uvec2(input_width, input_height);
 
     // create bind group
     std::vector<WGPUBindGroupEntry> entries {
@@ -132,7 +140,7 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
             compute_pass_desc.label = "avalanche trajectories compute pass";
             webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
 
-            glm::uvec3 workgroup_counts = glm::ceil(glm::vec3(input_width, input_height, 1) / glm::vec3(SHADER_WORKGROUP_SIZE));
+            glm::uvec3 workgroup_counts = glm::ceil(glm::vec3(m_output_dimensions.x, m_output_dimensions.y, 1) / glm::vec3(SHADER_WORKGROUP_SIZE));
             wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, compute_bind_group.handle(), 0, nullptr);
             m_pipeline_manager->avalanche_trajectories_compute_pipeline().run(compute_pass, workgroup_counts);
         }

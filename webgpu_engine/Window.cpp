@@ -22,7 +22,6 @@
 #include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
 #include "compute/nodes/ComputeReleasePointsNode.h"
 #include "compute/nodes/ComputeSnowNode.h"
-#include "compute/nodes/DownsampleTilesNode.h"
 #include "compute/nodes/SelectTilesNode.h"
 #include "nucleus/track/GPX.h"
 #include "nucleus/utils/image_loader.h"
@@ -469,6 +468,14 @@ void Window::paint_compute_pipeline_gui()
                     ImGui::EndCombo();
                 }
 
+                const uint32_t min_resolution_multiplier = 1;
+                const uint32_t max_resolution_multiplier = 32;
+                ImGui::SliderScalar("Res. mult.", ImGuiDataType_U32, &m_compute_pipeline_settings.trajectory_resolution_multiplier, &min_resolution_multiplier,
+                    &max_resolution_multiplier, "%u");
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    recreate_and_rerun_compute_pipeline();
+                }
+
                 const uint32_t min_sampling_density = 1;
                 const uint32_t max_sampling_density = 256;
                 // 1-> 1x pro 256 -> 256
@@ -764,6 +771,7 @@ void Window::update_compute_pipeline_settings()
 
         // trajectories settings
         compute::nodes::ComputeAvalancheTrajectoriesNode::AvalancheTrajectoriesSettings trajectory_settings {};
+        trajectory_settings.resolution_multiplier = m_compute_pipeline_settings.trajectory_resolution_multiplier;
         trajectory_settings.num_steps = m_compute_pipeline_settings.num_steps;
         trajectory_settings.step_length = m_compute_pipeline_settings.steps_length;
         trajectory_settings.active_model = compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType(m_compute_pipeline_settings.model_type);

@@ -70,6 +70,7 @@ public:
     };
 
     struct AvalancheTrajectoriesSettings {
+        uint32_t resolution_multiplier = 1;
         uint32_t num_steps = 1024;
         float step_length = 0.1f;
 
@@ -116,6 +117,7 @@ private:
 
 public:
     ComputeAvalancheTrajectoriesNode(const PipelineManager& pipeline_manager, WGPUDevice device);
+    ComputeAvalancheTrajectoriesNode(const PipelineManager& pipeline_manager, WGPUDevice device, const AvalancheTrajectoriesSettings& settings);
 
     void update_gpu_settings();
 

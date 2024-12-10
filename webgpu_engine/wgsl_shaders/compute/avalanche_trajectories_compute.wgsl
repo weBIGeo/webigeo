@@ -68,8 +68,7 @@ struct AvalancheTrajectoriesSettings {
 
 // writes single pixel to storage buffer, value must be in [0,1]
 fn write_pixel_at_pos(pos: vec2u, value: f32) {
-    let output_texture_size = textureDimensions(input_normal_texture); //TODO adapt here if we want to do upscaling 
-    let buffer_index = pos.y * output_texture_size.x + pos.x;
+    let buffer_index = pos.y * settings.output_resolution.x + pos.x;
     let value_u32 =  u32(value * (1 << 31)); // map value from [0,1] angle to [0, 2^32 - 1]
     atomicMax(&output_storage_buffer[buffer_index], value_u32);         
 }
