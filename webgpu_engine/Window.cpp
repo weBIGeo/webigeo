@@ -418,8 +418,7 @@ void Window::paint_compute_pipeline_gui()
 
         const uint32_t min_zoomlevel = 1;
         const uint32_t max_zoomlevel = 18;
-        ImGui::DragIntRange2("Target zoom levels", &m_compute_pipeline_settings.min_target_zoomlevel, &m_compute_pipeline_settings.max_target_zoomlevel, 0.1,
-            static_cast<int>(min_zoomlevel), static_cast<int>(max_zoomlevel), "From: %d", "To: %d");
+        ImGui::SliderScalar("Zoom level", ImGuiDataType_U32, &m_compute_pipeline_settings.zoomlevel, &min_zoomlevel, &max_zoomlevel, "%u");
         if (ImGui::IsItemDeactivatedAfterEdit()) {
             recreate_and_rerun_compute_pipeline();
         }
@@ -477,11 +476,6 @@ void Window::paint_compute_pipeline_gui()
                 // 2-> 2x pro 256 -> 128
                 ImGui::SliderScalar("Sampling density", ImGuiDataType_U32, &m_compute_pipeline_settings.sampling_density, &min_sampling_density,
                     &max_sampling_density, "%u", ImGuiSliderFlags_Logarithmic);
-                if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    recreate_and_rerun_compute_pipeline();
-                }
-                ImGui::SliderScalar(
-                    "Source zoom level", ImGuiDataType_U32, &m_compute_pipeline_settings.source_zoomlevel, &min_zoomlevel, &max_zoomlevel, "%u");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     recreate_and_rerun_compute_pipeline();
                 }
@@ -723,7 +717,7 @@ void Window::update_compute_pipeline_settings()
     if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS || m_active_compute_pipeline_type == ComputePipelineType::RELEASE_POINTS) {
         // tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
-            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.max_target_zoomlevel);
+            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.zoomlevel);
 
         // tile source
         m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node")
@@ -740,7 +734,7 @@ void Window::update_compute_pipeline_settings()
     } else if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS_AND_SNOW) {
         // tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
-            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.max_target_zoomlevel);
+            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.zoomlevel);
 
         // tile source
         m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node")
@@ -753,17 +747,10 @@ void Window::update_compute_pipeline_settings()
         }
         m_compute_graph->get_node_as<compute::nodes::ComputeSnowNode>("compute_snow_node").set_snow_settings(m_compute_pipeline_settings.snow_settings);
 
-        // downsampling
-        compute::nodes::DownsampleTilesNode::DownsampleSettings downsample_settings {
-            .num_levels = static_cast<uint32_t>(m_compute_pipeline_settings.max_target_zoomlevel - m_compute_pipeline_settings.min_target_zoomlevel),
-        };
-        m_compute_graph->get_node_as<compute::nodes::DownsampleTilesNode>("downsample_tiles_node").set_downsample_settings(downsample_settings);
-        m_compute_graph->get_node_as<compute::nodes::DownsampleTilesNode>("downsample_snow_tiles_node").set_downsample_settings(downsample_settings);
-
     } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
         // tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
-            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.max_target_zoomlevel);
+            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.zoomlevel);
 
         // tile source
         m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node")
@@ -777,24 +764,21 @@ void Window::update_compute_pipeline_settings()
 
         // trajectories settings
         compute::nodes::ComputeAvalancheTrajectoriesNode::AvalancheTrajectoriesSettings trajectory_settings {};
-        trajectory_settings.trigger_points.sampling_density = glm::uvec2(m_compute_pipeline_settings.sampling_density);
-        trajectory_settings.simulation.num_steps = m_compute_pipeline_settings.num_steps;
-        trajectory_settings.simulation.step_length = m_compute_pipeline_settings.steps_length;
-        trajectory_settings.simulation.zoomlevel = m_compute_pipeline_settings.source_zoomlevel;
-        trajectory_settings.simulation.active_model
-            = compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType(m_compute_pipeline_settings.model_type);
-        trajectory_settings.simulation.model1.slowdown_coefficient = m_compute_pipeline_settings.model1_slowdown_coeff;
-        trajectory_settings.simulation.model1.speedup_coefficient = m_compute_pipeline_settings.model1_speedup_coeff;
-        trajectory_settings.simulation.model2.gravity = m_compute_pipeline_settings.model2_gravity;
-        trajectory_settings.simulation.model2.mass = m_compute_pipeline_settings.model2_mass;
-        trajectory_settings.simulation.model2.friction_coeff = m_compute_pipeline_settings.model2_friction_coeff;
-        trajectory_settings.simulation.model2.drag_coeff = m_compute_pipeline_settings.model2_drag_coeff;
-        trajectory_settings.simulation.model_d8_with_weights.weights = m_compute_pipeline_settings.model5_weights;
-        trajectory_settings.simulation.model_d8_with_weights.center_height_offset = m_compute_pipeline_settings.model_d8_with_weights_center_height_offset;
+        trajectory_settings.num_steps = m_compute_pipeline_settings.num_steps;
+        trajectory_settings.step_length = m_compute_pipeline_settings.steps_length;
+        trajectory_settings.active_model = compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType(m_compute_pipeline_settings.model_type);
+        trajectory_settings.model1.slowdown_coefficient = m_compute_pipeline_settings.model1_slowdown_coeff;
+        trajectory_settings.model1.speedup_coefficient = m_compute_pipeline_settings.model1_speedup_coeff;
+        trajectory_settings.model2.gravity = m_compute_pipeline_settings.model2_gravity;
+        trajectory_settings.model2.mass = m_compute_pipeline_settings.model2_mass;
+        trajectory_settings.model2.friction_coeff = m_compute_pipeline_settings.model2_friction_coeff;
+        trajectory_settings.model2.drag_coeff = m_compute_pipeline_settings.model2_drag_coeff;
+        trajectory_settings.model_d8_with_weights.weights = m_compute_pipeline_settings.model5_weights;
+        trajectory_settings.model_d8_with_weights.center_height_offset = m_compute_pipeline_settings.model_d8_with_weights_center_height_offset;
 
-        trajectory_settings.simulation.active_runout_model
+        trajectory_settings.active_runout_model
             = compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType(m_compute_pipeline_settings.runout_model_type);
-        trajectory_settings.simulation.perla = m_compute_pipeline_settings.perla;
+        trajectory_settings.perla = m_compute_pipeline_settings.perla;
 
         auto& trajectories_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("compute_avalanche_trajectories_node");
         trajectories_node.set_settings(trajectory_settings);
@@ -802,11 +786,11 @@ void Window::update_compute_pipeline_settings()
     } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_INFLUENCE_AREA) {
         // tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_target_tiles_node")
-            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.max_target_zoomlevel);
+            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.zoomlevel);
 
         // data source tile selection
-        m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_source_tiles_node")
-            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.source_zoomlevel);
+        // m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_source_tiles_node")
+        //    .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.source_zoomlevel);
 
         // tile source
         m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node")
@@ -819,7 +803,7 @@ void Window::update_compute_pipeline_settings()
         area_of_influence_node.set_num_steps(m_compute_pipeline_settings.num_steps);
         area_of_influence_node.set_step_length(m_compute_pipeline_settings.steps_length);
         area_of_influence_node.set_radius(m_compute_pipeline_settings.radius);
-        area_of_influence_node.set_source_zoomlevel(m_compute_pipeline_settings.source_zoomlevel);
+        // area_of_influence_node.set_source_zoomlevel(m_compute_pipeline_settings.source_zoomlevel);
         area_of_influence_node.set_physics_model_type(
             compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType(m_compute_pipeline_settings.model_type));
         area_of_influence_node.set_model1_downward_acceleration_coeff(m_compute_pipeline_settings.model1_speedup_coeff);
@@ -829,17 +813,10 @@ void Window::update_compute_pipeline_settings()
         area_of_influence_node.set_model2_friction_coeff(m_compute_pipeline_settings.model2_friction_coeff);
         area_of_influence_node.set_model2_drag_coeff(m_compute_pipeline_settings.model2_drag_coeff);
 
-        // downsampling
-        compute::nodes::DownsampleTilesNode::DownsampleSettings downsample_settings {
-            .num_levels = static_cast<uint32_t>(m_compute_pipeline_settings.max_target_zoomlevel - m_compute_pipeline_settings.min_target_zoomlevel),
-        };
-        m_compute_graph->get_node_as<compute::nodes::DownsampleTilesNode>("downsample_area_of_influence_tiles_node")
-            .set_downsample_settings(downsample_settings);
-        m_compute_graph->get_node_as<compute::nodes::DownsampleTilesNode>("downsample_normals_tiles_node").set_downsample_settings(downsample_settings);
     } else if (m_active_compute_pipeline_type == ComputePipelineType::D8_DIRECTIONS) {
         // tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
-            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.max_target_zoomlevel);
+            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.zoomlevel);
 
         // tile source
         m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node")
@@ -861,14 +838,12 @@ void Window::init_compute_pipeline_presets()
     ComputePipelineSettings default_values;
     ComputePipelineSettings preset_a = {
         .target_region = {}, // select tiles node
-        .min_target_zoomlevel = 13,
-        .max_target_zoomlevel = 18,
+        .zoomlevel = 18,
         .reference_point = {}, // area of influence node
         .target_point = {}, // area of influence node
         .num_steps = 512u, // area of influence node
         .steps_length = 0.1f, // area of influence node
         .radius = 20.0f, // area of influence node
-        .source_zoomlevel = 15u, // area of influence node
         .sync_snow_settings_with_render_settings = true, // snow node
         .snow_settings = compute::nodes::ComputeSnowNode::SnowSettings(), // snow node
         .sampling_density = 16, // trajectories node
@@ -882,14 +857,12 @@ void Window::init_compute_pipeline_presets()
     };
     ComputePipelineSettings preset_b = {
         .target_region = {}, // select tiles node
-        .min_target_zoomlevel = 13,
-        .max_target_zoomlevel = 18,
+        .zoomlevel = 18,
         .reference_point = {}, // area of influence node
         .target_point = {}, // area of influence node
         .num_steps = 2048u, // area of influence node
         .steps_length = 0.1f, // area of influence node
         .radius = 20.0f, // area of influence node
-        .source_zoomlevel = 15u, // area of influence node
         .sync_snow_settings_with_render_settings = true, // snow node
         .snow_settings = compute::nodes::ComputeSnowNode::SnowSettings(), // snow node
         .sampling_density = 16, // trajectories node

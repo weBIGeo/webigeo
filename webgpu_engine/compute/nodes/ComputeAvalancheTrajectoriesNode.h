@@ -31,13 +31,6 @@ class ComputeAvalancheTrajectoriesNode : public Node {
 public:
     static glm::uvec3 SHADER_WORKGROUP_SIZE; // TODO currently hardcoded in shader! can we somehow not hardcode it? maybe using overrides
 
-    struct TriggerPoints {
-        glm::uvec2 sampling_density;
-
-        float min_slope_angle = 28.0f; // in degrees
-        float max_slope_angle = 60.0f; // in degrees
-    };
-
     enum PhysicsModelType : uint32_t {
         MODEL1 = 0,
         MODEL2 = 1,
@@ -76,8 +69,7 @@ public:
         float g = 9.81f; // acceleration due to gravity (in m/s^2)
     };
 
-    struct Simulation {
-        uint32_t zoomlevel = 16;
+    struct AvalancheTrajectoriesSettings {
         uint32_t num_steps = 1024;
         float step_length = 0.1f;
 
@@ -90,11 +82,6 @@ public:
         RunoutPerlaParams perla;
     };
 
-    struct AvalancheTrajectoriesSettings {
-        TriggerPoints trigger_points;
-        Simulation simulation;
-    };
-
 private:
     struct AvalancheTrajectoriesSettingsUniform {
         glm::uvec2 output_resolution;
@@ -102,7 +89,6 @@ private:
 
         uint32_t num_steps = 128;
         float step_length = 0.5f;
-        uint32_t source_zoomlevel;
 
         PhysicsModelType physics_model_type;
         float model1_linear_drag_coeff;
@@ -111,11 +97,6 @@ private:
         float model2_mass;
         float model2_friction_coeff;
         float model2_drag_coeff;
-
-        // TODO remove
-        float trigger_point_min_slope_angle; // in radians
-        float trigger_point_max_slope_angle; // in radians
-
         float model_d8_with_weights_weights[8];
         float model_d8_with_weights_center_height_offset;
 
@@ -128,6 +109,9 @@ private:
 
         uint32_t padding1;
         uint32_t padding2;
+        uint32_t padding3;
+        uint32_t padding4;
+        uint32_t padding5;
     };
 
 public:

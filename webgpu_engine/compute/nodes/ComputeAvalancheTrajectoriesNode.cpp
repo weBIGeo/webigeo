@@ -47,35 +47,28 @@ ComputeAvalancheTrajectoriesNode::ComputeAvalancheTrajectoriesNode(const Pipelin
 
 void ComputeAvalancheTrajectoriesNode::update_gpu_settings()
 {
-    // m_settings_uniform.data.sampling_interval = glm::uvec2(m_output_resolution / m_settings.trigger_points.sampling_density);
+    m_settings_uniform.data.num_steps = m_settings.num_steps;
+    m_settings_uniform.data.step_length = m_settings.step_length;
 
-    m_settings_uniform.data.num_steps = m_settings.simulation.num_steps;
-    m_settings_uniform.data.step_length = m_settings.simulation.step_length;
-    m_settings_uniform.data.source_zoomlevel = m_settings.simulation.zoomlevel;
+    m_settings_uniform.data.physics_model_type = m_settings.active_model;
+    m_settings_uniform.data.model1_linear_drag_coeff = m_settings.model1.slowdown_coefficient;
+    m_settings_uniform.data.model1_downward_acceleration_coeff = m_settings.model1.speedup_coefficient;
+    m_settings_uniform.data.model2_gravity = m_settings.model2.gravity;
+    m_settings_uniform.data.model2_mass = m_settings.model2.mass;
+    m_settings_uniform.data.model2_friction_coeff = m_settings.model2.friction_coeff;
+    m_settings_uniform.data.model2_drag_coeff = m_settings.model2.drag_coeff;
 
-    m_settings_uniform.data.physics_model_type = m_settings.simulation.active_model;
-    m_settings_uniform.data.model1_linear_drag_coeff = m_settings.simulation.model1.slowdown_coefficient;
-    m_settings_uniform.data.model1_downward_acceleration_coeff = m_settings.simulation.model1.speedup_coefficient;
-    m_settings_uniform.data.model2_gravity = m_settings.simulation.model2.gravity;
-    m_settings_uniform.data.model2_mass = m_settings.simulation.model2.mass;
-    m_settings_uniform.data.model2_friction_coeff = m_settings.simulation.model2.friction_coeff;
-    m_settings_uniform.data.model2_drag_coeff = m_settings.simulation.model2.drag_coeff;
-
-    // m_settings_uniform.data.trigger_point_min_slope_angle = glm::radians(m_settings.trigger_points.min_slope_angle);
-    // m_settings_uniform.data.trigger_point_max_slope_angle = glm::radians(m_settings.trigger_points.max_slope_angle);
-
-    for (uint8_t i = 0; i < sizeof(m_settings.simulation.model_d8_with_weights.weights.size()); i++) {
-        m_settings_uniform.data.model_d8_with_weights_weights[i] = m_settings.simulation.model_d8_with_weights.weights[i];
+    for (uint8_t i = 0; i < sizeof(m_settings.model_d8_with_weights.weights.size()); i++) {
+        m_settings_uniform.data.model_d8_with_weights_weights[i] = m_settings.model_d8_with_weights.weights[i];
     }
-    m_settings_uniform.data.model_d8_with_weights_center_height_offset = m_settings.simulation.model_d8_with_weights.center_height_offset;
+    m_settings_uniform.data.model_d8_with_weights_center_height_offset = m_settings.model_d8_with_weights.center_height_offset;
 
-    m_settings_uniform.data.runout_model_type = m_settings.simulation.active_runout_model;
-    m_settings_uniform.data.runout_perla_my = m_settings.simulation.perla.my;
-    m_settings_uniform.data.runout_perla_md = m_settings.simulation.perla.md;
-    m_settings_uniform.data.runout_perla_l = m_settings.simulation.perla.l;
-    m_settings_uniform.data.runout_perla_g = m_settings.simulation.perla.g;
+    m_settings_uniform.data.runout_model_type = m_settings.active_runout_model;
+    m_settings_uniform.data.runout_perla_my = m_settings.perla.my;
+    m_settings_uniform.data.runout_perla_md = m_settings.perla.md;
+    m_settings_uniform.data.runout_perla_l = m_settings.perla.l;
+    m_settings_uniform.data.runout_perla_g = m_settings.perla.g;
 
-    m_settings_uniform.data.source_zoomlevel = m_settings.simulation.zoomlevel;
     m_settings_uniform.update_gpu_data(m_queue);
 }
 

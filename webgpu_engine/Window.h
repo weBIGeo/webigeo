@@ -43,14 +43,12 @@ namespace webgpu_engine {
 // TODO quite ugly solution
 struct ComputePipelineSettings {
     geometry::Aabb<3, double> target_region = {}; // select tiles node
-    int min_target_zoomlevel = 13; // select tiles node
-    int max_target_zoomlevel = 18; // downsample tiles node (max - min zoom level = num downsample steps)
+    uint32_t zoomlevel = 18;
     glm::dvec3 reference_point = {}; // area of influence node
     glm::dvec2 target_point = {}; // area of influence node
     uint32_t num_steps = 1024u; // area of influence node
     float steps_length = 0.1f; // area of influence node
     float radius = 20.0f; // area of influence node
-    uint32_t source_zoomlevel = 15u; // area of influence node
     bool sync_snow_settings_with_render_settings = true; // snow node
     compute::nodes::ComputeSnowNode::SnowSettings snow_settings; // snow node
 

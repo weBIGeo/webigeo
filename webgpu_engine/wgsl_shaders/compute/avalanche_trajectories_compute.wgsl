@@ -28,7 +28,6 @@ struct AvalancheTrajectoriesSettings {
 
     num_steps: u32, // maximum number of steps (along gradient)
     step_length: f32, // length of one simulation step in world space
-    source_zoomlevel: u32,
 
     model_type: u32, //0 is simple, 1 is more complex
     model1_linear_drag_coeff: f32,
@@ -37,9 +36,6 @@ struct AvalancheTrajectoriesSettings {
     model2_mass: f32,
     model2_friction_coeff: f32,
     model2_drag_coeff: f32,
-
-    trigger_point_min_slope_angle: f32, // in rad
-    trigger_point_max_slope_angle: f32, // in rad
 
     //model5_weights: array<f32, 8>, // wgsl compiler does not allow f32 arrays in uniforms because of padding requirements, altough it would work here
     model5_weights: array<vec4f, 2>,
@@ -51,9 +47,6 @@ struct AvalancheTrajectoriesSettings {
     runout_perla_md: f32, // M/D mass-to-drag ratio
     runout_perla_l: f32, // distance between grid cells (in m)
     runout_perla_g: f32, // acceleration due to gravity (in m/s^2)
-
-    padding1: u32,
-    padding2: u32,
 }
 
 // input
