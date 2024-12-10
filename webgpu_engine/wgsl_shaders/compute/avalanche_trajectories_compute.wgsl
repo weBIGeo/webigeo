@@ -20,9 +20,7 @@
 
 #include "util/filtering.wgsl"
 #include "util/tile_util.wgsl"
-#include "util/tile_hashmap.wgsl"
 #include "util/normals_util.wgsl"
-#include "util/color_mapping.wgsl"
 
 struct AvalancheTrajectoriesSettings {
     output_resolution: vec2u,
@@ -81,11 +79,6 @@ fn write_pixel_at_pos(pos: vec2u, value: f32) {
     let buffer_index = pos.y * output_texture_size.x + pos.x;
     let value_u32 =  u32(value * (1 << 31)); // map value from [0,1] angle to [0, 2^32 - 1]
     atomicMax(&output_storage_buffer[buffer_index], value_u32);         
-}
-
-// returns slope angle in radians based on surface normal (0 is horizontal, pi/2 is vertical)
-fn get_slope_angle(normal: vec3f) -> f32 {
-    return acos(normal.z);
 }
 
 fn sample_normal_texture(uv: vec2f) -> vec3f {

@@ -130,3 +130,8 @@ fn get_gradient(normal: vec3f) -> vec3f {
     let gradient = cross(right, normal);
     return gradient;
 }
+
+// returns slope angle in radians based on surface normal (0 is horizontal, pi/2 is vertical)
+fn get_slope_angle(normal: vec3f) -> f32 {
+    return acos(normal.z);
+}
