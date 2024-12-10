@@ -678,96 +678,48 @@ void PipelineManager::create_depth_texture_bind_group_layout()
 
 void PipelineManager::create_avalanche_trajectory_bind_group_layout()
 {
-    WGPUBindGroupLayoutEntry input_tile_ids_entry {};
-    input_tile_ids_entry.binding = 0;
-    input_tile_ids_entry.visibility = WGPUShaderStage_Compute;
-    input_tile_ids_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    input_tile_ids_entry.buffer.minBindingSize = 0;
-
-    WGPUBindGroupLayoutEntry input_bounds_entry {};
-    input_bounds_entry.binding = 1;
-    input_bounds_entry.visibility = WGPUShaderStage_Compute;
-    input_bounds_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    input_bounds_entry.buffer.minBindingSize = 0;
-
     WGPUBindGroupLayoutEntry input_settings {};
-    input_settings.binding = 2;
+    input_settings.binding = 0;
     input_settings.visibility = WGPUShaderStage_Compute;
     input_settings.buffer.type = WGPUBufferBindingType_Uniform;
     input_settings.buffer.minBindingSize = 0;
 
-    WGPUBindGroupLayoutEntry key_buffer_entry {};
-    key_buffer_entry.binding = 3;
-    key_buffer_entry.visibility = WGPUShaderStage_Compute;
-    key_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    key_buffer_entry.buffer.minBindingSize = 0;
+    WGPUBindGroupLayoutEntry input_normal_texture_entry {};
+    input_normal_texture_entry.binding = 1;
+    input_normal_texture_entry.visibility = WGPUShaderStage_Compute;
+    input_normal_texture_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
+    input_normal_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
-    WGPUBindGroupLayoutEntry value_buffer_entry {};
-    value_buffer_entry.binding = 4;
-    value_buffer_entry.visibility = WGPUShaderStage_Compute;
-    value_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    value_buffer_entry.buffer.minBindingSize = 0;
+    WGPUBindGroupLayoutEntry input_height_texture_entry {};
+    input_height_texture_entry.binding = 2;
+    input_height_texture_entry.visibility = WGPUShaderStage_Compute;
+    input_height_texture_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
+    input_height_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
-    WGPUBindGroupLayoutEntry input_normal_textures_entry {};
-    input_normal_textures_entry.binding = 5;
-    input_normal_textures_entry.visibility = WGPUShaderStage_Compute;
-    input_normal_textures_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
-    input_normal_textures_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
+    WGPUBindGroupLayoutEntry input_release_points_texture_entry {};
+    input_release_points_texture_entry.binding = 3;
+    input_release_points_texture_entry.visibility = WGPUShaderStage_Compute;
+    input_release_points_texture_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
+    input_release_points_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
-    WGPUBindGroupLayoutEntry input_normal_texture_sampler {};
-    input_normal_texture_sampler.binding = 6;
-    input_normal_texture_sampler.visibility = WGPUShaderStage_Compute;
-    input_normal_texture_sampler.sampler.type = WGPUSamplerBindingType_NonFiltering;
-
-    WGPUBindGroupLayoutEntry input_height_textures_entry {};
-    input_height_textures_entry.binding = 7;
-    input_height_textures_entry.visibility = WGPUShaderStage_Compute;
-    input_height_textures_entry.texture.sampleType = WGPUTextureSampleType_Uint;
-    input_height_textures_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
-
-    WGPUBindGroupLayoutEntry input_height_texture_sampler {};
-    input_height_texture_sampler.binding = 8;
-    input_height_texture_sampler.visibility = WGPUShaderStage_Compute;
-    input_height_texture_sampler.sampler.type = WGPUSamplerBindingType_NonFiltering;
-
-    WGPUBindGroupLayoutEntry input_release_points_textures_entry {};
-    input_release_points_textures_entry.binding = 9;
-    input_release_points_textures_entry.visibility = WGPUShaderStage_Compute;
-    input_release_points_textures_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
-    input_release_points_textures_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
-
-    WGPUBindGroupLayoutEntry output_key_buffer_entry {};
-    output_key_buffer_entry.binding = 10;
-    output_key_buffer_entry.visibility = WGPUShaderStage_Compute;
-    output_key_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    output_key_buffer_entry.buffer.minBindingSize = 0;
-
-    WGPUBindGroupLayoutEntry output_value_buffer_entry {};
-    output_value_buffer_entry.binding = 11;
-    output_value_buffer_entry.visibility = WGPUShaderStage_Compute;
-    output_value_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    output_value_buffer_entry.buffer.minBindingSize = 0;
+    WGPUBindGroupLayoutEntry input_sampler {};
+    input_sampler.binding = 4;
+    input_sampler.visibility = WGPUShaderStage_Compute;
+    input_sampler.sampler.type = WGPUSamplerBindingType_NonFiltering;
 
     WGPUBindGroupLayoutEntry output_storage_buffer_entry {};
-    output_storage_buffer_entry.binding = 12;
+    output_storage_buffer_entry.binding = 5;
     output_storage_buffer_entry.visibility = WGPUShaderStage_Compute;
     output_storage_buffer_entry.buffer.type = WGPUBufferBindingType_Storage;
     output_storage_buffer_entry.buffer.minBindingSize = 0;
 
     m_avalanche_trajectories_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
         std::vector<WGPUBindGroupLayoutEntry> {
-            input_tile_ids_entry,
-            input_bounds_entry,
             input_settings,
-            key_buffer_entry,
-            value_buffer_entry,
-            input_normal_textures_entry,
-            input_normal_texture_sampler,
-            input_height_textures_entry,
-            input_height_texture_sampler,
-            input_release_points_textures_entry,
-            output_key_buffer_entry,
-            output_value_buffer_entry,
+            input_normal_texture_entry,
+            input_height_texture_entry,
+            input_release_points_texture_entry,
+            input_sampler,
             output_storage_buffer_entry,
         },
         "avalanche trajectories compute bind group layout");
@@ -775,46 +727,32 @@ void PipelineManager::create_avalanche_trajectory_bind_group_layout()
 
 void PipelineManager::create_buffer_to_texture_bind_group_layout()
 {
-    WGPUBindGroupLayoutEntry input_tile_ids_entry {};
-    input_tile_ids_entry.binding = 0;
-    input_tile_ids_entry.visibility = WGPUShaderStage_Compute;
-    input_tile_ids_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    input_tile_ids_entry.buffer.minBindingSize = 0;
-
-    WGPUBindGroupLayoutEntry key_buffer_entry {};
-    key_buffer_entry.binding = 1;
-    key_buffer_entry.visibility = WGPUShaderStage_Compute;
-    key_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    key_buffer_entry.buffer.minBindingSize = 0;
-
-    WGPUBindGroupLayoutEntry value_buffer_entry {};
-    value_buffer_entry.binding = 2;
-    value_buffer_entry.visibility = WGPUShaderStage_Compute;
-    value_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    value_buffer_entry.buffer.minBindingSize = 0;
+    WGPUBindGroupLayoutEntry input_settings_entry {};
+    input_settings_entry.binding = 0;
+    input_settings_entry.visibility = WGPUShaderStage_Compute;
+    input_settings_entry.buffer.type = WGPUBufferBindingType_Uniform;
+    input_settings_entry.buffer.minBindingSize = 0;
 
     WGPUBindGroupLayoutEntry input_storage_buffer_entry {};
-    input_storage_buffer_entry.binding = 3;
+    input_storage_buffer_entry.binding = 1;
     input_storage_buffer_entry.visibility = WGPUShaderStage_Compute;
     input_storage_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
     input_storage_buffer_entry.buffer.minBindingSize = 0;
 
-    WGPUBindGroupLayoutEntry output_tiles_entry {};
-    output_tiles_entry.binding = 4;
-    output_tiles_entry.visibility = WGPUShaderStage_Compute;
-    output_tiles_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2DArray;
-    output_tiles_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
-    output_tiles_entry.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
+    WGPUBindGroupLayoutEntry output_texture_entry {};
+    output_texture_entry.binding = 2;
+    output_texture_entry.visibility = WGPUShaderStage_Compute;
+    output_texture_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+    output_texture_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
+    output_texture_entry.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
 
     m_avalanche_trajectories_buffer_to_texture_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
         std::vector<WGPUBindGroupLayoutEntry> {
-            input_tile_ids_entry,
-            key_buffer_entry,
-            value_buffer_entry,
+            input_settings_entry,
             input_storage_buffer_entry,
-            output_tiles_entry,
+            output_texture_entry,
         },
-        "avalanche trajectories buffer to texture compute bind group layout");
+        "buffer to texture compute bind group layout");
 }
 
 void PipelineManager::create_avalanche_influence_area_bind_group_layout()

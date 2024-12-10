@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include "Buffer.h"
 #include "Node.h"
 #include "PipelineManager.h"
 
@@ -42,25 +43,35 @@ class BufferToTextureNode : public Node {
 public:
     static glm::uvec3 SHADER_WORKGROUP_SIZE; // TODO currently hardcoded in shader! can we somehow not hardcode it? maybe using overrides
 
-    BufferToTextureNode(
-        const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity, WGPUTextureFormat output_format);
+    struct BufferToTextureSettings {
+        WGPUTextureFormat format = WGPUTextureFormat_RGBA8Unorm;
+        WGPUTextureUsage usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding;
+    };
 
-    const TileStorageTexture& texture_storage() const { return m_output_texture; }
-    TileStorageTexture& texture_storage() { return m_output_texture; }
+    struct BufferToTextureSettingsUniform {
+        glm::uvec2 input_resolution = glm::uvec2(0u); // is set based on input "raster dimensions"
+    };
+
+    BufferToTextureNode(const PipelineManager& pipeline_manager, WGPUDevice device);
+    BufferToTextureNode(const PipelineManager& pipeline_manager, WGPUDevice device, const BufferToTextureSettings& settings);
 
 public slots:
     void run_impl() override;
+
+private:
+    static std::unique_ptr<webgpu::raii::TextureWithSampler> create_texture(
+        WGPUDevice device, uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage);
 
 private:
     const PipelineManager* m_pipeline_manager;
     WGPUDevice m_device;
     WGPUQueue m_queue;
 
-    // input
-    webgpu::raii::RawBuffer<GpuTileId> m_input_tile_ids;
+    BufferToTextureSettings m_settings;
+    webgpu_engine::Buffer<BufferToTextureSettingsUniform> m_settings_uniform;
 
     // output
-    TileStorageTexture m_output_texture; // texture per tile
+    std::unique_ptr<webgpu::raii::TextureWithSampler> m_output_texture; // texture per tile
 };
 
 } // namespace webgpu_engine::compute::nodes

@@ -98,7 +98,7 @@ public:
 private:
     struct AvalancheTrajectoriesSettingsUniform {
         glm::uvec2 output_resolution;
-        glm::uvec2 sampling_interval;
+        glm::fvec2 region_size;
 
         uint32_t num_steps = 128;
         float step_length = 0.5f;
@@ -131,39 +131,28 @@ private:
     };
 
 public:
-    ComputeAvalancheTrajectoriesNode(const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity);
-
-    const GpuHashMap<tile::Id, uint32_t, GpuTileId>& hash_map() const { return m_output_tile_map; }
-    GpuHashMap<tile::Id, uint32_t, GpuTileId>& hash_map() { return m_output_tile_map; }
+    ComputeAvalancheTrajectoriesNode(const PipelineManager& pipeline_manager, WGPUDevice device);
 
     void update_gpu_settings();
 
-    void set_area_of_influence_settings(const AvalancheTrajectoriesSettings& settings) { m_settings = settings; }
-    const AvalancheTrajectoriesSettings& get_area_of_influence_settings() const { return m_settings; }
+    void set_settings(const AvalancheTrajectoriesSettings& settings) { m_settings = settings; }
 
 public slots:
     void run_impl() override;
 
 private:
+    static std::unique_ptr<webgpu::raii::Sampler> create_sampler(WGPUDevice device);
+
+private:
     const PipelineManager* m_pipeline_manager;
     WGPUDevice m_device;
     WGPUQueue m_queue;
-    size_t m_capacity;
-    glm::uvec2 m_output_resolution;
-
 
     AvalancheTrajectoriesSettings m_settings;
-
-    // calculated on cpu-side before each invocation
-    webgpu::raii::RawBuffer<glm::vec4> m_tile_bounds; // aabb per tile
-
-    // input
-    webgpu::raii::RawBuffer<GpuTileId> m_input_tile_ids; // tile ids for which to calculate overlays
-    webgpu_engine::Buffer<AvalancheTrajectoriesSettingsUniform> m_settings_uniform; // settings for area of influence calculation
-
-    // output
-    GpuHashMap<tile::Id, uint32_t, GpuTileId> m_output_tile_map; // hash map
-    webgpu::raii::RawBuffer<uint32_t> m_output_storage_buffer; // storage buffer region per tile
+    webgpu_engine::Buffer<AvalancheTrajectoriesSettingsUniform> m_settings_uniform;
+    std::unique_ptr<webgpu::raii::Sampler> m_sampler;
+    std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_output_storage_buffer;
+    glm::uvec2 m_output_dimensions;
 };
 
 } // namespace webgpu_engine::compute::nodes

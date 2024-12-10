@@ -197,6 +197,17 @@ static std::unique_ptr<NodeGraph> create_normal_compute_graph_unconnected(const 
     return node_graph;
 }
 
+static std::unique_ptr<NodeGraph> create_release_points_compute_graph_unconnected(const PipelineManager& manager, WGPUDevice device)
+{
+    auto node_graph = create_normal_compute_graph_unconnected(manager, device);
+
+    // add and connect release points node
+    Node* release_points_node = node_graph->add_node("compute_release_points_node", std::make_unique<ComputeReleasePointsNode>(manager, device));
+    release_points_node->input_socket("normal texture").connect(node_graph->get_node("compute_normals_node").output_socket("normal texture"));
+
+    return node_graph;
+}
+
 std::unique_ptr<NodeGraph> NodeGraph::create_normal_compute_graph(const PipelineManager& manager, WGPUDevice device)
 {
     auto node_graph = create_normal_compute_graph_unconnected(manager, device);
@@ -206,12 +217,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_compute_graph(const Pipeline
 
 std::unique_ptr<NodeGraph> NodeGraph::create_release_points_compute_graph(const PipelineManager& manager, WGPUDevice device)
 {
-    auto node_graph = create_normal_compute_graph_unconnected(manager, device);
-
-    // add and connect release points node
-    Node* release_points_node = node_graph->add_node("compute_release_points_node", std::make_unique<ComputeReleasePointsNode>(manager, device));
-    release_points_node->input_socket("normal texture").connect(node_graph->get_node("compute_normals_node").output_socket("normal texture"));
-
+    auto node_graph = create_release_points_compute_graph_unconnected(manager, device);
     node_graph->connect_node_signals_and_slots();
     return node_graph;
 }
@@ -323,103 +329,28 @@ std::unique_ptr<NodeGraph> NodeGraph::create_snow_compute_graph(const PipelineMa
 
 std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_trajectories_compute_graph(const PipelineManager& manager, WGPUDevice device)
 {
-    size_t capacity = 1024;
-    glm::uvec2 input_resolution = { 65, 65 };
-    glm::uvec2 trajectories_output_resolution = { 64, 64 };
-    glm::uvec2 upsample_output_resolution = { 256, 256 };
+    auto node_graph = create_release_points_compute_graph_unconnected(manager, device);
 
-    auto node_graph = std::make_unique<NodeGraph>();
+    ComputeAvalancheTrajectoriesNode* trajectories_node = static_cast<ComputeAvalancheTrajectoriesNode*>(
+        node_graph->add_node("compute_avalanche_trajectories_node", std::make_unique<ComputeAvalancheTrajectoriesNode>(manager, device)));
 
-    Node* target_tile_select_node = node_graph->add_node("select_target_tiles_node", std::make_unique<SelectTilesNode>());
-    Node* source_tile_select_node = node_graph->add_node("select_source_tiles_node", std::make_unique<SelectTilesNode>());
-
-    Node* height_request_node = node_graph->add_node("request_height_node", std::make_unique<RequestTilesNode>());
-    Node* hash_map_node
-        = node_graph->add_node("create_hashmap_node", std::make_unique<CreateHashMapNode>(device, input_resolution, capacity, WGPUTextureFormat_R16Uint));
-    ComputeNormalsNode* normal_compute_node
-        = static_cast<ComputeNormalsNode*>(node_graph->add_node("compute_normals_node", std::make_unique<ComputeNormalsNode>(manager, device)));
-    ComputeAvalancheTrajectoriesNode* avalanche_trajectories_compute_node = static_cast<ComputeAvalancheTrajectoriesNode*>(node_graph->add_node(
-        "compute_avalanche_trajectories_node", std::make_unique<ComputeAvalancheTrajectoriesNode>(manager, device, trajectories_output_resolution, capacity)));
-    BufferToTextureNode* avalanche_trajectories_buffer_to_texture_compute_node
-        = static_cast<BufferToTextureNode*>(node_graph->add_node("avalanche_trajectories_buffer_to_texture_compute_node",
-            std::make_unique<BufferToTextureNode>(manager, device, trajectories_output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm)));
-    Node* upsample_normals_textures_node
-        = node_graph->add_node("upsample_textures_node", std::make_unique<UpsampleTexturesNode>(manager, device, upsample_output_resolution, capacity));
-    DownsampleTilesNode* downsample_trajectory_tiles_node = static_cast<DownsampleTilesNode*>(
-        node_graph->add_node("downsample_trajectory_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity)));
-    DownsampleTilesNode* downsample_normals_tiles_node = static_cast<DownsampleTilesNode*>(
-        node_graph->add_node("downsample_normals_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity)));
-    ComputeReleasePointsNode* release_points_node
-        = static_cast<ComputeReleasePointsNode*>(node_graph->add_node("release_points_node", std::make_unique<ComputeReleasePointsNode>(manager, device)));
-
-    TileStitchNode::StitchSettings stitch_setting = { .tile_size = input_resolution,
-        .tile_has_border = true,
-        .texture_format = WGPUTextureFormat::WGPUTextureFormat_RGBA8Uint,
-        .texture_usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc };
-
-    TileStitchNode* stitch_node
-        = static_cast<TileStitchNode*>(node_graph->add_node("stitch_node", std::make_unique<TileStitchNode>(manager, device, stitch_setting)));
-
-    HeightDecodeNode::HeightDecodeSettings height_decode_settings = {
-        .texture_usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc,
-    };
-
-    HeightDecodeNode* height_decode_node = static_cast<HeightDecodeNode*>(
-        node_graph->add_node("height_decode_node", std::make_unique<HeightDecodeNode>(manager, device, height_decode_settings)));
-
-    // connect tile request node inputs
-    source_tile_select_node->output_socket("tile ids").connect(height_request_node->input_socket("tile ids"));
-
-    // STITCH TILES
-    source_tile_select_node->output_socket("tile ids").connect(stitch_node->input_socket("tile ids"));
-    height_request_node->output_socket("tile data").connect(stitch_node->input_socket("texture data"));
-
-    // DECODE THE HEIGHT TEXTURE TO PROPER HEIGHTS IN METERS
-    height_decode_node->input_socket("encoded texture").connect(stitch_node->output_socket("texture"));
-
-    // connect hash map node inputs
-    source_tile_select_node->output_socket("tile ids").connect(hash_map_node->input_socket("tile ids"));
-    height_request_node->output_socket("tile data").connect(hash_map_node->input_socket("texture data"));
-
-    // connect normal node inputs
-    source_tile_select_node->output_socket("tile ids").connect(normal_compute_node->input_socket("tile ids"));
-    hash_map_node->output_socket("hash map").connect(normal_compute_node->input_socket("hash map"));
-    hash_map_node->output_socket("textures").connect(normal_compute_node->input_socket("height textures"));
-
-    // connect release points node inputs
-    release_points_node->input_socket("tile ids").connect(source_tile_select_node->output_socket("tile ids"));
-    release_points_node->input_socket("hash map").connect(hash_map_node->output_socket("hash map"));
-    release_points_node->input_socket("normal textures").connect(normal_compute_node->output_socket("normal textures"));
+    BufferToTextureNode* buffer_to_texture_node
+        = static_cast<BufferToTextureNode*>(node_graph->add_node("buffer_to_texture_node", std::make_unique<BufferToTextureNode>(manager, device)));
 
     // connect trajectories node inputs
-    target_tile_select_node->output_socket("tile ids").connect(avalanche_trajectories_compute_node->input_socket("tile ids"));
-    normal_compute_node->output_socket("hash map").connect(avalanche_trajectories_compute_node->input_socket("hash map"));
-    normal_compute_node->output_socket("normal textures").connect(avalanche_trajectories_compute_node->input_socket("normal textures"));
-    hash_map_node->output_socket("textures").connect(avalanche_trajectories_compute_node->input_socket("height textures"));
-    release_points_node->output_socket("release point textures").connect(avalanche_trajectories_compute_node->input_socket("release point textures"));
+    trajectories_node->input_socket("region aabb").connect(node_graph->get_node("select_tiles_node").output_socket("region aabb"));
+    trajectories_node->input_socket("normal texture").connect(node_graph->get_node("compute_normals_node").output_socket("normal texture"));
+    trajectories_node->input_socket("height texture").connect(node_graph->get_node("height_decode_node").output_socket("decoded texture"));
+    trajectories_node->input_socket("release point texture")
+        .connect(node_graph->get_node("compute_release_points_node").output_socket("release point texture"));
 
-    // connect trajectories buffer to texture node inputs
-    target_tile_select_node->output_socket("tile ids").connect(avalanche_trajectories_buffer_to_texture_compute_node->input_socket("tile ids"));
-    avalanche_trajectories_compute_node->output_socket("hash map").connect(avalanche_trajectories_buffer_to_texture_compute_node->input_socket("hash map"));
-    avalanche_trajectories_compute_node->output_socket("storage buffer")
-        .connect(avalanche_trajectories_buffer_to_texture_compute_node->input_socket("storage buffer"));
-
-    // create downsampled area of influence tiles
-    target_tile_select_node->output_socket("tile ids").connect(downsample_trajectory_tiles_node->input_socket("tile ids"));
-    avalanche_trajectories_compute_node->output_socket("hash map").connect(downsample_trajectory_tiles_node->input_socket("hash map"));
-    avalanche_trajectories_buffer_to_texture_compute_node->output_socket("textures").connect(downsample_trajectory_tiles_node->input_socket("textures"));
-
-    // connect upsample textures node inputs
-    normal_compute_node->output_socket("normal textures").connect(upsample_normals_textures_node->input_socket("source textures"));
-
-    // connect downsample normal tiles node inputs
-    source_tile_select_node->output_socket("tile ids").connect(downsample_normals_tiles_node->input_socket("tile ids"));
-    normal_compute_node->output_socket("hash map").connect(downsample_normals_tiles_node->input_socket("hash map"));
-    upsample_normals_textures_node->output_socket("output textures").connect(downsample_normals_tiles_node->input_socket("textures"));
+    // connect buffer to texture node inputs
+    buffer_to_texture_node->input_socket("raster dimensions").connect(trajectories_node->output_socket("raster dimensions"));
+    buffer_to_texture_node->input_socket("storage buffer").connect(trajectories_node->output_socket("storage buffer"));
 
     // === SETUP EXPORT NODES ===
     {
-        TileExportNode::ExportSettings export_settings_rp = { true, true, true, true, "rp_export" };
+        /*TileExportNode::ExportSettings export_settings_rp = { true, true, true, true, "rp_export" };
         TileExportNode* rp_export_node
             = static_cast<TileExportNode*>(node_graph->add_node("rp_export", std::make_unique<TileExportNode>(device, export_settings_rp)));
 
@@ -435,14 +366,8 @@ std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_trajectories_compute_grap
         // Connect height tiles export node
         height_export_node->input_socket("tile ids").connect(source_tile_select_node->output_socket("tile ids"));
         height_export_node->input_socket("hash map").connect(hash_map_node->output_socket("hash map"));
-        height_export_node->input_socket("textures").connect(hash_map_node->output_socket("textures"));
+        height_export_node->input_socket("textures").connect(hash_map_node->output_socket("textures"));*/
     }
-
-    node_graph->m_output_normals_hash_map_ptr = &downsample_normals_tiles_node->hash_map();
-    node_graph->m_output_normals_texture_storage_ptr = &downsample_normals_tiles_node->texture_storage();
-
-    node_graph->m_output_overlay_hash_map_ptr = &downsample_trajectory_tiles_node->hash_map();
-    node_graph->m_output_overlay_texture_storage_ptr = &downsample_trajectory_tiles_node->texture_storage();
 
     node_graph->connect_node_signals_and_slots();
 

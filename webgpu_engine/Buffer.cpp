@@ -20,6 +20,7 @@
 #include "Buffer.h"
 #include "TrackRenderer.h"
 #include "UniformBufferObjects.h"
+#include "compute/nodes/BufferToTextureNode.h"
 #include "compute/nodes/ComputeAvalancheInfluenceAreaNode.h"
 #include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
 #include "compute/nodes/ComputeNormalsNode.h"
@@ -57,6 +58,7 @@ template class Buffer<compute::nodes::ComputeSnowNode::SnowSettings>;
 template class Buffer<compute::nodes::ComputeAvalancheTrajectoriesNode::AvalancheTrajectoriesSettingsUniform>;
 template class Buffer<compute::nodes::ComputeAvalancheInfluenceAreaNode::AvalancheInfluenceAreaSettings>;
 template class Buffer<compute::nodes::ComputeReleasePointsNode::ReleasePointsSettingsUniform>;
+template class Buffer<compute::nodes::BufferToTextureNode::BufferToTextureSettingsUniform>;
 template class Buffer<TrackRenderer::LineConfig>;
 template class Buffer<ImageOverlaySettings>;
 // TODO

@@ -26,7 +26,7 @@
 
 struct AvalancheTrajectoriesSettings {
     output_resolution: vec2u,
-    sampling_interval: vec2u, // n means starting a trajectory at every n-th texel TODO: maybe remove as it is not used anymore (job of compute release points)
+    region_size: vec2f, // world space width and height of the the region we operate on
 
     num_steps: u32, // maximum number of steps (along gradient)
     step_length: f32, // length of one simulation step in world space
@@ -59,23 +59,14 @@ struct AvalancheTrajectoriesSettings {
 }
 
 // input
-@group(0) @binding(0) var<storage> input_tile_ids: array<TileId>; // tiles ids to process
-@group(0) @binding(1) var<storage> input_tile_bounds: array<vec4<f32>>; // pre-computed tile bounds per tile id (in world space, relative to reference point)
-@group(0) @binding(2) var<uniform> settings: AvalancheTrajectoriesSettings;
-
-@group(0) @binding(3) var<storage> map_key_buffer: array<TileId>; // hash map key buffer
-@group(0) @binding(4) var<storage> map_value_buffer: array<u32>; // hash map value buffer, contains texture array indices
-@group(0) @binding(5) var input_normal_tiles: texture_2d_array<f32>; // normal tiles
-@group(0) @binding(6) var input_normal_tiles_sampler: sampler; // normal sampler
-@group(0) @binding(7) var input_height_tiles: texture_2d_array<u32>; // height tiles
-@group(0) @binding(8) var input_height_tiles_sampler: sampler; // height sampler
-@group(0) @binding(9) var input_release_point_textures: texture_2d_array<f32>; // release point tiles
-
-@group(0) @binding(10) var<storage> output_tiles_map_key_buffer: array<TileId>; // hash map key buffer for output tiles
-@group(0) @binding(11) var<storage> output_tiles_map_value_buffer: array<u32>; // hash map value buffer, contains texture array indice for output tiles
+@group(0) @binding(0) var<uniform> settings: AvalancheTrajectoriesSettings;
+@group(0) @binding(1) var input_normal_texture: texture_2d<f32>;
+@group(0) @binding(2) var input_height_texture: texture_2d<f32>;
+@group(0) @binding(3) var input_release_point_texture: texture_2d<f32>;
+@group(0) @binding(4) var input_sampler: sampler;
 
 // output
-@group(0) @binding(12) var<storage, read_write> output_storage_buffer: array<atomic<u32>>; // trajectory tiles
+@group(0) @binding(5) var<storage, read_write> output_storage_buffer: array<atomic<u32>>; // trajectory texture
 
 // note: as of writing this, wgsl only supports atomic access for storage buffers and only for u32 and i32
 //       therefore, we first write the risk value (along the trajectory as raster) into a buffer,
@@ -84,97 +75,48 @@ struct AvalancheTrajectoriesSettings {
 
 // ***** UTILITY FUNCTIONS *****
 
-// NOT NECESSARY ANYMORE SINCE DONE IN COMPUTE RELEASE POINTS
-// checks if thread should do something (based on sampling interval)
-// TODO: just start correct number of threads from CPU side
-// fn should_paint(col: u32, row: u32, tile_id: TileId) -> bool {
-//    return (col % settings.sampling_interval.x == 0) && (row % settings.sampling_interval.y == 0);
-//}
-
-// returns index into the storage buffer for a 2d (texture) position
-fn get_storage_buffer_index(texture_layer: u32, coords: vec2u, output_texture_size: vec2u) -> u32 {
-    return texture_layer * output_texture_size.x * output_texture_size.y + coords.y * output_texture_size.x + coords.x;  
+// writes single pixel to storage buffer, value must be in [0,1]
+fn write_pixel_at_pos(pos: vec2u, value: f32) {
+    let output_texture_size = textureDimensions(input_normal_texture); //TODO adapt here if we want to do upscaling 
+    let buffer_index = pos.y * output_texture_size.x + pos.x;
+    let value_u32 =  u32(value * (1 << 31)); // map value from [0,1] angle to [0, 2^32 - 1]
+    atomicMax(&output_storage_buffer[buffer_index], value_u32);         
 }
 
 // returns slope angle in radians based on surface normal (0 is horizontal, pi/2 is vertical)
 fn get_slope_angle(normal: vec3f) -> f32 {
     return acos(normal.z);
-    //return (1 - normal.z) * (PI / 2); // previous implementation, incorrect
 }
 
-// map overlay (non-overlapping) uv coordinate to normal texture (overlapping) uv coordinate
-fn get_normal_uv(overlay_uv: vec2f) -> vec2f {
-    return overlay_uv * vec2f(textureDimensions(input_normal_tiles) - 1) / vec2f(textureDimensions(input_normal_tiles)) + 1f / (2f * vec2f(settings.output_resolution));
+fn sample_normal_texture(uv: vec2f) -> vec3f {
+    let texture_dimensions: vec2u = textureDimensions(input_normal_texture) - 1;
+    let weights: vec2f = fract(uv * vec2f(texture_dimensions));
+
+    let x = dot(vec4f((1.0 - weights.x) * weights.y, weights.x * weights.y, weights.x * (1.0 - weights.y), (1.0 - weights.x) * (1.0 - weights.y)),
+        vec4f(textureGather(0, input_normal_texture, input_sampler, uv)));
+    let y = dot(vec4f((1.0 - weights.x) * weights.y, weights.x * weights.y, weights.x * (1.0 - weights.y), (1.0 - weights.x) * (1.0 - weights.y)),
+        vec4f(textureGather(1, input_normal_texture, input_sampler, uv)));
+    let z = dot(vec4f((1.0 - weights.x) * weights.y, weights.x * weights.y, weights.x * (1.0 - weights.y), (1.0 - weights.x) * (1.0 - weights.y)),
+        vec4f(textureGather(2, input_normal_texture, input_sampler, uv)));
+
+    return vec3f(x, y, z) * 2 - 1;
+
+    // as of writing this, textureSample can only be used in the fragment stage, thus compute shaders cannot use it (see doc)
+    //return textureSample(input_normal_texture, input_sampler, uv).xyz * 2 - 1;
 }
 
-// map overlay (non-overlapping) uv coordinate to height texture (overlapping) uv coordinate
-fn get_height_uv(overlay_uv: vec2f) -> vec2f {
-    return overlay_uv * vec2f(textureDimensions(input_height_tiles) - 1) / vec2f(textureDimensions(input_height_tiles)) + 1f / (2f * vec2f(settings.output_resolution));
+fn sample_height_texture(uv: vec2f) -> f32 {
+    let texture_dimensions = textureDimensions(input_height_texture);
+    let weights: vec2f = fract(uv * vec2f(texture_dimensions));
+    let texel_values: vec4f = textureGather(0, input_height_texture, input_sampler, uv);
+    return dot(vec4f((1.0 - weights.x) * weights.y, weights.x * weights.y, weights.x * (1.0 - weights.y), (1.0 - weights.x) * (1.0 - weights.y)), texel_values);
 }
 
-// get normal for a specific overlay tile id and uv.
-//  - if uv is not in [0,1], internally calculates correct tile id and uv
-// if tile id exists, sets value of normal ptr to normal, returns true; otherwise returns false 
-fn get_normal(tile_id: TileId, overlay_uv: vec2f, zoomlevel: u32, normal: ptr<function, vec3f>) -> bool {
-    var source_tile_id: TileId = tile_id;
-    var source_uv: vec2f = overlay_uv;
-    calc_tile_id_and_uv_for_zoom_level(tile_id, overlay_uv, zoomlevel, &source_tile_id, &source_uv);
-    let normal_texture_uv = get_normal_uv(source_uv);
-    var texture_array_index: u32;
-    let found = get_texture_array_index(source_tile_id, &texture_array_index, &map_key_buffer, &map_value_buffer);
-    if (!found) {
-        // moved to a tile where we don't have any input data, discard
-        return false;
-    }
-    *normal = bilinear_sample_vec4f(input_normal_tiles, input_normal_tiles_sampler, normal_texture_uv, texture_array_index).xyz * 2 - 1;
-    return true;
-}
-
-// get height for a specific overlay tile id and uv.
-//  - if uv is not in [0,1], internally calculates correct tile id and uv
-// if tile id exists, sets value of height ptr to height, returns true; otherwise returns false
-fn get_height(tile_id: TileId, overlay_uv: vec2f, zoomlevel: u32, height: ptr<function, u32>) -> bool {
-    var source_tile_id: TileId = tile_id;
-    var source_uv: vec2f = overlay_uv;
-    calc_tile_id_and_uv_for_zoom_level(tile_id, overlay_uv, zoomlevel, &source_tile_id, &source_uv);
-    let height_texture_uv = get_height_uv(source_uv);
-    var texture_array_index: u32;
-    let found = get_texture_array_index(source_tile_id, &texture_array_index, &map_key_buffer, &map_value_buffer);
-    if (!found) {
-        // moved to a tile where we don't have any input data, discard
-        return false;
-    }
-    *height = bilinear_sample_u32(input_height_tiles, input_height_tiles_sampler, height_texture_uv, texture_array_index);
-    return true;
-}
-
-// checks if specific position is a release point for avalanches (using release point texture)
-fn is_release_point(tile_id: TileId, overlay_uv: vec2f, zoomlevel: u32) -> bool {
-    var source_tile_id: TileId = tile_id;
-    var source_uv: vec2f = overlay_uv;
-    calc_tile_id_and_uv_for_zoom_level(tile_id, overlay_uv, zoomlevel, &source_tile_id, &source_uv);
-    let release_point_texture_uv = get_height_uv(source_uv);
-    var texture_array_index: u32;
-    let found = get_texture_array_index(source_tile_id, &texture_array_index, &map_key_buffer, &map_value_buffer);
-    if (!found) {
-        return false;
-    }
-    let release_point_texture_size = textureDimensions(input_release_point_textures);
-    let release_point_texture_pos = vec2u(release_point_texture_uv * vec2f(release_point_texture_size));
-    let mask = textureLoad(input_release_point_textures, release_point_texture_pos, texture_array_index, 0).rgba;
+fn sample_release_point_texture(uv: vec2f) -> bool {
+    let texture_dimensions = textureDimensions(input_release_point_texture);
+    let pos = vec2u(uv * vec2f(texture_dimensions - 1));
+    let mask = textureLoad(input_release_point_texture, pos, 0).rgba;
     return mask.a > 0;
-}
-
-// takes tile id and arbitrary uv coordinates (not restricted to [0,1])
-// returns new tile id and uv, such that uv is in [0,1]
-fn offset_uv(tile_id: TileId, uv: vec2f, output_tile_id: ptr<function, TileId>, output_uv: ptr<function, vec2f>) {
-    let new_uv = fract(uv); //TODO this is actually never 1; also we might need some offset because of tile overlap (i think)
-    let uv_space_tile_offset = vec2i(floor(uv));
-    let world_space_tile_offset = vec2i(uv_space_tile_offset.x, -uv_space_tile_offset.y); // world space y is opposite to uv space y, therefore invert y
-    let new_tile_coords = vec2i(i32(tile_id.x), i32(tile_id.y)) + world_space_tile_offset;
-    let new_tile_id = TileId(u32(new_tile_coords.x), u32(new_tile_coords.y), tile_id.zoomlevel, 0);
-    *output_uv = new_uv;
-    *output_tile_id = new_tile_id;
 }
 
 
@@ -239,7 +181,7 @@ fn model_discretized_gradient(normal: vec3f) -> vec2f {
 }
 
 fn model_d8_without_weights(tile_id: TileId, uv: vec2f) -> vec2f {
-    const directions = array<vec2f, 8>(vec2f(1, 0), vec2f(1, 1), vec2f(0, 1), vec2f(-1, 1), vec2f(-1, 0), vec2f(-1, -1), vec2f(0, -1), vec2f(1, -1));
+    /*const directions = array<vec2f, 8>(vec2f(1, 0), vec2f(1, 1), vec2f(0, 1), vec2f(-1, 1), vec2f(-1, 0), vec2f(-1, -1), vec2f(0, -1), vec2f(1, -1));
     let step_size_to_neighbor = vec2f(1) / vec2f(settings.output_resolution - 1);
 
     var min_height: u32 = 1 << 31;
@@ -260,7 +202,8 @@ fn model_d8_without_weights(tile_id: TileId, uv: vec2f) -> vec2f {
             min_index = i;
         }
     }
-    return directions[min_index];
+    return directions[min_index];*/
+    return vec2f(0, 0);
 }
 
 // like d8, but multiplies heights with a weight before comparing them
@@ -268,7 +211,7 @@ fn model_d8_without_weights(tile_id: TileId, uv: vec2f) -> vec2f {
 // if there was no previous movement, all directions are weighted equally (indicated by passing -1)
 // if all weights are 1, the output should be the same as d8 without weights 
 fn model_d8_with_weights(tile_id: TileId, uv: vec2f, last_dir_index: i32, selected_dir_index: ptr<function, i32>, weights: array<f32, 8>) -> vec2f {
-    const directions = array<vec2f, 8>(vec2f(1, 0), vec2f(1, 1), vec2f(0, 1), vec2f(-1, 1), vec2f(-1, 0), vec2f(-1, -1), vec2f(0, -1), vec2f(1, -1));
+    /*const directions = array<vec2f, 8>(vec2f(1, 0), vec2f(1, 1), vec2f(0, 1), vec2f(-1, 1), vec2f(-1, 0), vec2f(-1, -1), vec2f(0, -1), vec2f(1, -1));
     //const weights = array<f32, 8>(1, 0.707, 0, 0, 0, 0, 0, 0.707);
 
     let step_size_to_neighbor = vec2f(1) / vec2f(settings.output_resolution - 1);
@@ -302,7 +245,8 @@ fn model_d8_with_weights(tile_id: TileId, uv: vec2f, last_dir_index: i32, select
         }
     }
     *selected_dir_index = max_weighted_descent_index; 
-    return directions[max_weighted_descent_index];
+    return directions[max_weighted_descent_index];*/
+    return vec2f(0, 0);
 }
 
 
@@ -322,65 +266,22 @@ fn runout_perla(last_velocity: f32, last_theta: f32, normal: vec3f, out_theta: p
     return this_velocity;
 }
 
-// ***** OVERLAY IMPLEMENTATIONS *****
 
-fn gradient_overlay(id: vec3<u32>) {
-    let tile_id = input_tile_ids[id.x];
-    let bounds = input_tile_bounds[id.x];
-    let input_texture_size = textureDimensions(input_normal_tiles);
-    let tile_width: f32 = (bounds.z - bounds.x);
-    let tile_height: f32 = (bounds.w - bounds.y);
-
-    let col = id.y; // in [0, texture_dimension(output_tiles).x - 1]
-    let row = id.z; // in [0, texture_dimension(output_tiles).y - 1]
-    let uv = vec2f(f32(col), f32(row)) / vec2f(settings.output_resolution - 1);
-
-    var source_tile_id: TileId = tile_id;
-    var source_uv: vec2f = uv;
-    calc_tile_id_and_uv_for_zoom_level(tile_id, uv, settings.source_zoomlevel, &source_tile_id, &source_uv);
-
-    // read normal
-    var texture_array_index: u32;
-    let found = get_texture_array_index(source_tile_id, &texture_array_index, &map_key_buffer, &map_value_buffer);
-    if (!found) {
-        return;
-    }
-    let normal = bilinear_sample_vec4f(input_normal_tiles, input_normal_tiles_sampler, source_uv, texture_array_index).xyz * 2 - 1;
-    let gradient = get_gradient(normal);
-    //textureStore(output_tiles, vec2u(col, row), id.x, vec4f(gradient, 1));
-}
-
-// draws traces within a single tile
-fn traces_overlay(id: vec3<u32>) {
-    let tile_id = input_tile_ids[id.x];
-    let bounds = input_tile_bounds[id.x];
-    let input_texture_size = textureDimensions(input_normal_tiles);
-    let tile_width: f32 = (bounds.z - bounds.x);
-    let tile_height: f32 = (bounds.w - bounds.y);
-
-    let col = id.y; // in [0, texture_dimension(output_tiles).x - 1]
-    let row = id.z; // in [0, texture_dimension(output_tiles).y - 1]
-
+fn trajectory_overlay(id: vec3<u32>) {
+    let input_texture_size = textureDimensions(input_normal_texture);
+    
     // a texel's uv coordinate should be its center, therefore shift down and right by half a texel
-    // the overlay uv coordinates and height/normal tile uv coordinates are NOT the same because height/normal textures are overlapping
-    let overlay_uv = vec2f(f32(col), f32(row)) / vec2f(settings.output_resolution) + 1f / (2f * vec2f(settings.output_resolution));
+    let uv = vec2f(f32(id.x), f32(id.y)) / vec2f(settings.output_resolution - 1) + 1f / (2f * vec2f(settings.output_resolution));
 
-    //if (!should_paint(col, row, tile_id)) {
-    //    return;
-    //}
-
-    if (!is_release_point(tile_id, overlay_uv, settings.source_zoomlevel)) {
+    if (!sample_release_point_texture(uv)) {
         return;
     }
 
     // get slope angle at start
-    var start_normal: vec3f;
-    get_normal(tile_id, overlay_uv, settings.source_zoomlevel, &start_normal);
+    let start_normal = sample_normal_texture(uv);
     let start_slope_angle = get_slope_angle(start_normal);
+    let trajectory_value = start_slope_angle / (PI / 2);
 
-
-
-    var max_slope_angle = 0.0;
     var velocity = vec3f(0, 0, 0);
 
     var perla_velocity = 0f;
@@ -389,29 +290,21 @@ fn traces_overlay(id: vec3<u32>) {
     var last_dir_index: i32 = -1;  // used for d8 with weights
     var world_space_offset = vec2f(0, 0); // offset from original world position
     for (var i: u32 = 0; i < settings.num_steps; i++) {
-        // calculate tile id and overlay uv coordinates for current position
-        let overlay_uv_space_offset = vec2f(world_space_offset.x, -world_space_offset.y) / vec2f(tile_width, tile_height);
-        var current_tile_id: TileId;
-        var current_tile_uv: vec2f;
-        offset_uv(tile_id, overlay_uv + overlay_uv_space_offset, &current_tile_id, &current_tile_uv);
+        // compute uv coordinates for current position
+        let current_uv = uv + vec2f(world_space_offset.x, -world_space_offset.y) / settings.region_size;
 
-        // paint trace point
-        let output_coords = vec2u(floor(current_tile_uv * vec2f(settings.output_resolution)));
-        var output_texture_array_index: u32;
-        let found_output_tile = get_texture_array_index(current_tile_id, &output_texture_array_index, &output_tiles_map_key_buffer, &output_tiles_map_value_buffer);
-        if (found_output_tile) {
-            let buffer_index = get_storage_buffer_index(output_texture_array_index, output_coords, settings.output_resolution);
-            atomicMax(&output_storage_buffer[buffer_index], u32((start_slope_angle / (PI / 2)) * (1 << 31))); // map slope angle to [0,1]
-            //atomicMax(&output_storage_buffer[buffer_index], u32(settings.model5_center_height_offset * (1 << 31)));
-            //atomicMax(&output_storage_buffer[buffer_index], u32((length(velocity) / 25.0f) * (1 << 31)));
-        }
-
-        // read normal, get direction using model, check stopping criterion, update position
-        var normal: vec3f;
-        if (!get_normal(current_tile_id, current_tile_uv, settings.source_zoomlevel, &normal)) {
+        // quit if moved out of bounds
+        if (current_uv.x < 0 || current_uv.x > 1 || current_uv.y < 0 || current_uv.y > 1) {
             break;
         }
 
+        // draw trajectory point
+        // TODO draw line between last point and this point
+        let output_coords = vec2u(floor(current_uv * vec2f(settings.output_resolution - 1)));
+        write_pixel_at_pos(output_coords, trajectory_value);
+
+        // sample normal and get new world space offset based on chosen model
+        let normal = sample_normal_texture(current_uv);
         if (settings.model_type == 0) {
             velocity += model_physics_simple(normal, velocity);
             world_space_offset = world_space_offset + settings.step_length * velocity.xy;
@@ -423,21 +316,20 @@ fn traces_overlay(id: vec3<u32>) {
             world_space_offset = world_space_offset + settings.step_length * direction;
         } else if (settings.model_type == 3) {
             let direction = model_discretized_gradient(normal);
-            let step = direction * vec2f(tile_width, tile_height) / vec2f(settings.output_resolution);
-            world_space_offset = world_space_offset + settings.step_length * step;
+            world_space_offset = world_space_offset + settings.step_length * direction;
         } else if (settings.model_type == 4) {
-            let uv_direction = model_d8_without_weights(current_tile_id, current_tile_uv);
+            /*let uv_direction = model_d8_without_weights(current_tile_id, current_tile_uv);
             let world_direction = vec2f(uv_direction.x, -uv_direction.y);
             let step_uv_offset = (1f / vec2f(settings.output_resolution));
-            world_space_offset = world_space_offset + world_direction * step_uv_offset * vec2f(tile_width, tile_height);
+            world_space_offset = world_space_offset + world_direction * step_uv_offset * settings.region_size;*/
         } else if (settings.model_type == 5) {
-            let w1 = settings.model5_weights[0];
+            /*let w1 = settings.model5_weights[0];
             let w2 = settings.model5_weights[1];
             let weights = array<f32, 8>(w1.x, w1.y, w1.z, w1.w, w2.x, w2.y, w2.z, w2.w);
             let uv_direction = model_d8_with_weights(current_tile_id, current_tile_uv, last_dir_index, &last_dir_index, weights);
             let world_direction = vec2f(uv_direction.x, -uv_direction.y);
             let step_uv_offset = (1f / vec2f(settings.output_resolution));
-            world_space_offset = world_space_offset + world_direction * step_uv_offset * vec2f(tile_width, tile_height);
+            world_space_offset = world_space_offset + world_direction * step_uv_offset * settings.region_size;*/
         }
 
         if (settings.runout_model_type == 1) {
@@ -456,17 +348,15 @@ fn traces_overlay(id: vec3<u32>) {
     //textureStore(output_tiles, vec2u(col, row), id.x, vec4f(0.0, 0.0, 1.0, 1.0));
 }
 
-@compute @workgroup_size(1, 16, 16)
+@compute @workgroup_size(16, 16, 1)
 fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
-    // id.x  in [0, num_tiles]
-    // id.yz in [0, ceil(texture_dimensions(output_tiles).xy / workgroup_size.yz) - 1]
+    // id.xy in [0, ceil(texture_dimensions(output_tiles).xy / workgroup_size.xy) - 1]
 
     // exit if thread id is outside image dimensions (i.e. thread is not supposed to be doing any work)
-    if (id.y >= settings.output_resolution.x || id.z >= settings.output_resolution.y) {
+    if (id.x >= settings.output_resolution.x || id.y >= settings.output_resolution.y) {
         return;
     }
-    // id.yz in [0, texture_dimensions(output_tiles) - 1]
+    // id.xy in [0, texture_dimensions(output_tiles) - 1]
 
-    //gradient_overlay(id);
-    traces_overlay(id);
+    trajectory_overlay(id);
 }

@@ -762,24 +762,18 @@ void Window::update_compute_pipeline_settings()
 
     } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
         // tile selection
-        m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_target_tiles_node")
+        m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
             .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.max_target_zoomlevel);
 
         // tile source
         m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node")
             .set_settings(m_tile_source_settings.at(m_compute_pipeline_settings.tile_source_index));
 
-        // data source tile selection
-        m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_source_tiles_node")
-            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.source_zoomlevel);
-
-        // release points settings
-        compute::nodes::ComputeReleasePointsNode::ReleasePointsSettings release_points_settings;
-        release_points_settings.min_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_min_slope_angle);
-        release_points_settings.max_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_max_slope_angle);
-        release_points_settings.sampling_density = glm::uvec2(m_compute_pipeline_settings.sampling_density);
-        auto& release_points_node = m_compute_graph->get_node_as<compute::nodes::ComputeReleasePointsNode>("release_points_node");
-        release_points_node.set_settings(release_points_settings);
+        compute::nodes::ComputeReleasePointsNode::ReleasePointsSettings settings;
+        settings.min_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_min_slope_angle);
+        settings.max_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_max_slope_angle);
+        settings.sampling_density = glm::uvec2(m_compute_pipeline_settings.sampling_density);
+        m_compute_graph->get_node_as<compute::nodes::ComputeReleasePointsNode>("compute_release_points_node").set_settings(settings);
 
         // trajectories settings
         compute::nodes::ComputeAvalancheTrajectoriesNode::AvalancheTrajectoriesSettings trajectory_settings {};
@@ -803,14 +797,8 @@ void Window::update_compute_pipeline_settings()
         trajectory_settings.simulation.perla = m_compute_pipeline_settings.perla;
 
         auto& trajectories_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("compute_avalanche_trajectories_node");
-        trajectories_node.set_area_of_influence_settings(trajectory_settings);
+        trajectories_node.set_settings(trajectory_settings);
 
-        // downsampling
-        compute::nodes::DownsampleTilesNode::DownsampleSettings downsample_settings {
-            .num_levels = static_cast<uint32_t>(m_compute_pipeline_settings.max_target_zoomlevel - m_compute_pipeline_settings.min_target_zoomlevel),
-        };
-        m_compute_graph->get_node_as<compute::nodes::DownsampleTilesNode>("downsample_trajectory_tiles_node").set_downsample_settings(downsample_settings);
-        m_compute_graph->get_node_as<compute::nodes::DownsampleTilesNode>("downsample_normals_tiles_node").set_downsample_settings(downsample_settings);
     } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_INFLUENCE_AREA) {
         // tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_target_tiles_node")
@@ -1198,7 +1186,8 @@ void Window::reload_shaders()
 void Window::on_pipeline_run_completed()
 {
     // update compute overlay texture and aabb with compute pipeline outputs
-    if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS || m_active_compute_pipeline_type == ComputePipelineType::RELEASE_POINTS) {
+    if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS || m_active_compute_pipeline_type == ComputePipelineType::RELEASE_POINTS
+        || m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
 
         const webgpu::raii::TextureWithSampler* texture = nullptr;
         if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS) {
@@ -1207,6 +1196,9 @@ void Window::on_pipeline_run_completed()
         } else if (m_active_compute_pipeline_type == ComputePipelineType::RELEASE_POINTS) {
             texture = std::get<const webgpu::raii::TextureWithSampler*>(
                 m_compute_graph->get_node("compute_release_points_node").output_socket("release point texture").get_data());
+        } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
+            texture
+                = std::get<const webgpu::raii::TextureWithSampler*>(m_compute_graph->get_node("buffer_to_texture_node").output_socket("texture").get_data());
         }
         assert(texture != nullptr);
         update_compute_overlay_texture(*texture);
