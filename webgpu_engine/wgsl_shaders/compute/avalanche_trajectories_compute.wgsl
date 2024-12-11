@@ -22,6 +22,11 @@
 #include "util/tile_util.wgsl"
 #include "util/normals_util.wgsl"
 
+
+// weights need to match the texels that are chosen by textureGather - this does NOT align perfectly, and introduces some artifacts
+// adding offset fixes this issue, see https://www.reedbeta.com/blog/texture-gathers-and-coordinate-precision/
+const TEXTURE_GATHER_OFFSET = 1.0f / 512.0f;
+
 struct AvalancheTrajectoriesSettings {
     output_resolution: vec2u,
     region_size: vec2f, // world space width and height of the the region we operate on
@@ -64,9 +69,10 @@ struct AvalancheTrajectoriesSettings {
 //       then write its contents into a texture in a subsequent step (avalanche_trajectories_buffer_to_texture.wgsl)
 
 
+// Samples normal texture with bilinear filtering.
 fn sample_normal_texture(uv: vec2f) -> vec3f {
-    let texture_dimensions: vec2u = textureDimensions(input_normal_texture) - 1;
-    let weights: vec2f = fract(uv * vec2f(texture_dimensions));
+    let texture_dimensions: vec2u = textureDimensions(input_normal_texture);
+    let weights: vec2f = fract(uv * vec2f(texture_dimensions) - 0.5f + TEXTURE_GATHER_OFFSET); // -0.5 to make relative to texel center
 
     let x = dot(vec4f((1.0 - weights.x) * weights.y, weights.x * weights.y, weights.x * (1.0 - weights.y), (1.0 - weights.x) * (1.0 - weights.y)),
         vec4f(textureGather(0, input_normal_texture, input_sampler, uv)));
@@ -81,16 +87,19 @@ fn sample_normal_texture(uv: vec2f) -> vec3f {
     //return textureSample(input_normal_texture, input_sampler, uv).xyz * 2 - 1;
 }
 
+// Samples height texture with bilinear filtering.
 fn sample_height_texture(uv: vec2f) -> f32 {
     let texture_dimensions = textureDimensions(input_height_texture);
-    let weights: vec2f = fract(uv * vec2f(texture_dimensions));
+    let weights: vec2f = fract(uv * vec2f(texture_dimensions) - 0.5f + TEXTURE_GATHER_OFFSET); // -0.5 to make relative to texel center
     let texel_values: vec4f = textureGather(0, input_height_texture, input_sampler, uv);
     return dot(vec4f((1.0 - weights.x) * weights.y, weights.x * weights.y, weights.x * (1.0 - weights.y), (1.0 - weights.x) * (1.0 - weights.y)), texel_values);
 }
 
+// Samples release point texture with nearest neighbor.
+// Returns true if alpha component is greater than 0, false otherwise.
 fn sample_release_point_texture(uv: vec2f) -> bool {
     let texture_dimensions = textureDimensions(input_release_point_texture);
-    let pos = vec2u(uv * vec2f(texture_dimensions - 1));
+    let pos = vec2u(uv * vec2f(texture_dimensions));
     let mask = textureLoad(input_release_point_texture, pos, 0).rgba;
     return mask.a > 0;
 }
@@ -103,8 +112,8 @@ fn write_pixel_at_pos(pos: vec2u, value: f32) {
 }
 
 fn draw_line_uv(start_uv: vec2f, end_uv: vec2f, value: f32) {
-    let start_pos = vec2u(floor(start_uv * vec2f(settings.output_resolution - 1)));
-    let end_pos = vec2u(floor(end_uv * vec2f(settings.output_resolution - 1)));
+    let start_pos = vec2u(floor(start_uv * vec2f(settings.output_resolution)));
+    let end_pos = vec2u(floor(end_uv * vec2f(settings.output_resolution)));
     draw_line_pos(start_pos, end_pos, value);
 }
 
@@ -289,7 +298,7 @@ fn trajectory_overlay(id: vec3<u32>) {
     let input_texture_size = textureDimensions(input_normal_texture);
     
     // a texel's uv coordinate should be its center, therefore shift down and right by half a texel
-    let uv = vec2f(f32(id.x), f32(id.y)) / vec2f(settings.output_resolution - 1) + 1f / (2f * vec2f(settings.output_resolution));
+    let uv = vec2f(f32(id.x), f32(id.y)) / vec2f(settings.output_resolution) + 1f / (2f * vec2f(settings.output_resolution));
 
     if (!sample_release_point_texture(uv)) {
         return;
