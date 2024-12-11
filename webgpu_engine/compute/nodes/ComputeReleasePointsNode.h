@@ -32,7 +32,8 @@ class ComputeReleasePointsNode : public Node {
 public:
     struct ReleasePointsSettings {
         WGPUTextureFormat texture_format = WGPUTextureFormat_RGBA8Unorm;
-        WGPUTextureUsage texture_usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
+        WGPUTextureUsage texture_usage
+            = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc;
         float min_slope_angle = glm::radians(28.0f); // min slope angle [rad]
         float max_slope_angle = glm::radians(60.0f); // max slope angle [rad]
         glm::uvec2 sampling_density; // sampling density in x and y direction
