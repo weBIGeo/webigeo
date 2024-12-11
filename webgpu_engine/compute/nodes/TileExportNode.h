@@ -65,6 +65,8 @@ private:
 
     std::map<tile::Id, std::shared_ptr<QByteArray>> m_tile_data;
 
+    void impl_single_texture();
+    void impl_texture_array();
     void readback_done();
 };
 

@@ -22,6 +22,7 @@
 #include "../GpuTileStorage.h"
 #include <QDebug>
 #include <QString>
+#include <assert.h>
 #include <filesystem>
 #include <limits>
 #include <nucleus/srs.h>
@@ -33,6 +34,10 @@ namespace webgpu_engine::compute::nodes {
 webgpu_engine::compute::nodes::TileExportNode::TileExportNode(WGPUDevice device, ExportSettings settings)
     : Node(
           {
+              // need to pass EITHER texture
+              InputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>()),
+
+              // OR tile ids, hashmap and textures
               InputSocket(*this, "tile ids", data_type<const std::vector<tile::Id>*>()),
               InputSocket(*this, "hash map", data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()),
               InputSocket(*this, "textures", data_type<TileStorageTexture*>()),
@@ -48,6 +53,64 @@ void TileExportNode::run_impl()
 {
     qDebug() << "running TileExportNode ...";
 
+    if (input_socket("texture").is_socket_connected()) {
+        assert(!input_socket("tile ids").is_socket_connected());
+        assert(!input_socket("hash map").is_socket_connected());
+        assert(!input_socket("textures").is_socket_connected());
+        impl_single_texture();
+    } else {
+        assert(input_socket("tile ids").is_socket_connected());
+        assert(input_socket("hash map").is_socket_connected());
+        assert(input_socket("textures").is_socket_connected());
+        impl_texture_array();
+    }
+}
+
+static void copy_buffer_to_raster(
+    const QByteArray& src, nucleus::Raster<glm::u8vec4>& dest, uint32_t byte_per_pixel, glm::uvec2 source_size, glm::uvec2 dest_size)
+{
+    auto& dest_buffer = dest.buffer();
+    for (uint32_t y = 0; y < dest_size.y; y++) {
+        for (uint32_t x = 0; x < dest_size.x; x++) {
+            const uint32_t index_src = (y * source_size.x + x) * byte_per_pixel;
+            const uint8_t r = src.at(index_src + 0);
+            const uint8_t g = byte_per_pixel > 1 ? src.at(index_src + 1) : 0;
+            const uint8_t b = byte_per_pixel > 2 ? src.at(index_src + 2) : 0;
+            const uint8_t a = byte_per_pixel > 3 ? src.at(index_src + 3) : 255;
+
+            const uint32_t index_dest = y * dest_size.x + x;
+            dest_buffer[index_dest] = glm::u8vec4(r, g, b, a);
+        }
+    }
+}
+
+void TileExportNode::impl_single_texture()
+{
+    const auto& texture = *std::get<data_type<const webgpu::raii::TextureWithSampler*>()>(input_socket("texture").get_connected_data());
+
+    glm::uvec2 texture_dimensions { texture.texture().width(), texture.texture().height() };
+
+    texture.texture().read_back_async(m_device, 0, [this, texture_dimensions]([[maybe_unused]] size_t layer_index, std::shared_ptr<QByteArray> data) {
+        // Copy raw QByteArray to rgba8 texture
+        nucleus::Raster<glm::u8vec4> raster(texture_dimensions);
+        uint32_t bpp = data->size() / (texture_dimensions.x * texture_dimensions.y);
+        copy_buffer_to_raster(*data, raster, bpp, raster.size(), raster.size());
+
+        // Make sure output directory exists
+        const auto parent_directory = std::filesystem::path(m_settings.output_directory);
+        std::filesystem::create_directory(parent_directory);
+        qDebug() << "Writing file to " << std::filesystem::canonical(parent_directory).string();
+
+        // Write to file
+        QString file_path = QString::fromStdString((parent_directory / "texture.png").string());
+        nucleus::utils::image_writer::rgba8_as_png(raster, file_path);
+
+        emit this->run_completed();
+    });
+}
+
+void TileExportNode::impl_texture_array()
+{
     m_exported_tile_count = 0;
 
     // get tile ids to process
@@ -92,21 +155,9 @@ void TileExportNode::readback_done()
     for (const auto& tile : m_tile_data) {
         const auto& tile_id = tile.first;
         rasters[tile_id] = nucleus::Raster<glm::u8vec4>(effective_tile_size);
-        for (uint32_t y = 0; y < effective_tile_size.y; y++) {
-            for (uint32_t x = 0; x < effective_tile_size.x; x++) {
-                const auto& src = tile.second;
-                std::vector<glm::u8vec4>& dest = rasters[tile_id].buffer();
-
-                const uint32_t index_src = (y * m_tile_size.x + x) * bpp;
-                const uint8_t r = src->at(index_src + 0);
-                const uint8_t g = bpp > 1 ? src->at(index_src + 1) : 0;
-                const uint8_t b = bpp > 2 ? src->at(index_src + 2) : 0;
-                const uint8_t a = bpp > 3 ? src->at(index_src + 3) : 255;
-
-                const uint32_t index_dest = y * effective_tile_size.x + x;
-                dest[index_dest] = glm::u8vec4(r, g, b, a);
-            }
-        }
+        const auto& src = tile.second;
+        auto& dest = rasters[tile_id];
+        copy_buffer_to_raster(*src, dest, bpp, m_tile_size, effective_tile_size);
     }
 
     // Make sure output directory exists
