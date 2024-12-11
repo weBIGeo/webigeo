@@ -22,6 +22,8 @@ namespace webgpu_engine::compute::nodes {
 
 glm::uvec3 BufferToTextureNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
 
+const uint32_t BufferToTextureNode::MAX_TEXTURE_RESOLUTION = 8192;
+
 BufferToTextureNode::BufferToTextureNode(const PipelineManager& pipeline_manager, WGPUDevice device)
     : webgpu_engine::compute::nodes::BufferToTextureNode(pipeline_manager, device, BufferToTextureSettings())
 {
@@ -53,6 +55,14 @@ void BufferToTextureNode::run_impl()
     m_settings_uniform.data.input_resolution = input_raster_dimensions;
     m_settings_uniform.update_gpu_data(m_queue);
     qDebug() << "input resolution: " << input_raster_dimensions.x << "x" << input_raster_dimensions.y;
+
+    // assert input textures have same size, otherwise fail run
+    if (input_raster_dimensions.x > MAX_TEXTURE_RESOLUTION || input_raster_dimensions.y > MAX_TEXTURE_RESOLUTION) {
+        emit run_failed(NodeRunFailureInfo(*this,
+            std::format(
+                "cannot create texture: texture dimensions ({}x{}) exceed {}", input_raster_dimensions.x, input_raster_dimensions.y, MAX_TEXTURE_RESOLUTION)));
+        return;
+    }
 
     m_output_texture = create_texture(m_device, input_raster_dimensions.x, input_raster_dimensions.y, m_settings.format, m_settings.usage);
 
