@@ -64,15 +64,6 @@ struct AvalancheTrajectoriesSettings {
 //       then write its contents into a texture in a subsequent step (avalanche_trajectories_buffer_to_texture.wgsl)
 
 
-// ***** UTILITY FUNCTIONS *****
-
-// writes single pixel to storage buffer, value must be in [0,1]
-fn write_pixel_at_pos(pos: vec2u, value: f32) {
-    let buffer_index = pos.y * settings.output_resolution.x + pos.x;
-    let value_u32 =  u32(value * (1 << 31)); // map value from [0,1] angle to [0, 2^32 - 1]
-    atomicMax(&output_storage_buffer[buffer_index], value_u32);         
-}
-
 fn sample_normal_texture(uv: vec2f) -> vec3f {
     let texture_dimensions: vec2u = textureDimensions(input_normal_texture) - 1;
     let weights: vec2f = fract(uv * vec2f(texture_dimensions));
@@ -104,6 +95,48 @@ fn sample_release_point_texture(uv: vec2f) -> bool {
     return mask.a > 0;
 }
 
+// writes single pixel to storage buffer, value must be in [0,1]
+fn write_pixel_at_pos(pos: vec2u, value: f32) {
+    let buffer_index = pos.y * settings.output_resolution.x + pos.x;
+    let value_u32 =  u32(value * (1 << 31)); // map value from [0,1] angle to [0, 2^32 - 1]
+    atomicMax(&output_storage_buffer[buffer_index], value_u32);         
+}
+
+fn draw_line_uv(start_uv: vec2f, end_uv: vec2f, value: f32) {
+    let start_pos = vec2u(floor(start_uv * vec2f(settings.output_resolution - 1)));
+    let end_pos = vec2u(floor(end_uv * vec2f(settings.output_resolution - 1)));
+    draw_line_pos(start_pos, end_pos, value);
+}
+
+// implementation of bresenham's line algorithm
+// adapted from https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm#All_cases (used last one, with error) 
+fn draw_line_pos(start_pos: vec2u, end_pos: vec2u, value: f32) {
+    let dx = abs(i32(end_pos.x) - i32(start_pos.x));
+    let sx = select(-1, 1, start_pos.x < end_pos.x);
+    let dy = -abs(i32(end_pos.y) - i32(start_pos.y));
+    let sy = select(-1, 1, start_pos.y < end_pos.y);
+    var error = dx + dy;
+    var x = i32(start_pos.x);
+    var y = i32(start_pos.y);
+
+    while (true) {
+        write_pixel_at_pos(vec2u(u32(x), u32(y)), value);
+        
+        if (x == i32(end_pos.x) && y == i32(end_pos.y)) {
+            break;
+        }
+
+        let e2 = 2 * error;
+        if (e2 >= dy) {
+            error = error + dy;
+            x += sx;
+        }
+        if (e2 <= dx) {
+            error = error + dx;
+            y += sy;
+        }
+    }
+}
 
 // ***** MODELS *****
 
@@ -273,6 +306,7 @@ fn trajectory_overlay(id: vec3<u32>) {
     var perla_theta = 0f;
 
     var last_dir_index: i32 = -1;  // used for d8 with weights
+    var last_uv = vec2f(0, 0);
     var world_space_offset = vec2f(0, 0); // offset from original world position
     for (var i: u32 = 0; i < settings.num_steps; i++) {
         // compute uv coordinates for current position
@@ -284,9 +318,10 @@ fn trajectory_overlay(id: vec3<u32>) {
         }
 
         // draw trajectory point
-        // TODO draw line between last point and this point
-        let output_coords = vec2u(floor(current_uv * vec2f(settings.output_resolution - 1)));
-        write_pixel_at_pos(output_coords, trajectory_value);
+        if (i > 0) {
+            draw_line_uv(last_uv, current_uv, trajectory_value);
+        }
+        last_uv = current_uv;
 
         // sample normal and get new world space offset based on chosen model
         let normal = sample_normal_texture(current_uv);
