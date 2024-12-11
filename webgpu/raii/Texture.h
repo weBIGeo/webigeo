@@ -36,6 +36,7 @@ public:
     using ReadBackCallback = std::function<void(size_t layer_index, std::shared_ptr<QByteArray>)>;
 
     struct ReadBackState {
+        const Texture* texture;
         std::unique_ptr<RawBuffer<char>> buffer;
         ReadBackCallback callback;
         size_t layer_index;
@@ -120,7 +121,7 @@ public:
     void copy_to_texture(WGPUCommandEncoder encoder, uint32_t source_layer, const Texture& target_texture, uint32_t target_layer = 0) const;
 
     /// read back single texture layer of this texture
-    void read_back_async(WGPUDevice device, size_t layer_index, ReadBackCallback callback);
+    void read_back_async(WGPUDevice device, size_t layer_index, ReadBackCallback callback) const;
 
     /// should only be used for debugging purposes
     void save_to_file(WGPUDevice device, const std::string& filename, size_t layer_index = 0);
@@ -137,8 +138,6 @@ public:
     size_t bytes_per_row() const;
     size_t single_layer_size_in_bytes() const;
 
-private:
-    std::queue<ReadBackState> m_read_back_states;
 };
 
 } // namespace webgpu::raii

@@ -125,40 +125,42 @@ void Texture::copy_to_texture(WGPUCommandEncoder encoder, uint32_t source_layer,
     wgpuCommandEncoderCopyTextureToTexture(encoder, &source, &destination, &extent);
 }
 
-void Texture::read_back_async(WGPUDevice device, size_t layer_index, ReadBackCallback callback)
+void Texture::read_back_async(WGPUDevice device, size_t layer_index, ReadBackCallback callback) const
 {
-    // create buffer and add buffer and callback to back of queue
-    m_read_back_states.emplace(std::make_unique<raii::RawBuffer<char>>(
-                                   device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead, single_layer_size_in_bytes(), "texture read back staging buffer"),
-        callback, layer_index);
+    ReadBackState* read_back_state = new ReadBackState {
+        this,
+        std::make_unique<raii::RawBuffer<char>>(
+            device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead, single_layer_size_in_bytes(), "texture read back staging buffer"),
+        callback,
+        layer_index,
+    };
 
-    copy_to_buffer(device, *m_read_back_states.back().buffer, glm::uvec3(0, 0, uint32_t(layer_index)));
+    copy_to_buffer(device, *(read_back_state->buffer), glm::uvec3(0, 0, uint32_t(layer_index)));
 
     auto on_buffer_mapped = [](WGPUBufferMapAsyncStatus status, void* user_data) {
-        Texture* _this = reinterpret_cast<Texture*>(user_data);
+        ReadBackState* current_state = reinterpret_cast<ReadBackState*>(user_data);
 
         if (status != WGPUBufferMapAsyncStatus_Success) {
             qCritical() << "error: failed mapping buffer for ComputeTileStorage read back";
-            _this->m_read_back_states.pop();
+            delete current_state;
             return;
         }
 
-        const ReadBackState& current_state = _this->m_read_back_states.front();
-
-        const char* buffer_data = (const char*)wgpuBufferGetConstMappedRange(current_state.buffer->handle(), 0, current_state.buffer->size_in_byte());
+        const Texture* texture = current_state->texture;
+        const char* buffer_data = (const char*)wgpuBufferGetConstMappedRange(current_state->buffer->handle(), 0, current_state->buffer->size_in_byte());
         auto array = std::make_shared<QByteArray>();
-        for (uint32_t i = 0; i < _this->m_descriptor.size.height; i++) {
-            array->append(&buffer_data[i * _this->bytes_per_row()], _this->m_descriptor.size.width * get_bytes_per_element(_this->m_descriptor.format));
+        for (uint32_t i = 0; i < texture->m_descriptor.size.height; i++) {
+            array->append(&buffer_data[i * texture->bytes_per_row()], texture->m_descriptor.size.width * get_bytes_per_element(texture->m_descriptor.format));
         }
 
-        current_state.callback(current_state.layer_index, array);
-        wgpuBufferUnmap(current_state.buffer->handle());
+        current_state->callback(current_state->layer_index, array);
+        wgpuBufferUnmap(current_state->buffer->handle());
 
-        _this->m_read_back_states.pop();
+        delete current_state;
     };
 
     wgpuBufferMapAsync(
-        m_read_back_states.back().buffer->handle(), WGPUMapMode_Read, 0, uint32_t(m_read_back_states.back().buffer->size_in_byte()), on_buffer_mapped, this);
+        read_back_state->buffer->handle(), WGPUMapMode_Read, 0, uint32_t(read_back_state->buffer->size_in_byte()), on_buffer_mapped, read_back_state);
 }
 
 void Texture::save_to_file(WGPUDevice device, const std::string& filename, size_t layer_index)
