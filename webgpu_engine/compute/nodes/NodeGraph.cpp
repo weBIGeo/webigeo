@@ -28,6 +28,7 @@
 #include "ComputeSnowNode.h"
 #include "CreateHashMapNode.h"
 #include "DownsampleTilesNode.h"
+#include "FxaaNode.h"
 #include "RequestTilesNode.h"
 #include "SelectTilesNode.h"
 #include "UpsampleTexturesNode.h"
@@ -377,6 +378,23 @@ std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_with_export_compute_gr
 
         // Connect height tiles export node
         height_export_node->input_socket("texture").connect(node_graph->get_node("stitch_node").output_socket("texture"));
+    }
+
+    node_graph->connect_node_signals_and_slots();
+
+    return node_graph;
+}
+
+std::unique_ptr<NodeGraph> NodeGraph::create_fxaa_trajectories_compute_graph(const PipelineManager& manager, WGPUDevice device)
+{
+    auto node_graph = create_trajectories_compute_graph_unconnected(manager, device);
+
+    // fxaa node
+    {
+        FxaaNode* fxaa_node = static_cast<FxaaNode*>(node_graph->add_node("fxaa_node", std::make_unique<FxaaNode>(manager, device)));
+
+        // Connect release points export node
+        fxaa_node->input_socket("texture").connect(node_graph->get_node("buffer_to_texture_node").output_socket("texture"));
     }
 
     node_graph->connect_node_signals_and_slots();

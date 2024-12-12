@@ -690,7 +690,8 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, 
     } else if (pipeline_type == ComputePipelineType::NORMALS_AND_SNOW) {
         m_compute_graph = compute::nodes::NodeGraph::create_normal_with_snow_compute_graph(*m_pipeline_manager, m_device);
     } else if (pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
-        m_compute_graph = compute::nodes::NodeGraph::create_trajectories_with_export_compute_graph(*m_pipeline_manager, m_device);
+        // m_compute_graph = compute::nodes::NodeGraph::create_trajectories_with_export_compute_graph(*m_pipeline_manager, m_device);
+        m_compute_graph = compute::nodes::NodeGraph::create_fxaa_trajectories_compute_graph(*m_pipeline_manager, m_device);
     } else if (pipeline_type == ComputePipelineType::AVALANCHE_INFLUENCE_AREA) {
         m_compute_graph = compute::nodes::NodeGraph::create_avalanche_influence_area_compute_graph(*m_pipeline_manager, m_device);
     } else if (pipeline_type == ComputePipelineType::D8_DIRECTIONS) {
@@ -1178,8 +1179,9 @@ void Window::on_pipeline_run_completed()
             texture = std::get<const webgpu::raii::TextureWithSampler*>(
                 m_compute_graph->get_node("compute_release_points_node").output_socket("release point texture").get_data());
         } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
-            texture
-                = std::get<const webgpu::raii::TextureWithSampler*>(m_compute_graph->get_node("buffer_to_texture_node").output_socket("texture").get_data());
+            // texture
+            //     = std::get<const webgpu::raii::TextureWithSampler*>(m_compute_graph->get_node("buffer_to_texture_node").output_socket("texture").get_data());
+            texture = std::get<const webgpu::raii::TextureWithSampler*>(m_compute_graph->get_node("fxaa_node").output_socket("texture").get_data());
         }
         assert(texture != nullptr);
         update_compute_overlay_texture(*texture);

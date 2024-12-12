@@ -18,6 +18,7 @@
  *****************************************************************************/
 
 #include "util/normals_util.wgsl"
+#include "util/color_mapping.wgsl"
 
 // input
 @group(0) @binding(0) var<uniform> settings: ReleasePointSettings;
@@ -57,6 +58,8 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     if (slope_angle < settings.min_slope_angle || slope_angle > settings.max_slope_angle || !should_paint(tex_pos)) {
         textureStore(release_points_texture, tex_pos, vec4f(0, 0, 0, 0));
     } else {
-        textureStore(release_points_texture, tex_pos, vec4f(1, 0, 0, 1));
+        let color = color_mapping_bergfex(slope_angle / (PI / 2));
+        textureStore(release_points_texture, tex_pos, vec4f(color.xyz, 1));
+        //textureStore(release_points_texture, tex_pos, vec4f(1, 0, 0, 1));
     }
 }

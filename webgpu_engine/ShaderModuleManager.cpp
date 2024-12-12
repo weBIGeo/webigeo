@@ -48,6 +48,7 @@ void ShaderModuleManager::create_shader_modules()
     m_d8_compute_module = create_shader_module_for_file("compute/d8_compute.wgsl");
     m_release_point_compute_module = create_shader_module_for_file("compute/compute_release_points.wgsl");
     m_height_decode_compute_module = create_shader_module_for_file("compute/height_decode_compute.wgsl");
+    m_fxaa_compute_module = create_shader_module_for_file("compute/fxaa_compute.wgsl");
 }
 
 void ShaderModuleManager::release_shader_modules()
@@ -69,6 +70,7 @@ void ShaderModuleManager::release_shader_modules()
     m_d8_compute_module.release();
     m_release_point_compute_module.release();
     m_height_decode_compute_module.release();
+    m_fxaa_compute_module.release();
 }
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::render_tiles() const { return *m_render_tiles_shader_module; }
@@ -98,6 +100,8 @@ const webgpu::raii::ShaderModule& ShaderModuleManager::d8_compute() const { retu
 const webgpu::raii::ShaderModule& ShaderModuleManager::release_point_compute() const { return *m_release_point_compute_module; }
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::height_decode_compute() const { return *m_height_decode_compute_module; }
+
+const webgpu::raii::ShaderModule& ShaderModuleManager::fxaa_compute() const { return *m_fxaa_compute_module; }
 
 std::string ShaderModuleManager::load_and_preprocess_without_cache(const std::string& path)
 {
