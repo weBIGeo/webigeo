@@ -46,9 +46,12 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
 
     let risk_value = f32(read_buffer_at(id.xy)) / (1 << 31);
     //let risk_value = f32(input_storage_buffer[buffer_index]) / 1000f;
+
+    var output_color: vec4f;
     if (risk_value == 0.0) {
-        return;
+        output_color = vec4f(0.0);
+    } else {
+        output_color = vec4f(color_mapping_bergfex(risk_value), 1.0);
     }
-    let color = color_mapping_bergfex(risk_value);
-    textureStore(output_texture, id.xy, vec4f(color, 1.0));
+    textureStore(output_texture, id.xy, output_color);
 }
