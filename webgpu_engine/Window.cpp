@@ -430,6 +430,7 @@ void Window::paint_compute_pipeline_gui()
             { "Avalanche influence area + Normals", ComputePipelineType::AVALANCHE_INFLUENCE_AREA },
             { "D8 directions", ComputePipelineType::D8_DIRECTIONS },
             { "Release points", ComputePipelineType::RELEASE_POINTS },
+            { "Iterative simulation (WIP)", ComputePipelineType::ITERATIVE_SIMULATION },
         };
         const char* current_item_label = overlays[current_item].first.c_str();
         if (ImGui::BeginCombo("Type", current_item_label)) {
@@ -648,6 +649,23 @@ void Window::paint_compute_pipeline_gui()
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     recreate_and_rerun_compute_pipeline();
                 }
+            } else if (m_active_compute_pipeline_type == ComputePipelineType::ITERATIVE_SIMULATION) {
+                // TODO remove duplicate code!
+
+                const uint32_t min_sampling_density = 1;
+                const uint32_t max_sampling_density = 256;
+                // 1-> every pixel
+                ImGui::SliderScalar("Sampling density", ImGuiDataType_U32, &m_compute_pipeline_settings.sampling_density, &min_sampling_density,
+                    &max_sampling_density, "%u", ImGuiSliderFlags_Logarithmic);
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    recreate_and_rerun_compute_pipeline();
+                }
+
+                ImGui::DragFloatRange2("Trigger point steepness limit", &m_compute_pipeline_settings.trigger_point_min_slope_angle,
+                    &m_compute_pipeline_settings.trigger_point_max_slope_angle, 0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp);
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    recreate_and_rerun_compute_pipeline();
+                }
             }
             ImGui::PopItemWidth();
             ImGui::TreePop();
@@ -698,6 +716,8 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, 
         m_compute_graph = compute::nodes::NodeGraph::create_d8_compute_graph(*m_pipeline_manager, m_device);
     } else if (pipeline_type == ComputePipelineType::RELEASE_POINTS) {
         m_compute_graph = compute::nodes::NodeGraph::create_release_points_compute_graph(*m_pipeline_manager, m_device);
+    } else if (pipeline_type == ComputePipelineType::ITERATIVE_SIMULATION) {
+        m_compute_graph = compute::nodes::NodeGraph::create_iterative_simulation_compute_graph(*m_pipeline_manager, m_device);
     }
 
     update_compute_pipeline_settings();
@@ -830,6 +850,20 @@ void Window::update_compute_pipeline_settings()
         // tile source
         m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node")
             .set_settings(m_tile_source_settings.at(m_compute_pipeline_settings.tile_source_index));
+    } else if (m_active_compute_pipeline_type == ComputePipelineType::ITERATIVE_SIMULATION) {
+        // tile selection
+        m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
+            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.zoomlevel);
+
+        // tile source
+        m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node")
+            .set_settings(m_tile_source_settings.at(m_compute_pipeline_settings.tile_source_index));
+
+        compute::nodes::ComputeReleasePointsNode::ReleasePointsSettings settings;
+        settings.min_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_min_slope_angle);
+        settings.max_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_max_slope_angle);
+        settings.sampling_density = glm::uvec2(m_compute_pipeline_settings.sampling_density);
+        m_compute_graph->get_node_as<compute::nodes::ComputeReleasePointsNode>("compute_release_points_node").set_settings(settings);
     }
 }
 
@@ -1169,7 +1203,8 @@ void Window::on_pipeline_run_completed()
 {
     // update compute overlay texture and aabb with compute pipeline outputs
     if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS || m_active_compute_pipeline_type == ComputePipelineType::RELEASE_POINTS
-        || m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
+        || m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES
+        || m_active_compute_pipeline_type == ComputePipelineType::ITERATIVE_SIMULATION) {
 
         const webgpu::raii::TextureWithSampler* texture = nullptr;
         if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS) {
@@ -1182,6 +1217,8 @@ void Window::on_pipeline_run_completed()
             // texture
             //     = std::get<const webgpu::raii::TextureWithSampler*>(m_compute_graph->get_node("buffer_to_texture_node").output_socket("texture").get_data());
             texture = std::get<const webgpu::raii::TextureWithSampler*>(m_compute_graph->get_node("fxaa_node").output_socket("texture").get_data());
+        } else if (m_active_compute_pipeline_type == ComputePipelineType::ITERATIVE_SIMULATION) {
+            texture = std::get<const webgpu::raii::TextureWithSampler*>(m_compute_graph->get_node("flowpy").output_socket("texture").get_data());
         }
         assert(texture != nullptr);
         update_compute_overlay_texture(*texture);

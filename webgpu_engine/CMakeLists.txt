@@ -53,6 +53,7 @@ set(SOURCES
     compute/nodes/TileStitchNode.h compute/nodes/TileStitchNode.cpp
     compute/nodes/HeightDecodeNode.h compute/nodes/HeightDecodeNode.cpp
     compute/nodes/FxaaNode.h compute/nodes/FxaaNode.cpp
+    compute/nodes/IterativeSimulationNode.h compute/nodes/IterativeSimulationNode.cpp
 )
 
 qt_add_library(webgpu_engine STATIC ${SOURCES})
@@ -78,6 +79,7 @@ qt_add_resources(webgpu_engine "shaders"
         "wgsl_shaders/compute/compute_release_points.wgsl"
         "wgsl_shaders/compute/height_decode_compute.wgsl"
         "wgsl_shaders/compute/fxaa_compute.wgsl"
+        "wgsl_shaders/compute/iterative_simulation_compute.wgsl"
 
         "wgsl_shaders/util/atmosphere.wgsl"
         "wgsl_shaders/util/snow.wgsl"

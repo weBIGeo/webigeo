@@ -29,6 +29,7 @@
 #include "CreateHashMapNode.h"
 #include "DownsampleTilesNode.h"
 #include "FxaaNode.h"
+#include "IterativeSimulationNode.h"
 #include "RequestTilesNode.h"
 #include "SelectTilesNode.h"
 #include "UpsampleTexturesNode.h"
@@ -382,6 +383,20 @@ std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_with_export_compute_gr
 
     node_graph->connect_node_signals_and_slots();
 
+    return node_graph;
+}
+
+std::unique_ptr<NodeGraph> NodeGraph::create_iterative_simulation_compute_graph(const PipelineManager& manager, WGPUDevice device)
+{
+    auto node_graph = create_release_points_compute_graph_unconnected(manager, device);
+
+    IterativeSimulationNode* flowpy_node
+        = static_cast<IterativeSimulationNode*>(node_graph->add_node("flowpy", std::make_unique<IterativeSimulationNode>(manager, device)));
+
+    flowpy_node->input_socket("height texture").connect(node_graph->get_node("height_decode_node").output_socket("decoded texture"));
+    flowpy_node->input_socket("release point texture").connect(node_graph->get_node("compute_release_points_node").output_socket("release point texture"));
+
+    node_graph->connect_node_signals_and_slots();
     return node_graph;
 }
 

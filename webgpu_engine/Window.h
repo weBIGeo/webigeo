@@ -89,6 +89,7 @@ public:
         AVALANCHE_INFLUENCE_AREA = 3,
         D8_DIRECTIONS = 4,
         RELEASE_POINTS = 5,
+        ITERATIVE_SIMULATION = 6,
     };
 
 public:

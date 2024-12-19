@@ -55,6 +55,24 @@ public:
         wgpuQueueWriteBuffer(queue, m_handle, offset * sizeof(T), data, count * sizeof(T)); // takes size in bytes
     }
 
+    void clear(WGPUDevice device, WGPUQueue queue)
+    {
+        // bind GPU resources and run pipeline
+        WGPUCommandEncoderDescriptor descriptor {};
+        descriptor.label = "buffer clear command encoder";
+        webgpu::raii::CommandEncoder encoder(device, descriptor);
+
+        clear(encoder.handle());
+
+        WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
+        cmd_buffer_descriptor.label = "buffer clear command buffer"; // TODO add buffer label here
+        WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder.handle(), &cmd_buffer_descriptor);
+        wgpuQueueSubmit(queue, 1, &command);
+        wgpuCommandBufferRelease(command);
+    }
+    void clear(WGPUCommandEncoder encoder) { wgpuCommandEncoderClearBuffer(encoder, m_handle, 0, m_size * sizeof(T)); }
+    void clear(WGPUCommandEncoder encoder, size_t count, size_t offset = 0) { wgpuCommandEncoderClearBuffer(encoder, m_handle, offset, count * sizeof(T)); }
+
     /// copy contents from this buffer into other buffer
     template <typename OtherT>
     void copy_to_buffer(WGPUCommandEncoder encoder, size_t src_offset_bytes, const raii::RawBuffer<OtherT>& dst, size_t dst_offset_bytes, size_t size_bytes)
