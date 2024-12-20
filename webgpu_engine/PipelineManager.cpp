@@ -718,7 +718,7 @@ void PipelineManager::create_avalanche_trajectory_bind_group_layout()
     WGPUBindGroupLayoutEntry input_normal_texture_entry {};
     input_normal_texture_entry.binding = 1;
     input_normal_texture_entry.visibility = WGPUShaderStage_Compute;
-    input_normal_texture_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
+    input_normal_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
     input_normal_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
     WGPUBindGroupLayoutEntry input_height_texture_entry {};
@@ -736,7 +736,7 @@ void PipelineManager::create_avalanche_trajectory_bind_group_layout()
     WGPUBindGroupLayoutEntry input_sampler {};
     input_sampler.binding = 4;
     input_sampler.visibility = WGPUShaderStage_Compute;
-    input_sampler.sampler.type = WGPUSamplerBindingType_NonFiltering;
+    input_sampler.sampler.type = WGPUSamplerBindingType_Filtering;
 
     WGPUBindGroupLayoutEntry output_storage_buffer_entry {};
     output_storage_buffer_entry.binding = 5;

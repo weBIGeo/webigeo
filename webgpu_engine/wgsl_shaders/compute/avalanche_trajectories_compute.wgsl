@@ -71,20 +71,7 @@ struct AvalancheTrajectoriesSettings {
 
 // Samples normal texture with bilinear filtering.
 fn sample_normal_texture(uv: vec2f) -> vec3f {
-    let texture_dimensions: vec2u = textureDimensions(input_normal_texture);
-    let weights: vec2f = fract(uv * vec2f(texture_dimensions) - 0.5f + TEXTURE_GATHER_OFFSET); // -0.5 to make relative to texel center
-
-    let x = dot(vec4f((1.0 - weights.x) * weights.y, weights.x * weights.y, weights.x * (1.0 - weights.y), (1.0 - weights.x) * (1.0 - weights.y)),
-        vec4f(textureGather(0, input_normal_texture, input_sampler, uv)));
-    let y = dot(vec4f((1.0 - weights.x) * weights.y, weights.x * weights.y, weights.x * (1.0 - weights.y), (1.0 - weights.x) * (1.0 - weights.y)),
-        vec4f(textureGather(1, input_normal_texture, input_sampler, uv)));
-    let z = dot(vec4f((1.0 - weights.x) * weights.y, weights.x * weights.y, weights.x * (1.0 - weights.y), (1.0 - weights.x) * (1.0 - weights.y)),
-        vec4f(textureGather(2, input_normal_texture, input_sampler, uv)));
-
-    return vec3f(x, y, z) * 2 - 1;
-
-    // as of writing this, textureSample can only be used in the fragment stage, thus compute shaders cannot use it (see doc)
-    //return textureSample(input_normal_texture, input_sampler, uv).xyz * 2 - 1;
+    return textureSampleLevel(input_normal_texture, input_sampler, uv, 0).xyz * 2 - 1;
 }
 
 // Samples height texture with bilinear filtering.

@@ -167,8 +167,8 @@ std::unique_ptr<webgpu::raii::Sampler> ComputeAvalancheTrajectoriesNode::create_
     sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
-    sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
+    sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Linear;
+    sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Linear;
     sampler_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Nearest;
     sampler_desc.lodMinClamp = 0.0f;
     sampler_desc.lodMaxClamp = 1.0f;
