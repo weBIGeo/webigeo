@@ -29,6 +29,7 @@ struct FramebufferFormat {
     glm::uvec2 size;
     WGPUTextureFormat depth_format;
     std::vector<WGPUTextureFormat> color_formats;
+    std::vector<WGPUTextureUsage> usages;
 };
 
 class Framebuffer {
@@ -43,7 +44,9 @@ public:
     glm::uvec2 size() const;
 
     const raii::TextureView& color_texture_view(size_t index);
+    const raii::TextureView& color_texture_view(size_t index) const;
     const raii::Texture& color_texture(size_t index);
+    const raii::Texture& color_texture(size_t index) const;
 
     const raii::TextureView& depth_texture_view();
     const raii::Texture& depth_texture();

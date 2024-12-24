@@ -62,6 +62,8 @@ const webgpu::raii::CombinedComputePipeline& PipelineManager::avalanche_influenc
     return *m_avalanche_influence_area_compute_pipeline;
 }
 
+const webgpu::raii::CombinedComputePipeline& PipelineManager::tonemap_compute_pipeline() const { return *m_tonemap_compute_pipeline; }
+
 const webgpu::raii::BindGroupLayout& PipelineManager::shared_config_bind_group_layout() const { return *m_shared_config_bind_group_layout; }
 
 const webgpu::raii::BindGroupLayout& PipelineManager::camera_bind_group_layout() const { return *m_camera_bind_group_layout; }
@@ -99,6 +101,8 @@ const webgpu::raii::BindGroupLayout& PipelineManager::avalanche_influence_area_b
     return *m_avalanche_influence_area_bind_group_layout;
 }
 
+const webgpu::raii::BindGroupLayout& PipelineManager::tonemap_bind_group_layout() const { return *m_tonemap_bind_group_layout; }
+
 void PipelineManager::create_pipelines()
 {
     create_bind_group_layouts();
@@ -113,6 +117,7 @@ void PipelineManager::create_pipelines()
     create_avalanche_trajectories_compute_pipeline();
     create_avalanche_trajectories_buffer_to_texture_compute_pipeline();
     create_avalanche_influence_area_compute_pipeline();
+    create_tonemap_compute_pipeline();
     m_pipelines_created = true;
 }
 
@@ -132,6 +137,7 @@ void PipelineManager::create_bind_group_layouts()
     create_avalanche_trajectory_bind_group_layout();
     create_avalanche_trajectory_buffer_to_texture_bind_group_layout();
     create_avalanche_influence_area_bind_group_layout();
+    create_tonemap_bind_group_layout();
 }
 
 void PipelineManager::release_pipelines()
@@ -147,6 +153,7 @@ void PipelineManager::release_pipelines()
     m_avalanche_trajectories_compute_pipeline.release();
     m_avalanche_trajectories_buffer_to_texture_compute_pipeline.release();
     m_avalanche_influence_area_compute_pipeline.release();
+    m_tonemap_compute_pipeline.release();
     m_pipelines_created = false;
 }
 
@@ -184,7 +191,7 @@ void PipelineManager::create_compose_pipeline()
 {
     webgpu::FramebufferFormat format {};
     format.depth_format = WGPUTextureFormat_Depth24Plus; // ImGUI needs attached depth buffer
-    format.color_formats.emplace_back(WGPUTextureFormat_BGRA8Unorm);
+    format.color_formats.emplace_back(WGPUTextureFormat_RGBA16Float);
 
     m_compose_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(m_device, m_shader_manager->screen_pass_vert(), m_shader_manager->compose_frag(),
         std::vector<webgpu::util::SingleVertexBufferInfo> {}, format,
@@ -300,6 +307,12 @@ void PipelineManager::create_avalanche_influence_area_compute_pipeline()
     m_avalanche_influence_area_compute_pipeline
         = std::make_unique<webgpu::raii::CombinedComputePipeline>(m_device, m_shader_manager->avalanche_influence_area_compute(),
             std::vector<const webgpu::raii::BindGroupLayout*> { m_avalanche_influence_area_bind_group_layout.get() }, "avalanche influence area");
+}
+
+void PipelineManager::create_tonemap_compute_pipeline()
+{
+    m_tonemap_compute_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(
+        m_device, m_shader_manager->tonemap_compute(), std::vector<const webgpu::raii::BindGroupLayout*> { m_tonemap_bind_group_layout.get() }, "tonemap");
 }
 
 void PipelineManager::create_shared_config_bind_group_layout()
@@ -849,5 +862,24 @@ void PipelineManager::create_avalanche_influence_area_bind_group_layout()
             input_normal_textures_entry, input_normal_texture_sampler, input_height_textures_entry, input_height_texture_sampler, output_key_buffer_entry,
             output_value_buffer_entry, output_tiles_entry },
         "avalanche influence area bind group layout");
+}
+
+void PipelineManager::create_tonemap_bind_group_layout()
+{
+    WGPUBindGroupLayoutEntry input_texture_entry {};
+    input_texture_entry.binding = 0;
+    input_texture_entry.visibility = WGPUShaderStage_Compute;
+    input_texture_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
+    input_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+    WGPUBindGroupLayoutEntry output_texture_entry {};
+    output_texture_entry.binding = 1;
+    output_texture_entry.visibility = WGPUShaderStage_Compute;
+    output_texture_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+    output_texture_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
+    output_texture_entry.storageTexture.format = WGPUTextureFormat_BGRA8Unorm;
+
+    m_tonemap_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(
+        m_device, std::vector<WGPUBindGroupLayoutEntry> { input_texture_entry, output_texture_entry }, "tonemap bind group layout");
 }
 }

@@ -23,6 +23,8 @@
 #include "TileManager.h"
 #include "TrackRenderer.h"
 #include "UniformBufferObjects.h"
+#include "atmosphere/config.h"
+#include "atmosphere/sky_renderer.h"
 #include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
 #include "compute/nodes/ComputeSnowNode.h"
 #include "compute/nodes/NodeGraph.h"
@@ -142,6 +144,10 @@ private:
 
     void display_message(const std::string& message);
 
+    void setup_atmosphere_renderer();
+    void render_luts_and_sky(bool force_constant_lut_rendering);
+    void recreate_tonemap_bind_group(const webgpu::Framebuffer* target_framebuffer);
+
 private:
     WGPUInstance m_instance = nullptr;
     WGPUDevice m_device = nullptr;
@@ -168,6 +174,8 @@ private:
     std::unique_ptr<webgpu::Framebuffer> m_gbuffer;
 
     std::unique_ptr<webgpu::Framebuffer> m_atmosphere_framebuffer;
+    std::unique_ptr<webgpu::Framebuffer> m_compose_framebuffer;
+    std::unique_ptr<webgpu::raii::TextureView> m_compose_framebuffer_texture_view;
 
     // ToDo: Swapchain should get a raii class and the size could be saved in there
     glm::vec2 m_swapchain_size = glm::vec2(0.0f);
@@ -184,6 +192,15 @@ private:
     GuiErrorState m_gui_error_state;
 
     std::vector<ComputePipelineSettings> m_compute_pipeline_presets;
+
+    atmosphere::config::SkyAtmosphereRendererConfig m_atmosphere_config;
+    std::unique_ptr<atmosphere::sky::SkyWithLutsComputeRenderer> m_atmosphere_renderer;
+    atmosphere::uniforms::Uniforms m_atmosphere_uniforms;
+
+    std::unique_ptr<webgpu::raii::Texture> m_atmosphere_render_target_texture;
+    std::unique_ptr<webgpu::raii::TextureView> m_atmosphere_depth_view;
+    std::unique_ptr<webgpu::raii::TextureView> m_atmosphere_render_target_view;
+    std::unique_ptr<webgpu::raii::BindGroup> m_tonemap_bind_group;
 };
 
 } // namespace webgpu_engine

@@ -50,6 +50,7 @@ public:
     const webgpu::raii::ShaderModule& avalanche_trajectories_compute() const;
     const webgpu::raii::ShaderModule& avalanche_trajectories_buffer_to_texture_compute() const;
     const webgpu::raii::ShaderModule& avalanche_influence_area_compute() const;
+    const webgpu::raii::ShaderModule& tonemap_compute() const;
 
     static std::string load_and_preprocess_without_cache(const std::string& path);
     static std::unique_ptr<webgpu::raii::ShaderModule> create_shader_module(WGPUDevice device, const std::string& label, const std::string& code);
@@ -78,6 +79,7 @@ private:
     std::unique_ptr<webgpu::raii::ShaderModule> m_avalanche_trajectories_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_avalanche_trajectories_buffer_to_texture_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_avalanche_influence_area_compute_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_tonemap_compute_module;
 };
 
 } // namespace webgpu_engine

@@ -379,7 +379,12 @@ void TerrainRenderer::create_framebuffer(uint32_t width, uint32_t height)
 {
     qDebug() << "creating framebuffer textures for size " << width << "x" << height;
 
-    webgpu::FramebufferFormat format { .size = { width, height }, .depth_format = m_depth_texture_format, .color_formats = { m_swapchain_format } };
+    webgpu::FramebufferFormat format {
+        .size = { width, height },
+        .depth_format = m_depth_texture_format,
+        .color_formats = { m_swapchain_format },
+        .usages = { WGPUTextureUsage_TextureBinding | WGPUTextureUsage_StorageBinding },
+    };
     m_framebuffer = std::make_unique<webgpu::Framebuffer>(m_device, format);
 
     if (m_gui_bind_group) {
@@ -489,6 +494,7 @@ void TerrainRenderer::webgpu_create_context()
 
     std::vector<WGPUFeatureName> requiredFeatures;
     requiredFeatures.push_back(WGPUFeatureName_TimestampQuery);
+    requiredFeatures.push_back(WGPUFeatureName_BGRA8UnormStorage);
 
     WGPUDeviceDescriptor device_desc {};
     device_desc.label = "webigeo device";

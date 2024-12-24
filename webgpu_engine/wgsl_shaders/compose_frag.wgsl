@@ -166,14 +166,17 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         if (bool(conf.phong_enabled)) {
             shaded_color = calculate_illumination(shaded_color, origin, pos_ws, normal, conf.sun_light, conf.amb_light, conf.sun_light_dir.xyz, material_light_response, amb_occlusion, shadow_term);
         }
-        shaded_color = calculate_atmospheric_light(origin / 1000.0, ray_direction, dist / 1000.0, shaded_color, 10);
-        shaded_color = max(vec3(0.0), shaded_color);    
+        //TODO we are currently using another atmosphere impl; add option to enable/disable this one
+        //shaded_color = calculate_atmospheric_light(origin / 1000.0, ray_direction, dist / 1000.0, shaded_color, 10);
+        shaded_color = max(vec3(0.0), shaded_color);
     }
 
+    //TODO we are currently using another atmosphere impl; add option to enable/disable this one
     // Blend with atmospheric background:
-    let atmospheric_color = textureLoad(atmosphere_texture, vec2u(0,tci.y), 0).rgb;
+    //let atmospheric_color = textureLoad(atmosphere_texture, vec2u(0,tci.y), 0).rgb;
     //let atmospheric_color = textureSample(atmosphere_texture, compose_sampler_filtering, vertex_out.texcoords.xy).rgb;
-    var out_Color = vec4f(mix(atmospheric_color, shaded_color, alpha), 1.0);
+    //var out_Color = vec4f(mix(atmospheric_color, shaded_color, alpha), 1.0);
+    var out_Color = vec4f(shaded_color, 1.0);
 
     if (bool(conf.overlay_postshading_enabled)) {
         var overlay_color = vec4f(0.0);

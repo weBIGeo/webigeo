@@ -103,6 +103,10 @@ void Window::resize_framebuffer(int w, int h)
     atmosphere_framebuffer_format.size = glm::uvec2(1, h);
     m_atmosphere_framebuffer = std::make_unique<webgpu::Framebuffer>(m_device, atmosphere_framebuffer_format);
 
+    webgpu::FramebufferFormat compose_framebuffer_format = webgpu::FramebufferFormat(m_pipeline_manager->compose_pipeline().framebuffer_format());
+    compose_framebuffer_format.size = glm::uvec2 { w, h };
+    m_compose_framebuffer = std::make_unique<webgpu::Framebuffer>(m_device, compose_framebuffer_format);
+
     m_compose_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->compose_bind_group_layout(),
         std::initializer_list<WGPUBindGroupEntry> {
             m_gbuffer->color_texture_view(0).create_bind_group_entry(0), // albedo texture
@@ -116,6 +120,39 @@ void Window::resize_framebuffer(int w, int h)
         std::initializer_list<WGPUBindGroupEntry> {
             m_gbuffer->depth_texture_view().create_bind_group_entry(0) // depth
         });
+
+    WGPUTextureDescriptor atmosphere_render_target_texture_desc {};
+    atmosphere_render_target_texture_desc.label = "atmosphere render target texture";
+    atmosphere_render_target_texture_desc.dimension = WGPUTextureDimension_2D;
+    atmosphere_render_target_texture_desc.format = WGPUTextureFormat_RGBA16Float;
+    atmosphere_render_target_texture_desc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_StorageBinding;
+    atmosphere_render_target_texture_desc.mipLevelCount = 1;
+    atmosphere_render_target_texture_desc.sampleCount = 1;
+    atmosphere_render_target_texture_desc.size = { uint32_t(w), uint32_t(h), 1 };
+    m_atmosphere_render_target_texture = std::make_unique<webgpu::raii::Texture>(m_device, atmosphere_render_target_texture_desc);
+
+    WGPUTextureViewDescriptor atmosphere_render_target_texture_view_desc {};
+    atmosphere_render_target_texture_view_desc.aspect = WGPUTextureAspect_All;
+    atmosphere_render_target_texture_view_desc.dimension = WGPUTextureViewDimension_2D;
+    atmosphere_render_target_texture_view_desc.format = atmosphere_render_target_texture_desc.format;
+    atmosphere_render_target_texture_view_desc.baseArrayLayer = 0;
+    atmosphere_render_target_texture_view_desc.arrayLayerCount = 1u;
+    atmosphere_render_target_texture_view_desc.baseMipLevel = 0;
+    atmosphere_render_target_texture_view_desc.mipLevelCount = atmosphere_render_target_texture_desc.mipLevelCount;
+    m_atmosphere_render_target_view = m_atmosphere_render_target_texture->create_view(atmosphere_render_target_texture_view_desc);
+
+    WGPUTextureViewDescriptor depth_texture_view_desc {};
+    depth_texture_view_desc.aspect = WGPUTextureAspect_DepthOnly;
+    depth_texture_view_desc.dimension = WGPUTextureViewDimension_2D;
+    depth_texture_view_desc.format = m_gbuffer->depth_texture().descriptor().format;
+    depth_texture_view_desc.arrayLayerCount = 1;
+    depth_texture_view_desc.baseArrayLayer = 0;
+    depth_texture_view_desc.mipLevelCount = 1;
+    depth_texture_view_desc.baseMipLevel = 0;
+    depth_texture_view_desc.mipLevelCount = m_gbuffer->depth_texture().descriptor().mipLevelCount;
+    m_atmosphere_depth_view = m_gbuffer->depth_texture().create_view(depth_texture_view_desc);
+
+    setup_atmosphere_renderer();
 }
 
 std::unique_ptr<webgpu::raii::RenderPassEncoder> begin_render_pass(
@@ -126,6 +163,9 @@ std::unique_ptr<webgpu::raii::RenderPassEncoder> begin_render_pass(
 
 void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_encoder)
 {
+    // ugly, but leave it for now
+    recreate_tonemap_bind_group(framebuffer);
+
     // Painting logic here, using the optional framebuffer parameter which is currently unused
 
     // ONLY ON CAMERA CHANGE!
@@ -159,7 +199,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
 
     // render geometry buffers to target framebuffer
     {
-        std::unique_ptr<webgpu::raii::RenderPassEncoder> render_pass = framebuffer->begin_render_pass(command_encoder);
+        std::unique_ptr<webgpu::raii::RenderPassEncoder> render_pass = m_compose_framebuffer->begin_render_pass(command_encoder);
         wgpuRenderPassEncoderSetPipeline(render_pass->handle(), m_pipeline_manager->compose_pipeline().pipeline().handle());
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 0, m_shared_config_bind_group->handle(), 0, nullptr);
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 1, m_camera_bind_group->handle(), 0, nullptr);
@@ -170,7 +210,30 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
     // render lines to color buffer
     if (m_shared_config_ubo->data.m_track_render_mode > 0) {
         m_track_renderer->render(
-            command_encoder, *m_shared_config_bind_group, *m_camera_bind_group, *m_depth_texture_bind_group, framebuffer->color_texture_view(0));
+            command_encoder, *m_shared_config_bind_group, *m_camera_bind_group, *m_depth_texture_bind_group, m_compose_framebuffer->color_texture_view(0));
+    }
+
+    render_luts_and_sky(false);
+
+    // tonemap
+    {
+        WGPUCommandEncoderDescriptor descriptor {};
+        descriptor.label = "tonemap command encoder";
+        webgpu::raii::CommandEncoder encoder(m_device, descriptor);
+
+        {
+            WGPUComputePassDescriptor compute_pass_desc {};
+            compute_pass_desc.label = "tonemap compute pass";
+            webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
+            wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, m_tonemap_bind_group->handle(), 0, nullptr);
+            const auto workgroup_counts = glm::vec3(framebuffer->color_texture(0).width(), framebuffer->color_texture(0).height(), 1);
+            m_pipeline_manager->tonemap_compute_pipeline().run(compute_pass, workgroup_counts);
+        }
+        WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
+        cmd_buffer_descriptor.label = "tonemap command buffer";
+        WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder.handle(), &cmd_buffer_descriptor);
+        wgpuQueueSubmit(m_queue, 1, &command);
+        wgpuCommandBufferRelease(command);
     }
 
     m_needs_redraw = false;
@@ -213,6 +276,36 @@ void Window::paint_gui()
         }
 
         if (ImGui::Checkbox("Phong Shading", (bool*)&m_shared_config_ubo->data.m_phong_enabled)) {
+            m_needs_redraw = true;
+        }
+
+        if (ImGui::SliderFloat("Sun direction x", &m_shared_config_ubo->data.m_sun_light_dir.x, -1.0f, 1.0f)) {
+            m_needs_redraw = true;
+        }
+
+        if (ImGui::SliderFloat("Sun direction y", &m_shared_config_ubo->data.m_sun_light_dir.y, -1.0f, 1.0f)) {
+            m_needs_redraw = true;
+        }
+
+        if (ImGui::SliderFloat("Sun direction z", &m_shared_config_ubo->data.m_sun_light_dir.z, -1.0f, 1.0f)) {
+            m_needs_redraw = true;
+        }
+
+        if (ImGui::SliderFloat("Direction intensity", &m_shared_config_ubo->data.m_sun_light.w, 0.0f, 1.0f)) {
+            m_needs_redraw = true;
+        }
+
+        if (ImGui::SliderFloat("Ambient intensity", &m_shared_config_ubo->data.m_amb_light.w, 0.0f, 1.0f)) {
+            m_needs_redraw = true;
+        }
+
+        float angular_diameter_deg = glm::degrees(m_atmosphere_uniforms.sun.diskAngularDiameter);
+        if (ImGui::SliderFloat("Sun disk diameter", &angular_diameter_deg, 0.1f, 100.0f)) {
+            m_atmosphere_uniforms.sun.diskAngularDiameter = glm::radians(angular_diameter_deg);
+            m_needs_redraw = true;
+        }
+
+        if (ImGui::SliderFloat("Sun disk luminance scale", &m_atmosphere_uniforms.sun.diskLuminanceScale, 0.1f, 100.0f)) {
             m_needs_redraw = true;
         }
 
@@ -722,6 +815,74 @@ void Window::display_message(const std::string& message)
 {
     m_gui_error_state.text = message;
     m_gui_error_state.should_open_modal = true;
+}
+
+void Window::setup_atmosphere_renderer()
+{
+    m_atmosphere_config = atmosphere::config::SkyAtmosphereRendererConfig();
+    m_atmosphere_config.atmosphere = atmosphere::params::makeEarthAtmosphere(false);
+    m_atmosphere_config.atmosphere.bottomRadius = 6360.0f * 100.0f;
+    m_atmosphere_config.atmosphere.height = 100.0f;
+    // m_atmosphere_config.atmosphere.center = { 1.42688e+06 / 1000.0f, 5.95053e+06 / 1000.0f, -m_atmosphere_config.atmosphere.bottomRadius };
+    m_atmosphere_config.atmosphere.center = { 1.42688e+06 / 1000.0f, 5.95053e+06 / 1000.0f, -m_atmosphere_config.atmosphere.bottomRadius };
+    m_atmosphere_config.fromKilometersScale = 1000.0f;
+    m_atmosphere_config.skyRenderer.depthBuffer.texture = &(m_gbuffer->depth_texture());
+    m_atmosphere_config.skyRenderer.depthBuffer.view = m_atmosphere_depth_view.get();
+    m_atmosphere_config.skyRenderer.backBuffer.texture = &(m_compose_framebuffer->color_texture(0));
+    m_atmosphere_config.skyRenderer.backBuffer.view = &(m_compose_framebuffer->color_texture_view(0));
+    m_atmosphere_config.skyRenderer.renderTarget.texture = m_atmosphere_render_target_texture.get();
+    m_atmosphere_config.skyRenderer.renderTarget.view = m_atmosphere_render_target_view.get();
+
+    m_atmosphere_renderer = atmosphere::sky::SkyWithLutsComputeRenderer::create(m_device, m_atmosphere_config);
+
+    render_luts_and_sky(true);
+}
+
+void Window::render_luts_and_sky(bool force_constant_lut_rendering)
+{
+    if (!m_atmosphere_renderer) {
+        return;
+    }
+
+    // TODO get rid of inverse projection and inverse view, use position buffer instead
+    m_atmosphere_uniforms.screenResolution = glm::vec2(m_camera.viewport_size());
+    m_atmosphere_uniforms.camera.inverseProjection = glm::mat4x4(glm::inverse(m_camera.projection_matrix()));
+    m_atmosphere_uniforms.camera.inverseView = glm::inverse(m_camera.camera_matrix());
+    m_atmosphere_uniforms.camera.position = m_camera.position();
+
+    m_atmosphere_uniforms.sun.direction = glm::normalize(glm::vec3 {
+        -m_shared_config_ubo->data.m_sun_light_dir.x,
+        -m_shared_config_ubo->data.m_sun_light_dir.y,
+        -m_shared_config_ubo->data.m_sun_light_dir.z,
+    });
+
+    m_atmosphere_renderer->update_uniforms(m_atmosphere_uniforms);
+
+    WGPUCommandEncoderDescriptor descriptor {};
+    descriptor.label = "Render LUTs and sky command encoder";
+    webgpu::raii::CommandEncoder encoder(m_device, descriptor);
+
+    {
+        WGPUComputePassDescriptor compute_pass_desc {};
+        compute_pass_desc.label = "Render LUTs and sky compute pass";
+        webgpu::raii::ComputePassEncoder compute_pass_encoder(encoder.handle(), compute_pass_desc);
+        m_atmosphere_renderer->render_luts_and_sky(compute_pass_encoder.handle(), force_constant_lut_rendering);
+    }
+
+    WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
+    cmd_buffer_descriptor.label = "Render LUTs and sky command buffer";
+    WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder.handle(), &cmd_buffer_descriptor);
+    wgpuQueueSubmit(m_queue, 1, &command);
+    wgpuCommandBufferRelease(command);
+}
+
+void Window::recreate_tonemap_bind_group(const webgpu::Framebuffer* target_framebuffer)
+{
+    m_tonemap_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->tonemap_bind_group_layout(),
+        std::initializer_list<WGPUBindGroupEntry> {
+            m_atmosphere_render_target_view->create_bind_group_entry(0), // compose output texture
+            target_framebuffer->color_texture_view(0).create_bind_group_entry(1), // tonemapped texture
+        });
 }
 
 float Window::depth([[maybe_unused]] const glm::dvec2& normalised_device_coordinates)
