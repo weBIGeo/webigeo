@@ -119,6 +119,9 @@ const webgpu::raii::BindGroupLayout& PipelineManager::iterative_simulation_compu
 {
     return *m_iterative_simulation_compute_bind_group_layout;
 }
+// For MipMap-Creation
+const webgpu::raii::CombinedComputePipeline& PipelineManager::mipmap_creation_pipeline() const { return *m_mipmap_creation_compute_pipeline; }
+const webgpu::raii::BindGroupLayout& PipelineManager::mipmap_creation_bind_group_layout() const { return *m_mipmap_creation_bind_group_layout; };
 
 void PipelineManager::create_pipelines()
 {
@@ -139,6 +142,7 @@ void PipelineManager::create_pipelines()
     create_d8_compute_pipeline();
     create_release_point_compute_pipeline();
     create_height_decode_compute_pipeline();
+    create_mipmap_creation_pipeline();
     create_fxaa_compute_pipeline();
     create_iterative_simulation_compute_pipeline();
 
@@ -163,6 +167,7 @@ void PipelineManager::create_bind_group_layouts()
     create_d8_compute_bind_group_layout();
     create_release_points_compute_bind_group_layout();
     create_height_decode_compute_bind_group_layout();
+    create_mipmap_creation_bind_group_layout();
     create_fxaa_compute_bind_group_layout();
     create_iterative_simulation_compute_bind_group_layout();
 }
@@ -186,6 +191,8 @@ void PipelineManager::release_pipelines()
     m_height_decode_compute_pipeline.release();
     m_fxaa_compute_pipeline.release();
     m_iterative_simulation_compute_pipeline.release();
+
+    m_mipmap_creation_compute_pipeline.release();
 
     m_pipelines_created = false;
 }
@@ -369,6 +376,11 @@ void PipelineManager::create_height_decode_compute_pipeline()
         std::vector<const webgpu::raii::BindGroupLayout*> { m_height_decode_compute_bind_group_layout.get() }, "height decode compute pipeline");
 }
 
+void PipelineManager::create_mipmap_creation_pipeline()
+{
+    m_mipmap_creation_compute_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(m_device, m_shader_manager->mipmap_creation_compute(),
+        std::vector<const webgpu::raii::BindGroupLayout*> { m_mipmap_creation_bind_group_layout.get() }, "mipmap creation compute pipeline");
+        }
 void PipelineManager::create_fxaa_compute_pipeline()
 {
     m_fxaa_compute_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(m_device, m_shader_manager->fxaa_compute(),
@@ -960,6 +972,30 @@ void PipelineManager::create_height_decode_compute_bind_group_layout()
         m_device, std::vector<WGPUBindGroupLayoutEntry> { input_texture_entry, output_texture_entry }, "height decode compute bind group layout");
 }
 
+
+void PipelineManager::create_mipmap_creation_bind_group_layout()
+{
+    WGPUBindGroupLayoutEntry input_texture_entry {};
+    input_texture_entry.binding = 0;
+    input_texture_entry.visibility = WGPUShaderStage_Compute;
+    input_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
+    input_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+    // input_texture_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+    // input_texture_entry.storageTexture.access = WGPUStorageTextureAccess_ReadOnly;
+    // input_texture_entry.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
+
+    WGPUBindGroupLayoutEntry output_texture_entry {};
+    output_texture_entry.binding = 1;
+
+    output_texture_entry.visibility = WGPUShaderStage_Compute;
+    output_texture_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+    output_texture_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
+    output_texture_entry.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
+
+    m_mipmap_creation_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(
+        m_device, std::vector<WGPUBindGroupLayoutEntry> { input_texture_entry, output_texture_entry }, "mipmap creation bind group layout");
+}
+
 void PipelineManager::create_fxaa_compute_bind_group_layout()
 {
     WGPUBindGroupLayoutEntry input_texture_entry {};
@@ -1047,4 +1083,5 @@ void PipelineManager::create_iterative_simulation_compute_bind_group_layout()
         },
         "iterative simulation bind group layout");
 }
+
 }

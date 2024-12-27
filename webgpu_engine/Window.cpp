@@ -90,7 +90,7 @@ void Window::initialise_gpu()
     m_image_overlay_settings_uniform_buffer->data.aabb_min = glm::fvec2(0);
     m_image_overlay_settings_uniform_buffer->data.aabb_max = glm::fvec2(0);
     m_image_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
-    m_image_overlay_texture = create_overlay_texture(m_device, 1, 1);
+    m_image_overlay_texture = create_overlay_texture(1, 1);
 
     m_compute_overlay_settings_uniform_buffer = std::make_unique<Buffer<ImageOverlaySettings>>(m_device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
     m_compute_overlay_settings_uniform_buffer->data.aabb_min = glm::fvec2(0);
@@ -98,7 +98,7 @@ void Window::initialise_gpu()
     m_compute_overlay_settings_uniform_buffer->data.mode = 0u;
     m_compute_overlay_settings_uniform_buffer->data.alpha = 1.0f;
     m_compute_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
-    m_compute_overlay_dummy_texture = create_overlay_texture(m_device, 1, 1);
+    m_compute_overlay_dummy_texture = create_overlay_texture(1, 1);
 
     init_compute_pipeline_presets();
     create_and_set_compute_pipeline(ComputePipelineType::NORMALS, false);
@@ -933,23 +933,42 @@ void Window::apply_compute_pipeline_preset(size_t preset_index)
     m_compute_pipeline_settings.target_region = old_region;
 }
 
-std::unique_ptr<webgpu::raii::TextureWithSampler> Window::create_overlay_texture(WGPUDevice device, unsigned int width, unsigned int height)
+// Equivalent of std::bit_width that is available from C++20 onward
+// ToDo: there are intrinsics for this
+uint32_t bit_width(uint32_t m)
+{
+    if (m == 0)
+        return 0;
+    else {
+        uint32_t w = 0;
+        while (m >>= 1)
+            ++w;
+        return w;
+    }
+}
+
+uint32_t getMaxMipLevelCount(const glm::uvec2 textureSize) { return std::max(1u, bit_width(std::max(textureSize.x, textureSize.y))); }
+
+std::unique_ptr<webgpu::raii::TextureWithSampler> Window::create_overlay_texture(unsigned int width, unsigned int height)
 {
     WGPUTextureDescriptor texture_desc {};
     texture_desc.label = "image overlay texture";
     texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
     texture_desc.size = { uint32_t(width), uint32_t(height), uint32_t(1) };
-    texture_desc.mipLevelCount = 1;
+    texture_desc.mipLevelCount = getMaxMipLevelCount(glm::uvec2(width, height));
     texture_desc.sampleCount = 1;
     texture_desc.format = WGPUTextureFormat::WGPUTextureFormat_RGBA8Unorm;
-    texture_desc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
+    texture_desc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_StorageBinding;
+
+    qDebug() << "mip level count: " << texture_desc.mipLevelCount;
+    qDebug() << "for texture size: " << width << "x" << height << "pixels";
 
     WGPUSamplerDescriptor sampler_desc {};
     sampler_desc.label = "image overlay sampler";
     sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
+    sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Linear;
     sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
     sampler_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Linear;
     sampler_desc.lodMinClamp = 0.0f;
@@ -957,7 +976,77 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> Window::create_overlay_texture
     sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
     sampler_desc.maxAnisotropy = 1;
 
-    return std::make_unique<webgpu::raii::TextureWithSampler>(device, texture_desc, sampler_desc);
+    auto texture = std::make_unique<webgpu::raii::TextureWithSampler>(m_device, texture_desc, sampler_desc);
+
+    return texture;
+}
+
+void Window::compute_mipmaps_for_texture(const webgpu::raii::Texture* texture)
+{
+    glm::uvec2 baseSize = { texture->width(), texture->height() };
+    uint32_t mipLevelCount = texture->mip_level_count();
+
+    if (mipLevelCount == 1) {
+        qDebug() << "No mipmaps to compute";
+        return;
+    } else {
+        qDebug() << "Computing mipmaps for texture";
+    }
+
+    std::vector<std::unique_ptr<webgpu::raii::TextureView>> m_textureMipViews;
+    std::vector<WGPUExtent3D> mipSizes(mipLevelCount);
+
+    // Create texture views for each mip level
+    for (uint32_t i = 0; i < mipLevelCount; i++) {
+        WGPUTextureViewDescriptor viewDesc {};
+        viewDesc.dimension = WGPUTextureViewDimension::WGPUTextureViewDimension_2D;
+        viewDesc.format = WGPUTextureFormat::WGPUTextureFormat_RGBA8Unorm;
+        viewDesc.baseMipLevel = i;
+        viewDesc.mipLevelCount = 1;
+        viewDesc.baseArrayLayer = 0;
+        viewDesc.arrayLayerCount = 1;
+        viewDesc.aspect = WGPUTextureAspect::WGPUTextureAspect_All;
+        auto textureView = std::make_unique<webgpu::raii::TextureView>(texture->handle(), viewDesc);
+        m_textureMipViews.push_back(std::move(textureView));
+
+        mipSizes[i].width = std::max(1u, baseSize.x >> i);
+        mipSizes[i].height = std::max(1u, baseSize.y >> i);
+        mipSizes[i].depthOrArrayLayers = 1;
+    }
+
+    // Create bind groups for each invocation
+    std::vector<std::unique_ptr<webgpu::raii::BindGroup>> m_bindGroups;
+    for (uint32_t i = 0; i < mipLevelCount - 1; i++) {
+        std::vector<WGPUBindGroupEntry> bgEntries {
+            m_textureMipViews[i]->create_bind_group_entry(0),
+            m_textureMipViews[i + 1]->create_bind_group_entry(1),
+        };
+        auto bindGroup = std::make_unique<webgpu::raii::BindGroup>(
+            m_device, m_pipeline_manager->mipmap_creation_bind_group_layout(), bgEntries, "mipmap creation bindgroup");
+        m_bindGroups.push_back(std::move(bindGroup));
+    }
+
+    glm::uvec3 SHADER_WORKGROUP_SIZE = { 8, 8, 1 };
+    {
+        WGPUCommandEncoderDescriptor descriptor {};
+        webgpu::raii::CommandEncoder encoder(m_device, descriptor);
+
+        for (uint32_t i = 0; i < mipLevelCount - 1; i++) {
+            WGPUComputePassDescriptor compute_pass_desc {};
+            webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
+
+            glm::uvec3 workgroup_counts = glm::ceil(glm::vec3(mipSizes[i + 1].width, mipSizes[i + 1].height, 1) / glm::vec3(SHADER_WORKGROUP_SIZE));
+            qDebug() << "executing mipmap creation for mip level " << i << " with workgroup counts: " << workgroup_counts.x << "x" << workgroup_counts.y;
+            wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, m_bindGroups[i]->handle(), 0, nullptr);
+            m_pipeline_manager->mipmap_creation_pipeline().run(compute_pass, workgroup_counts);
+        }
+
+        WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
+        cmd_buffer_descriptor.label = "MipMap command buffer";
+        WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder.handle(), &cmd_buffer_descriptor);
+        wgpuQueueSubmit(m_queue, 1, &command);
+        wgpuCommandBufferRelease(command);
+    }
 }
 
 void Window::display_message(const std::string& message)
@@ -1102,8 +1191,10 @@ void Window::load_track_and_focus(const std::string& path)
 void Window::update_image_overlay_texture(const std::string& image_file_path)
 {
     nucleus::Raster<glm::u8vec4> image = nucleus::utils::image_loader::rgba8(QString::fromStdString(image_file_path));
-    m_image_overlay_texture = create_overlay_texture(m_device, image.width(), image.height());
+    m_image_overlay_texture = create_overlay_texture(image.width(), image.height());
     m_image_overlay_texture->texture().write(m_queue, image);
+    m_image_overlay_settings_uniform_buffer->data.texture_size = glm::uvec2(image.width(), image.height());
+    compute_mipmaps_for_texture(&m_image_overlay_texture->texture());
     recreate_compose_bind_group();
 }
 
@@ -1178,6 +1269,10 @@ void Window::update_compute_overlay_texture(const webgpu::raii::TextureWithSampl
 {
     m_compute_overlay_texture_view = &texture_with_sampler.texture_view();
     m_compute_overlay_sampler = &texture_with_sampler.sampler();
+    m_compute_overlay_settings_uniform_buffer->data.texture_size = glm::uvec2(texture_with_sampler.texture().width(), texture_with_sampler.texture().height());
+
+    compute_mipmaps_for_texture(&texture_with_sampler.texture());
+    // update in following update_compute_overlay_aabb
     recreate_compose_bind_group();
 }
 

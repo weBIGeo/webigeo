@@ -31,7 +31,7 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     // Load the RGBA8 color from the input texture
     let input: vec4<u32> = textureLoad(input_texture, vec2<i32>(id.xy));
 
-    let scaling_factor: f32 = 8191.875 / 65535.0;
+    const scaling_factor: f32 = 8191.875 / 65535.0;
     let height_value: f32 = f32((input.r << 8) | input.g) * scaling_factor;
     
     // ToDo: cos(posy). Lets first evaluate wehter we actually need this. If so it makes sense to precaculate them on cpu side

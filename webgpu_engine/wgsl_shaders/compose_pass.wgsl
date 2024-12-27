@@ -50,6 +50,8 @@ struct ImageOverlaySettings {
     mode: u32, // 0: overlay, 1: encoded float
     float_decoding_lower_bound: f32,
     float_decoding_upper_bound: f32,
+    texture_size: vec2<f32>,
+    padding: vec2<f32>
 }
 
 // Calculates the diffuse and specular illumination contribution for the given
@@ -146,11 +148,40 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
 
     // sampling from texture needs to happen in uniform control flow, therefore this is outside the if
     // later, the sampled value is only used if we are in the overlay region (specified in image overlay settings uniform)
-    let image_overlay_uv = (pos_ws.xy - image_overlay_settings.aabb_min) / (image_overlay_settings.aabb_max - image_overlay_settings.aabb_min);
-    let image_overlay_color = textureSample(image_overlay_texture, image_overlay_sampler, vec2f(image_overlay_uv.x, 1 - image_overlay_uv.y)); 
+    var image_overlay_color = vec4f(0.0);
+    {
+        let image_overlay_uv = (pos_ws.xy - image_overlay_settings.aabb_min) / (image_overlay_settings.aabb_max - image_overlay_settings.aabb_min);
+        
+        let image_overlay_uv_px = image_overlay_uv * image_overlay_settings.texture_size;
+        let dx: vec2<f32> = dpdx(image_overlay_uv_px);
+        let dy: vec2<f32> = dpdy(image_overlay_uv_px);
+        var mip_level: f32 = max(0.0, log2(max(length(dx), length(dy))));
+        image_overlay_color = textureSampleLevel(image_overlay_texture, image_overlay_sampler, vec2f(image_overlay_uv.x, 1 - image_overlay_uv.y), mip_level);
+        
+        //image_overlay_color = textureSample(image_overlay_texture, image_overlay_sampler, vec2f(image_overlay_uv.x, 1 - image_overlay_uv.y));
 
-    let compute_overlay_uv = (pos_ws.xy - compute_overlay_settings.aabb_min) / (compute_overlay_settings.aabb_max - compute_overlay_settings.aabb_min);
-    let compute_overlay_color = textureSample(compute_overlay_texture, compute_overlay_sampler, vec2f(compute_overlay_uv.x, 1 - compute_overlay_uv.y)); 
+        //image_overlay_color = vec4f(mip_level / 10.0, 0.0, 0.0, 1.0);
+    }
+    //let image_overlay_uv = (pos_ws.xy - image_overlay_settings.aabb_min) / (image_overlay_settings.aabb_max - image_overlay_settings.aabb_min);
+    //let image_overlay_color = textureSample(image_overlay_texture, image_overlay_sampler, vec2f(image_overlay_uv.x, 1 - image_overlay_uv.y)); 
+
+    var compute_overlay_color = vec4f(0.0);
+    {
+        let compute_overlay_uv = (pos_ws.xy - compute_overlay_settings.aabb_min) / (compute_overlay_settings.aabb_max - compute_overlay_settings.aabb_min);
+        
+        let compute_overlay_uv_px = compute_overlay_uv * compute_overlay_settings.texture_size;
+        let dx: vec2<f32> = dpdx(compute_overlay_uv_px);
+        let dy: vec2<f32> = dpdy(compute_overlay_uv_px);
+        var mip_level: f32 = max(0.0, log2(max(length(dx), length(dy))));
+
+
+        compute_overlay_color = textureSampleLevel(compute_overlay_texture, compute_overlay_sampler, vec2f(compute_overlay_uv.x, 1 - compute_overlay_uv.y), mip_level);
+        //if (mip_level > 0.0) {
+        //    mip_level = 1.0;
+        //}
+        //mip_level = length(dy);
+        //compute_overlay_color = vec4f(mip_level / 10.0, 0.0, 0.0, 1.0);
+    }
 
     // Don't do shading if not visible anyway and also don't for pixels where there is no geometry (depth==0.0)
     if (dist > 0.0) {

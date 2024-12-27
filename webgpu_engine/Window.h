@@ -118,6 +118,8 @@ public:
     void paint_gui();
     void paint_compute_pipeline_gui();
 
+    void compute_mipmaps_for_texture(const webgpu::raii::Texture* texture);
+
 public slots:
     void update_camera(const nucleus::camera::Definition& new_definition) override;
     void update_debug_scheduler_stats(const QString& stats) override;
@@ -156,7 +158,7 @@ private:
     void init_compute_pipeline_presets();
     void apply_compute_pipeline_preset(size_t preset_index);
 
-    static std::unique_ptr<webgpu::raii::TextureWithSampler> create_overlay_texture(WGPUDevice device, unsigned int width, unsigned int height);
+    std::unique_ptr<webgpu::raii::TextureWithSampler> create_overlay_texture(unsigned int width, unsigned int height);
     void update_image_overlay_texture(const std::string& image_file_path);
     bool update_image_overlay_aabb(const std::string& aabb_file_path);
     void update_image_overlay_aabb_and_focus(const std::string& aabb_file_path);

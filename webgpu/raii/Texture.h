@@ -134,6 +134,7 @@ public:
     size_t width() const;
     size_t height() const;
     size_t depth_or_num_layers() const;
+    uint32_t mip_level_count() const;
     size_t size_in_bytes() const;
     size_t bytes_per_row() const;
     size_t single_layer_size_in_bytes() const;

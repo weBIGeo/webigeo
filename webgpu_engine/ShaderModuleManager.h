@@ -56,6 +56,8 @@ public:
     const webgpu::raii::ShaderModule& fxaa_compute() const;
     const webgpu::raii::ShaderModule& iterative_simulation_compute() const;
 
+    const webgpu::raii::ShaderModule& mipmap_creation_compute() const;
+
     static std::string load_and_preprocess_without_cache(const std::string& path);
     static std::unique_ptr<webgpu::raii::ShaderModule> create_shader_module(WGPUDevice device, const std::string& label, const std::string& code);
 
@@ -86,6 +88,8 @@ private:
     std::unique_ptr<webgpu::raii::ShaderModule> m_d8_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_release_point_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_height_decode_compute_module;
+
+    std::unique_ptr<webgpu::raii::ShaderModule> m_mipmap_creation_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_fxaa_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_iterative_simulation_compute_module;
 };

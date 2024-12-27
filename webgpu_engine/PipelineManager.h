@@ -68,6 +68,9 @@ public:
     const webgpu::raii::BindGroupLayout& fxaa_compute_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& iterative_simulation_compute_bind_group_layout() const;
 
+    const webgpu::raii::CombinedComputePipeline& mipmap_creation_pipeline() const;
+    const webgpu::raii::BindGroupLayout& mipmap_creation_bind_group_layout() const;
+
     void create_pipelines();
     void create_bind_group_layouts();
     void release_pipelines();
@@ -111,6 +114,9 @@ private:
     void create_fxaa_compute_bind_group_layout();
     void create_iterative_simulation_compute_bind_group_layout();
 
+    void create_mipmap_creation_bind_group_layout();
+    void create_mipmap_creation_pipeline();
+
 private:
     WGPUDevice m_device;
     ShaderModuleManager* m_shader_manager;
@@ -151,6 +157,10 @@ private:
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_height_decode_compute_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_fxaa_compute_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_iterative_simulation_compute_bind_group_layout;
+
+    // For MipMap-Creation
+    std::unique_ptr<webgpu::raii::BindGroupLayout> m_mipmap_creation_bind_group_layout;
+    std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_mipmap_creation_compute_pipeline;
 
     bool m_pipelines_created = false;
 };

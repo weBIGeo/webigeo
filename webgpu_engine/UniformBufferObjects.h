@@ -112,6 +112,9 @@ struct ImageOverlaySettings {
     uint32_t mode = 1;
     float float_decoding_lower_bound = 0.0f;
     float float_decoding_upper_bound = 20.0f;
+
+    glm::vec2 texture_size = { 0.0f, 0.0f };
+    glm::vec2 padding;
 };
 
 //TODO

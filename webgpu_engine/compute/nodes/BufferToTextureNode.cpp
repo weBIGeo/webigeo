@@ -106,6 +106,20 @@ void BufferToTextureNode::run_impl()
         this);
 }
 
+uint32_t bit_width(uint32_t m)
+{
+    if (m == 0)
+        return 0;
+    else {
+        uint32_t w = 0;
+        while (m >>= 1)
+            ++w;
+        return w;
+    }
+}
+
+uint32_t getMaxMipLevelCount(const glm::uvec2 textureSize) { return std::max(1u, bit_width(std::max(textureSize.x, textureSize.y))); }
+
 std::unique_ptr<webgpu::raii::TextureWithSampler> BufferToTextureNode::create_texture(
     WGPUDevice device, uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage)
 {
@@ -114,7 +128,7 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> BufferToTextureNode::create_te
     texture_desc.label = "buffer to texture output texture";
     texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
     texture_desc.size = { width, height, 1 };
-    texture_desc.mipLevelCount = 1;
+    texture_desc.mipLevelCount = getMaxMipLevelCount(glm::uvec2(width, height));
     texture_desc.sampleCount = 1;
     texture_desc.format = format;
     texture_desc.usage = usage;
@@ -124,13 +138,13 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> BufferToTextureNode::create_te
     sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
-    sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
-    sampler_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Nearest;
+    sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Linear;
+    sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Linear;
+    sampler_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Linear;
     sampler_desc.lodMinClamp = 0.0f;
     sampler_desc.lodMaxClamp = 1.0f;
     sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
-    sampler_desc.maxAnisotropy = 1;
+    sampler_desc.maxAnisotropy = 4;
 
     return std::make_unique<webgpu::raii::TextureWithSampler>(device, texture_desc, sampler_desc);
 }

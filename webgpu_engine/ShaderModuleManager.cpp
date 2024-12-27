@@ -48,6 +48,8 @@ void ShaderModuleManager::create_shader_modules()
     m_d8_compute_module = create_shader_module_for_file("compute/d8_compute.wgsl");
     m_release_point_compute_module = create_shader_module_for_file("compute/compute_release_points.wgsl");
     m_height_decode_compute_module = create_shader_module_for_file("compute/height_decode_compute.wgsl");
+
+    m_mipmap_creation_compute_module = create_shader_module_for_file("compute/mipmap_creation_compute.wgsl");
     m_fxaa_compute_module = create_shader_module_for_file("compute/fxaa_compute.wgsl");
     m_iterative_simulation_compute_module = create_shader_module_for_file("compute/iterative_simulation_compute.wgsl");
 }
@@ -71,6 +73,8 @@ void ShaderModuleManager::release_shader_modules()
     m_d8_compute_module.release();
     m_release_point_compute_module.release();
     m_height_decode_compute_module.release();
+
+    m_mipmap_creation_compute_module.release();
     m_fxaa_compute_module.release();
     m_iterative_simulation_compute_module.release();
 }
@@ -103,6 +107,7 @@ const webgpu::raii::ShaderModule& ShaderModuleManager::release_point_compute() c
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::height_decode_compute() const { return *m_height_decode_compute_module; }
 
+const webgpu::raii::ShaderModule& ShaderModuleManager::mipmap_creation_compute() const { return *m_mipmap_creation_compute_module; }
 const webgpu::raii::ShaderModule& ShaderModuleManager::fxaa_compute() const { return *m_fxaa_compute_module; }
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::iterative_simulation_compute() const { return *m_iterative_simulation_compute_module; }
