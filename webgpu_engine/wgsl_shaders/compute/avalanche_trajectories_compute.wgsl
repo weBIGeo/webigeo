@@ -21,6 +21,7 @@
 #include "util/filtering.wgsl"
 #include "util/tile_util.wgsl"
 #include "util/normals_util.wgsl"
+#include "util/random.wgsl"
 
 
 // weights need to match the texels that are chosen by textureGather - this does NOT align perfectly, and introduces some artifacts
@@ -282,6 +283,9 @@ fn runout_perla(last_velocity: f32, last_theta: f32, normal: vec3f, out_theta: p
 
 
 fn trajectory_overlay(id: vec3<u32>) {
+    //TODO replace hardcoded 1 with field in settings uniform (can then use current time, for example)
+    seed(vec4u(id, 1)); //seed PRNG with thread id
+
     let input_texture_size = textureDimensions(input_normal_texture);
     
     // a texel's uv coordinate should be its center, therefore shift down and right by half a texel
@@ -296,68 +300,90 @@ fn trajectory_overlay(id: vec3<u32>) {
     let start_slope_angle = get_slope_angle(start_normal);
     let trajectory_value = start_slope_angle / (PI / 2);
 
-    var velocity = vec3f(0, 0, 0);
+    //TODO expose num samples in uniform (+GUI)
+    const num_samples: u32 = 512;
+    for (var sample_index: u32 = 0; sample_index < num_samples; sample_index++) {
 
-    var perla_velocity = 0f;
-    var perla_theta = 0f;
+        var velocity = vec3f(0, 0, 0);
 
-    var last_dir_index: i32 = -1;  // used for d8 with weights
-    var last_uv = vec2f(0, 0);
-    var world_space_offset = vec2f(0, 0); // offset from original world position
-    for (var i: u32 = 0; i < settings.num_steps; i++) {
-        // compute uv coordinates for current position
-        let current_uv = uv + vec2f(world_space_offset.x, -world_space_offset.y) / settings.region_size;
+        var perla_velocity = 0f;
+        var perla_theta = 0f;
 
-        // quit if moved out of bounds
-        if (current_uv.x < 0 || current_uv.x > 1 || current_uv.y < 0 || current_uv.y > 1) {
-            break;
-        }
+        var last_dir_index: i32 = -1;  // used for d8 with weights
+        var last_uv = vec2f(0, 0);
+        var world_space_offset = vec2f(0, 0); // offset from original world position
 
-        // draw trajectory point
-        if (i > 0) {
-            draw_line_uv(last_uv, current_uv, trajectory_value);
-        }
-        last_uv = current_uv;
+        for (var i: u32 = 0; i < settings.num_steps; i++) {
+            // compute uv coordinates for current position
+            let current_uv = uv + vec2f(world_space_offset.x, -world_space_offset.y) / settings.region_size;
 
-        // sample normal and get new world space offset based on chosen model
-        let normal = sample_normal_texture(current_uv);
-        if (settings.model_type == 0) {
-            velocity += model_physics_simple(normal, velocity);
-            world_space_offset = world_space_offset + settings.step_length * velocity.xy;
-        } else if (settings.model_type == 1) {
-            velocity += settings.step_length * model_physics_less_simple(normal, velocity);
-            world_space_offset = world_space_offset + settings.step_length * velocity.xy;
-        } else if (settings.model_type == 2) {
-            let direction = model_gradient(normal);
-            world_space_offset = world_space_offset + settings.step_length * direction;
-        } else if (settings.model_type == 3) {
-            let direction = model_discretized_gradient(normal);
-            world_space_offset = world_space_offset + settings.step_length * direction;
-        } else if (settings.model_type == 4) {
-            /*let uv_direction = model_d8_without_weights(current_tile_id, current_tile_uv);
-            let world_direction = vec2f(uv_direction.x, -uv_direction.y);
-            let step_uv_offset = (1f / vec2f(settings.output_resolution));
-            world_space_offset = world_space_offset + world_direction * step_uv_offset * settings.region_size;*/
-        } else if (settings.model_type == 5) {
-            /*let w1 = settings.model5_weights[0];
-            let w2 = settings.model5_weights[1];
-            let weights = array<f32, 8>(w1.x, w1.y, w1.z, w1.w, w2.x, w2.y, w2.z, w2.w);
-            let uv_direction = model_d8_with_weights(current_tile_id, current_tile_uv, last_dir_index, &last_dir_index, weights);
-            let world_direction = vec2f(uv_direction.x, -uv_direction.y);
-            let step_uv_offset = (1f / vec2f(settings.output_resolution));
-            world_space_offset = world_space_offset + world_direction * step_uv_offset * settings.region_size;*/
-        }
-
-        if (settings.runout_model_type == 1) {
-            perla_velocity = runout_perla(perla_velocity, perla_theta, normal, &perla_theta);
-
-            //let buffer_index = get_storage_buffer_index(output_texture_array_index, output_coords, settings.output_resolution);
-            //atomicMax(&output_storage_buffer[buffer_index], u32(1000f * (perla_velocity / 10.0f)));
-
-            if (perla_velocity < 0.01) { //TODO
+            // quit if moved out of bounds
+            if (current_uv.x < 0 || current_uv.x > 1 || current_uv.y < 0 || current_uv.y > 1) {
                 break;
             }
+
+            // draw trajectory point
+            if (i > 0) {
+                draw_line_uv(last_uv, current_uv, trajectory_value);
+            }
+            last_uv = current_uv;
+
+            // sample normal and get new world space offset based on chosen model
+            let normal = sample_normal_texture(current_uv);
+            if (settings.model_type == 0) {
+                // offset normal
+                // TODO: expose offset in uniform (+GUI) 
+                const offset = 0.2;
+                let new_normal = normalize(normal + (rand3() * 2 - 1) * offset);
+                velocity += model_physics_simple(new_normal, velocity);
+
+                // offset direction angle
+                //TODO this approach vs. offsetting normal vector directly?
+                /*
+                const offset_factor = rand() * 2 - 1; 
+                let angle_offset = radians(45) * offset_factor;
+                let step_angle = atan2(velocity.y, velocity.x) + angle_offset; // now [0, 2*pi]
+                let new_step_direction = length(velocity) * vec2f(cos(step_angle), sin(step_angle));
+                */
+                
+                let new_step_direction = velocity.xy;
+                world_space_offset = world_space_offset + settings.step_length * new_step_direction;
+            } else if (settings.model_type == 1) {
+                velocity += settings.step_length * model_physics_less_simple(normal, velocity);
+                world_space_offset = world_space_offset + settings.step_length * velocity.xy;
+            } else if (settings.model_type == 2) {
+                let direction = model_gradient(normal);
+                world_space_offset = world_space_offset + settings.step_length * direction;
+            } else if (settings.model_type == 3) {
+                let direction = model_discretized_gradient(normal);
+                world_space_offset = world_space_offset + settings.step_length * direction;
+            } else if (settings.model_type == 4) {
+                /*let uv_direction = model_d8_without_weights(current_tile_id, current_tile_uv);
+                let world_direction = vec2f(uv_direction.x, -uv_direction.y);
+                let step_uv_offset = (1f / vec2f(settings.output_resolution));
+                world_space_offset = world_space_offset + world_direction * step_uv_offset * settings.region_size;*/
+            } else if (settings.model_type == 5) {
+                /*let w1 = settings.model5_weights[0];
+                let w2 = settings.model5_weights[1];
+                let weights = array<f32, 8>(w1.x, w1.y, w1.z, w1.w, w2.x, w2.y, w2.z, w2.w);
+                let uv_direction = model_d8_with_weights(current_tile_id, current_tile_uv, last_dir_index, &last_dir_index, weights);
+                let world_direction = vec2f(uv_direction.x, -uv_direction.y);
+                let step_uv_offset = (1f / vec2f(settings.output_resolution));
+                world_space_offset = world_space_offset + world_direction * step_uv_offset * settings.region_size;*/
+            }
+
+            if (settings.runout_model_type == 1) {
+                perla_velocity = runout_perla(perla_velocity, perla_theta, normal, &perla_theta);
+
+                //let buffer_index = get_storage_buffer_index(output_texture_array_index, output_coords, settings.output_resolution);
+                //atomicMax(&output_storage_buffer[buffer_index], u32(1000f * (perla_velocity / 10.0f)));
+
+                if (perla_velocity < 0.01) { //TODO
+                    break;
+                }
+            }
         }
+
     }
 
     // overpaint start point
