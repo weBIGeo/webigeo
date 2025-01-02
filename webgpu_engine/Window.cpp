@@ -312,23 +312,22 @@ void Window::paint_gui()
             WebInterop::instance().open_file_dialog(".txt", "overlay_aabb_txt");
         }
 #endif
-    }
-
-    if (ImGui::SliderFloat("Strength##image overlay", &m_image_overlay_settings_uniform_buffer->data.alpha, 0.0f, 1.0f, "%.2f")) {
-        m_image_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
-        m_needs_redraw = true;
-    }
-
-    if (ImGui::Combo("Mode##image overlay", (int*)&(m_image_overlay_settings_uniform_buffer->data.mode), "Alpha-Blend\0Encoded Float\0")) {
-        m_image_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
-        m_needs_redraw = true;
-    }
-
-    if (m_image_overlay_settings_uniform_buffer->data.mode == 1) {
-        if (ImGui::DragFloatRange2("Float Map Range", &m_image_overlay_settings_uniform_buffer->data.float_decoding_lower_bound,
-                &m_image_overlay_settings_uniform_buffer->data.float_decoding_upper_bound, 1.0f, -10000, 10000)) {
+        if (ImGui::SliderFloat("Strength##image overlay", &m_image_overlay_settings_uniform_buffer->data.alpha, 0.0f, 1.0f, "%.2f")) {
             m_image_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
             m_needs_redraw = true;
+        }
+
+        if (ImGui::Combo("Mode##image overlay", (int*)&(m_image_overlay_settings_uniform_buffer->data.mode), "Alpha-Blend\0Encoded Float\0")) {
+            m_image_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
+            m_needs_redraw = true;
+        }
+
+        if (m_image_overlay_settings_uniform_buffer->data.mode == 1) {
+            if (ImGui::DragFloatRange2("Float Map Range", &m_image_overlay_settings_uniform_buffer->data.float_decoding_lower_bound,
+                    &m_image_overlay_settings_uniform_buffer->data.float_decoding_upper_bound, 1.0f, -10000, 10000)) {
+                m_image_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
+                m_needs_redraw = true;
+            }
         }
     }
 
