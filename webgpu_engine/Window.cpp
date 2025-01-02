@@ -513,7 +513,7 @@ void Window::paint_compute_pipeline_gui()
                     recreate_and_rerun_compute_pipeline();
                 }
 
-                if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL1) {
+                if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_SIMPLE) {
                     ImGui::SliderFloat(
                         "Linear drag coeff##model1", &m_compute_pipeline_settings.model1_slowdown_coeff, 0.0f, 0.1f, "%.4f", ImGuiSliderFlags_Logarithmic);
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
@@ -523,7 +523,7 @@ void Window::paint_compute_pipeline_gui()
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
                         recreate_and_rerun_compute_pipeline();
                     }
-                } else if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL2) {
+                } else if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_LESS_SIMPLE) {
                     ImGui::SliderFloat("Gravity##model2", &m_compute_pipeline_settings.model2_gravity, 0.0f, 15.0f, "%.2f");
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
                         recreate_and_rerun_compute_pipeline();
@@ -890,7 +890,7 @@ void Window::init_compute_pipeline_presets()
         .sync_snow_settings_with_render_settings = true, // snow node
         .snow_settings = compute::nodes::ComputeSnowNode::SnowSettings(), // snow node
         .sampling_density = 16, // trajectories node
-        .model_type = compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL1,
+        .model_type = compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_SIMPLE,
         .model1_slowdown_coeff = 0.0033f,
         .model1_speedup_coeff = 0.12f,
         .model2_gravity = 9.81f,
@@ -909,7 +909,7 @@ void Window::init_compute_pipeline_presets()
         .sync_snow_settings_with_render_settings = true, // snow node
         .snow_settings = compute::nodes::ComputeSnowNode::SnowSettings(), // snow node
         .sampling_density = 16, // trajectories node
-        .model_type = compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL1,
+        .model_type = compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_SIMPLE,
         .model1_slowdown_coeff = 0.0033f,
         .model1_speedup_coeff = 0.12f,
         .model2_gravity = 9.81f,

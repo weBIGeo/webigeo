@@ -32,10 +32,10 @@ public:
     static glm::uvec3 SHADER_WORKGROUP_SIZE; // TODO currently hardcoded in shader! can we somehow not hardcode it? maybe using overrides
 
     enum PhysicsModelType : uint32_t {
-        MODEL1 = 0,
-        MODEL2 = 1,
-        MODEL3 = 2,
-        MODEL4 = 3,
+        PHYSICS_SIMPLE = 0,
+        PHYSICS_LESS_SIMPLE = 1,
+        GRADIENT = 2,
+        DISCRETIZED_GRADIENT = 3,
         D8_NO_WEIGHTS = 4,
         D8_WEIGHTS = 5,
     };
@@ -45,12 +45,12 @@ public:
         PERLA = 1,
     };
 
-    struct Model1Params {
+    struct ModelPhysicsSimpleParams {
         float slowdown_coefficient = 0.0033f;
         float speedup_coefficient = 0.12f;
     };
 
-    struct Model2Params {
+    struct ModelPhysicsLessSimpleParams {
         float gravity = 9.81f;
         float mass = 10.0f;
         float friction_coeff = 0.01f;
@@ -75,8 +75,8 @@ public:
         float step_length = 0.1f;
 
         PhysicsModelType active_model;
-        Model1Params model1;
-        Model2Params model2;
+        ModelPhysicsSimpleParams model1;
+        ModelPhysicsLessSimpleParams model2;
         ModelD8WithWeightsParams model_d8_with_weights;
 
         RunoutModelType active_runout_model = RunoutModelType::PERLA;

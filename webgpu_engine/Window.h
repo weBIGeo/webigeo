@@ -54,7 +54,7 @@ struct ComputePipelineSettings {
     compute::nodes::ComputeSnowNode::SnowSettings snow_settings; // snow node
 
     uint32_t sampling_density = 16u; // trajectories node
-    int model_type = int(compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::MODEL1);
+    int model_type = int(compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_SIMPLE);
     float model1_slowdown_coeff = 0.0033f;
     float model1_speedup_coeff = 0.12f;
     float model2_gravity = 9.81f;
