@@ -81,6 +81,9 @@ public:
         /*length of the random offset vector that is added to the sampled normal each step*/
         float normal_offset = 0.2f;
 
+        /* Length of the random offset vector that is added to the direction calculated using the simulation model (each step). */
+        float direction_offset = 0.2f;
+
         PhysicsModelType active_model;
         ModelPhysicsSimpleParams model1;
         ModelPhysicsLessSimpleParams model2;
@@ -99,6 +102,7 @@ private:
         float step_length = 0.5f;
 
         float normal_offset = 0.2f;
+        float direction_offset = 0.0f;
 
         PhysicsModelType physics_model_type;
         float model1_linear_drag_coeff;
@@ -120,7 +124,6 @@ private:
         uint32_t padding1;
         uint32_t padding2;
         uint32_t padding3;
-        uint32_t padding4;
     };
 
 public:

@@ -512,7 +512,12 @@ void Window::paint_compute_pipeline_gui()
                     recreate_and_rerun_compute_pipeline();
                 }
 
-                ImGui::SliderFloat("Random offset length", &m_compute_pipeline_settings.normal_offset, 0.0f, 1.0f, "%.3f");
+                ImGui::SliderFloat("Normal offset length", &m_compute_pipeline_settings.normal_offset, 0.0f, 1.0f, "%.3f");
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    recreate_and_rerun_compute_pipeline();
+                }
+
+                ImGui::SliderFloat("Dir offset length", &m_compute_pipeline_settings.direction_offset, 0.0f, 1.0f, "%.3f");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     recreate_and_rerun_compute_pipeline();
                 }
@@ -808,6 +813,7 @@ void Window::update_compute_pipeline_settings()
         trajectory_settings.step_length = m_compute_pipeline_settings.steps_length;
         trajectory_settings.num_samples = m_compute_pipeline_settings.num_samples;
         trajectory_settings.normal_offset = m_compute_pipeline_settings.normal_offset;
+        trajectory_settings.direction_offset = m_compute_pipeline_settings.direction_offset;
         trajectory_settings.active_model = compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType(m_compute_pipeline_settings.model_type);
         trajectory_settings.model1.slowdown_coefficient = m_compute_pipeline_settings.model1_slowdown_coeff;
         trajectory_settings.model1.speedup_coefficient = m_compute_pipeline_settings.model1_speedup_coeff;

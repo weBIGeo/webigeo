@@ -36,6 +36,7 @@ struct AvalancheTrajectoriesSettings {
     step_length: f32, // length of one simulation step in world space
 
     normal_offset: f32, // how large the random offset for the normal is in each step
+    direction_offset: f32, // how large the random offset from the calculated direction is (in each step)
 
     model_type: u32, //0 is simple, 1 is more complex
     model1_linear_drag_coeff: f32,
@@ -331,21 +332,15 @@ fn trajectory_overlay(id: vec3<u32>) {
         let normal = sample_normal_texture(current_uv);
         if (settings.model_type == 0) {
             // offset normal
-            // TODO: expose offset in uniform (+GUI) 
-            let offset = settings.normal_offset;
-            let new_normal = normalize(normal + (rand3() * 2 - 1) * offset);
+            // TODO: expose offset in uniform (+GUI)
+            let new_normal = normalize(normal + (rand3() * 2 - 1) * settings.normal_offset);
             velocity += model_physics_simple(new_normal, velocity);
 
             // offset direction angle
             //TODO this approach vs. offsetting normal vector directly?
-            /*
-            const offset_factor = rand() * 2 - 1; 
-            let angle_offset = radians(45) * offset_factor;
-            let step_angle = atan2(velocity.y, velocity.x) + angle_offset; // now [0, 2*pi]
-            let new_step_direction = length(velocity) * vec2f(cos(step_angle), sin(step_angle));
-            */
-            
-            let new_step_direction = velocity.xy;
+            let new_direction = normalize(velocity.xy + (rand2() * 2 - 1) * settings.direction_offset);
+            //let new_direction = normalize(velocity.xy);
+            let new_step_direction = length(velocity) * new_direction;
             world_space_offset = world_space_offset + settings.step_length * new_step_direction;
         } else if (settings.model_type == 1) {
             velocity += settings.step_length * model_physics_less_simple(normal, velocity);
