@@ -74,6 +74,9 @@ public:
         uint32_t num_steps = 1024;
         float step_length = 0.1f;
 
+        /*length of the random offset vector that is added to the sampled normal each step*/
+        float normal_offset = 0.2f;
+
         PhysicsModelType active_model;
         ModelPhysicsSimpleParams model1;
         ModelPhysicsLessSimpleParams model2;
@@ -90,6 +93,8 @@ private:
 
         uint32_t num_steps = 128;
         float step_length = 0.5f;
+
+        float normal_offset = 0.2f;
 
         PhysicsModelType physics_model_type;
         float model1_linear_drag_coeff;
@@ -112,7 +117,6 @@ private:
         uint32_t padding2;
         uint32_t padding3;
         uint32_t padding4;
-        uint32_t padding5;
     };
 
 public:

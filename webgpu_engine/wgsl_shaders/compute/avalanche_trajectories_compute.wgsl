@@ -35,6 +35,8 @@ struct AvalancheTrajectoriesSettings {
     num_steps: u32, // maximum number of steps (along gradient)
     step_length: f32, // length of one simulation step in world space
 
+    normal_offset: f32, // how large the random offset for the normal is in each step
+
     model_type: u32, //0 is simple, 1 is more complex
     model1_linear_drag_coeff: f32,
     model1_downward_acceleration_coeff: f32,
@@ -333,7 +335,7 @@ fn trajectory_overlay(id: vec3<u32>) {
             if (settings.model_type == 0) {
                 // offset normal
                 // TODO: expose offset in uniform (+GUI) 
-                const offset = 0.2;
+                let offset = settings.normal_offset;
                 let new_normal = normalize(normal + (rand3() * 2 - 1) * offset);
                 velocity += model_physics_simple(new_normal, velocity);
 

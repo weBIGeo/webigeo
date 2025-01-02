@@ -55,6 +55,7 @@ void ComputeAvalancheTrajectoriesNode::update_gpu_settings()
 {
     m_settings_uniform.data.num_steps = m_settings.num_steps;
     m_settings_uniform.data.step_length = m_settings.step_length;
+    m_settings_uniform.data.normal_offset = m_settings.normal_offset;
 
     m_settings_uniform.data.physics_model_type = m_settings.active_model;
     m_settings_uniform.data.model1_linear_drag_coeff = m_settings.model1.slowdown_coefficient;
