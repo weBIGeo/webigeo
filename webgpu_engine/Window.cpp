@@ -506,6 +506,13 @@ void Window::paint_compute_pipeline_gui()
                     recreate_and_rerun_compute_pipeline();
                 }
 
+                const uint32_t min_num_samples = 1;
+                const uint32_t max_num_samples = 512;
+                ImGui::SliderScalar("Num samples", ImGuiDataType_U32, &m_compute_pipeline_settings.num_samples, &min_num_samples, &max_num_samples, "%u");
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    recreate_and_rerun_compute_pipeline();
+                }
+
                 ImGui::SliderFloat("Random offset length", &m_compute_pipeline_settings.normal_offset, 0.0f, 1.0f, "%.3f");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     recreate_and_rerun_compute_pipeline();
@@ -800,6 +807,7 @@ void Window::update_compute_pipeline_settings()
         trajectory_settings.resolution_multiplier = m_compute_pipeline_settings.trajectory_resolution_multiplier;
         trajectory_settings.num_steps = m_compute_pipeline_settings.num_steps;
         trajectory_settings.step_length = m_compute_pipeline_settings.steps_length;
+        trajectory_settings.num_samples = m_compute_pipeline_settings.num_samples;
         trajectory_settings.normal_offset = m_compute_pipeline_settings.normal_offset;
         trajectory_settings.active_model = compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType(m_compute_pipeline_settings.model_type);
         trajectory_settings.model1.slowdown_coefficient = m_compute_pipeline_settings.model1_slowdown_coeff;

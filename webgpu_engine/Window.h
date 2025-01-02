@@ -54,6 +54,7 @@ struct ComputePipelineSettings {
     compute::nodes::ComputeSnowNode::SnowSettings snow_settings; // snow node
 
     uint32_t sampling_density = 16u; // trajectories node
+    uint32_t num_samples = 128u;
     float normal_offset = 0.2f;
     int model_type = int(compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_SIMPLE);
     float model1_slowdown_coeff = 0.0033f;

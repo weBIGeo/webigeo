@@ -74,6 +74,10 @@ public:
         uint32_t num_steps = 1024;
         float step_length = 0.1f;
 
+        /* Number of trajectories to start from the same release cell.
+         * This only makes sense when using normal_offset not zero.*/
+        uint32_t num_samples = 1u;
+
         /*length of the random offset vector that is added to the sampled normal each step*/
         float normal_offset = 0.2f;
 
