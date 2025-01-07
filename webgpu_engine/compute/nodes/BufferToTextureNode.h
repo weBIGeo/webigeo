@@ -47,7 +47,7 @@ public:
 
     struct BufferToTextureSettings {
         WGPUTextureFormat format = WGPUTextureFormat_RGBA8Unorm;
-        WGPUTextureUsage usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding;
+        WGPUTextureUsage usage = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding);
     };
 
     struct BufferToTextureSettingsUniform {

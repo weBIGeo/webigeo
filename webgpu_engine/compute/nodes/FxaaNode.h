@@ -31,7 +31,7 @@ public:
 
     struct FxaaSettings {
         WGPUTextureFormat format = WGPUTextureFormat_RGBA8Unorm;
-        WGPUTextureUsage usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
+        WGPUTextureUsage usage = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst);
     };
 
     FxaaNode(const PipelineManager& pipeline_manager, WGPUDevice device);

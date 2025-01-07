@@ -94,6 +94,7 @@ qt_add_resources(webgpu_engine "shaders"
         "wgsl_shaders/util/color_mapping.wgsl"
         "wgsl_shaders/util/filtering.wgsl"
         "wgsl_shaders/util/noise.wgsl"
+        "wgsl_shaders/util/random.wgsl"
     )
 
 # Note: This has to go into the webgpu_app as soon as we don't use ImGui in the engine anymore!!!
