@@ -313,6 +313,8 @@ fn trajectory_overlay(id: vec3<u32>) {
     var last_uv = vec2f(0, 0);
     var world_space_offset = vec2f(0, 0); // offset from original world position
 
+    var normal_t = vec3f(0, 0, 1);
+
     for (var i: u32 = 0; i < settings.num_steps; i++) {
         // compute uv coordinates for current position
         let current_uv = uv + vec2f(world_space_offset.x, -world_space_offset.y) / settings.region_size;
@@ -331,17 +333,23 @@ fn trajectory_overlay(id: vec3<u32>) {
         // sample normal and get new world space offset based on chosen model
         let normal = sample_normal_texture(current_uv);
         if (settings.model_type == 0) {
+            let n_l = normal * (1 - settings.normal_offset) + normalize(vec3f(rand2() * 2 - 1, 1)) * settings.normal_offset;
+            normal_t = normal_t * (1 - settings.direction_offset) + n_l * settings.direction_offset;
+
+            let gradient = normalize(normal_t.xy);
+            
+
             // offset normal
             // TODO: expose offset in uniform (+GUI)
-            let new_normal = normalize(normal + (rand3() * 2 - 1) * settings.normal_offset);
-            velocity += model_physics_simple(new_normal, velocity);
+            //let new_normal = normalize(normal + (rand3() * 2 - 1) * settings.normal_offset);
+            //velocity += model_physics_simple(new_normal, velocity);
 
             // offset direction angle
             //TODO this approach vs. offsetting normal vector directly?
-            let new_direction = normalize(velocity.xy + (rand2() * 2 - 1) * settings.direction_offset);
+            //let new_direction = normalize(velocity.xy + (rand2() * 2 - 1) * settings.direction_offset);
             //let new_direction = normalize(velocity.xy);
-            let new_step_direction = length(velocity) * new_direction;
-            world_space_offset = world_space_offset + settings.step_length * new_step_direction;
+            //let new_step_direction = length(velocity) * new_direction;
+            world_space_offset = world_space_offset + settings.step_length * gradient.xy;
         } else if (settings.model_type == 1) {
             velocity += settings.step_length * model_physics_less_simple(normal, velocity);
             world_space_offset = world_space_offset + settings.step_length * velocity.xy;

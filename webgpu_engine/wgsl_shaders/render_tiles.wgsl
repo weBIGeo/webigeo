@@ -51,7 +51,7 @@ struct VertexOut {
     @location(1) pos_cws: vec3f,
     @location(2) normal: vec3f,
     @location(3) @interpolate(flat) texture_layer: i32,
-    @location(4) color: vec3f,
+    @location(4) @interpolate(flat) color: vec3f,
     @location(5) @interpolate(flat) tile_id: vec3<u32>,
 }
 

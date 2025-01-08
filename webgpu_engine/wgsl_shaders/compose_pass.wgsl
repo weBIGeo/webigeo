@@ -150,6 +150,7 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
     // later, the sampled value is only used if we are in the overlay region (specified in image overlay settings uniform)
     var image_overlay_color = vec4f(0.0);
     {
+        // TODO: calculate size in double on CPU. Maybe gonna fix alignment issue
         let image_overlay_uv = (pos_ws.xy - image_overlay_settings.aabb_min) / (image_overlay_settings.aabb_max - image_overlay_settings.aabb_min);
         
         let image_overlay_uv_px = image_overlay_uv * image_overlay_settings.texture_size;
@@ -167,6 +168,7 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
 
     var compute_overlay_color = vec4f(0.0);
     {
+        // TODO: calculate size in double on CPU. Maybe gonna fix alignment issue
         let compute_overlay_uv = (pos_ws.xy - compute_overlay_settings.aabb_min) / (compute_overlay_settings.aabb_max - compute_overlay_settings.aabb_min);
         
         let compute_overlay_uv_px = compute_overlay_uv * compute_overlay_settings.texture_size;
