@@ -56,7 +56,7 @@ struct ComputePipelineSettings {
     uint32_t sampling_density = 16u; // trajectories node
     uint32_t num_samples = 128u;
     float normal_offset = 0.2f;
-    float direction_offset = 0.0f;
+    float direction_offset = 0.1f;
     int model_type = int(compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_SIMPLE);
     float model1_slowdown_coeff = 0.0033f;
     float model1_speedup_coeff = 0.12f;
