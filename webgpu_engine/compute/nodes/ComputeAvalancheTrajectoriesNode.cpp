@@ -47,7 +47,8 @@ ComputeAvalancheTrajectoriesNode::ComputeAvalancheTrajectoriesNode(
     , m_queue(wgpuDeviceGetQueue(m_device))
     , m_settings { settings }
     , m_settings_uniform(device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
-    , m_sampler(create_sampler(m_device))
+    , m_normal_sampler(create_normal_sampler(m_device))
+    , m_height_sampler(create_height_sampler(m_device))
 {
 }
 
@@ -72,10 +73,11 @@ void ComputeAvalancheTrajectoriesNode::update_gpu_settings()
     m_settings_uniform.data.model_d8_with_weights_center_height_offset = m_settings.model_d8_with_weights.center_height_offset;
 
     m_settings_uniform.data.runout_model_type = m_settings.active_runout_model;
-    m_settings_uniform.data.runout_perla_my = m_settings.perla.my;
-    m_settings_uniform.data.runout_perla_md = m_settings.perla.md;
-    m_settings_uniform.data.runout_perla_l = m_settings.perla.l;
-    m_settings_uniform.data.runout_perla_g = m_settings.perla.g;
+    m_settings_uniform.data.runout_perla_my = m_settings.runout_perla.my;
+    m_settings_uniform.data.runout_perla_md = m_settings.runout_perla.md;
+    m_settings_uniform.data.runout_perla_l = m_settings.runout_perla.l;
+    m_settings_uniform.data.runout_perla_g = m_settings.runout_perla.g;
+    m_settings_uniform.data.runout_flowpy_alpha = m_settings.runout_flowpy.alpha;
 
     m_settings_uniform.update_gpu_data(m_queue);
 }
@@ -124,8 +126,9 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
         normal_texture.texture_view().create_bind_group_entry(1),
         height_texture.texture_view().create_bind_group_entry(2),
         release_point_texture.texture_view().create_bind_group_entry(3),
-        m_sampler->create_bind_group_entry(4),
-        m_output_storage_buffer->create_bind_group_entry(5),
+        m_normal_sampler->create_bind_group_entry(4),
+        m_height_sampler->create_bind_group_entry(5),
+        m_output_storage_buffer->create_bind_group_entry(6),
     };
 
     webgpu::raii::BindGroup compute_bind_group(
@@ -163,15 +166,32 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
         this);
 }
 
-std::unique_ptr<webgpu::raii::Sampler> ComputeAvalancheTrajectoriesNode::create_sampler(WGPUDevice device)
+std::unique_ptr<webgpu::raii::Sampler> ComputeAvalancheTrajectoriesNode::create_normal_sampler(WGPUDevice device)
 {
     WGPUSamplerDescriptor sampler_desc {};
-    sampler_desc.label = "compute trajectories sampler";
+    sampler_desc.label = "compute trajectories normal sampler";
     sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Linear;
     sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Linear;
+    sampler_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Nearest;
+    sampler_desc.lodMinClamp = 0.0f;
+    sampler_desc.lodMaxClamp = 1.0f;
+    sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
+    sampler_desc.maxAnisotropy = 1;
+    return std::make_unique<webgpu::raii::Sampler>(device, sampler_desc);
+}
+
+std::unique_ptr<webgpu::raii::Sampler> ComputeAvalancheTrajectoriesNode::create_height_sampler(WGPUDevice device)
+{
+    WGPUSamplerDescriptor sampler_desc {};
+    sampler_desc.label = "compute trajectories height sampler";
+    sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
+    sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
+    sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
+    sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
+    sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
     sampler_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Nearest;
     sampler_desc.lodMinClamp = 0.0f;
     sampler_desc.lodMaxClamp = 1.0f;

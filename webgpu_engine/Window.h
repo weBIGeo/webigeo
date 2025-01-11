@@ -75,6 +75,7 @@ struct ComputePipelineSettings {
 
     int runout_model_type = int(compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType::NONE);
     compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutPerlaParams perla;
+    float runout_flowpy_alpha = 25.0f; // degrees
 };
 
 struct GuiErrorState {

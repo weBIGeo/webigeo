@@ -581,8 +581,8 @@ void Window::paint_compute_pipeline_gui()
                 }
 
                 // TODO refactor
-                // this ONLY works because the enum values for the respective combo items are 0, 1
-                if (ImGui::Combo("Runout model", &m_compute_pipeline_settings.runout_model_type, "None\0Perla et al.\0")) {
+                // this ONLY works because the enum values for the respective combo items are 0, 1, 2
+                if (ImGui::Combo("Runout model", &m_compute_pipeline_settings.runout_model_type, "None\0Perla et al.\0FlowPy\0")) {
                     recreate_and_rerun_compute_pipeline();
                 }
 
@@ -600,6 +600,11 @@ void Window::paint_compute_pipeline_gui()
                         recreate_and_rerun_compute_pipeline();
                     }
                     ImGui::SliderFloat("Gravity##runout_perla", &m_compute_pipeline_settings.perla.g, 0.0f, 15.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        recreate_and_rerun_compute_pipeline();
+                    }
+                } else if (m_compute_pipeline_settings.runout_model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType::FLOWPY) {
+                    ImGui::SliderFloat("Alpha##runout_flowpy", &m_compute_pipeline_settings.runout_flowpy_alpha, 0.0f, 90.0f, "%.2f");
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
                         recreate_and_rerun_compute_pipeline();
                     }
@@ -826,7 +831,8 @@ void Window::update_compute_pipeline_settings()
 
         trajectory_settings.active_runout_model
             = compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType(m_compute_pipeline_settings.runout_model_type);
-        trajectory_settings.perla = m_compute_pipeline_settings.perla;
+        trajectory_settings.runout_perla = m_compute_pipeline_settings.perla;
+        trajectory_settings.runout_flowpy.alpha = glm::radians(m_compute_pipeline_settings.runout_flowpy_alpha);
 
         auto& trajectories_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("compute_avalanche_trajectories_node");
         trajectories_node.set_settings(trajectory_settings);

@@ -43,6 +43,7 @@ public:
     enum RunoutModelType : uint32_t {
         NONE = 0,
         PERLA = 1,
+        FLOWPY = 2,
     };
 
     struct ModelPhysicsSimpleParams {
@@ -69,6 +70,11 @@ public:
         float g = 9.81f; // acceleration due to gravity (in m/s^2)
     };
 
+    /* FlowPy runout model */
+    struct RunoutFlowPyParams {
+        float alpha = glm::radians(25.0f);
+    };
+
     struct AvalancheTrajectoriesSettings {
         uint32_t resolution_multiplier = 1;
         uint32_t num_steps = 1024;
@@ -90,7 +96,8 @@ public:
         ModelD8WithWeightsParams model_d8_with_weights;
 
         RunoutModelType active_runout_model = RunoutModelType::PERLA;
-        RunoutPerlaParams perla;
+        RunoutPerlaParams runout_perla;
+        RunoutFlowPyParams runout_flowpy;
     };
 
 private:
@@ -111,8 +118,8 @@ private:
         float model2_mass;
         float model2_friction_coeff;
         float model2_drag_coeff;
-        float model_d8_with_weights_weights[8];
         float model_d8_with_weights_center_height_offset;
+        float model_d8_with_weights_weights[8];
 
         RunoutModelType runout_model_type;
 
@@ -121,9 +128,10 @@ private:
         float runout_perla_l;
         float runout_perla_g;
 
+        float runout_flowpy_alpha;
+
         uint32_t padding1;
         uint32_t padding2;
-        uint32_t padding3;
     };
 
 public:
@@ -138,7 +146,8 @@ public slots:
     void run_impl() override;
 
 private:
-    static std::unique_ptr<webgpu::raii::Sampler> create_sampler(WGPUDevice device);
+    static std::unique_ptr<webgpu::raii::Sampler> create_normal_sampler(WGPUDevice device);
+    static std::unique_ptr<webgpu::raii::Sampler> create_height_sampler(WGPUDevice device);
 
 private:
     const PipelineManager* m_pipeline_manager;
@@ -147,7 +156,8 @@ private:
 
     AvalancheTrajectoriesSettings m_settings;
     webgpu_engine::Buffer<AvalancheTrajectoriesSettingsUniform> m_settings_uniform;
-    std::unique_ptr<webgpu::raii::Sampler> m_sampler;
+    std::unique_ptr<webgpu::raii::Sampler> m_normal_sampler;
+    std::unique_ptr<webgpu::raii::Sampler> m_height_sampler;
     std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_output_storage_buffer;
     glm::uvec2 m_output_dimensions;
 };

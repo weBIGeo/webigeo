@@ -47,8 +47,8 @@ struct AvalancheTrajectoriesSettings {
     model2_drag_coeff: f32,
 
     //model5_weights: array<f32, 8>, // wgsl compiler does not allow f32 arrays in uniforms because of padding requirements, altough it would work here
-    model5_weights: array<vec4f, 2>,
     model5_center_height_offset: f32,
+    model5_weights: array<vec4f, 2>,
 
     runout_model_type: u32, //0 none, 1 perla
 
@@ -56,6 +56,8 @@ struct AvalancheTrajectoriesSettings {
     runout_perla_md: f32, // M/D mass-to-drag ratio
     runout_perla_l: f32, // distance between grid cells (in m)
     runout_perla_g: f32, // acceleration due to gravity (in m/s^2)
+
+    runout_flowpy_alpha: f32, // alpha runout angle in radians
 }
 
 // input
@@ -63,10 +65,11 @@ struct AvalancheTrajectoriesSettings {
 @group(0) @binding(1) var input_normal_texture: texture_2d<f32>;
 @group(0) @binding(2) var input_height_texture: texture_2d<f32>;
 @group(0) @binding(3) var input_release_point_texture: texture_2d<f32>;
-@group(0) @binding(4) var input_sampler: sampler;
+@group(0) @binding(4) var input_normal_sampler: sampler;
+@group(0) @binding(5) var input_height_sampler: sampler;
 
 // output
-@group(0) @binding(5) var<storage, read_write> output_storage_buffer: array<atomic<u32>>; // trajectory texture
+@group(0) @binding(6) var<storage, read_write> output_storage_buffer: array<atomic<u32>>; // trajectory texture
 
 // note: as of writing this, wgsl only supports atomic access for storage buffers and only for u32 and i32
 //       therefore, we first write the risk value (along the trajectory as raster) into a buffer,
@@ -75,14 +78,14 @@ struct AvalancheTrajectoriesSettings {
 
 // Samples normal texture with bilinear filtering.
 fn sample_normal_texture(uv: vec2f) -> vec3f {
-    return textureSampleLevel(input_normal_texture, input_sampler, uv, 0).xyz * 2 - 1;
+    return textureSampleLevel(input_normal_texture, input_normal_sampler, uv, 0).xyz * 2 - 1;
 }
 
 // Samples height texture with bilinear filtering.
 fn sample_height_texture(uv: vec2f) -> f32 {
     let texture_dimensions = textureDimensions(input_height_texture);
     let weights: vec2f = fract(uv * vec2f(texture_dimensions) - 0.5f + TEXTURE_GATHER_OFFSET); // -0.5 to make relative to texel center
-    let texel_values: vec4f = textureGather(0, input_height_texture, input_sampler, uv);
+    let texel_values: vec4f = textureGather(0, input_height_texture, input_height_sampler, uv);
     return dot(vec4f((1.0 - weights.x) * weights.y, weights.x * weights.y, weights.x * (1.0 - weights.y), (1.0 - weights.x) * (1.0 - weights.y)), texel_values);
 }
 
@@ -309,6 +312,10 @@ fn trajectory_overlay(id: vec3<u32>) {
     var perla_velocity = 0f;
     var perla_theta = 0f;
 
+    // alpha-beta model state
+    let start_point_height: f32 = sample_height_texture(uv);
+    var world_space_travel_distance: f32 = 0.0;
+
     var last_dir_index: i32 = -1;  // used for d8 with weights
     var last_uv = vec2f(0, 0);
     var world_space_offset = vec2f(0, 0); // offset from original world position
@@ -350,6 +357,7 @@ fn trajectory_overlay(id: vec3<u32>) {
             //let new_direction = normalize(velocity.xy);
             //let new_step_direction = length(velocity) * new_direction;
             world_space_offset = world_space_offset + settings.step_length * gradient.xy;
+            world_space_travel_distance += length(settings.step_length * gradient.xy);
         } else if (settings.model_type == 1) {
             velocity += settings.step_length * model_physics_less_simple(normal, velocity);
             world_space_offset = world_space_offset + settings.step_length * velocity.xy;
@@ -381,6 +389,16 @@ fn trajectory_overlay(id: vec3<u32>) {
             //atomicMax(&output_storage_buffer[buffer_index], u32(1000f * (perla_velocity / 10.0f)));
 
             if (perla_velocity < 0.01) { //TODO
+                break;
+            }
+        } else if (settings.runout_model_type == 2 && i > 0) {
+            let current_height = sample_height_texture(current_uv);
+            let height_diff = start_point_height - current_height;
+            let tan_alpha = tan(settings.runout_flowpy_alpha);
+            let z_alpha = tan_alpha * length(world_space_travel_distance);
+            let z_gamma = height_diff;
+            let z_delta = z_gamma - z_alpha;
+            if (z_delta <= 0) {
                 break;
             }
         }
