@@ -47,31 +47,20 @@ struct ComputePipelineSettings {
     uint32_t trajectory_resolution_multiplier = 1;
     glm::dvec3 reference_point = {}; // area of influence node
     glm::dvec2 target_point = {}; // area of influence node
-    uint32_t num_steps = 1024u; // area of influence node
-    float steps_length = 0.1f; // area of influence node
-    float radius = 20.0f; // area of influence node
+    uint32_t num_steps = 1024u;
+    float steps_length = 0.1f;
     bool sync_snow_settings_with_render_settings = true; // snow node
     compute::nodes::ComputeSnowNode::SnowSettings snow_settings; // snow node
 
-    uint32_t sampling_density = 16u; // trajectories node
-    uint32_t num_samples = 128u;
-    float normal_offset = 0.2f;
-    float direction_offset = 0.1f;
-    int model_type = int(compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_SIMPLE);
-    float model1_slowdown_coeff = 0.0033f;
-    float model1_speedup_coeff = 0.12f;
-    float model2_gravity = 9.81f;
-    float model2_mass = 5.0f;
-    float model2_friction_coeff = 0.01f;
-    float model2_drag_coeff = 0.2f;
+    float sampling_density = 0.04f; // trajectories node
+    uint32_t num_paths_per_release_cell = 128u;
+    float random_contribution = 0.2f;
+    float persistence_contribution = 0.1f;
 
     float trigger_point_min_slope_angle = 30.0f; // release points node
     float trigger_point_max_slope_angle = 60.0f; // release points node
 
-    int tile_source_index = 0;
-
-    std::array<float, 8> model5_weights = { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f };
-    float model_d8_with_weights_center_height_offset = 1.0f;
+    int tile_source_index = 0; // 0 DTM, 1 DSM
 
     int runout_model_type = int(compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType::NONE);
     compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutPerlaParams perla;

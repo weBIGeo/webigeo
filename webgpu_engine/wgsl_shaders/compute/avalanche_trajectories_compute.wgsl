@@ -35,8 +35,8 @@ struct AvalancheTrajectoriesSettings {
     num_steps: u32, // maximum number of steps (along gradient)
     step_length: f32, // length of one simulation step in world space
 
-    normal_offset: f32, // how large the random offset for the normal is in each step
-    direction_offset: f32, // how large the random offset from the calculated direction is (in each step)
+    random_contribution: f32, // randomness contribution on normal in [0,1], 0 means no randomness, 1 means only randomness
+    persistence_contribution: f32, // persistence contribution on normal in [0,1], 0 means only local normal, 1 means only last normal
 
     model_type: u32, //0 is simple, 1 is more complex
     model1_linear_drag_coeff: f32,
@@ -340,8 +340,8 @@ fn trajectory_overlay(id: vec3<u32>) {
         // sample normal and get new world space offset based on chosen model
         let normal = sample_normal_texture(current_uv);
         if (settings.model_type == 0) {
-            let n_l = normalize(normal + (rand3() * 2 - 1) * settings.normal_offset);  // n_l     ...  local normal with random offset
-            normal_t = normalize(normal_t + n_l * settings.direction_offset);          // normal_t ... local normal with random offset from last step
+            let n_l = normalize(normal * (1 - settings.random_contribution) + (rand3() * 2 - 1) * settings.random_contribution);  // n_l     ...  local normal with random offset
+            normal_t = normalize(n_l * (1 - settings.persistence_contribution) + normal_t * settings.persistence_contribution);   // normal_t ... local normal with random offset from last step
             let gradient = normal_t.xy;
             // ToDo step length factor remove -> put into gui
             world_space_offset = world_space_offset + settings.step_length * 20.0 * gradient.xy;

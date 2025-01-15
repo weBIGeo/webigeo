@@ -81,14 +81,16 @@ public:
         float step_length = 0.1f;
 
         /* Number of trajectories to start from the same release cell.
-         * This only makes sense when using normal_offset not zero.*/
-        uint32_t num_samples = 1u;
+         * This only makes sense when random_contribution is greater than 0.*/
+        uint32_t num_paths_per_release_cell = 1u;
 
-        /*length of the random offset vector that is added to the sampled normal each step*/
-        float normal_offset = 0.2f;
+        /* Randomness contribution to the sampled normal in [0,1].
+           0 means no randomness, 1 means only randomness */
+        float random_contribution = 0.2f;
 
-        /* Length of the random offset vector that is added to the direction calculated using the simulation model (each step). */
-        float direction_offset = 0.2f;
+        /* Persistence contribution to the (randomly offset) normal in [0,1].
+           0 means only local normal, 1 means only last normal*/
+        float persistence_contribution = 0.2f;
 
         PhysicsModelType active_model;
         ModelPhysicsSimpleParams model1;

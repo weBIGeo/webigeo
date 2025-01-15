@@ -476,13 +476,7 @@ void Window::paint_compute_pipeline_gui()
                     recreate_and_rerun_compute_pipeline();
                 }
 
-                const uint32_t min_sampling_density = 1;
-                const uint32_t max_sampling_density = 256;
-                // 1-> 1x pro 256 -> 256
-                // 256 -> 256x pro 256 -> 1
-                // 2-> 2x pro 256 -> 128
-                ImGui::SliderScalar("Sampling density", ImGuiDataType_U32, &m_compute_pipeline_settings.sampling_density, &min_sampling_density,
-                    &max_sampling_density, "%u", ImGuiSliderFlags_Logarithmic);
+                ImGui::SliderFloat("Sampling density", &m_compute_pipeline_settings.sampling_density, 0.0f, 1.0f, "%.2f");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     recreate_and_rerun_compute_pipeline();
                 }
@@ -507,77 +501,20 @@ void Window::paint_compute_pipeline_gui()
 
                 const uint32_t min_num_samples = 1;
                 const uint32_t max_num_samples = 512;
-                ImGui::SliderScalar("Num samples", ImGuiDataType_U32, &m_compute_pipeline_settings.num_samples, &min_num_samples, &max_num_samples, "%u");
+                ImGui::SliderScalar("Paths per release cell", ImGuiDataType_U32, &m_compute_pipeline_settings.num_paths_per_release_cell, &min_num_samples,
+                    &max_num_samples, "%u");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     recreate_and_rerun_compute_pipeline();
                 }
 
-                ImGui::SliderFloat("Normal offset length", &m_compute_pipeline_settings.normal_offset, 0.0f, 1.0f, "%.3f");
+                ImGui::SliderFloat("Random contribution", &m_compute_pipeline_settings.random_contribution, 0.0f, 1.0f, "%.3f");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     recreate_and_rerun_compute_pipeline();
                 }
 
-                ImGui::SliderFloat("Dir offset length", &m_compute_pipeline_settings.direction_offset, 0.0f, 1.0f, "%.3f");
+                ImGui::SliderFloat("Persistence", &m_compute_pipeline_settings.persistence_contribution, 0.0f, 1.0f, "%.3f");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     recreate_and_rerun_compute_pipeline();
-                }
-
-                // TODO refactor
-                // this ONLY works because the enum values for the respective combo items are 0, 1, 2 and 3
-                if (ImGui::Combo("Model", &m_compute_pipeline_settings.model_type,
-                        "Momentum (simple)\0Momentum (less simple)\0Gradients\0Discretized gradients\0D8 (no weights)\0D8 (with weights)\0")) {
-                    recreate_and_rerun_compute_pipeline();
-                }
-
-                if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_SIMPLE) {
-                    ImGui::SliderFloat(
-                        "Linear drag coeff##model1", &m_compute_pipeline_settings.model1_slowdown_coeff, 0.0f, 0.1f, "%.4f", ImGuiSliderFlags_Logarithmic);
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        recreate_and_rerun_compute_pipeline();
-                    }
-                    ImGui::SliderFloat("Speedup coeff##model1", &m_compute_pipeline_settings.model1_speedup_coeff, 0.0f, 1.0f, "%.2f");
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        recreate_and_rerun_compute_pipeline();
-                    }
-                } else if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_LESS_SIMPLE) {
-                    ImGui::SliderFloat("Gravity##model2", &m_compute_pipeline_settings.model2_gravity, 0.0f, 15.0f, "%.2f");
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        recreate_and_rerun_compute_pipeline();
-                    }
-                    ImGui::SliderFloat("Mass##model2", &m_compute_pipeline_settings.model2_mass, 0.0f, 100.0f, "%.2f");
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        recreate_and_rerun_compute_pipeline();
-                    }
-                    ImGui::SliderFloat("Drag coeff##model2", &m_compute_pipeline_settings.model2_drag_coeff, 0.0f, 1.0f, "%.2f");
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        recreate_and_rerun_compute_pipeline();
-                    }
-                    ImGui::SliderFloat("Friction coeff##model2", &m_compute_pipeline_settings.model2_friction_coeff, 0.0f, 1.0f, "%.2f");
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        recreate_and_rerun_compute_pipeline();
-                    }
-                } else if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::D8_WEIGHTS) {
-                    // TODO this will probably not work with presets, as, for the combo to change on preset change, we would need to have the selected index be
-                    // part of the preset - we will refactor presets anyway, so fix it then
-                    static int weight_preset_index = 0;
-                    if (ImGui::Combo("Weights", &weight_preset_index, "Uniform\0Proportional\0Cosine\0Gamma (2000)\0")) {
-                        if (weight_preset_index == 0) {
-                            m_compute_pipeline_settings.model5_weights = { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f }; // uniform
-                        } else if (weight_preset_index == 1) {
-                            m_compute_pipeline_settings.model5_weights = { 1.0f, 0.8f, 0.4f, 0.0f, 0.0f, 0.0f, 0.4f, 0.8f }; // proportional
-                        } else if (weight_preset_index == 2) {
-                            m_compute_pipeline_settings.model5_weights = { 1.0f, 0.707f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.707f }; // cosine
-                        } else if (weight_preset_index == 3) {
-                            m_compute_pipeline_settings.model5_weights = { 1.5f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f }; // gamma (2000)
-                        }
-                        recreate_and_rerun_compute_pipeline();
-                    }
-
-                    ImGui::SliderFloat(
-                        "Center height offset##d8 with weights", &m_compute_pipeline_settings.model_d8_with_weights_center_height_offset, 0.0f, 10.0f, "%.2f");
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        recreate_and_rerun_compute_pipeline();
-                    }
                 }
 
                 // TODO refactor
@@ -609,24 +546,6 @@ void Window::paint_compute_pipeline_gui()
                         recreate_and_rerun_compute_pipeline();
                     }
                 }
-            } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_INFLUENCE_AREA) {
-                const uint32_t min_steps = 1;
-                const uint32_t max_steps = 4096;
-                ImGui::SliderScalar("Num steps", ImGuiDataType_U32, &m_compute_pipeline_settings.num_steps, &min_steps, &max_steps, "%u");
-                if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    recreate_and_rerun_compute_pipeline();
-                }
-
-                ImGui::SliderFloat("Step length", &m_compute_pipeline_settings.steps_length, 0.01f, 1.0f, "%.2f");
-                if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    recreate_and_rerun_compute_pipeline();
-                }
-
-                ImGui::SliderFloat("Radius", &m_compute_pipeline_settings.radius, 0.0f, 100.0f, "%.1fm");
-                if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    recreate_and_rerun_compute_pipeline();
-                }
-
             } else if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS_AND_SNOW) {
                 if (ImGui::Checkbox("Sync with render settings", &m_compute_pipeline_settings.sync_snow_settings_with_render_settings)) {
                     update_compute_pipeline_settings();
@@ -654,13 +573,7 @@ void Window::paint_compute_pipeline_gui()
                     }
                 }
             } else if (m_active_compute_pipeline_type == ComputePipelineType::RELEASE_POINTS) {
-                // TODO remove duplicate code!
-
-                const uint32_t min_sampling_density = 1;
-                const uint32_t max_sampling_density = 256;
-                // 1-> every pixel
-                ImGui::SliderScalar("Sampling density", ImGuiDataType_U32, &m_compute_pipeline_settings.sampling_density, &min_sampling_density,
-                    &max_sampling_density, "%u", ImGuiSliderFlags_Logarithmic);
+                ImGui::SliderFloat("Sampling density", &m_compute_pipeline_settings.sampling_density, 0.0f, 1.0f, "%.2f");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     recreate_and_rerun_compute_pipeline();
                 }
@@ -673,11 +586,7 @@ void Window::paint_compute_pipeline_gui()
             } else if (m_active_compute_pipeline_type == ComputePipelineType::ITERATIVE_SIMULATION) {
                 // TODO remove duplicate code!
 
-                const uint32_t min_sampling_density = 1;
-                const uint32_t max_sampling_density = 256;
-                // 1-> every pixel
-                ImGui::SliderScalar("Sampling density", ImGuiDataType_U32, &m_compute_pipeline_settings.sampling_density, &min_sampling_density,
-                    &max_sampling_density, "%u", ImGuiSliderFlags_Logarithmic);
+                ImGui::SliderFloat("Sampling density##iterative simulation", &m_compute_pipeline_settings.sampling_density, 0.0f, 1.0f, "%.2f");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     recreate_and_rerun_compute_pipeline();
                 }
@@ -776,7 +685,7 @@ void Window::update_compute_pipeline_settings()
             compute::nodes::ComputeReleasePointsNode::ReleasePointsSettings settings;
             settings.min_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_min_slope_angle);
             settings.max_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_max_slope_angle);
-            settings.sampling_density = glm::uvec2(m_compute_pipeline_settings.sampling_density);
+            settings.sampling_density = glm::vec2(m_compute_pipeline_settings.sampling_density);
             m_compute_graph->get_node_as<compute::nodes::ComputeReleasePointsNode>("compute_release_points_node").set_settings(settings);
         }
 
@@ -808,7 +717,7 @@ void Window::update_compute_pipeline_settings()
         compute::nodes::ComputeReleasePointsNode::ReleasePointsSettings settings;
         settings.min_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_min_slope_angle);
         settings.max_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_max_slope_angle);
-        settings.sampling_density = glm::uvec2(m_compute_pipeline_settings.sampling_density);
+        settings.sampling_density = glm::vec2(m_compute_pipeline_settings.sampling_density);
         m_compute_graph->get_node_as<compute::nodes::ComputeReleasePointsNode>("compute_release_points_node").set_settings(settings);
 
         // trajectories settings
@@ -816,18 +725,9 @@ void Window::update_compute_pipeline_settings()
         trajectory_settings.resolution_multiplier = m_compute_pipeline_settings.trajectory_resolution_multiplier;
         trajectory_settings.num_steps = m_compute_pipeline_settings.num_steps;
         trajectory_settings.step_length = m_compute_pipeline_settings.steps_length;
-        trajectory_settings.num_samples = m_compute_pipeline_settings.num_samples;
-        trajectory_settings.normal_offset = m_compute_pipeline_settings.normal_offset;
-        trajectory_settings.direction_offset = m_compute_pipeline_settings.direction_offset;
-        trajectory_settings.active_model = compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType(m_compute_pipeline_settings.model_type);
-        trajectory_settings.model1.slowdown_coefficient = m_compute_pipeline_settings.model1_slowdown_coeff;
-        trajectory_settings.model1.speedup_coefficient = m_compute_pipeline_settings.model1_speedup_coeff;
-        trajectory_settings.model2.gravity = m_compute_pipeline_settings.model2_gravity;
-        trajectory_settings.model2.mass = m_compute_pipeline_settings.model2_mass;
-        trajectory_settings.model2.friction_coeff = m_compute_pipeline_settings.model2_friction_coeff;
-        trajectory_settings.model2.drag_coeff = m_compute_pipeline_settings.model2_drag_coeff;
-        trajectory_settings.model_d8_with_weights.weights = m_compute_pipeline_settings.model5_weights;
-        trajectory_settings.model_d8_with_weights.center_height_offset = m_compute_pipeline_settings.model_d8_with_weights_center_height_offset;
+        trajectory_settings.num_paths_per_release_cell = m_compute_pipeline_settings.num_paths_per_release_cell;
+        trajectory_settings.random_contribution = m_compute_pipeline_settings.random_contribution;
+        trajectory_settings.persistence_contribution = m_compute_pipeline_settings.persistence_contribution;
 
         trajectory_settings.active_runout_model
             = compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType(m_compute_pipeline_settings.runout_model_type);
@@ -836,37 +736,6 @@ void Window::update_compute_pipeline_settings()
 
         auto& trajectories_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("compute_avalanche_trajectories_node");
         trajectories_node.set_settings(trajectory_settings);
-
-    } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_INFLUENCE_AREA) {
-        // tile selection
-        m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_target_tiles_node")
-            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.zoomlevel);
-
-        // data source tile selection
-        // m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_source_tiles_node")
-        //    .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.source_zoomlevel);
-
-        // tile source
-        m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node")
-            .set_settings(m_tile_source_settings.at(m_compute_pipeline_settings.tile_source_index));
-
-        // area of influence settings
-        auto& area_of_influence_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheInfluenceAreaNode>("compute_area_of_influence_node");
-        area_of_influence_node.set_reference_point_world(m_compute_pipeline_settings.reference_point);
-        area_of_influence_node.set_target_point_world(m_compute_pipeline_settings.target_point);
-        area_of_influence_node.set_num_steps(m_compute_pipeline_settings.num_steps);
-        area_of_influence_node.set_step_length(m_compute_pipeline_settings.steps_length);
-        area_of_influence_node.set_radius(m_compute_pipeline_settings.radius);
-        // area_of_influence_node.set_source_zoomlevel(m_compute_pipeline_settings.source_zoomlevel);
-        area_of_influence_node.set_physics_model_type(
-            compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType(m_compute_pipeline_settings.model_type));
-        area_of_influence_node.set_model1_downward_acceleration_coeff(m_compute_pipeline_settings.model1_speedup_coeff);
-        area_of_influence_node.set_model1_linear_drag_coeff(m_compute_pipeline_settings.model1_slowdown_coeff);
-        area_of_influence_node.set_model2_gravity(m_compute_pipeline_settings.model2_gravity);
-        area_of_influence_node.set_model2_mass(m_compute_pipeline_settings.model2_mass);
-        area_of_influence_node.set_model2_friction_coeff(m_compute_pipeline_settings.model2_friction_coeff);
-        area_of_influence_node.set_model2_drag_coeff(m_compute_pipeline_settings.model2_drag_coeff);
-
     } else if (m_active_compute_pipeline_type == ComputePipelineType::D8_DIRECTIONS) {
         // tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
@@ -887,7 +756,7 @@ void Window::update_compute_pipeline_settings()
         compute::nodes::ComputeReleasePointsNode::ReleasePointsSettings settings;
         settings.min_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_min_slope_angle);
         settings.max_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_max_slope_angle);
-        settings.sampling_density = glm::uvec2(m_compute_pipeline_settings.sampling_density);
+        settings.sampling_density = glm::vec2(m_compute_pipeline_settings.sampling_density);
         m_compute_graph->get_node_as<compute::nodes::ComputeReleasePointsNode>("compute_release_points_node").set_settings(settings);
     }
 }
@@ -907,40 +776,26 @@ void Window::init_compute_pipeline_presets()
     ComputePipelineSettings preset_a = {
         .target_region = {}, // select tiles node
         .zoomlevel = 18,
-        .reference_point = {}, // area of influence node
-        .target_point = {}, // area of influence node
-        .num_steps = 512u, // area of influence node
-        .steps_length = 0.1f, // area of influence node
-        .radius = 20.0f, // area of influence node
+        .reference_point = {},
+        .target_point = {},
+        .num_steps = 512u,
+        .steps_length = 0.1f,
         .sync_snow_settings_with_render_settings = true, // snow node
         .snow_settings = compute::nodes::ComputeSnowNode::SnowSettings(), // snow node
         .sampling_density = 16, // trajectories node
-        .model_type = compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_SIMPLE,
-        .model1_slowdown_coeff = 0.0033f,
-        .model1_speedup_coeff = 0.12f,
-        .model2_gravity = 9.81f,
-        .model2_mass = 5.0f,
-        .model2_friction_coeff = 0.01f,
-        .model2_drag_coeff = 0.2f,
+        .perla = {},
     };
     ComputePipelineSettings preset_b = {
         .target_region = {}, // select tiles node
         .zoomlevel = 18,
-        .reference_point = {}, // area of influence node
-        .target_point = {}, // area of influence node
-        .num_steps = 2048u, // area of influence node
-        .steps_length = 0.1f, // area of influence node
-        .radius = 20.0f, // area of influence node
+        .reference_point = {},
+        .target_point = {},
+        .num_steps = 2048u,
+        .steps_length = 0.1f,
         .sync_snow_settings_with_render_settings = true, // snow node
         .snow_settings = compute::nodes::ComputeSnowNode::SnowSettings(), // snow node
         .sampling_density = 16, // trajectories node
-        .model_type = compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_SIMPLE,
-        .model1_slowdown_coeff = 0.0033f,
-        .model1_speedup_coeff = 0.12f,
-        .model2_gravity = 9.81f,
-        .model2_mass = 5.0f,
-        .model2_friction_coeff = 0.01f,
-        .model2_drag_coeff = 0.2f,
+        .perla = {},
     };
 
     m_compute_pipeline_presets.push_back(default_values);

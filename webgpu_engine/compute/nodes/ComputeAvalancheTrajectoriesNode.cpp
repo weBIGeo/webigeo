@@ -56,8 +56,8 @@ void ComputeAvalancheTrajectoriesNode::update_gpu_settings()
 {
     m_settings_uniform.data.num_steps = m_settings.num_steps;
     m_settings_uniform.data.step_length = m_settings.step_length;
-    m_settings_uniform.data.normal_offset = m_settings.normal_offset;
-    m_settings_uniform.data.direction_offset = m_settings.direction_offset;
+    m_settings_uniform.data.normal_offset = m_settings.random_contribution;
+    m_settings_uniform.data.direction_offset = m_settings.persistence_contribution;
 
     m_settings_uniform.data.physics_model_type = m_settings.active_model;
     m_settings_uniform.data.model1_linear_drag_coeff = m_settings.model1.slowdown_coefficient;
@@ -146,7 +146,7 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
             webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
 
             glm::uvec3 workgroup_counts
-                = glm::ceil(glm::vec3(m_output_dimensions.x, m_output_dimensions.y, m_settings.num_samples) / glm::vec3(SHADER_WORKGROUP_SIZE));
+                = glm::ceil(glm::vec3(m_output_dimensions.x, m_output_dimensions.y, m_settings.num_paths_per_release_cell) / glm::vec3(SHADER_WORKGROUP_SIZE));
             wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, compute_bind_group.handle(), 0, nullptr);
             m_pipeline_manager->avalanche_trajectories_compute_pipeline().run(compute_pass, workgroup_counts);
         }

@@ -51,12 +51,15 @@ void ComputeReleasePointsNode::run_impl()
 
     // create output texture
     m_output_texture = create_release_points_texture(
-        m_device, normal_texture.texture().width(), normal_texture.texture().height(), m_settings.texture_format, m_settings.texture_usage);
+        m_device, uint32_t(normal_texture.texture().width()), uint32_t(normal_texture.texture().height()), m_settings.texture_format, m_settings.texture_usage);
 
     // update settings on GPU side
     m_settings_uniform.data.min_slope_angle = m_settings.min_slope_angle;
     m_settings_uniform.data.max_slope_angle = m_settings.max_slope_angle;
-    m_settings_uniform.data.sampling_density = m_settings.sampling_density;
+    m_settings_uniform.data.sampling_interval.x
+        = m_settings.sampling_density.x == 0.0f ? m_output_texture->texture().width() + 1 : 1.0f / m_settings.sampling_density.x;
+    m_settings_uniform.data.sampling_interval.y
+        = m_settings.sampling_density.y == 0.0f ? m_output_texture->texture().height() + 1 : 1.0f / m_settings.sampling_density.y;
     m_settings_uniform.update_gpu_data(m_queue);
 
     // create bind group
