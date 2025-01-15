@@ -340,24 +340,12 @@ fn trajectory_overlay(id: vec3<u32>) {
         // sample normal and get new world space offset based on chosen model
         let normal = sample_normal_texture(current_uv);
         if (settings.model_type == 0) {
-            let n_l = normal * (1 - settings.normal_offset) + normalize(vec3f(rand2() * 2 - 1, 1)) * settings.normal_offset;
-            normal_t = normal_t * (1 - settings.direction_offset) + n_l * settings.direction_offset;
-
-            let gradient = normalize(normal_t.xy);
-            
-
-            // offset normal
-            // TODO: expose offset in uniform (+GUI)
-            //let new_normal = normalize(normal + (rand3() * 2 - 1) * settings.normal_offset);
-            //velocity += model_physics_simple(new_normal, velocity);
-
-            // offset direction angle
-            //TODO this approach vs. offsetting normal vector directly?
-            //let new_direction = normalize(velocity.xy + (rand2() * 2 - 1) * settings.direction_offset);
-            //let new_direction = normalize(velocity.xy);
-            //let new_step_direction = length(velocity) * new_direction;
-            world_space_offset = world_space_offset + settings.step_length * gradient.xy;
-            world_space_travel_distance += length(settings.step_length * gradient.xy);
+            let n_l = normalize(normal + (rand3() * 2 - 1) * settings.normal_offset);  // n_l     ...  local normal with random offset
+            normal_t = normalize(normal_t + n_l * settings.direction_offset);          // normal_t ... local normal with random offset from last step
+            let gradient = normal_t.xy;
+            // ToDo step length factor remove -> put into gui
+            world_space_offset = world_space_offset + settings.step_length * 20.0 * gradient.xy;
+            world_space_travel_distance += length(settings.step_length * 20.0 * gradient.xy);
         } else if (settings.model_type == 1) {
             velocity += settings.step_length * model_physics_less_simple(normal, velocity);
             world_space_offset = world_space_offset + settings.step_length * velocity.xy;
