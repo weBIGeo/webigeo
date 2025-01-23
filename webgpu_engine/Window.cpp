@@ -100,7 +100,7 @@ void Window::initialise_gpu()
     m_compute_overlay_dummy_texture = create_overlay_texture(1, 1);
 
     init_compute_pipeline_presets();
-    create_and_set_compute_pipeline(ComputePipelineType::NORMALS, false);
+    create_and_set_compute_pipeline(ComputePipelineType::AVALANCHE_TRAJECTORIES, false);
 
     qInfo() << "gpu_ready_changed";
     emit gpu_ready_changed(true);
@@ -468,8 +468,8 @@ void Window::paint_compute_pipeline_gui()
 
                 const uint32_t min_resolution_multiplier = 1;
                 const uint32_t max_resolution_multiplier = 32;
-                ImGui::SliderScalar("Res. mult.", ImGuiDataType_U32, &m_compute_pipeline_settings.trajectory_resolution_multiplier, &min_resolution_multiplier,
-                    &max_resolution_multiplier, "%u");
+                ImGui::SliderScalar("Resolution", ImGuiDataType_U32, &m_compute_pipeline_settings.trajectory_resolution_multiplier, &min_resolution_multiplier,
+                    &max_resolution_multiplier, "%ux");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     update_settings_and_rerun_pipeline();
                 }
@@ -492,13 +492,8 @@ void Window::paint_compute_pipeline_gui()
                     update_settings_and_rerun_pipeline();
                 }
 
-                ImGui::SliderFloat("Step length", &m_compute_pipeline_settings.steps_length, 0.01f, 1.0f, "%.2f");
-                if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    update_settings_and_rerun_pipeline();
-                }
-
                 const uint32_t min_num_samples = 1;
-                const uint32_t max_num_samples = 512;
+                const uint32_t max_num_samples = 1024;
                 ImGui::SliderScalar("Paths per release cell", ImGuiDataType_U32, &m_compute_pipeline_settings.num_paths_per_release_cell, &min_num_samples,
                     &max_num_samples, "%u");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
@@ -720,7 +715,7 @@ void Window::update_compute_pipeline_settings()
         compute::nodes::ComputeAvalancheTrajectoriesNode::AvalancheTrajectoriesSettings trajectory_settings {};
         trajectory_settings.resolution_multiplier = m_compute_pipeline_settings.trajectory_resolution_multiplier;
         trajectory_settings.num_steps = m_compute_pipeline_settings.num_steps;
-        trajectory_settings.step_length = m_compute_pipeline_settings.steps_length;
+        trajectory_settings.step_length = m_compute_pipeline_settings.step_length;
         trajectory_settings.num_paths_per_release_cell = m_compute_pipeline_settings.num_paths_per_release_cell;
         trajectory_settings.random_contribution = m_compute_pipeline_settings.random_contribution;
         trajectory_settings.persistence_contribution = m_compute_pipeline_settings.persistence_contribution;
@@ -772,7 +767,7 @@ void Window::init_compute_pipeline_presets()
         .target_region = {}, // select tiles node
         .zoomlevel = 18,
         .num_steps = 512u,
-        .steps_length = 0.1f,
+        .step_length = 0.1f,
         .sync_snow_settings_with_render_settings = true, // snow node
         .snow_settings = compute::nodes::ComputeSnowNode::SnowSettings(), // snow node
         .release_point_interval = 16, // trajectories node
@@ -782,7 +777,7 @@ void Window::init_compute_pipeline_presets()
         .target_region = {}, // select tiles node
         .zoomlevel = 18,
         .num_steps = 2048u,
-        .steps_length = 0.1f,
+        .step_length = 0.1f,
         .sync_snow_settings_with_render_settings = true, // snow node
         .snow_settings = compute::nodes::ComputeSnowNode::SnowSettings(), // snow node
         .release_point_interval = 16, // trajectories node

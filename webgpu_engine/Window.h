@@ -43,17 +43,17 @@ namespace webgpu_engine {
 // TODO quite ugly solution
 struct ComputePipelineSettings {
     geometry::Aabb<3, double> target_region = {}; // select tiles node
-    uint32_t zoomlevel = 18;
-    uint32_t trajectory_resolution_multiplier = 1;
+    uint32_t zoomlevel = 15;
+    uint32_t trajectory_resolution_multiplier = 16;
     uint32_t num_steps = 1024u;
-    float steps_length = 0.1f;
+    float step_length = 1.0f;
     bool sync_snow_settings_with_render_settings = true; // snow node
     compute::nodes::ComputeSnowNode::SnowSettings snow_settings; // snow node
 
-    int release_point_interval = 16; // trajectories node
-    uint32_t num_paths_per_release_cell = 128u;
-    float random_contribution = 0.2f;
-    float persistence_contribution = 0.1f;
+    int release_point_interval = 8; // trajectories node
+    uint32_t num_paths_per_release_cell = 256u;
+    float random_contribution = 0.16f;
+    float persistence_contribution = 0.9f;
 
     float trigger_point_min_slope_angle = 30.0f; // release points node
     float trigger_point_max_slope_angle = 60.0f; // release points node
