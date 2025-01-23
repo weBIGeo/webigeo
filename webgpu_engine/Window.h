@@ -45,8 +45,6 @@ struct ComputePipelineSettings {
     geometry::Aabb<3, double> target_region = {}; // select tiles node
     uint32_t zoomlevel = 18;
     uint32_t trajectory_resolution_multiplier = 1;
-    glm::dvec3 reference_point = {}; // area of influence node
-    glm::dvec2 target_point = {}; // area of influence node
     uint32_t num_steps = 1024u;
     float steps_length = 0.1f;
     bool sync_snow_settings_with_render_settings = true; // snow node
@@ -79,7 +77,6 @@ public:
         NORMALS = 0,
         NORMALS_AND_SNOW = 1,
         AVALANCHE_TRAJECTORIES = 2,
-        AVALANCHE_INFLUENCE_AREA = 3,
         D8_DIRECTIONS = 4,
         RELEASE_POINTS = 5,
         ITERATIVE_SIMULATION = 6,
@@ -147,7 +144,7 @@ private:
     void refresh_compute_pipeline_settings(const geometry::Aabb3d& world_aabb, const nucleus::track::Point& focused_track_point_coords);
     void create_and_set_compute_pipeline(ComputePipelineType pipeline_type, bool should_recreate_compose_bind_group = true);
     void update_compute_pipeline_settings();
-    void recreate_and_rerun_compute_pipeline();
+    void update_settings_and_rerun_pipeline();
     void init_compute_pipeline_presets();
     void apply_compute_pipeline_preset(size_t preset_index);
 

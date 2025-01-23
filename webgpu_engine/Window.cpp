@@ -18,7 +18,6 @@
  *****************************************************************************/
 
 #include "Window.h"
-#include "compute/nodes/ComputeAvalancheInfluenceAreaNode.h"
 #include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
 #include "compute/nodes/ComputeReleasePointsNode.h"
 #include "compute/nodes/ComputeSnowNode.h"
@@ -410,7 +409,7 @@ void Window::paint_compute_pipeline_gui()
 
         const char* tile_source_items = "DTM tiles\0DSM tiles\0";
         if (ImGui::Combo("Tile source", &m_compute_pipeline_settings.tile_source_index, tile_source_items)) {
-            recreate_and_rerun_compute_pipeline();
+            update_settings_and_rerun_pipeline();
             m_needs_redraw = true;
         }
 
@@ -418,15 +417,14 @@ void Window::paint_compute_pipeline_gui()
         const uint32_t max_zoomlevel = 18;
         ImGui::SliderScalar("Zoom level", ImGuiDataType_U32, &m_compute_pipeline_settings.zoomlevel, &min_zoomlevel, &max_zoomlevel, "%u");
         if (ImGui::IsItemDeactivatedAfterEdit()) {
-            recreate_and_rerun_compute_pipeline();
+            update_settings_and_rerun_pipeline();
         }
 
         static int current_item = 0;
         const std::vector<std::pair<std::string, ComputePipelineType>> overlays = {
             { "Normals", ComputePipelineType::NORMALS },
             { "Snow + Normals", ComputePipelineType::NORMALS_AND_SNOW },
-            { "Avalanche trajectories + Normals", ComputePipelineType::AVALANCHE_TRAJECTORIES },
-            { "Avalanche influence area + Normals", ComputePipelineType::AVALANCHE_INFLUENCE_AREA },
+            { "Avalanche trajectories", ComputePipelineType::AVALANCHE_TRAJECTORIES },
             { "D8 directions", ComputePipelineType::D8_DIRECTIONS },
             { "Release points", ComputePipelineType::RELEASE_POINTS },
             { "Iterative simulation (WIP)", ComputePipelineType::ITERATIVE_SIMULATION },
@@ -460,7 +458,7 @@ void Window::paint_compute_pipeline_gui()
                         if (ImGui::Selectable(presets[i].c_str(), is_selected)) {
                             current_preset_index = i;
                             apply_compute_pipeline_preset(current_preset_index);
-                            recreate_and_rerun_compute_pipeline();
+                            update_settings_and_rerun_pipeline();
                         }
                         if (is_selected)
                             ImGui::SetItemDefaultFocus();
@@ -473,30 +471,30 @@ void Window::paint_compute_pipeline_gui()
                 ImGui::SliderScalar("Res. mult.", ImGuiDataType_U32, &m_compute_pipeline_settings.trajectory_resolution_multiplier, &min_resolution_multiplier,
                     &max_resolution_multiplier, "%u");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    recreate_and_rerun_compute_pipeline();
+                    update_settings_and_rerun_pipeline();
                 }
 
                 ImGui::SliderFloat("Sampling density", &m_compute_pipeline_settings.sampling_density, 0.0f, 1.0f, "%.2f");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    recreate_and_rerun_compute_pipeline();
+                    update_settings_and_rerun_pipeline();
                 }
 
                 ImGui::DragFloatRange2("Trigger point steepness limit", &m_compute_pipeline_settings.trigger_point_min_slope_angle,
                     &m_compute_pipeline_settings.trigger_point_max_slope_angle, 0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp);
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    recreate_and_rerun_compute_pipeline();
+                    update_settings_and_rerun_pipeline();
                 }
 
                 const uint32_t min_steps = 1;
                 const uint32_t max_steps = 4096;
                 ImGui::SliderScalar("Num steps", ImGuiDataType_U32, &m_compute_pipeline_settings.num_steps, &min_steps, &max_steps, "%u");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    recreate_and_rerun_compute_pipeline();
+                    update_settings_and_rerun_pipeline();
                 }
 
                 ImGui::SliderFloat("Step length", &m_compute_pipeline_settings.steps_length, 0.01f, 1.0f, "%.2f");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    recreate_and_rerun_compute_pipeline();
+                    update_settings_and_rerun_pipeline();
                 }
 
                 const uint32_t min_num_samples = 1;
@@ -504,46 +502,46 @@ void Window::paint_compute_pipeline_gui()
                 ImGui::SliderScalar("Paths per release cell", ImGuiDataType_U32, &m_compute_pipeline_settings.num_paths_per_release_cell, &min_num_samples,
                     &max_num_samples, "%u");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    recreate_and_rerun_compute_pipeline();
+                    update_settings_and_rerun_pipeline();
                 }
 
                 ImGui::SliderFloat("Random contribution", &m_compute_pipeline_settings.random_contribution, 0.0f, 1.0f, "%.3f");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    recreate_and_rerun_compute_pipeline();
+                    update_settings_and_rerun_pipeline();
                 }
 
                 ImGui::SliderFloat("Persistence", &m_compute_pipeline_settings.persistence_contribution, 0.0f, 1.0f, "%.3f");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    recreate_and_rerun_compute_pipeline();
+                    update_settings_and_rerun_pipeline();
                 }
 
                 // TODO refactor
                 // this ONLY works because the enum values for the respective combo items are 0, 1, 2
                 if (ImGui::Combo("Runout model", &m_compute_pipeline_settings.runout_model_type, "None\0Perla et al.\0FlowPy\0")) {
-                    recreate_and_rerun_compute_pipeline();
+                    update_settings_and_rerun_pipeline();
                 }
 
                 if (m_compute_pipeline_settings.runout_model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType::PERLA) {
                     ImGui::SliderFloat("My##runout_perla", &m_compute_pipeline_settings.perla.my, 0.004f, 0.6f, "%.2f");
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        recreate_and_rerun_compute_pipeline();
+                        update_settings_and_rerun_pipeline();
                     }
                     ImGui::SliderFloat("M/D##runout_perla", &m_compute_pipeline_settings.perla.md, 20.0f, 150.0f, "%.2f");
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        recreate_and_rerun_compute_pipeline();
+                        update_settings_and_rerun_pipeline();
                     }
                     ImGui::SliderFloat("L##runout_perla", &m_compute_pipeline_settings.perla.l, 1.0f, 15.0f, "%.2f");
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        recreate_and_rerun_compute_pipeline();
+                        update_settings_and_rerun_pipeline();
                     }
                     ImGui::SliderFloat("Gravity##runout_perla", &m_compute_pipeline_settings.perla.g, 0.0f, 15.0f, "%.2f");
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        recreate_and_rerun_compute_pipeline();
+                        update_settings_and_rerun_pipeline();
                     }
                 } else if (m_compute_pipeline_settings.runout_model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType::FLOWPY) {
                     ImGui::SliderFloat("Alpha##runout_flowpy", &m_compute_pipeline_settings.runout_flowpy_alpha, 0.0f, 90.0f, "%.2f");
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        recreate_and_rerun_compute_pipeline();
+                        update_settings_and_rerun_pipeline();
                     }
                 }
             } else if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS_AND_SNOW) {
@@ -575,26 +573,26 @@ void Window::paint_compute_pipeline_gui()
             } else if (m_active_compute_pipeline_type == ComputePipelineType::RELEASE_POINTS) {
                 ImGui::SliderFloat("Sampling density", &m_compute_pipeline_settings.sampling_density, 0.0f, 1.0f, "%.2f");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    recreate_and_rerun_compute_pipeline();
+                    update_settings_and_rerun_pipeline();
                 }
 
                 ImGui::DragFloatRange2("Trigger point steepness limit", &m_compute_pipeline_settings.trigger_point_min_slope_angle,
                     &m_compute_pipeline_settings.trigger_point_max_slope_angle, 0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp);
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    recreate_and_rerun_compute_pipeline();
+                    update_settings_and_rerun_pipeline();
                 }
             } else if (m_active_compute_pipeline_type == ComputePipelineType::ITERATIVE_SIMULATION) {
                 // TODO remove duplicate code!
 
                 ImGui::SliderFloat("Sampling density##iterative simulation", &m_compute_pipeline_settings.sampling_density, 0.0f, 1.0f, "%.2f");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    recreate_and_rerun_compute_pipeline();
+                    update_settings_and_rerun_pipeline();
                 }
 
                 ImGui::DragFloatRange2("Trigger point steepness limit", &m_compute_pipeline_settings.trigger_point_min_slope_angle,
                     &m_compute_pipeline_settings.trigger_point_max_slope_angle, 0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp);
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    recreate_and_rerun_compute_pipeline();
+                    update_settings_and_rerun_pipeline();
                 }
             }
             ImGui::PopItemWidth();
@@ -640,8 +638,6 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, 
     } else if (pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
         // m_compute_graph = compute::nodes::NodeGraph::create_trajectories_with_export_compute_graph(*m_pipeline_manager, m_device);
         m_compute_graph = compute::nodes::NodeGraph::create_fxaa_trajectories_compute_graph(*m_pipeline_manager, m_device);
-    } else if (pipeline_type == ComputePipelineType::AVALANCHE_INFLUENCE_AREA) {
-        m_compute_graph = compute::nodes::NodeGraph::create_avalanche_influence_area_compute_graph(*m_pipeline_manager, m_device);
     } else if (pipeline_type == ComputePipelineType::D8_DIRECTIONS) {
         m_compute_graph = compute::nodes::NodeGraph::create_d8_compute_graph(*m_pipeline_manager, m_device);
     } else if (pipeline_type == ComputePipelineType::RELEASE_POINTS) {
@@ -761,9 +757,8 @@ void Window::update_compute_pipeline_settings()
     }
 }
 
-void Window::recreate_and_rerun_compute_pipeline()
+void Window::update_settings_and_rerun_pipeline()
 {
-    create_and_set_compute_pipeline(m_active_compute_pipeline_type);
     update_compute_pipeline_settings();
     if (m_is_region_selected) {
         m_compute_graph->run();
@@ -776,8 +771,6 @@ void Window::init_compute_pipeline_presets()
     ComputePipelineSettings preset_a = {
         .target_region = {}, // select tiles node
         .zoomlevel = 18,
-        .reference_point = {},
-        .target_point = {},
         .num_steps = 512u,
         .steps_length = 0.1f,
         .sync_snow_settings_with_render_settings = true, // snow node
@@ -788,8 +781,6 @@ void Window::init_compute_pipeline_presets()
     ComputePipelineSettings preset_b = {
         .target_region = {}, // select tiles node
         .zoomlevel = 18,
-        .reference_point = {},
-        .target_point = {},
         .num_steps = 2048u,
         .steps_length = 0.1f,
         .sync_snow_settings_with_render_settings = true, // snow node
@@ -1055,9 +1046,6 @@ void Window::load_track_and_focus(const std::string& path)
     // update pipeline settings
     m_is_region_selected = true;
     m_compute_pipeline_settings.target_region = track_aabb;
-    m_compute_pipeline_settings.reference_point = track_aabb.min;
-    const auto& coords = gpx_track->track.at(0).at(gpx_track->track.at(0).size() / 2); // for now simply always select point in middle of first segment
-    m_compute_pipeline_settings.target_point = nucleus::srs::lat_long_to_world({ coords.latitude, coords.longitude });
     update_compute_pipeline_settings();
 
     emit set_camera_definition_requested(new_camera_definition);
