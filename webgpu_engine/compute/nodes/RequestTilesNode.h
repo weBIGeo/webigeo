@@ -40,6 +40,8 @@ public:
 
     void set_settings(const RequestTilesNodeSettings& settings);
 
+    void check_progress_and_emit_signals();
+
 public slots:
     void run_impl() override;
 

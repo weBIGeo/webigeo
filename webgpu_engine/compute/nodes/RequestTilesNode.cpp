@@ -19,6 +19,7 @@
 #include "RequestTilesNode.h"
 
 #include <QDebug>
+#include <set>
 
 namespace webgpu_engine::compute::nodes {
 
@@ -47,6 +48,15 @@ void RequestTilesNode::run_impl()
     // TODO maybe make get_input_data a template (so usage would become get_input_data<type>(socket_index))
     const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(input_socket("tile ids").get_connected_data());
 
+    // if input tile ids didnt change from last run
+    std::set<tile::Id> new_tile_ids(tile_ids.begin(), tile_ids.end());
+    std::set<tile::Id> old_tile_ids(m_requested_tile_ids.begin(), m_requested_tile_ids.end());
+    if (new_tile_ids == old_tile_ids) {
+        qDebug() << "tiles already requested, use cache";
+        check_progress_and_emit_signals();
+        return;
+    }
+
     // send request for each tile
     m_received_tile_textures.resize(tile_ids.size());
     m_requested_tile_ids = tile_ids;
@@ -61,27 +71,25 @@ void RequestTilesNode::run_impl()
 
 void RequestTilesNode::on_single_tile_received(const nucleus::tile_scheduler::tile_types::TileLayer& tile)
 {
-    m_num_signals_received++;
+    auto found_it = std::find(m_requested_tile_ids.begin(), m_requested_tile_ids.end(), tile.id);
+    if (found_it == m_requested_tile_ids.end()) {
+        // received tile id that was not requested
+        // this means, we send requested a new set of tiles before the responses for the old ones arrived
+        // ignore those, we are only interested in responses to the last set of requested tiles
+        return;
+    }
 
+    m_num_signals_received++;
     if (tile.network_info.status != nucleus::tile_scheduler::tile_types::NetworkInfo::Status::Good) {
         m_num_tiles_unavailable++;
         qWarning() << "failed to load tile id x=" << tile.id.coords.x << ", y=" << tile.id.coords.y << ", zoomlevel=" << tile.id.zoom_level << ": "
                    << (tile.network_info.status == nucleus::tile_scheduler::tile_types::NetworkInfo::Status::NotFound ? "Not found" : "Network error");
     } else {
-        auto found_it = std::find(m_requested_tile_ids.begin(), m_requested_tile_ids.end(), tile.id);
-        assert(found_it != m_requested_tile_ids.end()); // cannot receive tile id that was not requested
         size_t found_index = found_it - m_requested_tile_ids.begin();
         m_received_tile_textures[found_index] = *tile.data;
     }
 
-    // when all requests are finished (either failed or successfully)
-    if (m_num_signals_received == m_num_tiles_requested) {
-        if (m_num_tiles_unavailable > 0) {
-            emit run_failed(NodeRunFailureInfo(*this, std::format("failed to load {} tiles from {}", m_num_tiles_unavailable, m_settings.tile_path)));
-        } else {
-            emit run_completed();
-        }
-    }
+    check_progress_and_emit_signals();
 }
 
 void RequestTilesNode::set_settings(const RequestTilesNodeSettings& settings)
@@ -90,6 +98,18 @@ void RequestTilesNode::set_settings(const RequestTilesNodeSettings& settings)
     m_tile_loader = std::make_unique<nucleus::tile_scheduler::TileLoadService>(
         QString::fromStdString(settings.tile_path), settings.url_pattern, QString::fromStdString(settings.file_extension));
     connect(m_tile_loader.get(), &nucleus::tile_scheduler::TileLoadService::load_finished, this, &RequestTilesNode::on_single_tile_received);
+}
+
+void RequestTilesNode::check_progress_and_emit_signals()
+{
+    // when all requests are finished (either failed or successfully)
+    if (m_num_signals_received == m_num_tiles_requested) {
+        if (m_num_tiles_unavailable > 0) {
+            emit run_failed(NodeRunFailureInfo(*this, std::format("failed to load {} tiles from {}", m_num_tiles_unavailable, m_settings.tile_path)));
+        } else {
+            emit run_completed();
+        }
+    }
 }
 
 } // namespace webgpu_engine::compute::nodes
