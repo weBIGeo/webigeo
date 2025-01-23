@@ -474,7 +474,7 @@ void Window::paint_compute_pipeline_gui()
                     update_settings_and_rerun_pipeline();
                 }
 
-                ImGui::SliderFloat("Sampling density", &m_compute_pipeline_settings.sampling_density, 0.0f, 1.0f, "%.2f");
+                ImGui::SliderInt("Release point interval", &m_compute_pipeline_settings.release_point_interval, 1, 64, "%u");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     update_settings_and_rerun_pipeline();
                 }
@@ -571,7 +571,7 @@ void Window::paint_compute_pipeline_gui()
                     }
                 }
             } else if (m_active_compute_pipeline_type == ComputePipelineType::RELEASE_POINTS) {
-                ImGui::SliderFloat("Sampling density", &m_compute_pipeline_settings.sampling_density, 0.0f, 1.0f, "%.2f");
+                ImGui::SliderInt("Release point interval", &m_compute_pipeline_settings.release_point_interval, 1, 64, "%u");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     update_settings_and_rerun_pipeline();
                 }
@@ -584,7 +584,7 @@ void Window::paint_compute_pipeline_gui()
             } else if (m_active_compute_pipeline_type == ComputePipelineType::ITERATIVE_SIMULATION) {
                 // TODO remove duplicate code!
 
-                ImGui::SliderFloat("Sampling density##iterative simulation", &m_compute_pipeline_settings.sampling_density, 0.0f, 1.0f, "%.2f");
+                ImGui::SliderInt("Release point interval##iterative", &m_compute_pipeline_settings.release_point_interval, 1, 64, "%u");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     update_settings_and_rerun_pipeline();
                 }
@@ -681,7 +681,7 @@ void Window::update_compute_pipeline_settings()
             compute::nodes::ComputeReleasePointsNode::ReleasePointsSettings settings;
             settings.min_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_min_slope_angle);
             settings.max_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_max_slope_angle);
-            settings.sampling_density = glm::vec2(m_compute_pipeline_settings.sampling_density);
+            settings.sampling_interval = glm::uvec2(m_compute_pipeline_settings.release_point_interval);
             m_compute_graph->get_node_as<compute::nodes::ComputeReleasePointsNode>("compute_release_points_node").set_settings(settings);
         }
 
@@ -713,7 +713,7 @@ void Window::update_compute_pipeline_settings()
         compute::nodes::ComputeReleasePointsNode::ReleasePointsSettings settings;
         settings.min_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_min_slope_angle);
         settings.max_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_max_slope_angle);
-        settings.sampling_density = glm::vec2(m_compute_pipeline_settings.sampling_density);
+        settings.sampling_interval = glm::uvec2(m_compute_pipeline_settings.release_point_interval);
         m_compute_graph->get_node_as<compute::nodes::ComputeReleasePointsNode>("compute_release_points_node").set_settings(settings);
 
         // trajectories settings
@@ -752,7 +752,7 @@ void Window::update_compute_pipeline_settings()
         compute::nodes::ComputeReleasePointsNode::ReleasePointsSettings settings;
         settings.min_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_min_slope_angle);
         settings.max_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_max_slope_angle);
-        settings.sampling_density = glm::vec2(m_compute_pipeline_settings.sampling_density);
+        settings.sampling_interval = glm::uvec2(m_compute_pipeline_settings.release_point_interval);
         m_compute_graph->get_node_as<compute::nodes::ComputeReleasePointsNode>("compute_release_points_node").set_settings(settings);
     }
 }
@@ -775,7 +775,7 @@ void Window::init_compute_pipeline_presets()
         .steps_length = 0.1f,
         .sync_snow_settings_with_render_settings = true, // snow node
         .snow_settings = compute::nodes::ComputeSnowNode::SnowSettings(), // snow node
-        .sampling_density = 16, // trajectories node
+        .release_point_interval = 16, // trajectories node
         .perla = {},
     };
     ComputePipelineSettings preset_b = {
@@ -785,7 +785,7 @@ void Window::init_compute_pipeline_presets()
         .steps_length = 0.1f,
         .sync_snow_settings_with_render_settings = true, // snow node
         .snow_settings = compute::nodes::ComputeSnowNode::SnowSettings(), // snow node
-        .sampling_density = 16, // trajectories node
+        .release_point_interval = 16, // trajectories node
         .perla = {},
     };
 

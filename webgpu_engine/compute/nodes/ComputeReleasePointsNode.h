@@ -36,7 +36,7 @@ public:
             = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc);
         float min_slope_angle = glm::radians(28.0f); // min slope angle [rad]
         float max_slope_angle = glm::radians(60.0f); // max slope angle [rad]
-        glm::vec2 sampling_density; // sampling density in x and y direction, each in [0,1]
+        glm::uvec2 sampling_interval; // sampling interval in x and y direction [every sampling_interval texels]
     };
 
     struct ReleasePointsSettingsUniform {

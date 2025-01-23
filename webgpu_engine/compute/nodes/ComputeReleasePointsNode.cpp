@@ -56,10 +56,7 @@ void ComputeReleasePointsNode::run_impl()
     // update settings on GPU side
     m_settings_uniform.data.min_slope_angle = m_settings.min_slope_angle;
     m_settings_uniform.data.max_slope_angle = m_settings.max_slope_angle;
-    m_settings_uniform.data.sampling_interval.x
-        = m_settings.sampling_density.x == 0.0f ? m_output_texture->texture().width() + 1 : 1.0f / m_settings.sampling_density.x;
-    m_settings_uniform.data.sampling_interval.y
-        = m_settings.sampling_density.y == 0.0f ? m_output_texture->texture().height() + 1 : 1.0f / m_settings.sampling_density.y;
+    m_settings_uniform.data.sampling_interval = m_settings.sampling_interval;
     m_settings_uniform.update_gpu_data(m_queue);
 
     // create bind group

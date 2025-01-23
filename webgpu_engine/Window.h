@@ -50,7 +50,7 @@ struct ComputePipelineSettings {
     bool sync_snow_settings_with_render_settings = true; // snow node
     compute::nodes::ComputeSnowNode::SnowSettings snow_settings; // snow node
 
-    float sampling_density = 0.04f; // trajectories node
+    int release_point_interval = 16; // trajectories node
     uint32_t num_paths_per_release_cell = 128u;
     float random_contribution = 0.2f;
     float persistence_contribution = 0.1f;
