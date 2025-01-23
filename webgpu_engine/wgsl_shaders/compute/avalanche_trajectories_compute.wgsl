@@ -287,15 +287,21 @@ fn runout_perla(last_velocity: f32, last_theta: f32, normal: vec3f, out_theta: p
     return this_velocity;
 }
 
+// returns UV coordinates for the trajectory starting point for a thread id
+fn get_starting_point_uv(id: vec3<u32>) -> vec2f {
+    let input_texture_size = textureDimensions(input_normal_texture);
+    let texel_size_uv = 1.0 / vec2f(input_texture_size);
+    //let uv = vec2f(f32(id.x), f32(id.y)) * texel_size_uv + texel_size_uv / 2.0; // texel center
+    let uv = vec2f(f32(id.x), f32(id.y)) * texel_size_uv + rand2() * texel_size_uv; // random within texel
+    //TODO try regular grid (?)
+    return uv;
+}
 
 fn trajectory_overlay(id: vec3<u32>) {
     //TODO replace hardcoded 1 with field in settings uniform (can then use current time, for example)
     seed(vec4u(id, 1)); //seed PRNG with thread id
 
-    let input_texture_size = textureDimensions(input_normal_texture);
-    
-    // a texel's uv coordinate should be its center, therefore shift down and right by half a texel
-    let uv = vec2f(f32(id.x), f32(id.y)) / vec2f(settings.output_resolution) + 1f / (2f * vec2f(settings.output_resolution));
+    let uv = get_starting_point_uv(id);
 
     if (!sample_release_point_texture(uv)) {
         return;
@@ -401,7 +407,8 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     // id.xy in [0, ceil(texture_dimensions(output_tiles).xy / workgroup_size.xy) - 1]
 
     // exit if thread id is outside image dimensions (i.e. thread is not supposed to be doing any work)
-    if (id.x >= settings.output_resolution.x || id.y >= settings.output_resolution.y) {
+    let texture_dimensions = textureDimensions(input_release_point_texture);
+    if (id.x >= texture_dimensions.x || id.y >= texture_dimensions.y) {
         return;
     }
     // id.xy in [0, texture_dimensions(output_tiles) - 1]

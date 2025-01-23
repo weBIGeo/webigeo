@@ -146,7 +146,7 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
             webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
 
             glm::uvec3 workgroup_counts
-                = glm::ceil(glm::vec3(m_output_dimensions.x, m_output_dimensions.y, m_settings.num_paths_per_release_cell) / glm::vec3(SHADER_WORKGROUP_SIZE));
+                = glm::ceil(glm::vec3(input_width, input_height, m_settings.num_paths_per_release_cell) / glm::vec3(SHADER_WORKGROUP_SIZE));
             wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, compute_bind_group.handle(), 0, nullptr);
             m_pipeline_manager->avalanche_trajectories_compute_pipeline().run(compute_pass, workgroup_counts);
         }
