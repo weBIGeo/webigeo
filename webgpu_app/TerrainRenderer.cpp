@@ -249,7 +249,7 @@ void TerrainRenderer::start() {
     this->on_window_resize(m_viewport_size.x, m_viewport_size.y);
 
     { // load first camera definition without changing preset in nucleus
-        auto new_definition = nucleus::camera::stored_positions::heiligenblut_popping();
+        auto new_definition = nucleus::camera::stored_positions::grossglockner();
         new_definition.set_viewport_size(m_viewport_size);
         camera_controller->set_definition(new_definition);
     }
