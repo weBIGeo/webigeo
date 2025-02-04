@@ -420,7 +420,7 @@ void Window::paint_compute_pipeline_gui()
             update_settings_and_rerun_pipeline();
         }
 
-        static int overlays_current_item = 0;
+        static int overlays_current_item = 2;
         const std::vector<std::pair<std::string, ComputePipelineType>> overlays = {
             { "Normals", ComputePipelineType::NORMALS },
             { "Snow + Normals", ComputePipelineType::NORMALS_AND_SNOW },
@@ -479,7 +479,7 @@ void Window::paint_compute_pipeline_gui()
                     update_settings_and_rerun_pipeline();
                 }
 
-                ImGui::DragFloatRange2("Trigger point steepness limit", &m_compute_pipeline_settings.trigger_point_min_slope_angle,
+                ImGui::DragFloatRange2("Release point steepness", &m_compute_pipeline_settings.trigger_point_min_slope_angle,
                     &m_compute_pipeline_settings.trigger_point_max_slope_angle, 0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp);
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     update_settings_and_rerun_pipeline();
@@ -494,7 +494,7 @@ void Window::paint_compute_pipeline_gui()
 
                 const uint32_t min_num_samples = 1;
                 const uint32_t max_num_samples = 1024;
-                ImGui::SliderScalar("Paths per release cell", ImGuiDataType_U32, &m_compute_pipeline_settings.num_paths_per_release_cell, &min_num_samples,
+                ImGui::SliderScalar("Paths per release point", ImGuiDataType_U32, &m_compute_pipeline_settings.num_paths_per_release_cell, &min_num_samples,
                     &max_num_samples, "%u");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     update_settings_and_rerun_pipeline();
@@ -585,7 +585,7 @@ void Window::paint_compute_pipeline_gui()
                     update_settings_and_rerun_pipeline();
                 }
 
-                ImGui::DragFloatRange2("Trigger point steepness limit", &m_compute_pipeline_settings.trigger_point_min_slope_angle,
+                ImGui::DragFloatRange2("Release point steepness", &m_compute_pipeline_settings.trigger_point_min_slope_angle,
                     &m_compute_pipeline_settings.trigger_point_max_slope_angle, 0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp);
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     update_settings_and_rerun_pipeline();
@@ -598,7 +598,7 @@ void Window::paint_compute_pipeline_gui()
                     update_settings_and_rerun_pipeline();
                 }
 
-                ImGui::DragFloatRange2("Trigger point steepness limit", &m_compute_pipeline_settings.trigger_point_min_slope_angle,
+                ImGui::DragFloatRange2("Release point steepness", &m_compute_pipeline_settings.trigger_point_min_slope_angle,
                     &m_compute_pipeline_settings.trigger_point_max_slope_angle, 0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp);
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     update_settings_and_rerun_pipeline();
