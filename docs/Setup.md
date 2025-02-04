@@ -105,7 +105,7 @@ This step is specifically tailored to the Qt-Creator IDE.
 
 Usually, the Qt-IDE (Qt Creator) sets emscripten environment variables right before building after configuring the correct path to emsdk. However, for the current combination of versions, the variable is not set properly by the IDE. Therefore, in order to build the WebAssmebly version, manually set the environment variable EMSDK to emsdk's root directory.
 
-## Building the native version
+## Building the native version<a name="native"></a>
 
 ### Dependencies
 * Windows
