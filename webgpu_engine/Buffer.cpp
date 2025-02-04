@@ -26,6 +26,7 @@
 #include "compute/nodes/ComputeNormalsNode.h"
 #include "compute/nodes/ComputeReleasePointsNode.h"
 #include "compute/nodes/ComputeSnowNode.h"
+#include "compute/nodes/HeightDecodeNode.h"
 #include "compute/nodes/IterativeSimulationNode.h"
 
 namespace webgpu_engine {
@@ -61,6 +62,7 @@ template class Buffer<compute::nodes::ComputeAvalancheInfluenceAreaNode::Avalanc
 template class Buffer<compute::nodes::ComputeReleasePointsNode::ReleasePointsSettingsUniform>;
 template class Buffer<compute::nodes::BufferToTextureNode::BufferToTextureSettingsUniform>;
 template class Buffer<compute::nodes::IterativeSimulationNode::IterativeSimulationSettingsUniform>;
+template class Buffer<compute::nodes::HeightDecodeNode::HeightDecodeSettingsUniform>;
 template class Buffer<TrackRenderer::LineConfig>;
 template class Buffer<ImageOverlaySettings>;
 // TODO

@@ -25,12 +25,19 @@ namespace webgpu_engine::compute::nodes {
 glm::uvec3 HeightDecodeNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
 
 webgpu_engine::compute::nodes::HeightDecodeNode::HeightDecodeNode(const PipelineManager& manager, WGPUDevice device, HeightDecodeSettings settings)
-    : Node({ InputSocket(*this, "encoded texture", data_type<const webgpu::raii::TextureWithSampler*>()) },
-          { OutputSocket(*this, "decoded texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }) })
+    : Node(
+          {
+              InputSocket(*this, "encoded texture", data_type<const webgpu::raii::TextureWithSampler*>()),
+              InputSocket(*this, "region aabb", data_type<const geometry::Aabb<2, double>*>()),
+          },
+          {
+              OutputSocket(*this, "decoded texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }),
+          })
     , m_pipeline_manager(&manager)
     , m_device(device)
     , m_queue(wgpuDeviceGetQueue(m_device))
     , m_settings(settings)
+    , m_settings_uniform(m_device, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
 {
 }
 
@@ -38,7 +45,7 @@ void HeightDecodeNode::run_impl()
 {
     qDebug() << "running HeightDecodeNode ...";
 
-    // get tile ids to process
+    const auto region_aabb = std::get<data_type<const geometry::Aabb<2, double>*>()>(input_socket("region aabb").get_connected_data());
     const auto& input_texture = *std::get<data_type<const webgpu::raii::TextureWithSampler*>()>(input_socket("encoded texture").get_connected_data());
 
     glm::uvec2 size = glm::uvec2(input_texture.texture().width(), input_texture.texture().height());
@@ -67,10 +74,18 @@ void HeightDecodeNode::run_impl()
 
     m_output_texture = std::make_unique<webgpu::raii::TextureWithSampler>(m_device, texture_desc, sampler_desc);
 
+    // update bounding box
+    m_settings_uniform.data.aabb_min = glm::uvec2(region_aabb->min);
+    m_settings_uniform.data.aabb_max = glm::uvec2(region_aabb->max);
+    m_settings_uniform.update_gpu_data(m_queue);
+
     // create bind group
     // TODO re-create bind groups only when input handles change
-    std::vector<WGPUBindGroupEntry> entries { input_texture.texture_view().create_bind_group_entry(0),
-        m_output_texture->texture_view().create_bind_group_entry(1) };
+    std::vector<WGPUBindGroupEntry> entries {
+        m_settings_uniform.raw_buffer().create_bind_group_entry(0),
+        input_texture.texture_view().create_bind_group_entry(1),
+        m_output_texture->texture_view().create_bind_group_entry(2),
+    };
     webgpu::raii::BindGroup compute_bind_group(
         m_device, m_pipeline_manager->height_decode_compute_bind_group_layout(), entries, "compute controller bind group");
 

@@ -190,6 +190,7 @@ static std::unique_ptr<NodeGraph> create_normal_compute_graph_unconnected(const 
     stitch_node->input_socket("texture data").connect(height_request_node->output_socket("tile data"));
 
     // connect decode node inputs
+    height_decode_node->input_socket("region aabb").connect(tile_select_node->output_socket("region aabb"));
     height_decode_node->input_socket("encoded texture").connect(stitch_node->output_socket("texture"));
 
     // connect normal node inputs

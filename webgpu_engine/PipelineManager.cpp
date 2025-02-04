@@ -960,22 +960,33 @@ void PipelineManager::create_release_points_compute_bind_group_layout()
 
 void PipelineManager::create_height_decode_compute_bind_group_layout()
 {
+    WGPUBindGroupLayoutEntry input_settings_entry {};
+    input_settings_entry.binding = 0;
+    input_settings_entry.visibility = WGPUShaderStage_Compute;
+    input_settings_entry.buffer.type = WGPUBufferBindingType_Uniform;
+    input_settings_entry.buffer.minBindingSize = 0;
+
     WGPUBindGroupLayoutEntry input_texture_entry {};
-    input_texture_entry.binding = 0;
+    input_texture_entry.binding = 1;
     input_texture_entry.visibility = WGPUShaderStage_Compute;
     input_texture_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
     input_texture_entry.storageTexture.access = WGPUStorageTextureAccess_ReadOnly;
     input_texture_entry.storageTexture.format = WGPUTextureFormat_RGBA8Uint;
 
     WGPUBindGroupLayoutEntry output_texture_entry {};
-    output_texture_entry.binding = 1;
+    output_texture_entry.binding = 2;
     output_texture_entry.visibility = WGPUShaderStage_Compute;
     output_texture_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
     output_texture_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
     output_texture_entry.storageTexture.format = WGPUTextureFormat_R32Float;
 
-    m_height_decode_compute_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(
-        m_device, std::vector<WGPUBindGroupLayoutEntry> { input_texture_entry, output_texture_entry }, "height decode compute bind group layout");
+    m_height_decode_compute_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
+        std::vector<WGPUBindGroupLayoutEntry> {
+            input_settings_entry,
+            input_texture_entry,
+            output_texture_entry,
+        },
+        "height decode compute bind group layout");
 }
 
 

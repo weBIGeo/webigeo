@@ -20,6 +20,7 @@
 
 #include "Node.h"
 #include "PipelineManager.h"
+#include "webgpu_engine/Buffer.h"
 
 namespace webgpu_engine::compute::nodes {
 
@@ -34,6 +35,11 @@ public:
         WGPUTextureUsageFlags texture_usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
     };
 
+    struct HeightDecodeSettingsUniform {
+        glm::vec2 aabb_min;
+        glm::vec2 aabb_max;
+    };
+
     HeightDecodeNode(const PipelineManager& manager, WGPUDevice device, HeightDecodeSettings settings);
 
 public slots:
@@ -45,7 +51,7 @@ private:
     WGPUQueue m_queue;
 
     HeightDecodeSettings m_settings;
-
+    webgpu_engine::Buffer<HeightDecodeSettingsUniform> m_settings_uniform;
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_output_texture;
 };
 
