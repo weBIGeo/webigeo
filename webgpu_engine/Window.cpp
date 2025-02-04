@@ -260,7 +260,7 @@ void Window::paint_gui()
         }
     }
 
-    if (ImGui::CollapsingHeader("Image overlay", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (ImGui::CollapsingHeader("Image overlay")) {
         if (ImGui::Button("Open overlay image file ...", ImVec2(350, 20))) {
 #ifdef __EMSCRIPTEN__
             WebInterop::instance().open_file_dialog(".png", "overlay_png");
@@ -420,7 +420,7 @@ void Window::paint_compute_pipeline_gui()
             update_settings_and_rerun_pipeline();
         }
 
-        static int current_item = 0;
+        static int overlays_current_item = 0;
         const std::vector<std::pair<std::string, ComputePipelineType>> overlays = {
             { "Normals", ComputePipelineType::NORMALS },
             { "Snow + Normals", ComputePipelineType::NORMALS_AND_SNOW },
@@ -429,12 +429,12 @@ void Window::paint_compute_pipeline_gui()
             { "Release points", ComputePipelineType::RELEASE_POINTS },
             { "Iterative simulation (WIP)", ComputePipelineType::ITERATIVE_SIMULATION },
         };
-        const char* current_item_label = overlays[current_item].first.c_str();
+        const char* current_item_label = overlays[overlays_current_item].first.c_str();
         if (ImGui::BeginCombo("Type", current_item_label)) {
             for (size_t i = 0; i < overlays.size(); i++) {
-                bool is_selected = ((size_t)current_item == i);
+                bool is_selected = ((size_t)overlays_current_item == i);
                 if (ImGui::Selectable(overlays[i].first.c_str(), is_selected)) {
-                    current_item = i;
+                    overlays_current_item = i;
                     create_and_set_compute_pipeline(overlays[i].second);
                 }
                 if (is_selected)
@@ -510,10 +510,24 @@ void Window::paint_compute_pipeline_gui()
                     update_settings_and_rerun_pipeline();
                 }
 
-                // TODO refactor
-                // this ONLY works because the enum values for the respective combo items are 0, 1, 2
-                if (ImGui::Combo("Runout model", &m_compute_pipeline_settings.runout_model_type, "None\0Perla et al.\0FlowPy\0")) {
-                    update_settings_and_rerun_pipeline();
+                static int runout_models_current_item = 0;
+                const std::vector<std::pair<std::string, int>> runout_models = {
+                    { "None", 0 },
+                    { "FlowPy (Alpha)", 2 },
+                };
+                const char* current_item_label = runout_models[runout_models_current_item].first.c_str();
+                if (ImGui::BeginCombo("Runout model", current_item_label)) {
+                    for (size_t i = 0; i < runout_models.size(); i++) {
+                        bool is_selected = ((size_t)runout_models_current_item == i);
+                        if (ImGui::Selectable(runout_models[i].first.c_str(), is_selected)) {
+                            runout_models_current_item = i;
+                            m_compute_pipeline_settings.runout_model_type = runout_models[i].second;
+                            update_settings_and_rerun_pipeline();
+                        }
+                        if (is_selected)
+                            ImGui::SetItemDefaultFocus();
+                    }
+                    ImGui::EndCombo();
                 }
 
                 if (m_compute_pipeline_settings.runout_model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType::PERLA) {
