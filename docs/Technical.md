@@ -12,10 +12,6 @@ The project is organized into different components using CMake. For each compone
 
 The project root directory contains the main CMake file. It defines a set of options, that can be used to customize which targets to build as well as enable or disable specific webigeo or AlpineMaps features.
 
-### Available CMake flags
-
-TODO
-
 ## Pipelines
 
 Our application contains two different kinds of pipelines. The **rendering pipeline** is the sequence of steps needed to produce a view of the scene with the current camera configuration, shading and effects. The **compute pipeline** is the sequence of steps that are performed to calculate the avalanche simulation. The target `webgpu_engine` contains both, the rendering as well as the compute pipeline.
