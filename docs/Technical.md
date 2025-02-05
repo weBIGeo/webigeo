@@ -57,7 +57,7 @@ We implemented the following nodes:
 - **`TileSelectNode`**: Outputs a list of tile IDs and the axis-aligned bounding box (AABB) of a specific region (AABB of the GPX track that was uploaded most recently).
 - **`TileRequestNode`**: Requests the tile data from a specific tile server. The tile server can be specified as part of the node settings. Outputs a list of textures.
 - **`TileStitchNode`**: Merges together a list of textures with corresponding tile ids into a single texture. The merging is performed by reserving the output texture on the GPU and then copying the per-tile textures into it at the correct positions.
-- **`HeightDecodeNode`**: Converts the heights from the format provided by the tile server into a float representing the actual height in meters in parallel using compute shaders.
+- **`HeightDecodeNode`**: Converts the heights from the format provided by the tile server into a float representing the actual height in meters in parallel using compute shaders. Also corrects scale according to the map projection.
 - **`NormalComputeNode`**: Takes a region AABB and a height texture and calculates normals for the surface defined by the height texture. Done in parallel using compute shaders.
 - **`ReleasePointNode`**: From a normal texture, calculates positions where avalanches might start. Currently, this only involves checking if the slope angle is within a specific range. Done in parallel using compute shaders.
 - **`AvalancheTrajectoriesNode`**: Using region AABB, normal texture, height texture and release point texture, simulates avalanches using a Monte-Carlo approach. This approach allows us to simulate many different trajectories in parallel on the GPU using compute shaders and paint their path into the output texture.
@@ -67,6 +67,3 @@ These nodes are composed in a node graph as can be seen in the following figure.
 ![node graph](./images/node-graph.drawio.png)
 
 After the pipeline was executed, the trajectories texture is used as _compute overlay texture_ in the rendering pipeline and thus blended at the correct region of the terrain.   
-
-## One more bullet point
-TODO

@@ -9,7 +9,7 @@ You can run webigeo either
 
 Once the app is running, a GPS track can be loaded and the avalanche simulation can be run for the region around the track.
 
-![screenshot, full interface](images/interface.png)
+![screenshot, full interface](images/interface.jpg)
 *Default view after starting the app.*
 
 ## Track loading
@@ -24,7 +24,7 @@ The setting `Line render mode` defines how tracks are displayed. The following o
  - `with depth test`: Draw tracks only if they are not occluded
  - `semi-transparent`: Draw tracks normally if not occluded and semi-transparently if behind terrain
 
-![screenshot, loaded track](images/loaded-track.png)
+![screenshot, loaded track](images/loaded-track.jpg)
 *Viewing the track `examples/Grosse_Kesselspitze.gpx`.*
 
 ### Track format
@@ -39,7 +39,7 @@ The simulation can be triggered by clicking `Run` in the `Compute pipeline` sect
 
 The `Strength` slider can be used to adjust the opacity of the avalanche results overlay.
 
-![screenshot, avalanche simulation output](images/simulation.png)
+![screenshot, avalanche simulation output](images/simulation.jpg)
 *Avalanche simulation result for the default settings and the track `example/Schneeberg_Fadensteig_Breite_Ries.gpx`. Overlay opacity is set to 70%.*
 
 ### Input data
@@ -66,5 +66,5 @@ Trajectories are not only terminated when the maximum number of simulation steps
 
 webigeo also supports rendering snow. This is the same effect used in AlpineMaps. It can be enabled in the `Engine settings` section using the `Snow` checkbox. The snow effect may be combined with the avalanche simulation overlay. 
 
-![screenshot, avalanche simulation output and snow](images/simulation-with-snow.png)
+![screenshot, avalanche simulation output and snow](images/simulation-with-snow.jpg)
 *Avalanche simulation results with snow enabled for the track `example/example/Schneeberg_Fadensteig_Breite_Ries.gpx`. Simulation parameters adjusted.*
