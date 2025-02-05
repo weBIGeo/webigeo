@@ -8,8 +8,7 @@ To that end, WeBIGeo uses existing technologies from the [AlpineMaps.org Project
 We are in discord, talk to us!
 https://discord.gg/p8T9XzVwRa
 
-# Demo
-Geiler link zur Demo
+# [Demo](https://webigeo.alpinemaps.org/)
 
 # Documentation
 - [Setup](docs/Setup.md)
