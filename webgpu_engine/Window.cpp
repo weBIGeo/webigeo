@@ -486,31 +486,32 @@ void Window::paint_compute_pipeline_gui()
                 }
 
                 const uint32_t min_steps = 1;
-                const uint32_t max_steps = 4096;
-                ImGui::SliderScalar("Num steps", ImGuiDataType_U32, &m_compute_pipeline_settings.num_steps, &min_steps, &max_steps, "%u");
+                const uint32_t max_steps = 1024;
+                ImGui::DragScalar("Num steps", ImGuiDataType_U32, &m_compute_pipeline_settings.num_steps, 1.0f, &min_steps, &max_steps, "%u");
+                // ImGui::SliderScalar("Num steps", ImGuiDataType_U32, &m_compute_pipeline_settings.num_steps, &min_steps, &max_steps, "%u");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     update_settings_and_rerun_pipeline();
                 }
 
                 const uint32_t min_num_samples = 1;
                 const uint32_t max_num_samples = 1024;
-                ImGui::SliderScalar("Paths per release point", ImGuiDataType_U32, &m_compute_pipeline_settings.num_paths_per_release_cell, &min_num_samples,
+                ImGui::DragScalar("Paths per release point", ImGuiDataType_U32, &m_compute_pipeline_settings.num_paths_per_release_cell, 1.0f, &min_num_samples,
                     &max_num_samples, "%u");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     update_settings_and_rerun_pipeline();
                 }
 
-                ImGui::SliderFloat("Random contribution", &m_compute_pipeline_settings.random_contribution, 0.0f, 1.0f, "%.3f");
+                ImGui::DragFloat("Random contribution", &m_compute_pipeline_settings.random_contribution, 0.01f, 0.0f, 1.0f, "%.3f");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     update_settings_and_rerun_pipeline();
                 }
 
-                ImGui::SliderFloat("Persistence", &m_compute_pipeline_settings.persistence_contribution, 0.0f, 1.0f, "%.3f");
+                ImGui::DragFloat("Persistence", &m_compute_pipeline_settings.persistence_contribution, 0.01f, 0.0f, 1.0f, "%.3f");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     update_settings_and_rerun_pipeline();
                 }
 
-                static int runout_models_current_item = 0;
+                static int runout_models_current_item = 1;
                 const std::vector<std::pair<std::string, int>> runout_models = {
                     { "None", 0 },
                     { "FlowPy (Alpha)", 2 },
@@ -548,7 +549,7 @@ void Window::paint_compute_pipeline_gui()
                         update_settings_and_rerun_pipeline();
                     }
                 } else if (m_compute_pipeline_settings.runout_model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType::FLOWPY) {
-                    ImGui::SliderFloat("Alpha##runout_flowpy", &m_compute_pipeline_settings.runout_flowpy_alpha, 0.0f, 90.0f, "%.2f");
+                    ImGui::DragFloat("Alpha##runout_flowpy", &m_compute_pipeline_settings.runout_flowpy_alpha, 0.01f, 0.0f, 90.0f, "%.2f");
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
                         update_settings_and_rerun_pipeline();
                     }

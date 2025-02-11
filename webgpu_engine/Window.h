@@ -45,7 +45,7 @@ struct ComputePipelineSettings {
     geometry::Aabb<3, double> target_region = {}; // select tiles node
     uint32_t zoomlevel = 15;
     uint32_t trajectory_resolution_multiplier = 16;
-    uint32_t num_steps = 1024u;
+    uint32_t num_steps = 256u;
     float step_length = 1.0f;
     bool sync_snow_settings_with_render_settings = true; // snow node
     compute::nodes::ComputeSnowNode::SnowSettings snow_settings; // snow node
@@ -60,7 +60,7 @@ struct ComputePipelineSettings {
 
     int tile_source_index = 0; // 0 DTM, 1 DSM
 
-    int runout_model_type = int(compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType::NONE);
+    int runout_model_type = int(compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType::FLOWPY);
     compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutPerlaParams perla;
     float runout_flowpy_alpha = 25.0f; // degrees
 };
