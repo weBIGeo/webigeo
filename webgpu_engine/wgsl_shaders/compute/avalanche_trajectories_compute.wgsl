@@ -339,12 +339,6 @@ fn trajectory_overlay(id: vec3<u32>) {
 
         let normal = sample_normal_texture(current_uv);
 
-        // draw line from last to current position
-        if (i > 0) {
-            draw_line_uv(last_uv, current_uv, trajectory_value);
-        }
-        last_uv = current_uv;
-
         if (settings.runout_model_type == 1) {
             perla_velocity = runout_perla(perla_velocity, perla_theta, normal, &perla_theta);
 
@@ -363,6 +357,12 @@ fn trajectory_overlay(id: vec3<u32>) {
                 break;
             }
         }
+
+        // draw line from last to current position
+        if (i > 0) {
+            draw_line_uv(last_uv, current_uv, trajectory_value);
+        }
+        last_uv = current_uv;
 
         // sample normal and get new world space offset based on chosen model
         if (settings.model_type == 0) {
