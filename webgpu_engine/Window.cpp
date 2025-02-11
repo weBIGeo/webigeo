@@ -1186,9 +1186,10 @@ void Window::on_pipeline_run_completed()
             texture = std::get<const webgpu::raii::TextureWithSampler*>(
                 m_compute_graph->get_node("compute_release_points_node").output_socket("release point texture").get_data());
         } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
-            // texture
-            //     = std::get<const webgpu::raii::TextureWithSampler*>(m_compute_graph->get_node("buffer_to_texture_node").output_socket("texture").get_data());
-            texture = std::get<const webgpu::raii::TextureWithSampler*>(m_compute_graph->get_node("fxaa_node").output_socket("texture").get_data());
+            texture
+                = std::get<const webgpu::raii::TextureWithSampler*>(m_compute_graph->get_node("buffer_to_texture_node").output_socket("texture").get_data());
+            // texture = std::get<const webgpu::raii::TextureWithSampler*>(m_compute_graph->get_node("fxaa_node").output_socket("texture").get_data()); // TO
+            // ENABLE FXAA
         } else if (m_active_compute_pipeline_type == ComputePipelineType::ITERATIVE_SIMULATION) {
             texture = std::get<const webgpu::raii::TextureWithSampler*>(m_compute_graph->get_node("flowpy").output_socket("texture").get_data());
         }

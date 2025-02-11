@@ -337,21 +337,41 @@ fn trajectory_overlay(id: vec3<u32>) {
             break;
         }
 
-        // draw trajectory point
+        let normal = sample_normal_texture(current_uv);
+
+        // draw line from last to current position
         if (i > 0) {
             draw_line_uv(last_uv, current_uv, trajectory_value);
         }
         last_uv = current_uv;
 
+        if (settings.runout_model_type == 1) {
+            perla_velocity = runout_perla(perla_velocity, perla_theta, normal, &perla_theta);
+
+            //let buffer_index = get_storage_buffer_index(output_texture_array_index, output_coords, settings.output_resolution);
+            //atomicMax(&output_storage_buffer[buffer_index], u32(1000f * (perla_velocity / 10.0f)));
+
+            if (perla_velocity < 0.01) { //TODO
+                break;
+            }
+        } else if (settings.runout_model_type == 2 && i > 0) {
+            // more info: https://docs.avaframe.org/en/latest/theoryCom4FlowPy.html
+            let current_height = sample_height_texture(current_uv);
+            let height_difference = start_point_height - current_height;
+            let gamma = atan(height_difference / world_space_travel_distance); // will always be positive -> [ 0 , PI/2 ]
+            if (gamma < settings.runout_flowpy_alpha) {
+                break;
+            }
+        }
+
         // sample normal and get new world space offset based on chosen model
-        let normal = sample_normal_texture(current_uv);
         if (settings.model_type == 0) {
             let n_l = normalize(normal * (1 - settings.random_contribution) + (rand3() * 2 - 1) * settings.random_contribution);  // n_l     ...  local normal with random offset
             normal_t = normalize(n_l * (1 - settings.persistence_contribution) + normal_t * settings.persistence_contribution);   // normal_t ... local normal with random offset from last step
-            let gradient = normal_t.xy;
+            let gradient = normalize(normal_t.xy);
             // ToDo step length factor remove -> put into gui
-            world_space_offset = world_space_offset + settings.step_length * 20.0 * gradient.xy;
-            world_space_travel_distance += length(settings.step_length * 20.0 * gradient.xy);
+            world_space_offset = world_space_offset + settings.step_length * 5.0 * gradient.xy;
+            world_space_travel_distance += length(settings.step_length * 5.0 * gradient.xy);
         } else if (settings.model_type == 1) {
             velocity += settings.step_length * model_physics_less_simple(normal, velocity);
             world_space_offset = world_space_offset + settings.step_length * velocity.xy;
@@ -376,26 +396,7 @@ fn trajectory_overlay(id: vec3<u32>) {
             world_space_offset = world_space_offset + world_direction * step_uv_offset * settings.region_size;*/
         }
 
-        if (settings.runout_model_type == 1) {
-            perla_velocity = runout_perla(perla_velocity, perla_theta, normal, &perla_theta);
 
-            //let buffer_index = get_storage_buffer_index(output_texture_array_index, output_coords, settings.output_resolution);
-            //atomicMax(&output_storage_buffer[buffer_index], u32(1000f * (perla_velocity / 10.0f)));
-
-            if (perla_velocity < 0.01) { //TODO
-                break;
-            }
-        } else if (settings.runout_model_type == 2 && i > 0) {
-            let current_height = sample_height_texture(current_uv);
-            let height_diff = start_point_height - current_height;
-            let tan_alpha = tan(settings.runout_flowpy_alpha);
-            let z_alpha = tan_alpha * length(world_space_travel_distance);
-            let z_gamma = height_diff;
-            let z_delta = z_gamma - z_alpha;
-            if (z_delta <= 0) {
-                break;
-            }
-        }
     }
 
     // overpaint start point
