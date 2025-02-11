@@ -51,8 +51,9 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     let quad_width: f32 = bounds_width / f32(texture_size.x - 1);
     let quad_height: f32 = bounds_height / f32(texture_size.y - 1);
 
-    // we assume heights texture contains decoded and corrected heights
-    let altitude_correction_factor = 1.0f;
+    // calculate altitude correction factor based on latitude
+    let pos_y = bounds.aabb_min.y + (bounds.aabb_max.y - bounds.aabb_min.y) * f32(id.y) / f32(texture_size.y);
+    let altitude_correction_factor = 1 / cos(y_to_lat(pos_y));
 
     // calculate normal for position texture_pos from height texture and store in normal texture
     let normal = normal_by_finite_difference_method_texture_f32(texture_pos, quad_width, quad_height, altitude_correction_factor, heights_texture);
