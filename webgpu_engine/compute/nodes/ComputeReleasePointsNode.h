@@ -34,8 +34,8 @@ public:
         WGPUTextureFormat texture_format = WGPUTextureFormat_RGBA8Unorm;
         WGPUTextureUsage texture_usage
             = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc);
-        float min_slope_angle = glm::radians(28.0f); // min slope angle [rad]
-        float max_slope_angle = glm::radians(60.0f); // max slope angle [rad]
+        float min_slope_angle = glm::radians(30.0f); // min slope angle [rad]
+        float max_slope_angle = glm::radians(45.0f); // max slope angle [rad]
         glm::uvec2 sampling_interval; // sampling interval in x and y direction [every sampling_interval texels]
     };
 
