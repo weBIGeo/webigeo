@@ -181,7 +181,11 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
             command_encoder, *m_shared_config_bind_group, *m_camera_bind_group, *m_depth_texture_bind_group, framebuffer->color_texture_view(0));
     }
 
+    if (m_first_paint) {
+        after_first_frame();
+    }
     m_needs_redraw = false;
+    m_first_paint = false;
 }
 
 void Window::paint_gui()
@@ -343,7 +347,7 @@ void Window::paint_gui()
         ImGui::SameLine();
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(106 / 255.0f, 112 / 255.0f, 115 / 255.0f, 1.00f));
         if (ImGui::Button("Open Preset ...", ImVec2(100, 20))) {
-            load_track_and_focus(":/gpx/breite_ries.gpx");
+            load_track_and_focus(DEFAULT_GPX_TRACK_PATH);
         }
         ImGui::PopStyleColor(1);
 
@@ -1167,6 +1171,14 @@ void Window::update_compute_overlay_aabb(const geometry::Aabb<2, double>& aabb)
     m_compute_overlay_settings_uniform_buffer->data.aabb_min = glm::fvec2(aabb.min);
     m_compute_overlay_settings_uniform_buffer->data.aabb_max = glm::fvec2(aabb.max);
     m_compute_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
+}
+
+void Window::after_first_frame()
+{
+#if defined(QT_DEBUG)
+    load_track_and_focus(DEFAULT_GPX_TRACK_PATH);
+    m_compute_graph->run();
+#endif
 }
 
 void Window::reload_shaders()

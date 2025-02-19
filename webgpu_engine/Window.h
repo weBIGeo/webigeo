@@ -39,6 +39,8 @@ class QOpenGLFramebufferObject;
 
 namespace webgpu_engine {
 
+#define DEFAULT_GPX_TRACK_PATH ":/gpx/breite_ries.gpx"
+
 // for preserving settings upon switching graph
 // TODO quite ugly solution
 struct ComputePipelineSettings {
@@ -157,6 +159,8 @@ private:
     void update_compute_overlay_texture(const webgpu::raii::TextureWithSampler& texture_with_sampler);
     void update_compute_overlay_aabb(const geometry::Aabb<2, double>& aabb);
 
+    void after_first_frame();
+
     void display_message(const std::string& message);
 
 private:
@@ -191,6 +195,7 @@ private:
     WGPUPresentMode m_swapchain_presentmode = WGPUPresentMode::WGPUPresentMode_Fifo;
 
     bool m_needs_redraw = true;
+    bool m_first_paint = true;
 
     std::unique_ptr<TrackRenderer> m_track_renderer;
 
