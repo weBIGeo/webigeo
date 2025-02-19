@@ -51,7 +51,7 @@ struct ComputePipelineSettings {
     compute::nodes::ComputeSnowNode::SnowSettings snow_settings; // snow node
 
     int release_point_interval = 8; // trajectories node
-    uint32_t num_paths_per_release_cell = 256u;
+    uint32_t num_paths_per_release_cell = 1024u;
     float random_contribution = 0.16f;
     float persistence_contribution = 0.9f;
 

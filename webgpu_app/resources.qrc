@@ -9,4 +9,7 @@
     <qresource prefix="/gfx">
         <file alias="sujet_shadow.png">resources/gfx/sujet_shadow.png</file>
     </qresource>
+    <qresource prefix="/gpx">
+        <file alias="breite_ries.gpx">resources/gpx/breite_ries.gpx</file>
+    </qresource>
 </RCC>

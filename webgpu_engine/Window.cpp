@@ -331,7 +331,7 @@ void Window::paint_gui()
     }
 
     if (ImGui::CollapsingHeader("Track", ImGuiTreeNodeFlags_DefaultOpen)) {
-        if (ImGui::Button("Open GPX file ...", ImVec2(350, 20))) {
+        if (ImGui::Button("Open GPX file ...", ImVec2(250, 20))) {
 #ifdef __EMSCRIPTEN__
             WebInterop::instance().open_file_dialog(".gpx", "track");
 #else
@@ -340,6 +340,12 @@ void Window::paint_gui()
             ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".gpx,.*", config);
 #endif
         }
+        ImGui::SameLine();
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(106 / 255.0f, 112 / 255.0f, 115 / 255.0f, 1.00f));
+        if (ImGui::Button("Open Preset ...", ImVec2(100, 20))) {
+            load_track_and_focus(":/gpx/breite_ries.gpx");
+        }
+        ImGui::PopStyleColor(1);
 
         const char* items = "none\0without depth test\0with depth test\0semi-transparent\0";
         if (ImGui::Combo("Line render mode", (int*)&(m_shared_config_ubo->data.m_track_render_mode), items)) {
@@ -389,12 +395,7 @@ void Window::paint_compute_pipeline_gui()
 #if ALP_WEBGPU_APP_ENABLE_IMGUI
     if (ImGui::CollapsingHeader("Compute pipeline", ImGuiTreeNodeFlags_DefaultOpen)) {
 
-        if (ImGui::SliderFloat("Strength##compute overlay", &m_compute_overlay_settings_uniform_buffer->data.alpha, 0.0f, 1.0f, "%.2f")) {
-            m_compute_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
-            m_needs_redraw = true;
-        }
-
-        if (ImGui::Button("Run", ImVec2(150, 20))) {
+        if (ImGui::Button("Run", ImVec2(250, 20))) {
             if (m_is_region_selected) {
                 m_compute_graph->run();
             }
@@ -402,8 +403,15 @@ void Window::paint_compute_pipeline_gui()
 
         ImGui::SameLine();
 
-        if (ImGui::Button("Clear", ImVec2(150, 20))) {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(150 / 255.0f, 10 / 255.0f, 10 / 255.0f, 1.00f));
+        if (ImGui::Button("Clear", ImVec2(100, 20))) {
             create_and_set_compute_pipeline(m_active_compute_pipeline_type);
+            m_needs_redraw = true;
+        }
+        ImGui::PopStyleColor(1);
+
+        if (ImGui::SliderFloat("Strength##compute overlay", &m_compute_overlay_settings_uniform_buffer->data.alpha, 0.0f, 1.0f, "%.2f")) {
+            m_compute_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
             m_needs_redraw = true;
         }
 
