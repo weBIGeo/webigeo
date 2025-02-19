@@ -23,9 +23,9 @@
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_wgpu.h"
 #include <IconsFontAwesome5.h>
-#include <imgui.h>
 #include <imnodes.h>
 #endif
+#include "nucleus/utils/image_loader.h"
 #include "util/url_tools.h"
 #include "webgpu_engine/Window.h"
 #include <QDebug>
@@ -44,6 +44,74 @@ GuiManager::GuiManager(TerrainRenderer* terrain_renderer)
     for (const auto& position : position_storage_list) {
         m_camera_preset_names.push_back(position.toStdString());
     }
+}
+
+void SetupImGuiStyle()
+{
+    ImGuiStyle& style = ImGui::GetStyle();
+    ImVec4* colors = style.Colors;
+
+    colors[ImGuiCol_Text] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+    colors[ImGuiCol_TextDisabled] = ImVec4(0.24f, 0.24f, 0.24f, 1.00f);
+    colors[ImGuiCol_WindowBg] = ImVec4(0.14f, 0.14f, 0.14f, 0.80f); // 80% transparency
+    colors[ImGuiCol_ChildBg] = ImVec4(0.14f, 0.14f, 0.14f, 0.80f);
+    colors[ImGuiCol_PopupBg] = ImVec4(0.14f, 0.14f, 0.14f, 0.80f);
+
+    colors[ImGuiCol_Border] = ImVec4(0.43f, 0.43f, 0.50f, 0.50f);
+    colors[ImGuiCol_BorderShadow] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+
+    colors[ImGuiCol_FrameBg] = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
+    colors[ImGuiCol_FrameBgHovered] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f); // Hover Accent
+    colors[ImGuiCol_FrameBgActive] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
+
+    colors[ImGuiCol_TitleBg] = ImVec4(0.14f, 0.14f, 0.14f, 0.80f);
+    colors[ImGuiCol_TitleBgActive] = ImVec4(0.14f, 0.14f, 0.14f, 0.80f);
+    colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.14f, 0.14f, 0.14f, 0.80f);
+
+    colors[ImGuiCol_ScrollbarBg] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.24f, 0.24f, 0.24f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
+
+    colors[ImGuiCol_CheckMark] = ImVec4(0 / 255.0f, 101 / 255.0f, 153 / 255.0f, 1.00f); // Checkbox tick
+    colors[ImGuiCol_SliderGrab] = ImVec4(0 / 255.0f, 101 / 255.0f, 153 / 255.0f, 1.00f);
+    colors[ImGuiCol_SliderGrabActive] = ImVec4(0 / 255.0f, 101 / 255.0f, 153 / 255.0f, 1.00f);
+
+    colors[ImGuiCol_Button] = ImVec4(0 / 255.0f, 101 / 255.0f, 153 / 255.0f, 1.00f); // Button color
+    colors[ImGuiCol_ButtonHovered] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
+    colors[ImGuiCol_ButtonActive] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
+
+    // Keep Headers Unchanged
+    colors[ImGuiCol_Header] = ImVec4(0.24f, 0.24f, 0.24f, 1.00f);
+    colors[ImGuiCol_HeaderHovered] = ImVec4(0.24f, 0.24f, 0.24f, 1.00f);
+    colors[ImGuiCol_HeaderActive] = ImVec4(0.24f, 0.24f, 0.24f, 1.00f);
+
+    colors[ImGuiCol_Separator] = ImVec4(0.43f, 0.43f, 0.50f, 0.50f);
+    colors[ImGuiCol_SeparatorHovered] = ImVec4(0.43f, 0.43f, 0.50f, 0.50f);
+    colors[ImGuiCol_SeparatorActive] = ImVec4(0.43f, 0.43f, 0.50f, 0.50f);
+
+    colors[ImGuiCol_ResizeGrip] = ImVec4(0.24f, 0.24f, 0.24f, 1.00f);
+    colors[ImGuiCol_ResizeGripHovered] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
+    colors[ImGuiCol_ResizeGripActive] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
+
+    colors[ImGuiCol_Tab] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
+    colors[ImGuiCol_TabHovered] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
+    colors[ImGuiCol_TabActive] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
+    colors[ImGuiCol_TabUnfocused] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
+    colors[ImGuiCol_TabUnfocusedActive] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
+
+    colors[ImGuiCol_TextSelectedBg] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
+    colors[ImGuiCol_DragDropTarget] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
+    colors[ImGuiCol_NavHighlight] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
+    colors[ImGuiCol_NavWindowingHighlight] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
+    colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.14f, 0.14f, 0.14f, 0.80f);
+    colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.14f, 0.14f, 0.14f, 0.80f);
+
+    style.WindowRounding = 0.0f;
+    style.FrameRounding = 0.0f;
+    style.GrabRounding = 0.0f;
+    style.ScrollbarRounding = 0.0f;
+    style.TabRounding = 0.0f;
 }
 
 void GuiManager::init(
@@ -69,11 +137,43 @@ void GuiManager::init(
     init_info.NumFramesInFlight = 3;
     ImGui_ImplWGPU_Init(&init_info);
 
-    ImGui::StyleColorsLight();
-    ImGui::GetStyle().Colors[ImGuiCol_WindowBg] = ImVec4(0.9f, 0.9f, 0.9f, 0.9f);
-    ImNodes::StyleColorsLight();
+    SetupImGuiStyle();
+    // ImGui::StyleColorsLight();
+    // ImGui::GetStyle().Colors[ImGuiCol_WindowBg] = ImVec4(0.9f, 0.9f, 0.9f, 0.9f);
+    // ImNodes::StyleColorsLight();
 
     this->install_fonts();
+
+    nucleus::Raster<glm::u8vec4> logo = nucleus::utils::image_loader::rgba8(":/gfx/sujet_shadow.png");
+
+    m_webigeo_logo_size = ImVec2(logo.width(), logo.height());
+
+    WGPUTextureDescriptor texture_desc {};
+    texture_desc.label = "webigeo logo texture";
+    texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
+    texture_desc.size = { uint32_t(logo.width()), uint32_t(logo.height()), uint32_t(1) };
+    texture_desc.mipLevelCount = 1;
+    texture_desc.sampleCount = 1;
+    texture_desc.format = WGPUTextureFormat::WGPUTextureFormat_RGBA8Unorm;
+    texture_desc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
+
+    WGPUSamplerDescriptor sampler_desc {};
+    sampler_desc.label = "image overlay sampler";
+    sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
+    sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
+    sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
+    sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Linear;
+    sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
+    sampler_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Linear;
+    sampler_desc.lodMinClamp = 0.0f;
+    sampler_desc.lodMaxClamp = 1.0f;
+    sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
+    sampler_desc.maxAnisotropy = 1;
+
+    m_webigeo_logo = std::make_unique<webgpu::raii::TextureWithSampler>(m_device, texture_desc, sampler_desc);
+    auto queue = wgpuDeviceGetQueue(m_device);
+    m_webigeo_logo->texture().write(queue, logo);
+
 #endif
 }
 
@@ -403,10 +503,35 @@ void GuiManager::draw()
         }
 
         // Draw the rotated arrow
-        draw_list->AddTriangleFilled(points[0], points[1], points[2], IM_COL32(70, 70, 70, 255)); // White color for the arrow
+        draw_list->AddTriangleFilled(points[0], points[1], points[2], IM_COL32(255, 255, 255, 255)); // White color for the arrow
 
         ImGui::End();
         ImGui::PopStyleVar(); // Restore padding
+    }
+
+    { // weBIGeo LOGO
+        ImVec2 viewportSize = ImGui::GetMainViewport()->Size;
+        float viewportWidth = viewportSize.x;
+        const float minWidth = 800.0f;
+        const float maxWidth = 1920.0f;
+
+        float scaleFactor = 1.0f;
+        if (viewportWidth <= minWidth) {
+            scaleFactor = 0.5f;
+        } else if (viewportWidth >= maxWidth) {
+            scaleFactor = 1.0f;
+        } else {
+            scaleFactor = 0.5f + 0.5f * ((viewportWidth - minWidth) / (maxWidth - minWidth));
+        }
+        ImVec2 scaledSize = ImVec2(m_webigeo_logo_size.x * scaleFactor, m_webigeo_logo_size.y * scaleFactor);
+        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
+        ImGui::SetNextWindowBgAlpha(0.0f);
+        ImGui::Begin("weBIGeo-Logo", nullptr,
+            ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar
+                | ImGuiWindowFlags_NoScrollWithMouse);
+
+        ImGui::Image((ImTextureID)m_webigeo_logo->texture_view().handle(), scaledSize);
+        ImGui::End();
     }
 
     { // Draw the copyright box

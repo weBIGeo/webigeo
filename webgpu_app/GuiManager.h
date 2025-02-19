@@ -18,11 +18,16 @@
 
 #pragma once
 
+#include "webgpu/raii/TextureWithSampler.h"
 #include <SDL2/SDL.h>
 #include <set>
 #include <string>
 #include <vector>
 #include <webgpu/webgpu.h>
+
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
+#include <imgui.h>
+#endif
 
 class TerrainRenderer;
 
@@ -60,6 +65,11 @@ private:
     int m_selected_camera_preset = 0;
 
     std::set<uint32_t> m_selected_timer = {};
+
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
+    ImVec2 m_webigeo_logo_size;
+    std::unique_ptr<webgpu::raii::TextureWithSampler> m_webigeo_logo;
+#endif
 
     void draw();
 

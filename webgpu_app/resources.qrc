@@ -6,4 +6,7 @@
         <file alias="Roboto-Regular.ttf">resources/fonts/Roboto-Regular.ttf</file>
         <file alias="fa5-solid-900.ttf">resources/fonts/fa5-solid-900.ttf</file>
     </qresource>
+    <qresource prefix="/gfx">
+        <file alias="sujet_shadow.png">resources/gfx/sujet_shadow.png</file>
+    </qresource>
 </RCC>
