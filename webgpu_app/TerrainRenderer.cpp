@@ -29,7 +29,10 @@
 #include <emscripten/emscripten.h>
 #else
 #include "nucleus/utils/image_loader.h"
+#pragma comment(lib, "dwmapi.lib")
 #endif
+
+#include "util/dark_mode.h"
 
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
 #include "imgui.h"
@@ -70,6 +73,8 @@ void TerrainRenderer::init_window() {
         SDL_Quit();
         qFatal("Could not create SDL window! SDL_Error: %s", SDL_GetError());
     }
+
+    util::enable_darkmode_on_windows(m_sdl_window);
 
 #ifndef __EMSCRIPTEN__
     // Load icon using the existing image loader

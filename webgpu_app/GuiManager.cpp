@@ -26,6 +26,7 @@
 #include <imnodes.h>
 #endif
 #include "nucleus/utils/image_loader.h"
+#include "util/dark_mode.h"
 #include "util/url_tools.h"
 #include "webgpu_engine/Window.h"
 #include <QDebug>
@@ -44,74 +45,6 @@ GuiManager::GuiManager(TerrainRenderer* terrain_renderer)
     for (const auto& position : position_storage_list) {
         m_camera_preset_names.push_back(position.toStdString());
     }
-}
-
-void SetupImGuiStyle()
-{
-    ImGuiStyle& style = ImGui::GetStyle();
-    ImVec4* colors = style.Colors;
-
-    colors[ImGuiCol_Text] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
-    colors[ImGuiCol_TextDisabled] = ImVec4(0.24f, 0.24f, 0.24f, 1.00f);
-    colors[ImGuiCol_WindowBg] = ImVec4(0.14f, 0.14f, 0.14f, 0.80f); // 80% transparency
-    colors[ImGuiCol_ChildBg] = ImVec4(0.14f, 0.14f, 0.14f, 0.80f);
-    colors[ImGuiCol_PopupBg] = ImVec4(0.14f, 0.14f, 0.14f, 0.80f);
-
-    colors[ImGuiCol_Border] = ImVec4(0.43f, 0.43f, 0.50f, 0.50f);
-    colors[ImGuiCol_BorderShadow] = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
-
-    colors[ImGuiCol_FrameBg] = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
-    colors[ImGuiCol_FrameBgHovered] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f); // Hover Accent
-    colors[ImGuiCol_FrameBgActive] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
-
-    colors[ImGuiCol_TitleBg] = ImVec4(0.14f, 0.14f, 0.14f, 0.80f);
-    colors[ImGuiCol_TitleBgActive] = ImVec4(0.14f, 0.14f, 0.14f, 0.80f);
-    colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.14f, 0.14f, 0.14f, 0.80f);
-
-    colors[ImGuiCol_ScrollbarBg] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
-    colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.24f, 0.24f, 0.24f, 1.00f);
-    colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
-    colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
-
-    colors[ImGuiCol_CheckMark] = ImVec4(0 / 255.0f, 101 / 255.0f, 153 / 255.0f, 1.00f); // Checkbox tick
-    colors[ImGuiCol_SliderGrab] = ImVec4(0 / 255.0f, 101 / 255.0f, 153 / 255.0f, 1.00f);
-    colors[ImGuiCol_SliderGrabActive] = ImVec4(0 / 255.0f, 101 / 255.0f, 153 / 255.0f, 1.00f);
-
-    colors[ImGuiCol_Button] = ImVec4(0 / 255.0f, 101 / 255.0f, 153 / 255.0f, 1.00f); // Button color
-    colors[ImGuiCol_ButtonHovered] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
-    colors[ImGuiCol_ButtonActive] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
-
-    // Keep Headers Unchanged
-    colors[ImGuiCol_Header] = ImVec4(0.24f, 0.24f, 0.24f, 1.00f);
-    colors[ImGuiCol_HeaderHovered] = ImVec4(0.24f, 0.24f, 0.24f, 1.00f);
-    colors[ImGuiCol_HeaderActive] = ImVec4(0.24f, 0.24f, 0.24f, 1.00f);
-
-    colors[ImGuiCol_Separator] = ImVec4(0.43f, 0.43f, 0.50f, 0.50f);
-    colors[ImGuiCol_SeparatorHovered] = ImVec4(0.43f, 0.43f, 0.50f, 0.50f);
-    colors[ImGuiCol_SeparatorActive] = ImVec4(0.43f, 0.43f, 0.50f, 0.50f);
-
-    colors[ImGuiCol_ResizeGrip] = ImVec4(0.24f, 0.24f, 0.24f, 1.00f);
-    colors[ImGuiCol_ResizeGripHovered] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
-    colors[ImGuiCol_ResizeGripActive] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
-
-    colors[ImGuiCol_Tab] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
-    colors[ImGuiCol_TabHovered] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
-    colors[ImGuiCol_TabActive] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
-    colors[ImGuiCol_TabUnfocused] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
-    colors[ImGuiCol_TabUnfocusedActive] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
-
-    colors[ImGuiCol_TextSelectedBg] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
-    colors[ImGuiCol_DragDropTarget] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
-    colors[ImGuiCol_NavHighlight] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
-    colors[ImGuiCol_NavWindowingHighlight] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
-    colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.14f, 0.14f, 0.14f, 0.80f);
-    colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.14f, 0.14f, 0.14f, 0.80f);
-
-    style.WindowRounding = 0.0f;
-    style.FrameRounding = 0.0f;
-    style.GrabRounding = 0.0f;
-    style.ScrollbarRounding = 0.0f;
-    style.TabRounding = 0.0f;
 }
 
 void GuiManager::init(
@@ -137,7 +70,7 @@ void GuiManager::init(
     init_info.NumFramesInFlight = 3;
     ImGui_ImplWGPU_Init(&init_info);
 
-    SetupImGuiStyle();
+    webgpu_app::util::setup_darkmode_imgui_style();
     // ImGui::StyleColorsLight();
     // ImGui::GetStyle().Colors[ImGuiCol_WindowBg] = ImVec4(0.9f, 0.9f, 0.9f, 0.9f);
     // ImNodes::StyleColorsLight();
@@ -157,22 +90,10 @@ void GuiManager::init(
     texture_desc.format = WGPUTextureFormat::WGPUTextureFormat_RGBA8Unorm;
     texture_desc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
 
-    WGPUSamplerDescriptor sampler_desc {};
-    sampler_desc.label = "image overlay sampler";
-    sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Linear;
-    sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
-    sampler_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Linear;
-    sampler_desc.lodMinClamp = 0.0f;
-    sampler_desc.lodMaxClamp = 1.0f;
-    sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
-    sampler_desc.maxAnisotropy = 1;
-
-    m_webigeo_logo = std::make_unique<webgpu::raii::TextureWithSampler>(m_device, texture_desc, sampler_desc);
+    m_webigeo_logo = std::make_unique<webgpu::raii::Texture>(m_device, texture_desc);
     auto queue = wgpuDeviceGetQueue(m_device);
-    m_webigeo_logo->texture().write(queue, logo);
+    m_webigeo_logo->write(queue, logo);
+    m_webigeo_logo_view = m_webigeo_logo->create_view();
 
 #endif
 }
@@ -530,7 +451,7 @@ void GuiManager::draw()
             ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar
                 | ImGuiWindowFlags_NoScrollWithMouse);
 
-        ImGui::Image((ImTextureID)m_webigeo_logo->texture_view().handle(), scaledSize);
+        ImGui::Image((ImTextureID)m_webigeo_logo_view->handle(), scaledSize);
         ImGui::End();
     }
 

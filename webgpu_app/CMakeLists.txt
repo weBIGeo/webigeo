@@ -30,6 +30,7 @@ set(SOURCES
 
     util/error_logging.h util/error_logging.cpp
     util/url_tools.h util/url_tools.cpp
+    util/dark_mode.h util/dark_mode.cpp
 
     GuiManager.h GuiManager.cpp
 )

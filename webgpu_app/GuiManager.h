@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "webgpu/raii/TextureWithSampler.h"
+#include "webgpu/raii/Texture.h"
 #include <SDL2/SDL.h>
 #include <set>
 #include <string>
@@ -68,7 +68,8 @@ private:
 
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     ImVec2 m_webigeo_logo_size;
-    std::unique_ptr<webgpu::raii::TextureWithSampler> m_webigeo_logo;
+    std::unique_ptr<webgpu::raii::Texture> m_webigeo_logo;
+    std::unique_ptr<webgpu::raii::TextureView> m_webigeo_logo_view;
 #endif
 
     void draw();
