@@ -56,6 +56,7 @@ set(SOURCES
 add_library(webgpu STATIC ${SOURCES})
 
 if (EMSCRIPTEN)
+    target_compile_options(webgpu PUBLIC -sUSE_SDL=2)
     target_link_options(webgpu PUBLIC -sUSE_WEBGPU=1)
 else()
     # add dawn libraries to webgpu library
