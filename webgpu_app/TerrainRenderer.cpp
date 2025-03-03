@@ -103,10 +103,10 @@ void TerrainRenderer::init_window() {
 void TerrainRenderer::render_gui()
 {
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-    static bool vsync_enabled = (m_swapchain_presentmode == WGPUPresentMode::WGPUPresentMode_Fifo);
+    static bool vsync_enabled = (m_surface_presentmode == WGPUPresentMode::WGPUPresentMode_Fifo);
     if (ImGui::Checkbox("VSync", &vsync_enabled)) {
-        m_swapchain_presentmode = vsync_enabled ? WGPUPresentMode::WGPUPresentMode_Fifo : WGPUPresentMode::WGPUPresentMode_Immediate;
-        // Recreate swapchain
+        m_surface_presentmode = vsync_enabled ? WGPUPresentMode::WGPUPresentMode_Fifo : WGPUPresentMode::WGPUPresentMode_Immediate;
+        // Reconfigure surface
         m_force_repaint_once = true;
         this->on_window_resize(m_viewport_size.x, m_viewport_size.y);
     }
@@ -162,9 +162,29 @@ void TerrainRenderer::render() {
     // Do nothing, this checks for ongoing asynchronous operations and call their callbacks
     m_cputimer->start();
 
-    WGPUTextureView swapchain_texture = wgpuSwapChainGetCurrentTextureView(m_swapchain);
-    if (!swapchain_texture) {
-        qFatal("Cannot acquire next swap chain texture");
+    WGPUSurfaceTexture surface_texture;
+    wgpuSurfaceGetCurrentTexture(m_surface, &surface_texture);
+
+    if (surface_texture.status != WGPUSurfaceGetCurrentTextureStatus_Success) {
+        // skip frame (?)
+        qDebug() << "Could not get current surface texture: surface_texture.status=" << surface_texture.status;
+        return;
+    }
+
+    WGPUTextureViewDescriptor viewDescriptor;
+    viewDescriptor.nextInChain = nullptr;
+    viewDescriptor.label = "Surface texture view";
+    viewDescriptor.format = wgpuTextureGetFormat(surface_texture.texture);
+    viewDescriptor.dimension = WGPUTextureViewDimension_2D;
+    viewDescriptor.baseMipLevel = 0;
+    viewDescriptor.mipLevelCount = 1;
+    viewDescriptor.baseArrayLayer = 0;
+    viewDescriptor.arrayLayerCount = 1;
+    viewDescriptor.aspect = WGPUTextureAspect_All;
+    WGPUTextureView surface_texture_view = wgpuTextureCreateView(surface_texture.texture, &viewDescriptor);
+
+    if (!surface_texture_view) {
+        qFatal("Cannot acquire next surface texture");
     }
 
     WGPUCommandEncoderDescriptor command_encoder_desc {};
@@ -182,7 +202,7 @@ void TerrainRenderer::render() {
     }
 
     {
-        webgpu::raii::RenderPassEncoder render_pass(encoder, swapchain_texture, nullptr);
+        webgpu::raii::RenderPassEncoder render_pass(encoder, surface_texture_view, nullptr);
         wgpuRenderPassEncoderSetPipeline(render_pass.handle(), m_gui_pipeline.get()->pipeline().handle());
         wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 0, m_gui_bind_group->handle(), 0, nullptr);
         wgpuRenderPassEncoderDraw(render_pass.handle(), 3, 1, 0, 0);
@@ -196,7 +216,7 @@ void TerrainRenderer::render() {
     if (webgpu::isTimingSupported())
         m_gputimer->stop(encoder);
 
-    wgpuTextureViewRelease(swapchain_texture);
+    wgpuTextureViewRelease(surface_texture_view);
 
     WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
     cmd_buffer_descriptor.label = "Command buffer";
@@ -209,8 +229,8 @@ void TerrainRenderer::render() {
         m_gputimer->resolve();
 
 #ifndef __EMSCRIPTEN__
-    // Swapchain in the WEB is handled by the browser!
-    wgpuSwapChainPresent(m_swapchain);
+    // Surface present in the WEB is handled by the browser!
+    wgpuSurfacePresent(m_surface);
     wgpuInstanceProcessEvents(m_instance);
     wgpuDeviceTick(m_device);
 #endif
@@ -250,7 +270,7 @@ void TerrainRenderer::start() {
     m_webgpu_window->set_wgpu_context(m_instance, m_device, m_adapter, m_surface, m_queue);
     m_webgpu_window->initialise_gpu();
 
-    // Creates the swapchain
+    // Configures surface
     this->on_window_resize(m_viewport_size.x, m_viewport_size.y);
 
     { // load first camera definition without changing preset in nucleus
@@ -265,7 +285,7 @@ void TerrainRenderer::start() {
     m_gui_ubo->write(m_queue, &m_gui_ubo_data);
 
     webgpu::FramebufferFormat format {};
-    format.color_formats.emplace_back(m_swapchain_format);
+    format.color_formats.emplace_back(m_surface_texture_format);
 
     WGPUBindGroupLayoutEntry backbuffer_texture_entry {};
     backbuffer_texture_entry.binding = 0;
@@ -325,7 +345,7 @@ void TerrainRenderer::start() {
 
     m_timer_manager = std::make_unique<webgpu::timing::GuiTimerManager>();
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-    m_gui_manager->init(m_sdl_window, m_device, m_swapchain_format, WGPUTextureFormat_Undefined);
+    m_gui_manager->init(m_sdl_window, m_device, m_surface_texture_format, WGPUTextureFormat_Undefined);
 #endif
 
     m_cputimer = std::make_shared<webgpu::timing::CpuTimer>(120);
@@ -394,7 +414,7 @@ void TerrainRenderer::create_framebuffer(uint32_t width, uint32_t height)
 {
     qDebug() << "creating framebuffer textures for size " << width << "x" << height;
 
-    webgpu::FramebufferFormat format { .size = { width, height }, .depth_format = m_depth_texture_format, .color_formats = { m_swapchain_format } };
+    webgpu::FramebufferFormat format { .size = { width, height }, .depth_format = m_depth_texture_format, .color_formats = { m_surface_texture_format } };
     m_framebuffer = std::make_unique<webgpu::Framebuffer>(m_device, format);
 
     if (m_gui_bind_group) {
@@ -409,36 +429,34 @@ void TerrainRenderer::create_framebuffer(uint32_t width, uint32_t height)
     }
 }
 
-void TerrainRenderer::create_swapchain(uint32_t width, uint32_t height)
+void TerrainRenderer::configure_surface(uint32_t width, uint32_t height)
 {
-    qDebug() << "creating swapchain device...";
+    qDebug() << "configuring surface...";
 
     // from Learn WebGPU C++ tutorial
-#ifdef WEBGPU_BACKEND_WGPU
-    m_swapchain_format = surface.getPreferredFormat(m_adapter);
-#else
-    m_swapchain_format = WGPUTextureFormat::WGPUTextureFormat_BGRA8Unorm;
-#endif
-    WGPUSwapChainDescriptor swapchain_desc = {};
-    swapchain_desc.width = width;
-    swapchain_desc.height = height;
-    swapchain_desc.usage = WGPUTextureUsage_RenderAttachment;
-    swapchain_desc.format = m_swapchain_format;
-    swapchain_desc.presentMode = m_swapchain_presentmode;
-    m_swapchain = wgpuDeviceCreateSwapChain(m_device, m_surface, &swapchain_desc);
-    qInfo() << "Got swapchain: " << m_swapchain;
+    m_surface_texture_format = wgpuSurfaceGetPreferredFormat(m_surface, m_adapter);
+    WGPUSurfaceConfiguration config = {};
+    config.nextInChain = nullptr;
+    config.width = width;
+    config.height = height;
+    config.format = m_surface_texture_format;
+    config.viewFormatCount = 0;
+    config.viewFormats = nullptr;
+    config.usage = WGPUTextureUsage_RenderAttachment;
+    config.device = m_device;
+    config.presentMode = m_surface_presentmode;
+    config.alphaMode = WGPUCompositeAlphaMode_Auto;
+
+    wgpuSurfaceConfigure(m_surface, &config);
+    qInfo() << "configured surface with size " << width << "x" << height << ", present mode=" << m_surface_presentmode;
 }
 
 void TerrainRenderer::update_camera() { emit update_camera_requested(); }
 
 void TerrainRenderer::on_window_resize(int width, int height) {
     m_viewport_size = { width, height };
-    // TODO check if we can do it without completely recreating swapchain
-    if (m_swapchain != nullptr) {
-        wgpuSwapChainRelease(m_swapchain);
-    }
 
-    create_swapchain(width, height);
+    configure_surface(width, height);
     create_framebuffer(width, height);
 
     m_webgpu_window->resize_framebuffer(m_viewport_size.x, m_viewport_size.y);
@@ -539,7 +557,7 @@ void TerrainRenderer::webgpu_release_context()
 #ifndef __EMSCRIPTEN__
     wgpuDeviceSetDeviceLostCallback(m_device, nullptr, nullptr);
 #endif
-    wgpuSwapChainRelease(m_swapchain);
+    wgpuSurfaceUnconfigure(m_surface);
     wgpuQueueRelease(m_queue);
     wgpuSurfaceRelease(m_surface);
     wgpuDeviceRelease(m_device);

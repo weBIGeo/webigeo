@@ -83,8 +83,7 @@ private:
     WGPUAdapter m_adapter = nullptr;
     WGPUDevice m_device = nullptr;
     WGPUQueue m_queue = nullptr;
-    WGPUSwapChain m_swapchain = nullptr;
-    WGPUTextureFormat m_swapchain_format = WGPUTextureFormat::WGPUTextureFormat_Undefined; // Will be replaced at swapchain creation
+    WGPUTextureFormat m_surface_texture_format = WGPUTextureFormat::WGPUTextureFormat_Undefined; // Will be replaced at swapchain creation
     WGPUTextureFormat m_depth_texture_format = WGPUTextureFormat::WGPUTextureFormat_Depth24Plus;
 
     glm::uvec2 m_viewport_size = glm::uvec2(1280u, 1024u);
@@ -93,7 +92,7 @@ private:
 
     std::unique_ptr<webgpu::Framebuffer> m_framebuffer;
     void create_framebuffer(uint32_t width, uint32_t height);
-    void create_swapchain(uint32_t width, uint32_t height);
+    void configure_surface(uint32_t width, uint32_t height);
 
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_gui_pipeline;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_gui_bind_group_layout;
@@ -113,7 +112,7 @@ private:
     bool m_force_repaint_once = false;
     uint32_t m_repaint_count = 0;
     uint32_t m_frame_count = 0;
-    WGPUPresentMode m_swapchain_presentmode = WGPUPresentMode::WGPUPresentMode_Immediate;
+    WGPUPresentMode m_surface_presentmode = WGPUPresentMode::WGPUPresentMode_Fifo;
 
     // Flag to exit the rendering loop
     bool m_window_open = true;
