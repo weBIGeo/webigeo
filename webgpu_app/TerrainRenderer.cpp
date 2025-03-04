@@ -22,6 +22,7 @@
 #include "webgpu_engine/Window.h"
 #include <QCoreApplication>
 #include <QFile>
+#include <cassert>
 #include <webgpu/webgpu_interface.hpp>
 
 #ifdef __EMSCRIPTEN__
@@ -434,7 +435,14 @@ void TerrainRenderer::configure_surface(uint32_t width, uint32_t height)
     qDebug() << "configuring surface...";
 
     // from Learn WebGPU C++ tutorial
-    m_surface_texture_format = wgpuSurfaceGetPreferredFormat(m_surface, m_adapter);
+
+    WGPUSurfaceCapabilities surface_capabilities {};
+    wgpuSurfaceGetCapabilities(m_surface, m_adapter, &surface_capabilities);
+    if (surface_capabilities.formatCount < 1) {
+        qFatal() << "WebGPU surface formatCount is 0 - must support at least one format";
+    }
+
+    m_surface_texture_format = surface_capabilities.formats[0];
     WGPUSurfaceConfiguration config = {};
     config.nextInChain = nullptr;
     config.width = width;
