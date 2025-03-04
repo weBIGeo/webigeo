@@ -518,6 +518,7 @@ void TerrainRenderer::webgpu_create_context()
     // irrelevant for us, but needs to be set
     required_limits.limits.minStorageBufferOffsetAlignment = supported_limits.limits.minStorageBufferOffsetAlignment;
     required_limits.limits.minUniformBufferOffsetAlignment = supported_limits.limits.minUniformBufferOffsetAlignment;
+    required_limits.limits.maxInterStageShaderComponents = WGPU_LIMIT_U32_UNDEFINED; // required for current version of  Chrome Canary (2025-04-03)
 
     // Let the engine change the required limits
     m_webgpu_window->update_required_gpu_limits(required_limits.limits, supported_limits.limits);
