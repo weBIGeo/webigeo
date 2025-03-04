@@ -349,6 +349,7 @@ WGPUDevice requestDeviceSync(WGPUAdapter adapter, const WGPUDeviceDescriptor& de
             request_ended_data->device = device;
         } else {
             request_ended_data->device = nullptr;
+            qCritical() << "requesting WebGPU device failed, error message: " << message;
         }
         request_ended_data->request_ended = true;
     };
