@@ -47,14 +47,14 @@ endif()
 if (EMSCRIPTEN)
     set(ALP_WWW_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}" CACHE PATH "path to the install directory (for webassembly files, i.e., www directory)")
     option(ALP_ENABLE_THREADING "Puts the scheduler into an extra thread." OFF)
-    option(ALP_ENABLE_DEBUG_GUI "Show debug GUI (increases binary size)" OFF)
+    option(ALP_ENABLE_DEV_TOOLS "HotReload, Renderstats, .. (increases binary size)" OFF)
 elseif(ANDROID)
     option(ALP_ENABLE_THREADING "Puts the scheduler into an extra thread." ON)
-    option(ALP_ENABLE_DEBUG_GUI "Show debug GUI (increases binary size)" OFF)
+    option(ALP_ENABLE_DEV_TOOLS "HotReload, Renderstats, .. (increases binary size)" OFF)
     option(ALP_ENABLE_POSITIONING "enable qt positioning (gnss / gps)" ON)
 else()
     option(ALP_ENABLE_THREADING "Puts the scheduler into an extra thread." ON)
-    option(ALP_ENABLE_DEBUG_GUI "Show debug GUI (increases binary size)" ON)
+    option(ALP_ENABLE_DEV_TOOLS "HotReload, Renderstats, .. (increases binary size)" ON)
     option(ALP_ENABLE_POSITIONING "enable qt positioning (gnss / gps)" ON)
 endif()
 
@@ -88,9 +88,7 @@ endif()
 
 ########################################### dependencies #################################################
 find_package(Qt6 REQUIRED COMPONENTS Core Gui OpenGL Network Quick QuickControls2 LinguistTools)
-qt_policy(
-    SET QTP0002 NEW
-)
+qt_standard_project_setup(REQUIRES 6.8)
 
 include(cmake/alp_add_git_repository.cmake)
 alp_add_git_repository(renderer_static_data URL https://github.com/AlpineMapsOrg/renderer_static_data.git COMMITISH v23.11 DO_NOT_ADD_SUBPROJECT)
@@ -105,7 +103,7 @@ endif()
 
 add_subdirectory(nucleus)
 if (ALP_ENABLE_GL_ENGINE)
-    if (ALP_ENABLE_DEBUG_GUI)
+    if (ALP_ENABLE_DEV_TOOLS)
         find_package(Qt6 REQUIRED COMPONENTS Widgets Charts)
     endif()
     if (ALP_ENABLE_POSITIONING)

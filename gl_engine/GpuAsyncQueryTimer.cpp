@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Alpine Terrain Renderer
+ * AlpineMaps.org
  * Copyright (C) 2023 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
@@ -23,8 +23,8 @@
 
 namespace gl_engine {
 
-GpuAsyncQueryTimer::GpuAsyncQueryTimer(const std::string& name, const std::string& group, int queue_size, const float average_weight)
-    :nucleus::timing::TimerInterface(name, group, queue_size, average_weight)
+GpuAsyncQueryTimer::GpuAsyncQueryTimer(const QString& name, const QString& group, int queue_size, const float average_weight)
+    : nucleus::timing::TimerInterface(name, group, queue_size, average_weight)
 {
     for (int i = 0; i < 4; i++) {
         m_qTmr[i] = new QOpenGLTimerQuery(QOpenGLContext::currentContext());

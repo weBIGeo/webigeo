@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Alpine Terrain Renderer
+ * AlpineMaps.org
  * Copyright (C) 2023 Adam Celerek
  * Copyright (C) 2023 Gerald Kimmersdorfer
  *
@@ -20,8 +20,7 @@
 import QtQuick
 import QtQuick.Controls.Material
 import QtQuick.Layouts
-import Alpine
-
+import app
 import "components"
 
 SettingsPanel {
@@ -81,11 +80,10 @@ SettingsPanel {
             ModelBinding on value { target: map; property: "field_of_view"; }
         }
 
-        Label { text: qsTr("Frame limiter:") }
+        Label { text: qsTr("Redraw delay:") }
         LabledSlider {
-            id: frame_rate_slider;
-            from: 10; to: 120; stepSize: 1;
-            ModelBinding on value { target: map; property: "frame_limit"; }
+            from: 0; to: 50; stepSize: 1;
+            ModelBinding on value { target: map; property: "redraw_delay"; }
         }
 
         Label { text: qsTr("Level of detail:") }

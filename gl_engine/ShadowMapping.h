@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Alpine Terrain Renderer
+ * AlpineMaps.org
  * Copyright (C) 2023 Gerald Kimmersdorfer
  * Copyright (C) 2024 Patrick Komon
  *
@@ -18,13 +18,13 @@
  *****************************************************************************/
 #pragma once
 
-#include <vector>
+#include "UniformBuffer.h"
+#include "nucleus/camera/Definition.h"
+#include "nucleus/tile/DrawListGenerator.h"
+#include "types.h"
 #include <glm/glm.hpp>
 #include <memory>
-
-#include "nucleus/camera/Definition.h"
-#include "nucleus/tile_scheduler/DrawListGenerator.h"
-#include "UniformBuffer.h"
+#include <vector>
 
 #define SHADOWMAP_WIDTH 4096
 #define SHADOWMAP_HEIGHT 4096
@@ -38,39 +38,36 @@ namespace gl_engine {
 
 class Framebuffer;
 class ShaderProgram;
-class TileManager;
+class TileGeometry;
+class ShaderRegistry;
 struct uboSharedConfig;
 struct uboShadowConfig;
 
 class ShadowMapping
 {
 public:
-
-    ShadowMapping(std::shared_ptr<ShaderProgram> program,
-                  std::shared_ptr<UniformBuffer<uboShadowConfig>> shadow_config,
-                  std::shared_ptr<UniformBuffer<uboSharedConfig>> shared_config);
+    ShadowMapping(ShaderRegistry* shader_registry, DepthBufferClipType depth_buffer_clip_type);
 
     ~ShadowMapping();
 
-    void draw(
-        TileManager* tile_manager,
-        const nucleus::tile_scheduler::DrawListGenerator::TileSet draw_tileset,
-        const nucleus::camera::Definition& camera);
+    void draw(TileGeometry* tile_manager,
+        const nucleus::tile::IdSet& draw_tileset,
+        const nucleus::camera::Definition& camera,
+        std::shared_ptr<UniformBuffer<uboShadowConfig>> shadow_config,
+        std::shared_ptr<UniformBuffer<uboSharedConfig>> shared_config);
 
     void bind_shadow_maps(ShaderProgram* program, unsigned int start_location);
     nucleus::camera::Frustum getFrustum(const nucleus::camera::Definition& camera);
 
 private:
-
+    DepthBufferClipType m_depth_buffer_clip_type = DepthBufferClipType(-1);
     std::shared_ptr<ShaderProgram> m_shadow_program;
     std::vector<std::unique_ptr<Framebuffer>> m_shadowmapbuffer;
-    std::shared_ptr<UniformBuffer<uboShadowConfig>> m_shadow_config;
-    std::shared_ptr<UniformBuffer<uboSharedConfig>> m_shared_config;
     QOpenGLExtraFunctions *m_f;
 
-    std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& projview);
-    std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view);
-    glm::mat4 getLightSpaceMatrix(const float nearPlane, const float farPlane, const nucleus::camera::Definition& camera, const glm::vec3& light_dir);
+    std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& projview) const;
+    std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view) const;
+    glm::mat4 getLightSpaceMatrix(const float nearPlane, const float farPlane, const nucleus::camera::Definition& camera, const glm::vec3& light_dir) const;
     std::vector<glm::mat4> getLightSpaceMatrices(const nucleus::camera::Definition& camera, const glm::vec3& light_dir);
 
 };
