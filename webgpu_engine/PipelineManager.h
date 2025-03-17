@@ -29,7 +29,7 @@ namespace webgpu_engine {
 
 class PipelineManager {
 public:
-    PipelineManager(WGPUDevice device, ShaderModuleManager& shader_manager);
+    PipelineManager(WGPUDevice device, const ShaderModuleManager& shader_manager);
 
     const webgpu::raii::GenericRenderPipeline& render_tiles_pipeline() const;
     const webgpu::raii::GenericRenderPipeline& render_atmosphere_pipeline() const;
@@ -119,7 +119,7 @@ private:
 
 private:
     WGPUDevice m_device;
-    ShaderModuleManager* m_shader_manager;
+    const ShaderModuleManager* m_shader_manager;
 
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_render_tiles_pipeline;
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_render_atmosphere_pipeline;

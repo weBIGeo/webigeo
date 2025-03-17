@@ -29,11 +29,10 @@ ComputeAvalancheTrajectoriesNode::ComputeAvalancheTrajectoriesNode(const Pipelin
 {
 }
 
-ComputeAvalancheTrajectoriesNode::ComputeAvalancheTrajectoriesNode(
-    const PipelineManager& pipeline_manager, WGPUDevice device, const AvalancheTrajectoriesSettings& settings)
+ComputeAvalancheTrajectoriesNode::ComputeAvalancheTrajectoriesNode(const PipelineManager& pipeline_manager, WGPUDevice device, const AvalancheTrajectoriesSettings& settings)
     : Node(
           {
-              InputSocket(*this, "region aabb", data_type<const geometry::Aabb<2, double>*>()),
+              InputSocket(*this, "region aabb", data_type<const radix::geometry::Aabb<2, double>*>()),
               InputSocket(*this, "normal texture", data_type<const webgpu::raii::TextureWithSampler*>()),
               InputSocket(*this, "height texture", data_type<const webgpu::raii::TextureWithSampler*>()),
               InputSocket(*this, "release point texture", data_type<const webgpu::raii::TextureWithSampler*>()),
@@ -86,7 +85,7 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
 {
     qDebug() << "running ComputeAvalancheTrajectoriesNode ...";
 
-    const auto region_aabb = std::get<data_type<const geometry::Aabb<2, double>*>()>(input_socket("region aabb").get_connected_data());
+    const auto region_aabb = std::get<data_type<const radix::geometry::Aabb<2, double>*>()>(input_socket("region aabb").get_connected_data());
     const auto& normal_texture = *std::get<data_type<const webgpu::raii::TextureWithSampler*>()>(input_socket("normal texture").get_connected_data());
     const auto& height_texture = *std::get<data_type<const webgpu::raii::TextureWithSampler*>()>(input_socket("height texture").get_connected_data());
     const auto& release_point_texture

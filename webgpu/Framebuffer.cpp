@@ -147,7 +147,7 @@ std::unique_ptr<raii::RenderPassEncoder> Framebuffer::begin_render_pass(WGPUComm
     if (m_format.depth_format != WGPUTextureFormat_Undefined)
     {
         depth_stencil_attachment.view = m_depth_texture_view->handle();
-        depth_stencil_attachment.depthClearValue = 1.0f;
+        depth_stencil_attachment.depthClearValue = 0.0f;
         depth_stencil_attachment.depthLoadOp = WGPULoadOp::WGPULoadOp_Clear;
         depth_stencil_attachment.depthStoreOp = WGPUStoreOp::WGPUStoreOp_Store;
         depth_stencil_attachment.depthReadOnly = false;

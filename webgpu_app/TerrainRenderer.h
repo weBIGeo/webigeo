@@ -21,17 +21,22 @@
 
 #include "GuiManager.h"
 #include "InputMapper.h"
-#include "nucleus/Controller.h"
 #include <SDL2/SDL.h>
 #include <memory>
 
+#include <nucleus/tile/GeometryScheduler.h>
+#include <nucleus/tile/TextureScheduler.h>
 #include <nucleus/timing/TimerManager.h>
-#include <webgpu/webgpu.h>
-#include <webgpu_engine/Window.h>
 
+#include <webgpu/webgpu.h>
 #include <webgpu/timing/CpuTimer.h>
 #include <webgpu/timing/GuiTimerManager.h>
 #include <webgpu/timing/WebGpuTimer.h>
+
+#include "webgpu_engine/Context.h"
+#include "webgpu_engine/Window.h"
+
+#include "RenderingContext.h"
 
 namespace webgpu_app {
 
@@ -58,7 +63,8 @@ public:
     [[nodiscard]] GuiManager* get_gui_manager() { return m_gui_manager.get(); }
     [[nodiscard]] webgpu::timing::GuiTimerManager* get_timer_manager() { return m_timer_manager.get(); }
     [[nodiscard]] webgpu_engine::Window* get_webgpu_window() { return m_webgpu_window.get(); }
-    [[nodiscard]] nucleus::Controller* get_controller() { return m_controller.get(); }
+    [[nodiscard]] webgpu_engine::Context* get_context() { return m_context->engine_context(); }
+    [[nodiscard]] nucleus::camera::Controller* get_camera_controller() { return m_camera_controller.get(); }
 
 signals:
     void update_camera_requested();
@@ -71,7 +77,9 @@ private slots:
 private:
     SDL_Window* m_sdl_window;
     std::unique_ptr<webgpu_engine::Window> m_webgpu_window;
-    std::unique_ptr<nucleus::Controller> m_controller;
+    std::unique_ptr<nucleus::camera::Controller> m_camera_controller;
+    std::unique_ptr<RenderingContext> m_context;
+
     std::unique_ptr<InputMapper> m_input_mapper;
     std::unique_ptr<GuiManager> m_gui_manager;
     std::unique_ptr<webgpu::timing::GuiTimerManager> m_timer_manager;

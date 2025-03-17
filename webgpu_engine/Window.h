@@ -18,9 +18,10 @@
  *****************************************************************************/
 #pragma once
 
+#include "Context.h"
 #include "PipelineManager.h"
 #include "ShaderModuleManager.h"
-#include "TileManager.h"
+#include "TileGeometry.h"
 #include "TrackRenderer.h"
 #include "UniformBufferObjects.h"
 #include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
@@ -44,7 +45,7 @@ namespace webgpu_engine {
 // for preserving settings upon switching graph
 // TODO quite ugly solution
 struct ComputePipelineSettings {
-    geometry::Aabb<3, double> target_region = {}; // select tiles node
+    radix::geometry::Aabb<3, double> target_region = {}; // select tiles node
     uint32_t zoomlevel = 15;
     uint32_t trajectory_resolution_multiplier = 16;
     uint32_t num_steps = 256u;
@@ -89,7 +90,7 @@ public:
 
     ~Window() override;
 
-    void set_wgpu_context(WGPUInstance instance, WGPUDevice device, WGPUAdapter adapter, WGPUSurface surface, WGPUQueue queue);
+    void set_wgpu_context(WGPUInstance instance, WGPUDevice device, WGPUAdapter adapter, WGPUSurface surface, WGPUQueue queue, Context* context);
     void initialise_gpu() override;
     void resize_framebuffer(int w, int h) override;
     void paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder encoder);
@@ -99,8 +100,6 @@ public:
     [[nodiscard]] float depth(const glm::dvec2& normalised_device_coordinates) override;
     [[nodiscard]] glm::dvec3 position(const glm::dvec2& normalised_device_coordinates) override;
     void destroy() override;
-    void set_aabb_decorator(const nucleus::tile_scheduler::utils::AabbDecoratorPtr&) override;
-    void set_quad_limit(unsigned new_limit) override;
     [[nodiscard]] nucleus::camera::AbstractDepthTester* depth_tester() override;
     nucleus::utils::ColourTexture::Format ortho_tile_compression_algorithm() const override;
     void set_permissible_screen_space_error(float new_error) override;
@@ -115,7 +114,8 @@ public:
 public slots:
     void update_camera(const nucleus::camera::Definition& new_definition) override;
     void update_debug_scheduler_stats(const QString& stats) override;
-    void update_gpu_quads(const std::vector<nucleus::tile_scheduler::tile_types::GpuTileQuad>& new_quads, const std::vector<tile::Id>& deleted_quads) override;
+    void pick_value(const glm::dvec2& screen_space_coordinate) override;
+
     void request_redraw();
     void load_track_and_focus(const std::string& path);
     void reload_shaders();
@@ -143,7 +143,7 @@ private:
     glm::vec4 synchronous_position_readback(const glm::dvec2& normalised_device_coordinates);
 
     void select_last_loaded_track_region();
-    void refresh_compute_pipeline_settings(const geometry::Aabb3d& world_aabb, const nucleus::track::Point& focused_track_point_coords);
+    void refresh_compute_pipeline_settings(const radix::geometry::Aabb3d& world_aabb, const nucleus::track::Point& focused_track_point_coords);
     void create_and_set_compute_pipeline(ComputePipelineType pipeline_type, bool should_recreate_compose_bind_group = true);
     void update_compute_pipeline_settings();
     void update_settings_and_rerun_pipeline();
@@ -157,7 +157,7 @@ private:
 
     void clear_compute_overlay();
     void update_compute_overlay_texture(const webgpu::raii::TextureWithSampler& texture_with_sampler);
-    void update_compute_overlay_aabb(const geometry::Aabb<2, double>& aabb);
+    void update_compute_overlay_aabb(const radix::geometry::Aabb<2, double>& aabb);
 
     void after_first_frame();
 
@@ -169,9 +169,7 @@ private:
     WGPUAdapter m_adapter = nullptr;
     WGPUSurface m_surface = nullptr;
     WGPUQueue m_queue = nullptr;
-
-    std::unique_ptr<ShaderModuleManager> m_shader_manager;
-    std::unique_ptr<PipelineManager> m_pipeline_manager;
+    Context* m_context = nullptr;
 
     std::unique_ptr<Buffer<uboSharedConfig>> m_shared_config_ubo;
     std::unique_ptr<Buffer<uboCameraConfig>> m_camera_config_ubo;
@@ -182,8 +180,6 @@ private:
     std::unique_ptr<webgpu::raii::BindGroup> m_depth_texture_bind_group;
 
     nucleus::camera::Definition m_camera;
-
-    std::unique_ptr<TileManager> m_tile_manager;
 
     webgpu::FramebufferFormat m_gbuffer_format;
     std::unique_ptr<webgpu::Framebuffer> m_gbuffer;
@@ -211,7 +207,7 @@ private:
         compute::nodes::RequestTilesNode::RequestTilesNodeSettings(),
         compute::nodes::RequestTilesNode::RequestTilesNodeSettings {
             .tile_path = "https://alpinemaps.cg.tuwien.ac.at/tiles/alpine_png/",
-            .url_pattern = nucleus::tile_scheduler::TileLoadService::UrlPattern::ZXY,
+            .url_pattern = nucleus::tile::TileLoadService::UrlPattern::ZXY,
             .file_extension = ".png",
         },
     };

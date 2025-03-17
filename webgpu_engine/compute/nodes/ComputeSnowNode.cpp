@@ -31,12 +31,12 @@ webgpu_engine::compute::nodes::ComputeSnowNode::ComputeSnowNode(
     const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity, WGPUTextureFormat output_format)
     : Node(
           {
-              InputSocket(*this, "tile ids", data_type<const std::vector<tile::Id>*>()),
-              InputSocket(*this, "hash map", data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()),
+              InputSocket(*this, "tile ids", data_type<const std::vector<radix::tile::Id>*>()),
+              InputSocket(*this, "hash map", data_type<GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>*>()),
               InputSocket(*this, "height textures", data_type<TileStorageTexture*>()),
           },
           {
-              OutputSocket(*this, "hash map", data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), [this]() { return &m_output_tile_map; }),
+              OutputSocket(*this, "hash map", data_type<GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>*>(), [this]() { return &m_output_tile_map; }),
               OutputSocket(*this, "snow textures", data_type<TileStorageTexture*>(), [this]() { return &m_output_texture; }),
           })
     , m_pipeline_manager { &pipeline_manager }
@@ -47,9 +47,8 @@ webgpu_engine::compute::nodes::ComputeSnowNode::ComputeSnowNode(
     , m_tile_bounds(device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc, capacity, "snow compute, tile bounds buffer")
     , m_input_tile_ids(device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc, capacity, "snow compute, tile id buffer")
     , m_input_snow_settings(device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
-    , m_output_tile_map(device, tile::Id { unsigned(-1), {} }, -1)
-    , m_output_texture(device, output_resolution, capacity, output_format,
-          WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc)
+    , m_output_tile_map(device, radix::tile::Id { unsigned(-1), {} }, -1)
+    , m_output_texture(device, output_resolution, capacity, output_format, WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc)
 {
     m_output_tile_map.update_gpu_data();
 }
@@ -59,8 +58,8 @@ void ComputeSnowNode::run_impl()
     qDebug() << "running SnowComputeNode ...";
 
     // get tile ids to process
-    const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(input_socket("tile ids").get_connected_data());
-    const auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(input_socket("hash map").get_connected_data());
+    const auto& tile_ids = *std::get<data_type<const std::vector<radix::tile::Id>*>()>(input_socket("tile ids").get_connected_data());
+    const auto& hash_map = *std::get<data_type<GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>*>()>(input_socket("hash map").get_connected_data());
     const auto& height_textures = *std::get<data_type<TileStorageTexture*>()>(input_socket("height textures").get_connected_data());
 
     if (tile_ids.size() > m_output_texture.capacity()) {
@@ -75,7 +74,7 @@ void ComputeSnowNode::run_impl()
     std::vector<glm::vec4> tile_bounds(tile_ids.size());
     for (size_t i = 0; i < gpu_tile_ids.size(); i++) {
         gpu_tile_ids[i] = { tile_ids[i].coords.x, tile_ids[i].coords.y, tile_ids[i].zoom_level };
-        tile::SrsBounds bounds = nucleus::srs::tile_bounds(tile_ids[i]);
+        radix::tile::SrsBounds bounds = nucleus::srs::tile_bounds(tile_ids[i]);
         tile_bounds[i] = { bounds.min.x, bounds.min.y, bounds.max.x, bounds.max.y };
     }
     m_input_tile_ids.write(m_queue, gpu_tile_ids.data(), gpu_tile_ids.size());
@@ -142,8 +141,7 @@ void ComputeSnowNode::run_impl()
             ComputeSnowNode* _this = reinterpret_cast<ComputeSnowNode*>(user_data);
             _this->run_completed(); // emits signal run_finished()
 
-            const auto& tile_ids
-                = *std::get<data_type<const std::vector<tile::Id>*>()>(_this->input_socket("tile ids").get_connected_data()); // list of tile ids to process
+            const auto& tile_ids = *std::get<data_type<const std::vector<radix::tile::Id>*>()>(_this->input_socket("tile ids").get_connected_data()); // list of tile ids to process
 
             // write files for debugging
             for (size_t i = 0; i < tile_ids.size(); i++) {

@@ -23,6 +23,7 @@
 #include <QCoreApplication>
 #include <QFile>
 #include <cassert>
+#include <qthread.h> //TODO maybe only for threading enabled?
 #include <webgpu/webgpu_interface.hpp>
 
 #ifdef __EMSCRIPTEN__
@@ -40,8 +41,13 @@
 #endif
 #include "util/error_logging.h"
 
+#include <nucleus/DataQuerier.h>
 #include <nucleus/camera/PositionStorage.h>
+#include <nucleus/tile/SchedulerDirector.h>
+#include <nucleus/tile/setup.h>
 #include <nucleus/timing/CpuTimer.h>
+#include <webgpu_engine/Context.h>
+#include <webgpu_engine/TileGeometry.h>
 
 namespace webgpu_app {
 
@@ -79,7 +85,7 @@ void TerrainRenderer::init_window() {
 
 #ifndef __EMSCRIPTEN__
     // Load icon using the existing image loader
-    auto icon = nucleus::utils::image_loader::rgba8(":/icons/logo32.png");
+    auto icon = nucleus::utils::image_loader::rgba8(":/icons/logo32.png").value();
     // Create SDL_Surface from the raw image data
     SDL_Surface* iconSurface = SDL_CreateRGBSurfaceFrom((void*)icon.bytes(), // Pixel data
         icon.width(), // Image width
@@ -246,18 +252,33 @@ void TerrainRenderer::start() {
 
     webgpu_create_context();
 
-    // TODO: THIS TAKES FOREVER ON FIRST LOAD. LETS CHECK OUT WHY!
-    m_controller = std::make_unique<nucleus::Controller>(m_webgpu_window.get());
+    m_context = std::make_unique<RenderingContext>();
+    m_context->initialize(m_device);
+
+    m_camera_controller = std::make_unique<nucleus::camera::Controller>(nucleus::camera::PositionStorage::instance()->get("grossglockner"), m_webgpu_window.get(), m_context->data_querier());
+
+    // clang-format off
+    // NOTICE ME!!!! READ THIS, IF YOU HAVE TROUBLES WITH SIGNALS NOT REACHING THE QML RENDERING THREAD!!!!111elevenone
+    // In Qt/QML the rendering thread goes to sleep (at least until Qt 6.5, See RenderThreadNotifier).
+    // At the time of writing, an additional connection from tile_ready and tile_expired to the notifier is made.
+    // this only works if ALP_ENABLE_THREADING is on, i.e., the tile scheduler is on an extra thread. -> potential issue on webassembly
+    connect(m_camera_controller.get(), &nucleus::camera::Controller::definition_changed, m_context->geometry_scheduler(), &nucleus::tile::Scheduler::update_camera);
+    connect(m_camera_controller.get(), &nucleus::camera::Controller::definition_changed, m_context->ortho_scheduler(),    &nucleus::tile::Scheduler::update_camera);
+    connect(m_camera_controller.get(), &nucleus::camera::Controller::definition_changed, m_webgpu_window.get(),           &webgpu_engine::Window::update_camera);
+    
+    connect(m_context->geometry_scheduler(), &nucleus::tile::GeometryScheduler::gpu_quads_updated, m_webgpu_window.get(), &webgpu_engine::Window::update_requested);
+    connect(m_context->ortho_scheduler(),    &nucleus::tile::TextureScheduler::gpu_quads_updated,  m_webgpu_window.get(), &webgpu_engine::Window::update_requested);
+    // clang-format on
 
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     m_gui_manager = std::make_unique<GuiManager>(this);
 #endif
 
-    nucleus::camera::Controller* camera_controller = m_controller->camera_controller();
-    m_input_mapper = std::make_unique<InputMapper>(this, camera_controller, m_gui_manager.get(), [this]() { return m_viewport_size; });
+    m_input_mapper = std::make_unique<InputMapper>(this, m_camera_controller.get(), m_gui_manager.get(), [this]() { return m_viewport_size; });
 
-    connect(this, &TerrainRenderer::update_camera_requested, camera_controller, &nucleus::camera::Controller::update_camera_request);
-    connect(m_webgpu_window.get(), &webgpu_engine::Window::set_camera_definition_requested, camera_controller, &nucleus::camera::Controller::set_definition);
+    // TODO connect this (is used from GuiManager to update camera when settings are changed)
+    //  connect(this, &TerrainRenderer::update_camera_requested, camera_controller, &nucleus::camera::Controller::update_camera_request);
+    connect(m_webgpu_window.get(), &webgpu_engine::Window::set_camera_definition_requested, m_camera_controller.get(), &nucleus::camera::Controller::set_definition);
 
     connect(m_webgpu_window.get(), &nucleus::AbstractRenderWindow::update_requested, this, &TerrainRenderer::schedule_update);
 
@@ -268,7 +289,7 @@ void TerrainRenderer::start() {
 
     connect(m_input_mapper.get(), &InputMapper::key_pressed, this, &TerrainRenderer::handle_shortcuts);
 
-    m_webgpu_window->set_wgpu_context(m_instance, m_device, m_adapter, m_surface, m_queue);
+    m_webgpu_window->set_wgpu_context(m_instance, m_device, m_adapter, m_surface, m_queue, m_context->engine_context());
     m_webgpu_window->initialise_gpu();
 
     // Configures surface
@@ -277,7 +298,7 @@ void TerrainRenderer::start() {
     { // load first camera definition without changing preset in nucleus
         auto new_definition = nucleus::camera::stored_positions::grossglockner();
         new_definition.set_viewport_size(m_viewport_size);
-        camera_controller->set_definition(new_definition);
+        m_camera_controller->set_definition(new_definition);
     }
 
     qDebug() << "Create GUI Pipeline...";
@@ -468,7 +489,7 @@ void TerrainRenderer::on_window_resize(int width, int height) {
     create_framebuffer(width, height);
 
     m_webgpu_window->resize_framebuffer(m_viewport_size.x, m_viewport_size.y);
-    m_controller->camera_controller()->set_viewport(m_viewport_size);
+    m_camera_controller->set_viewport(m_viewport_size);
 }
 
 void TerrainRenderer::webgpu_create_context()

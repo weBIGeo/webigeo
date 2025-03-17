@@ -63,7 +63,7 @@ private:
 
     glm::uvec2 m_tile_size;
 
-    std::map<tile::Id, std::shared_ptr<QByteArray>> m_tile_data;
+    std::map<radix::tile::Id, std::shared_ptr<QByteArray>> m_tile_data;
 
     void impl_single_texture();
     void impl_texture_array();

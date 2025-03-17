@@ -39,10 +39,11 @@
 
 struct VertexIn {
     @location(0) bounds: vec4f,
-    @location(1) texture_layer: i32,
-    @location(2) tileset_id: i32,
-    @location(3) tileset_zoomlevel: i32,
-    @location(4) tile_id: vec4<u32>,
+    @location(1) height_texture_layer: i32,
+    @location(2) ortho_texture_layer: i32,
+    @location(3) tileset_id: i32,
+    @location(4) tileset_zoomlevel: i32,
+    @location(5) tile_id: vec4<u32>,
 }
 
 struct VertexOut {
@@ -50,9 +51,10 @@ struct VertexOut {
     @location(0) uv: vec2f,
     @location(1) pos_cws: vec3f,
     @location(2) normal: vec3f,
-    @location(3) @interpolate(flat) texture_layer: i32,
-    @location(4) @interpolate(flat) color: vec3f,
-    @location(5) @interpolate(flat) tile_id: vec3<u32>,
+    @location(3) @interpolate(flat) height_texture_layer: i32,
+    @location(4) @interpolate(flat) ortho_texture_layer: i32,
+    @location(5) @interpolate(flat) color: vec3f,
+    @location(6) @interpolate(flat) tile_id: vec3<u32>,
 }
 
 struct FragOut {
@@ -65,7 +67,7 @@ struct FragOut {
 fn camera_world_space_position(
     vertex_index: u32,
     bounds: vec4f,
-    texture_layer: i32,
+    height_texture_layer: i32,
     uv: ptr<function, vec2f>,
     n_quads_per_direction: ptr<function, f32>,
     quad_width: ptr<function, f32>,
@@ -106,7 +108,7 @@ fn camera_world_space_position(
     *altitude_correction_factor = 0.125 / cos(y_to_lat(pos_y)); // https://github.com/AlpineMapsOrg/renderer/issues/5
 
     *uv = vec2f(f32(col) / (*n_quads_per_direction), f32(row) / (*n_quads_per_direction));
-    let altitude_tex = f32(textureLoad(height_texture, vec2i(col, row), texture_layer, 0).r);
+    let altitude_tex = f32(textureLoad(height_texture, vec2i(col, row), height_texture_layer, 0).r);
     let adjusted_altitude: f32 = altitude_tex * (*altitude_correction_factor);
 
     var var_pos_cws = vec3f(f32(col) * (*quad_width) + bounds.x, var_pos_cws_y, adjusted_altitude - camera.position.z);
@@ -140,7 +142,7 @@ fn vertexMain(@builtin(vertex_index) vertex_index: u32, vertex_in: VertexIn) -> 
     var quad_width: f32;
     var quad_height: f32;
     var altitude_correction_factor: f32;
-    let var_pos_cws = camera_world_space_position(vertex_index, vertex_in.bounds, vertex_in.texture_layer, &uv, &n_quads_per_direction, &quad_width, &quad_height, &altitude_correction_factor);
+    let var_pos_cws = camera_world_space_position(vertex_index, vertex_in.bounds, vertex_in.height_texture_layer, &uv, &n_quads_per_direction, &quad_width, &quad_height, &altitude_correction_factor);
 
     let pos = vec4f(var_pos_cws, 1);
     let clip_pos = camera.view_proj_matrix * pos;
@@ -152,9 +154,10 @@ fn vertexMain(@builtin(vertex_index) vertex_index: u32, vertex_in: VertexIn) -> 
 
     vertex_out.normal = vec3f(0.0);
     if (config.normal_mode == 2) {
-        vertex_out.normal = normal_by_finite_difference_method(uv, quad_width, quad_height, altitude_correction_factor, vertex_in.texture_layer, height_texture);
+        vertex_out.normal = normal_by_finite_difference_method(uv, quad_width, quad_height, altitude_correction_factor, vertex_in.height_texture_layer, height_texture);
     }
-    vertex_out.texture_layer = vertex_in.texture_layer;
+    vertex_out.height_texture_layer = vertex_in.height_texture_layer;
+    vertex_out.ortho_texture_layer = vertex_in.ortho_texture_layer;
 
     var vertex_color = vec3f(0.0);
     if (config.overlay_mode == 2) {
@@ -171,7 +174,11 @@ fn vertexMain(@builtin(vertex_index) vertex_index: u32, vertex_in: VertexIn) -> 
 
 @fragment
 fn fragmentMain(vertex_out: VertexOut) -> FragOut {
-    var albedo = textureSample(ortho_texture, ortho_sampler, vertex_out.uv, vertex_out.texture_layer).rgb;
+    // sample ortho texture if already loaded (ortho_texture_layer -1 means not loaded)
+    var ortho_texture_layer = select(0, vertex_out.ortho_texture_layer, vertex_out.ortho_texture_layer != -1);
+    var albedo = textureSample(ortho_texture, ortho_sampler, vertex_out.uv, ortho_texture_layer).rgb;
+    albedo = select(vec3f(1, 1, 1), albedo, vertex_out.ortho_texture_layer != -1);
+
     var dist = length(vertex_out.pos_cws);
 
     var frag_out: FragOut;

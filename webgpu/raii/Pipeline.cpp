@@ -83,7 +83,7 @@ GenericRenderPipeline::GenericRenderPipeline(WGPUDevice device, const ShaderModu
         stencil_face_state.failOp = WGPUStencilOperation::WGPUStencilOperation_Keep;
         stencil_face_state.passOp = WGPUStencilOperation::WGPUStencilOperation_Keep;
 
-        depth_stencil_state.depthCompare = WGPUCompareFunction::WGPUCompareFunction_Less;
+        depth_stencil_state.depthCompare = WGPUCompareFunction::WGPUCompareFunction_GreaterEqual;
         depth_stencil_state.depthWriteEnabled = framebuffer_format.depth_format;
         depth_stencil_state.stencilReadMask = 0;
         depth_stencil_state.stencilWriteMask = 0;

@@ -26,10 +26,10 @@ set(SOURCES
     ShaderModuleManager.h ShaderModuleManager.cpp
     PipelineManager.h PipelineManager.cpp
     UniformBufferObjects.h UniformBufferObjects.cpp
-    TileSet.h
-    TileManager.h TileManager.cpp
+    TileGeometry.h TileGeometry.cpp
     Buffer.h Buffer.cpp
     TrackRenderer.h TrackRenderer.cpp
+    Context.h Context.cpp
 
     compute/GpuHashMap.h compute/GpuHashMap.cpp
     compute/GpuTileStorage.h compute/GpuTileStorage.cpp

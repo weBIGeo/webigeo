@@ -25,15 +25,15 @@
 namespace webgpu_engine::compute::nodes {
 
 SelectTilesNode::SelectTilesNode()
-    : SelectTilesNode([]() { return std::vector<tile::Id> {}; })
+    : SelectTilesNode([]() { return std::vector<radix::tile::Id> {}; })
 {
 }
 
 SelectTilesNode::SelectTilesNode(TileIdGenerator tile_id_generator)
     : Node({},
           {
-              OutputSocket(*this, "tile ids", data_type<const std::vector<tile::Id>*>(), [this]() { return &m_output_tile_ids; }),
-              OutputSocket(*this, "region aabb", data_type<const geometry::Aabb<2, double>*>(), [this]() { return &m_output_bounds; }),
+              OutputSocket(*this, "tile ids", data_type<const std::vector<radix::tile::Id>*>(), [this]() { return &m_output_tile_ids; }),
+              OutputSocket(*this, "region aabb", data_type<const radix::geometry::Aabb<2, double>*>(), [this]() { return &m_output_bounds; }),
           })
     , m_tile_id_generator(tile_id_generator)
     , m_output_bounds { glm::dvec2(std::numeric_limits<double>::max()), glm::dvec2(std::numeric_limits<double>::min()) }
@@ -42,14 +42,17 @@ SelectTilesNode::SelectTilesNode(TileIdGenerator tile_id_generator)
 
 void SelectTilesNode::set_tile_id_generator(TileIdGenerator tile_id_generator) { m_tile_id_generator = tile_id_generator; }
 
-void SelectTilesNode::select_tiles_in_world_aabb(const geometry::Aabb<3, double>& aabb, unsigned int zoomlevel)
+void SelectTilesNode::select_tiles_in_world_aabb(const radix::geometry::Aabb<3, double>& aabb, unsigned int zoomlevel)
 {
     const auto lower_left_tile = nucleus::srs::world_xy_to_tile_id(glm::dvec2(aabb.min), zoomlevel);
     const auto upper_right_tile = nucleus::srs::world_xy_to_tile_id(glm::dvec2(aabb.max), zoomlevel);
 
     set_tile_id_generator([lower_left_tile, upper_right_tile]() {
         compute::RectangularTileRegion region {
-            .min = lower_left_tile.coords, .max = upper_right_tile.coords, .zoom_level = upper_right_tile.zoom_level, .scheme = tile::Scheme::Tms
+            .min = lower_left_tile.coords,
+            .max = upper_right_tile.coords,
+            .zoom_level = upper_right_tile.zoom_level,
+            .scheme = radix::tile::Scheme::Tms,
         };
         return region.get_tiles();
     });

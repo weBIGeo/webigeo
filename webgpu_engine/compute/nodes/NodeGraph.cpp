@@ -64,17 +64,17 @@ const Node& NodeGraph::get_node(const std::string& node_name) const { return *m_
 
 bool NodeGraph::exists_node(const std::string& node_name) const { return m_nodes.find(node_name) != m_nodes.end(); }
 
-const GpuHashMap<tile::Id, uint32_t, GpuTileId>& NodeGraph::output_normals_hash_map() const { return *m_output_normals_hash_map_ptr; }
+const GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>& NodeGraph::output_normals_hash_map() const { return *m_output_normals_hash_map_ptr; }
 
-GpuHashMap<tile::Id, uint32_t, GpuTileId>& NodeGraph::output_normals_hash_map() { return *m_output_normals_hash_map_ptr; }
+GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>& NodeGraph::output_normals_hash_map() { return *m_output_normals_hash_map_ptr; }
 
 const TileStorageTexture& NodeGraph::output_normals_texture_storage() const { return *m_output_normals_texture_storage_ptr; }
 
 TileStorageTexture& NodeGraph::output_normals_texture_storage() { return *m_output_normals_texture_storage_ptr; }
 
-const GpuHashMap<tile::Id, uint32_t, GpuTileId>& NodeGraph::output_overlay_hash_map() const { return *m_output_overlay_hash_map_ptr; }
+const GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>& NodeGraph::output_overlay_hash_map() const { return *m_output_overlay_hash_map_ptr; }
 
-GpuHashMap<tile::Id, uint32_t, GpuTileId>& NodeGraph::output_overlay_hash_map() { return *m_output_overlay_hash_map_ptr; }
+GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>& NodeGraph::output_overlay_hash_map() { return *m_output_overlay_hash_map_ptr; }
 
 const TileStorageTexture& NodeGraph::output_overlay_texture_storage() const { return *m_output_overlay_texture_storage_ptr; }
 

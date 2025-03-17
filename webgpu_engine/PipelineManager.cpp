@@ -25,7 +25,7 @@
 
 namespace webgpu_engine {
 
-PipelineManager::PipelineManager(WGPUDevice device, ShaderModuleManager& shader_manager)
+PipelineManager::PipelineManager(WGPUDevice device, const ShaderModuleManager& shader_manager)
     : m_device(device)
     , m_shader_manager(&shader_manager)
 {
@@ -205,12 +205,14 @@ void PipelineManager::create_render_tiles_pipeline()
     bounds_buffer_info.add_attribute<float, 4>(0);
     webgpu::util::SingleVertexBufferInfo texture_layer_buffer_info(WGPUVertexStepMode_Instance);
     texture_layer_buffer_info.add_attribute<int32_t, 1>(1);
+    webgpu::util::SingleVertexBufferInfo ortho_texture_layer_buffer_info(WGPUVertexStepMode_Instance);
+    ortho_texture_layer_buffer_info.add_attribute<int32_t, 1>(2);
     webgpu::util::SingleVertexBufferInfo tileset_id_buffer_info(WGPUVertexStepMode_Instance);
-    tileset_id_buffer_info.add_attribute<int32_t, 1>(2);
+    tileset_id_buffer_info.add_attribute<int32_t, 1>(3);
     webgpu::util::SingleVertexBufferInfo zoomlevel_buffer_info(WGPUVertexStepMode_Instance);
-    zoomlevel_buffer_info.add_attribute<int32_t, 1>(3);
+    zoomlevel_buffer_info.add_attribute<int32_t, 1>(4);
     webgpu::util::SingleVertexBufferInfo tile_id_buffer_info(WGPUVertexStepMode_Instance);
-    tile_id_buffer_info.add_attribute<uint32_t, 4>(4);
+    tile_id_buffer_info.add_attribute<uint32_t, 4>(5);
 
     webgpu::FramebufferFormat format {};
     format.depth_format = WGPUTextureFormat_Depth24Plus;
@@ -219,21 +221,23 @@ void PipelineManager::create_render_tiles_pipeline()
     format.color_formats.emplace_back(WGPUTextureFormat_RG16Uint); // normal
     format.color_formats.emplace_back(WGPUTextureFormat_R32Uint); // overlay
 
-    m_render_tiles_pipeline
-        = std::make_unique<webgpu::raii::GenericRenderPipeline>(m_device, m_shader_manager->render_tiles(), m_shader_manager->render_tiles(),
-            std::vector<webgpu::util::SingleVertexBufferInfo> {
-                bounds_buffer_info,
-                texture_layer_buffer_info,
-                tileset_id_buffer_info,
-                zoomlevel_buffer_info,
-                tile_id_buffer_info,
-            },
-            format,
-            std::vector<const webgpu::raii::BindGroupLayout*> {
-                m_shared_config_bind_group_layout.get(),
-                m_camera_bind_group_layout.get(),
-                m_tile_bind_group_layout.get(),
-            });
+    m_render_tiles_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(m_device,
+        m_shader_manager->render_tiles(),
+        m_shader_manager->render_tiles(),
+        std::vector<webgpu::util::SingleVertexBufferInfo> {
+            bounds_buffer_info,
+            texture_layer_buffer_info,
+            ortho_texture_layer_buffer_info,
+            tileset_id_buffer_info,
+            zoomlevel_buffer_info,
+            tile_id_buffer_info,
+        },
+        format,
+        std::vector<const webgpu::raii::BindGroupLayout*> {
+            m_shared_config_bind_group_layout.get(),
+            m_camera_bind_group_layout.get(),
+            m_tile_bind_group_layout.get(),
+        });
 }
 
 void PipelineManager::create_render_atmosphere_pipeline()

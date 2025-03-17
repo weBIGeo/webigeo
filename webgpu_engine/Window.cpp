@@ -25,6 +25,7 @@
 #include "nucleus/track/GPX.h"
 #include "nucleus/utils/image_loader.h"
 #include "webgpu/raii/RenderPassEncoder.h"
+#include "webgpu_engine/Context.h"
 #include <QFile>
 
 #ifdef __EMSCRIPTEN__
@@ -48,7 +49,6 @@
 namespace webgpu_engine {
 
 Window::Window()
-    : m_tile_manager { std::make_unique<TileManager>() }
 {
 #ifdef __EMSCRIPTEN__
     connect(&WebInterop::instance(), &WebInterop::file_uploaded, this, &Window::file_upload_handler);
@@ -60,13 +60,14 @@ Window::~Window()
     // Destructor cleanup logic here
 }
 
-void Window::set_wgpu_context(WGPUInstance instance, WGPUDevice device, WGPUAdapter adapter, WGPUSurface surface, WGPUQueue queue)
+void Window::set_wgpu_context(WGPUInstance instance, WGPUDevice device, WGPUAdapter adapter, WGPUSurface surface, WGPUQueue queue, Context* context)
 {
     m_instance = instance;
     m_device = device;
     m_adapter = adapter;
     m_surface = surface;
     m_queue = queue;
+    m_context = context;
 }
 
 void Window::initialise_gpu()
@@ -74,16 +75,9 @@ void Window::initialise_gpu()
     assert(m_device != nullptr); // just make sure that wgpu context is set
 
     create_buffers();
-
-    m_shader_manager = std::make_unique<ShaderModuleManager>(m_device);
-    m_shader_manager->create_shader_modules();
-    m_pipeline_manager = std::make_unique<PipelineManager>(m_device, *m_shader_manager);
-    m_pipeline_manager->create_pipelines();
     create_bind_groups();
 
-    m_tile_manager->init(m_device, m_queue, *m_pipeline_manager);
-
-    m_track_renderer = std::make_unique<TrackRenderer>(m_device, *m_pipeline_manager);
+    m_track_renderer = std::make_unique<TrackRenderer>(m_device, *m_context->pipeline_manager());
 
     m_image_overlay_settings_uniform_buffer = std::make_unique<Buffer<ImageOverlaySettings>>(m_device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
     m_image_overlay_settings_uniform_buffer->data.aabb_min = glm::fvec2(0);
@@ -103,26 +97,27 @@ void Window::initialise_gpu()
     create_and_set_compute_pipeline(ComputePipelineType::AVALANCHE_TRAJECTORIES, false);
 
     qInfo() << "gpu_ready_changed";
-    emit gpu_ready_changed(true);
+    // emit gpu_ready_changed(true); //TODO remove/find replacement
 }
 
 void Window::resize_framebuffer(int w, int h)
 {
     m_swapchain_size = glm::vec2(w, h);
 
-    m_gbuffer_format = webgpu::FramebufferFormat(m_pipeline_manager->render_tiles_pipeline().framebuffer_format());
+    m_gbuffer_format = webgpu::FramebufferFormat(m_context->pipeline_manager()->render_tiles_pipeline().framebuffer_format());
     m_gbuffer_format.size = glm::uvec2 { w, h };
     m_gbuffer = std::make_unique<webgpu::Framebuffer>(m_device, m_gbuffer_format);
 
-    webgpu::FramebufferFormat atmosphere_framebuffer_format(m_pipeline_manager->render_atmosphere_pipeline().framebuffer_format());
+    webgpu::FramebufferFormat atmosphere_framebuffer_format(m_context->pipeline_manager()->render_atmosphere_pipeline().framebuffer_format());
     atmosphere_framebuffer_format.size = glm::uvec2(1, h);
     m_atmosphere_framebuffer = std::make_unique<webgpu::Framebuffer>(m_device, atmosphere_framebuffer_format);
 
     recreate_compose_bind_group();
 
-    m_depth_texture_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->depth_texture_bind_group_layout(),
+    m_depth_texture_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device,
+        m_context->pipeline_manager()->depth_texture_bind_group_layout(),
         std::initializer_list<WGPUBindGroupEntry> {
-            m_gbuffer->depth_texture_view().create_bind_group_entry(0) // depth
+            m_gbuffer->depth_texture_view().create_bind_group_entry(0), // depth
         });
 }
 
@@ -138,7 +133,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
 
     // ONLY ON CAMERA CHANGE!
     // update_camera(m_camera);
-    emit update_camera_requested();
+    // emit update_camera_requested(); //TODO remove/find replacement
 
     // TODO remove, debugging
     // uboSharedConfig* sc = &m_shared_config_ubo->data;
@@ -151,7 +146,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
     {
         std::unique_ptr<webgpu::raii::RenderPassEncoder> render_pass = m_atmosphere_framebuffer->begin_render_pass(command_encoder);
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 0, m_camera_bind_group->handle(), 0, nullptr);
-        wgpuRenderPassEncoderSetPipeline(render_pass->handle(), m_pipeline_manager->render_atmosphere_pipeline().pipeline().handle());
+        wgpuRenderPassEncoderSetPipeline(render_pass->handle(), m_context->pipeline_manager()->render_atmosphere_pipeline().pipeline().handle());
         wgpuRenderPassEncoderDraw(render_pass->handle(), 3, 1, 0, 0);
     }
 
@@ -161,14 +156,15 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 0, m_shared_config_bind_group->handle(), 0, nullptr);
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 1, m_camera_bind_group->handle(), 0, nullptr);
 
-        const auto tile_set = m_tile_manager->generate_tilelist(m_camera);
-        m_tile_manager->draw(render_pass->handle(), m_camera, tile_set, true, m_camera.position());
+        const auto tile_set = m_context->tile_geometry()->generate_tilelist(m_camera);
+        const auto culled_tile_set = m_context->tile_geometry()->cull(tile_set, m_camera.frustum());
+        m_context->tile_geometry()->draw(render_pass->handle(), m_camera, culled_tile_set, true, m_camera.position());
     }
 
     // render geometry buffers to target framebuffer
     {
         std::unique_ptr<webgpu::raii::RenderPassEncoder> render_pass = framebuffer->begin_render_pass(command_encoder);
-        wgpuRenderPassEncoderSetPipeline(render_pass->handle(), m_pipeline_manager->compose_pipeline().pipeline().handle());
+        wgpuRenderPassEncoderSetPipeline(render_pass->handle(), m_context->pipeline_manager()->compose_pipeline().pipeline().handle());
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 0, m_shared_config_bind_group->handle(), 0, nullptr);
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 1, m_camera_bind_group->handle(), 0, nullptr);
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 2, m_compose_bind_group->handle(), 0, nullptr);
@@ -654,18 +650,18 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, 
     m_active_compute_pipeline_type = pipeline_type;
 
     if (pipeline_type == ComputePipelineType::NORMALS) {
-        m_compute_graph = compute::nodes::NodeGraph::create_normal_compute_graph(*m_pipeline_manager, m_device);
+        m_compute_graph = compute::nodes::NodeGraph::create_normal_compute_graph(*m_context->pipeline_manager(), m_device);
     } else if (pipeline_type == ComputePipelineType::NORMALS_AND_SNOW) {
-        m_compute_graph = compute::nodes::NodeGraph::create_normal_with_snow_compute_graph(*m_pipeline_manager, m_device);
+        m_compute_graph = compute::nodes::NodeGraph::create_normal_with_snow_compute_graph(*m_context->pipeline_manager(), m_device);
     } else if (pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
-        // m_compute_graph = compute::nodes::NodeGraph::create_trajectories_with_export_compute_graph(*m_pipeline_manager, m_device);
-        m_compute_graph = compute::nodes::NodeGraph::create_fxaa_trajectories_compute_graph(*m_pipeline_manager, m_device);
+        // m_compute_graph = compute::nodes::NodeGraph::create_trajectories_with_export_compute_graph(*m_context->pipeline_manager(), m_device);
+        m_compute_graph = compute::nodes::NodeGraph::create_fxaa_trajectories_compute_graph(*m_context->pipeline_manager(), m_device);
     } else if (pipeline_type == ComputePipelineType::D8_DIRECTIONS) {
-        m_compute_graph = compute::nodes::NodeGraph::create_d8_compute_graph(*m_pipeline_manager, m_device);
+        m_compute_graph = compute::nodes::NodeGraph::create_d8_compute_graph(*m_context->pipeline_manager(), m_device);
     } else if (pipeline_type == ComputePipelineType::RELEASE_POINTS) {
-        m_compute_graph = compute::nodes::NodeGraph::create_release_points_compute_graph(*m_pipeline_manager, m_device);
+        m_compute_graph = compute::nodes::NodeGraph::create_release_points_compute_graph(*m_context->pipeline_manager(), m_device);
     } else if (pipeline_type == ComputePipelineType::ITERATIVE_SIMULATION) {
-        m_compute_graph = compute::nodes::NodeGraph::create_iterative_simulation_compute_graph(*m_pipeline_manager, m_device);
+        m_compute_graph = compute::nodes::NodeGraph::create_iterative_simulation_compute_graph(*m_context->pipeline_manager(), m_device);
     }
 
     update_compute_pipeline_settings();
@@ -914,8 +910,7 @@ void Window::compute_mipmaps_for_texture(const webgpu::raii::Texture* texture)
             m_textureMipViews[i]->create_bind_group_entry(0),
             m_textureMipViews[i + 1]->create_bind_group_entry(1),
         };
-        auto bindGroup = std::make_unique<webgpu::raii::BindGroup>(
-            m_device, m_pipeline_manager->mipmap_creation_bind_group_layout(), bgEntries, "mipmap creation bindgroup");
+        auto bindGroup = std::make_unique<webgpu::raii::BindGroup>(m_device, m_context->pipeline_manager()->mipmap_creation_bind_group_layout(), bgEntries, "mipmap creation bindgroup");
         m_bindGroups.push_back(std::move(bindGroup));
     }
 
@@ -931,7 +926,7 @@ void Window::compute_mipmaps_for_texture(const webgpu::raii::Texture* texture)
             glm::uvec3 workgroup_counts = glm::ceil(glm::vec3(mipSizes[i + 1].width, mipSizes[i + 1].height, 1) / glm::vec3(SHADER_WORKGROUP_SIZE));
             qDebug() << "executing mipmap creation for mip level " << i << " with workgroup counts: " << workgroup_counts.x << "x" << workgroup_counts.y;
             wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, m_bindGroups[i]->handle(), 0, nullptr);
-            m_pipeline_manager->mipmap_creation_pipeline().run(compute_pass, workgroup_counts);
+            m_context->pipeline_manager()->mipmap_creation_pipeline().run(compute_pass, workgroup_counts);
         }
 
         WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
@@ -964,14 +959,8 @@ glm::dvec3 Window::position([[maybe_unused]] const glm::dvec2& normalised_device
 
 void Window::destroy()
 {
-    m_pipeline_manager->release_pipelines();
-    m_shader_manager->release_shader_modules();
-    emit gpu_ready_changed(false);
+    //  emit gpu_ready_changed(false); // TODO find replacement
 }
-
-void Window::set_aabb_decorator(const nucleus::tile_scheduler::utils::AabbDecoratorPtr& aabb_decorator) { m_tile_manager->set_aabb_decorator(aabb_decorator); }
-
-void Window::set_quad_limit(unsigned int new_limit) { m_tile_manager->set_quad_limit(new_limit); }
 
 nucleus::camera::AbstractDepthTester* Window::depth_tester()
 {
@@ -1015,12 +1004,9 @@ void Window::update_debug_scheduler_stats([[maybe_unused]] const QString& stats)
     // Logic for updating debug scheduler stats, parameter currently unused
 }
 
-void Window::update_gpu_quads([[maybe_unused]] const std::vector<nucleus::tile_scheduler::tile_types::GpuTileQuad>& new_quads,
-    [[maybe_unused]] const std::vector<tile::Id>& deleted_quads)
+void Window::pick_value([[maybe_unused]] const glm::dvec2& screen_space_coordinate)
 {
-    // std::cout << "received " << new_quads.size() << " new quads, should delete " << deleted_quads.size() << " quads" << std::endl;
-    m_tile_manager->update_gpu_quads(new_quads, deleted_quads);
-    m_needs_redraw = true;
+    // Logic for picking (e.g. read back id buffer for label picking or sth)
 }
 
 void Window::request_redraw() { m_needs_redraw = true; }
@@ -1080,7 +1066,7 @@ void Window::load_track_and_focus(const std::string& path)
 
 void Window::update_image_overlay_texture(const std::string& image_file_path)
 {
-    nucleus::Raster<glm::u8vec4> image = nucleus::utils::image_loader::rgba8(QString::fromStdString(image_file_path));
+    nucleus::Raster<glm::u8vec4> image = nucleus::utils::image_loader::rgba8(QString::fromStdString(image_file_path)).value();
     m_image_overlay_texture = create_overlay_texture(image.width(), image.height());
     m_image_overlay_texture->texture().write(m_queue, image);
     m_image_overlay_settings_uniform_buffer->data.texture_size = glm::uvec2(image.width(), image.height());
@@ -1166,7 +1152,7 @@ void Window::update_compute_overlay_texture(const webgpu::raii::TextureWithSampl
     recreate_compose_bind_group();
 }
 
-void Window::update_compute_overlay_aabb(const geometry::Aabb<2, double>& aabb)
+void Window::update_compute_overlay_aabb(const radix::geometry::Aabb<2, double>& aabb)
 {
     m_compute_overlay_settings_uniform_buffer->data.aabb_min = glm::fvec2(aabb.min);
     m_compute_overlay_settings_uniform_buffer->data.aabb_max = glm::fvec2(aabb.max);
@@ -1184,10 +1170,10 @@ void Window::after_first_frame()
 void Window::reload_shaders()
 {
     qDebug() << "reloading shaders...";
-    m_shader_manager->release_shader_modules();
-    m_shader_manager->create_shader_modules();
-    m_pipeline_manager->release_pipelines();
-    m_pipeline_manager->create_pipelines();
+    m_context->shader_module_manager()->release_shader_modules();
+    m_context->shader_module_manager()->create_shader_modules();
+    m_context->pipeline_manager()->release_pipelines();
+    m_context->pipeline_manager()->create_pipelines();
     qDebug() << "reloading shaders done";
     request_redraw();
 }
@@ -1218,7 +1204,7 @@ void Window::on_pipeline_run_completed()
         update_compute_overlay_texture(*texture);
 
         auto& select_tiles_node = m_compute_graph->get_node_as<compute::nodes::SelectTilesNode&>("select_tiles_node");
-        geometry::Aabb<2, double> selected_aabb = *std::get<const geometry::Aabb<2, double>*>(select_tiles_node.output_socket("region aabb").get_data());
+        radix::geometry::Aabb<2, double> selected_aabb = *std::get<const radix::geometry::Aabb<2, double>*>(select_tiles_node.output_socket("region aabb").get_data());
         selected_aabb.max -= glm::dvec2(nucleus::srs::tile_width(18) / 65, nucleus::srs::tile_height(18) / 65); // stitch node ignores last col/row
         update_compute_overlay_aabb(selected_aabb);
     }
@@ -1234,11 +1220,11 @@ void Window::create_buffers()
 
 void Window::create_bind_groups()
 {
-    m_shared_config_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->shared_config_bind_group_layout(),
-        std::initializer_list<WGPUBindGroupEntry> { m_shared_config_ubo->raw_buffer().create_bind_group_entry(0) });
+    m_shared_config_bind_group = std::make_unique<webgpu::raii::BindGroup>(
+        m_device, m_context->pipeline_manager()->shared_config_bind_group_layout(), std::initializer_list<WGPUBindGroupEntry> { m_shared_config_ubo->raw_buffer().create_bind_group_entry(0) });
 
-    m_camera_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->camera_bind_group_layout(),
-        std::initializer_list<WGPUBindGroupEntry> { m_camera_config_ubo->raw_buffer().create_bind_group_entry(0) });
+    m_camera_bind_group = std::make_unique<webgpu::raii::BindGroup>(
+        m_device, m_context->pipeline_manager()->camera_bind_group_layout(), std::initializer_list<WGPUBindGroupEntry> { m_camera_config_ubo->raw_buffer().create_bind_group_entry(0) });
 }
 
 void Window::recreate_compose_bind_group()
@@ -1251,7 +1237,8 @@ void Window::recreate_compose_bind_group()
     WGPUBindGroupEntry compute_overlay_texture_entry = compute_overlay_texture_view.create_bind_group_entry(9);
     WGPUBindGroupEntry compute_overlay_sampler_entry = compute_overlay_sampler.create_bind_group_entry(10);
 
-    m_compose_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->compose_bind_group_layout(),
+    m_compose_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device,
+        m_context->pipeline_manager()->compose_bind_group_layout(),
         std::initializer_list<WGPUBindGroupEntry> {
             m_gbuffer->color_texture_view(0).create_bind_group_entry(0), // albedo texture
             m_gbuffer->color_texture_view(1).create_bind_group_entry(1), // position texture

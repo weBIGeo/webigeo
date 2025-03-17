@@ -37,7 +37,7 @@ public:
     DownsampleTilesNode(const PipelineManager& pipeline_manager, WGPUDevice device, size_t capacity);
     DownsampleTilesNode(const PipelineManager& pipeline_manager, WGPUDevice device, size_t capacity, const DownsampleSettings& settings);
 
-    GpuHashMap<tile::Id, uint32_t, GpuTileId>& hash_map();
+    GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>& hash_map();
 
     TileStorageTexture& texture_storage();
 
@@ -48,8 +48,8 @@ public slots:
     void run_impl() override;
 
 private:
-    static std::vector<tile::Id> get_tile_ids_for_downsampled_tiles(const std::vector<tile::Id>& original_tile_ids);
-    std::optional<NodeRunFailureInfo> compute_downsampled_tiles(const std::vector<tile::Id>& tile_ids);
+    static std::vector<radix::tile::Id> get_tile_ids_for_downsampled_tiles(const std::vector<radix::tile::Id>& original_tile_ids);
+    std::optional<NodeRunFailureInfo> compute_downsampled_tiles(const std::vector<radix::tile::Id>& tile_ids);
 
 private:
     const PipelineManager* m_pipeline_manager;

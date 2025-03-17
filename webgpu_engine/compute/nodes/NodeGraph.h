@@ -61,13 +61,13 @@ public:
     //  - a texture array for overlay tiles
     //  - a hashmap for normals tiles (mapping tile id to texture array layer)
     //  - a texture array for normals tiles
-    const GpuHashMap<tile::Id, uint32_t, GpuTileId>& output_normals_hash_map() const;
-    GpuHashMap<tile::Id, uint32_t, GpuTileId>& output_normals_hash_map();
+    const GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>& output_normals_hash_map() const;
+    GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>& output_normals_hash_map();
     const TileStorageTexture& output_normals_texture_storage() const;
     TileStorageTexture& output_normals_texture_storage();
 
-    const GpuHashMap<tile::Id, uint32_t, GpuTileId>& output_overlay_hash_map() const;
-    GpuHashMap<tile::Id, uint32_t, GpuTileId>& output_overlay_hash_map();
+    const GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>& output_overlay_hash_map() const;
+    GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>& output_overlay_hash_map();
     const TileStorageTexture& output_overlay_texture_storage() const;
     TileStorageTexture& output_overlay_texture_storage();
 
@@ -99,10 +99,10 @@ public:
 private:
     std::unordered_map<std::string, std::unique_ptr<Node>> m_nodes;
 
-    GpuHashMap<tile::Id, uint32_t, GpuTileId>* m_output_normals_hash_map_ptr;
+    GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>* m_output_normals_hash_map_ptr;
     TileStorageTexture* m_output_normals_texture_storage_ptr;
 
-    GpuHashMap<tile::Id, uint32_t, GpuTileId>* m_output_overlay_hash_map_ptr;
+    GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>* m_output_overlay_hash_map_ptr;
     TileStorageTexture* m_output_overlay_texture_storage_ptr;
 };
 

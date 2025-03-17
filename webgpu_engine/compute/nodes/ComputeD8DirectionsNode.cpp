@@ -22,16 +22,15 @@ namespace webgpu_engine::compute::nodes {
 
 glm::uvec3 ComputeD8DirectionsNode::SHADER_WORKGROUP_SIZE = { 1, 16, 16 };
 
-ComputeD8DirectionsNode::ComputeD8DirectionsNode(
-    const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity)
+ComputeD8DirectionsNode::ComputeD8DirectionsNode(const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity)
     : Node(
           {
-              InputSocket(*this, "tile ids", data_type<const std::vector<tile::Id>*>()),
-              InputSocket(*this, "hash map", data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()),
+              InputSocket(*this, "tile ids", data_type<const std::vector<radix::tile::Id>*>()),
+              InputSocket(*this, "hash map", data_type<GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>*>()),
               InputSocket(*this, "height textures", data_type<TileStorageTexture*>()),
           },
           {
-              OutputSocket(*this, "hash map", data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(), [this]() { return &m_output_tile_map; }),
+              OutputSocket(*this, "hash map", data_type<GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>*>(), [this]() { return &m_output_tile_map; }),
               OutputSocket(*this, "d8 direction textures", data_type<TileStorageTexture*>(), [this]() { return &m_output_texture; }),
           })
     , m_pipeline_manager(&pipeline_manager)
@@ -39,9 +38,9 @@ ComputeD8DirectionsNode::ComputeD8DirectionsNode(
     , m_queue(wgpuDeviceGetQueue(device))
     , m_capacity(capacity)
     , m_input_tile_ids(device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc, capacity, "d8 direction compute, tile id buffer")
-    , m_output_tile_map(device, tile::Id { unsigned(-1), {} }, -1)
-    , m_output_texture(device, output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm,
-          WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc)
+    , m_output_tile_map(device, radix::tile::Id { unsigned(-1), {} }, -1)
+    , m_output_texture(
+          device, output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm, WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc)
 {
     m_output_tile_map.clear();
     m_output_tile_map.update_gpu_data();
@@ -52,8 +51,8 @@ void ComputeD8DirectionsNode::run_impl()
     qDebug() << "running ComputeD8DirectionsNode ...";
 
     // get input data
-    const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(input_socket("tile ids").get_connected_data());
-    const auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(input_socket("hash map").get_connected_data());
+    const auto& tile_ids = *std::get<data_type<const std::vector<radix::tile::Id>*>()>(input_socket("tile ids").get_connected_data());
+    const auto& hash_map = *std::get<data_type<GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>*>()>(input_socket("hash map").get_connected_data());
     const auto& height_textures = *std::get<data_type<TileStorageTexture*>()>(input_socket("height textures").get_connected_data());
 
     if (tile_ids.size() > m_output_texture.capacity()) {

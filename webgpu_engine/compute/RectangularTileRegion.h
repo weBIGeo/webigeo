@@ -27,9 +27,9 @@ struct RectangularTileRegion {
     glm::uvec2 min;
     glm::uvec2 max;
     unsigned int zoom_level;
-    tile::Scheme scheme;
+    radix::tile::Scheme scheme;
 
-    std::vector<tile::Id> get_tiles() const;
+    std::vector<radix::tile::Id> get_tiles() const;
 };
 
 } // namespace webgpu_engine::compute

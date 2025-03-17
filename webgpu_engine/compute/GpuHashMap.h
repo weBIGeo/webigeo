@@ -30,8 +30,8 @@ template <typename T, std::unsigned_integral HashType = uint16_t> HashType gpu_h
 {
     static_assert(sizeof(T) != sizeof(T), "default implementation should not be called, add a template specialization for your types");
 }
-/// specialization for generating uint16_t hashes from tile::Id
-template <> uint16_t gpu_hash<tile::Id, uint16_t>(const tile::Id& id);
+/// specialization for generating uint16_t hashes from radix::tile::Id
+template <> uint16_t gpu_hash<radix::tile::Id, uint16_t>(const radix::tile::Id& id);
 
 template <typename T, typename HashType = uint16_t>
 concept GpuHashable = std::unsigned_integral<HashType> && requires(T a) {
@@ -130,7 +130,7 @@ private:
     uint32_t m_capacity;
     KeyType m_empty_gpu_key;
     ValueType m_empty_gpu_value;
-    // TODO for now KeyType::Hasher works for tile::Id only
+    // TODO for now KeyType::Hasher works for radix::tile::Id only
     //  either make this a concept and require it for KeyType or required std::hash<KeyType>
     //  or manage using vector of pairs instead of hashmap (tho that would be slower, probably)
     std::unordered_map<KeyType, ValueType, typename KeyType::Hasher> m_stored_map;

@@ -43,7 +43,7 @@ struct Point {
 
 using Segment = std::vector<Point>;
 using Type = std::vector<Segment>;
-using BoundingBox = geometry::Aabb<3, double>;
+using BoundingBox = radix::geometry::Aabb<3, double>;
 
 struct Gpx {
     Type track;
@@ -79,7 +79,7 @@ std::vector<glm::vec4> to_world_points(const Gpx& gpx);
 
 std::vector<glm::vec4> to_world_points(const track::Segment& segment);
 
-geometry::Aabb<3, double> compute_world_aabb(const Gpx& gpx);
+BoundingBox compute_world_aabb(const Gpx& gpx);
 
 // for rendering with GL_TRIANGLE_STRIP
 std::vector<glm::vec3> triangle_strip_ribbon(const std::vector<glm::vec3>& points, float width);

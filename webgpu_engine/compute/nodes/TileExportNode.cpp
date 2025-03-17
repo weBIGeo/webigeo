@@ -38,8 +38,8 @@ webgpu_engine::compute::nodes::TileExportNode::TileExportNode(WGPUDevice device,
               InputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>()),
 
               // OR tile ids, hashmap and textures
-              InputSocket(*this, "tile ids", data_type<const std::vector<tile::Id>*>()),
-              InputSocket(*this, "hash map", data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()),
+              InputSocket(*this, "tile ids", data_type<const std::vector<radix::tile::Id>*>()),
+              InputSocket(*this, "hash map", data_type<GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>*>()),
               InputSocket(*this, "textures", data_type<TileStorageTexture*>()),
           },
           {})
@@ -114,8 +114,8 @@ void TileExportNode::impl_texture_array()
     m_exported_tile_count = 0;
 
     // get tile ids to process
-    const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(input_socket("tile ids").get_connected_data());
-    const auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(input_socket("hash map").get_connected_data());
+    const auto& tile_ids = *std::get<data_type<const std::vector<radix::tile::Id>*>()>(input_socket("tile ids").get_connected_data());
+    const auto& hash_map = *std::get<data_type<GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>*>()>(input_socket("hash map").get_connected_data());
     auto& textures = *std::get<data_type<TileStorageTexture*>()>(input_socket("textures").get_connected_data());
 
     m_total_tile_count = tile_ids.size();
@@ -151,7 +151,7 @@ void TileExportNode::readback_done()
     }
 
     // Read all tiles and convert them to u8vec4 raster (this step cuts off the overlap)
-    std::map<tile::Id, nucleus::Raster<glm::u8vec4>> rasters;
+    std::map<radix::tile::Id, nucleus::Raster<glm::u8vec4>> rasters;
     for (const auto& tile : m_tile_data) {
         const auto& tile_id = tile.first;
         rasters[tile_id] = nucleus::Raster<glm::u8vec4>(effective_tile_size);
@@ -185,7 +185,7 @@ void TileExportNode::readback_done()
             bounds[tile_id.zoom_level].z = std::max(bounds[tile_id.zoom_level].z, tile_id.coords.x);
             bounds[tile_id.zoom_level].w = std::max(bounds[tile_id.zoom_level].w, tile_id.coords.y);
 
-            tile::SrsBounds srs = nucleus::srs::tile_bounds(tile_id);
+            radix::tile::SrsBounds srs = nucleus::srs::tile_bounds(tile_id);
             bounds_srs[tile_id.zoom_level].x = std::min(bounds_srs[tile_id.zoom_level].x, srs.min.x);
             bounds_srs[tile_id.zoom_level].y = std::min(bounds_srs[tile_id.zoom_level].y, srs.min.y);
             bounds_srs[tile_id.zoom_level].z = std::max(bounds_srs[tile_id.zoom_level].z, srs.max.x);

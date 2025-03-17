@@ -34,7 +34,7 @@ public slots:
 private:
     WGPUDevice m_device;
     WGPUQueue m_queue;
-    GpuHashMap<tile::Id, uint32_t, GpuTileId> m_output_tile_id_to_index; // for looking up index for tile id
+    GpuHashMap<radix::tile::Id, uint32_t, GpuTileId> m_output_tile_id_to_index; // for looking up index for tile id
     TileStorageTexture m_output_tile_textures; // height texture per tile
 };
 

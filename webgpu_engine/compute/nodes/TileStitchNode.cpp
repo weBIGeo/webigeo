@@ -30,7 +30,7 @@ namespace webgpu_engine::compute::nodes {
 webgpu_engine::compute::nodes::TileStitchNode::TileStitchNode(const PipelineManager& manager, WGPUDevice device, StitchSettings settings)
     : Node(
           {
-              InputSocket(*this, "tile ids", data_type<const std::vector<tile::Id>*>()),
+              InputSocket(*this, "tile ids", data_type<const std::vector<radix::tile::Id>*>()),
               InputSocket(*this, "texture data", data_type<const std::vector<QByteArray>*>()),
           },
           { OutputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }) })
@@ -46,7 +46,7 @@ void TileStitchNode::run_impl()
     qDebug() << "running TileStitchNode ...";
 
     // get tile ids to process
-    const auto& tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(input_socket("tile ids").get_connected_data());
+    const auto& tile_ids = *std::get<data_type<const std::vector<radix::tile::Id>*>()>(input_socket("tile ids").get_connected_data());
     const auto& textures = *std::get<data_type<const std::vector<QByteArray>*>()>(input_socket("texture data").get_connected_data());
     assert(tile_ids.size() == textures.size());
 
@@ -127,7 +127,7 @@ void TileStitchNode::run_impl()
         }
 
         // Load image (NOTE: Only supports u8vec4 so far)
-        images[i] = nucleus::utils::image_loader::rgba8(texture_data);
+        images[i] = nucleus::utils::image_loader::rgba8(texture_data).value();
         const auto& image = images[i];
         assert(image.width() == so.x && image.height() == so.y);
 

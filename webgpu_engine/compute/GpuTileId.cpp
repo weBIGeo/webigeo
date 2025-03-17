@@ -27,7 +27,7 @@ GpuTileId::GpuTileId(uint32_t x, uint32_t y, uint32_t zoomlevel)
 {
 }
 
-GpuTileId::GpuTileId(const tile::Id& tile_id)
+GpuTileId::GpuTileId(const radix::tile::Id& tile_id)
     : x { tile_id.coords.x }
     , y { tile_id.coords.y }
     , zoomlevel { tile_id.zoom_level }

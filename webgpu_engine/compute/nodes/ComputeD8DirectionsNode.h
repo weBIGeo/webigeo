@@ -32,8 +32,8 @@ public:
 
     ComputeD8DirectionsNode(const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity);
 
-    const GpuHashMap<tile::Id, uint32_t, GpuTileId>& hash_map() const { return m_output_tile_map; }
-    GpuHashMap<tile::Id, uint32_t, GpuTileId>& hash_map() { return m_output_tile_map; }
+    const GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>& hash_map() const { return m_output_tile_map; }
+    GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>& hash_map() { return m_output_tile_map; }
     const TileStorageTexture& texture_storage() const { return m_output_texture; }
     TileStorageTexture& texture_storage() { return m_output_texture; }
 
@@ -50,7 +50,7 @@ private:
     webgpu::raii::RawBuffer<GpuTileId> m_input_tile_ids; // tile ids for which to calculate normals
 
     // output
-    GpuHashMap<tile::Id, uint32_t, GpuTileId> m_output_tile_map; // hash map
+    GpuHashMap<radix::tile::Id, uint32_t, GpuTileId> m_output_tile_map; // hash map
     TileStorageTexture m_output_texture; // texture per tile
 };
 

@@ -33,13 +33,12 @@ DownsampleTilesNode::DownsampleTilesNode(const PipelineManager& pipeline_manager
 DownsampleTilesNode::DownsampleTilesNode(const PipelineManager& pipeline_manager, WGPUDevice device, size_t capacity, const DownsampleSettings& settings)
     : Node(
           {
-              InputSocket(*this, "tile ids", data_type<const std::vector<tile::Id>*>()),
-              InputSocket(*this, "hash map", data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()),
+              InputSocket(*this, "tile ids", data_type<const std::vector<radix::tile::Id>*>()),
+              InputSocket(*this, "hash map", data_type<GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>*>()),
               InputSocket(*this, "textures", data_type<TileStorageTexture*>()),
           },
           {
-              OutputSocket(*this, "hash map", data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>(),
-                  [this]() { return input_socket("hash map").connected_socket().get_data(); }),
+              OutputSocket(*this, "hash map", data_type<GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>*>(), [this]() { return input_socket("hash map").connected_socket().get_data(); }),
               OutputSocket(*this, "textures", data_type<TileStorageTexture*>(), [this]() { return input_socket("textures").connected_socket().get_data(); }),
           })
     , m_pipeline_manager { &pipeline_manager }
@@ -51,9 +50,9 @@ DownsampleTilesNode::DownsampleTilesNode(const PipelineManager& pipeline_manager
 {
 }
 
-GpuHashMap<tile::Id, uint32_t, GpuTileId>& DownsampleTilesNode::hash_map()
+GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>& DownsampleTilesNode::hash_map()
 {
-    return *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(input_socket("hash map").get_connected_data());
+    return *std::get<data_type<GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>*>()>(input_socket("hash map").get_connected_data());
 }
 
 TileStorageTexture& DownsampleTilesNode::texture_storage()
@@ -75,12 +74,12 @@ void DownsampleTilesNode::run_impl()
         return;
     }
 
-    const auto& original_tile_ids = *std::get<data_type<const std::vector<tile::Id>*>()>(input_socket("tile ids").get_connected_data());
-    auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(input_socket("hash map").get_connected_data());
+    const auto& original_tile_ids = *std::get<data_type<const std::vector<radix::tile::Id>*>()>(input_socket("tile ids").get_connected_data());
+    auto& hash_map = *std::get<data_type<GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>*>()>(input_socket("hash map").get_connected_data());
     auto& hashmap_textures = *std::get<data_type<TileStorageTexture*>()>(input_socket("textures").get_connected_data());
 
     // determine downsampled tile ids
-    std::vector<tile::Id> downsampled_tile_ids = get_tile_ids_for_downsampled_tiles(original_tile_ids);
+    std::vector<radix::tile::Id> downsampled_tile_ids = get_tile_ids_for_downsampled_tiles(original_tile_ids);
 
     // (re)create storage texture to write downsampled tiles to
     m_internal_storage_texture = std::make_unique<TileStorageTexture>(m_device, glm::uvec2 { hashmap_textures.width(), hashmap_textures.height() },
@@ -124,21 +123,19 @@ void DownsampleTilesNode::run_impl()
         this);
 }
 
-std::vector<tile::Id> DownsampleTilesNode::get_tile_ids_for_downsampled_tiles(const std::vector<tile::Id>& original_tile_ids)
+std::vector<radix::tile::Id> DownsampleTilesNode::get_tile_ids_for_downsampled_tiles(const std::vector<radix::tile::Id>& original_tile_ids)
 {
-    std::unordered_set<tile::Id, tile::Id::Hasher> unique_downsampled_tile_ids;
+    std::unordered_set<radix::tile::Id, radix::tile::Id::Hasher> unique_downsampled_tile_ids;
     unique_downsampled_tile_ids.reserve(original_tile_ids.size());
-    std::for_each(std::begin(original_tile_ids), std::end(original_tile_ids),
-        [&unique_downsampled_tile_ids](const tile::Id& tile_id) { unique_downsampled_tile_ids.insert(tile_id.parent()); });
+    std::for_each(std::begin(original_tile_ids), std::end(original_tile_ids), [&unique_downsampled_tile_ids](const radix::tile::Id& tile_id) { unique_downsampled_tile_ids.insert(tile_id.parent()); });
 
-    std::vector<tile::Id> downsampled_tile_ids;
+    std::vector<radix::tile::Id> downsampled_tile_ids;
     downsampled_tile_ids.reserve(unique_downsampled_tile_ids.size());
-    std::for_each(std::begin(unique_downsampled_tile_ids), std::end(unique_downsampled_tile_ids),
-        [&](const tile::Id& tile_id) { downsampled_tile_ids.emplace_back(tile_id); });
+    std::for_each(std::begin(unique_downsampled_tile_ids), std::end(unique_downsampled_tile_ids), [&](const radix::tile::Id& tile_id) { downsampled_tile_ids.emplace_back(tile_id); });
     return downsampled_tile_ids;
 }
 
-std::optional<NodeRunFailureInfo> DownsampleTilesNode::compute_downsampled_tiles(const std::vector<tile::Id>& tile_ids)
+std::optional<NodeRunFailureInfo> DownsampleTilesNode::compute_downsampled_tiles(const std::vector<radix::tile::Id>& tile_ids)
 {
     qDebug() << "need to calculate " << tile_ids.size() << " downsampled tiles";
 
@@ -148,7 +145,7 @@ std::optional<NodeRunFailureInfo> DownsampleTilesNode::compute_downsampled_tiles
                 m_input_tile_ids.size()));
     }
 
-    auto& hash_map = *std::get<data_type<GpuHashMap<tile::Id, uint32_t, GpuTileId>*>()>(input_socket("hash map").get_connected_data());
+    auto& hash_map = *std::get<data_type<GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>*>()>(input_socket("hash map").get_connected_data());
     auto& hashmap_textures = *std::get<data_type<TileStorageTexture*>()>(input_socket("textures").get_connected_data());
 
     if (hashmap_textures.num_used() + tile_ids.size() > hashmap_textures.capacity()) {
@@ -160,8 +157,7 @@ std::optional<NodeRunFailureInfo> DownsampleTilesNode::compute_downsampled_tiles
 
     std::vector<GpuTileId> gpu_tile_ids;
     gpu_tile_ids.reserve(tile_ids.size());
-    std::for_each(std::begin(tile_ids), std::end(tile_ids),
-        [&gpu_tile_ids](const tile::Id& tile_id) { gpu_tile_ids.emplace_back(tile_id.coords.x, tile_id.coords.y, tile_id.zoom_level); });
+    std::for_each(std::begin(tile_ids), std::end(tile_ids), [&gpu_tile_ids](const radix::tile::Id& tile_id) { gpu_tile_ids.emplace_back(tile_id.coords.x, tile_id.coords.y, tile_id.zoom_level); });
 
     m_input_tile_ids.write(m_queue, gpu_tile_ids.data(), gpu_tile_ids.size());
 

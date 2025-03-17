@@ -28,7 +28,7 @@ webgpu_engine::compute::nodes::HeightDecodeNode::HeightDecodeNode(const Pipeline
     : Node(
           {
               InputSocket(*this, "encoded texture", data_type<const webgpu::raii::TextureWithSampler*>()),
-              InputSocket(*this, "region aabb", data_type<const geometry::Aabb<2, double>*>()),
+              InputSocket(*this, "region aabb", data_type<const radix::geometry::Aabb<2, double>*>()),
           },
           {
               OutputSocket(*this, "decoded texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }),
@@ -45,7 +45,7 @@ void HeightDecodeNode::run_impl()
 {
     qDebug() << "running HeightDecodeNode ...";
 
-    const auto region_aabb = std::get<data_type<const geometry::Aabb<2, double>*>()>(input_socket("region aabb").get_connected_data());
+    const auto region_aabb = std::get<data_type<const radix::geometry::Aabb<2, double>*>()>(input_socket("region aabb").get_connected_data());
     const auto& input_texture = *std::get<data_type<const webgpu::raii::TextureWithSampler*>()>(input_socket("encoded texture").get_connected_data());
 
     glm::uvec2 size = glm::uvec2(input_texture.texture().width(), input_texture.texture().height());

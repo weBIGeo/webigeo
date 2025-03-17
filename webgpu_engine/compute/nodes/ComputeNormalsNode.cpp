@@ -27,7 +27,7 @@ glm::uvec3 ComputeNormalsNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
 ComputeNormalsNode::ComputeNormalsNode(const PipelineManager& pipeline_manager, WGPUDevice device)
     : Node(
           {
-              InputSocket(*this, "bounds", data_type<const geometry::Aabb<2, double>*>()),
+              InputSocket(*this, "bounds", data_type<const radix::geometry::Aabb<2, double>*>()),
               InputSocket(*this, "height texture", data_type<const webgpu::raii::TextureWithSampler*>()),
           },
           {
@@ -44,7 +44,7 @@ void ComputeNormalsNode::run_impl()
 {
     qDebug() << "running NormalComputeNode ...";
 
-    const auto& bounds = *std::get<data_type<const geometry::Aabb<2, double>*>()>(input_socket("bounds").get_connected_data());
+    const auto& bounds = *std::get<data_type<const radix::geometry::Aabb<2, double>*>()>(input_socket("bounds").get_connected_data());
     const auto& height_texture = *std::get<data_type<const webgpu::raii::TextureWithSampler*>()>(input_socket("height texture").get_connected_data());
 
     m_output_texture

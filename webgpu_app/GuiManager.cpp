@@ -32,7 +32,7 @@
 #include <QDebug>
 #include <QFile>
 #include <nucleus/camera/PositionStorage.h>
-#include <nucleus/tile_scheduler/Scheduler.h>
+#include <nucleus/tile/Scheduler.h>
 
 namespace webgpu_app {
 
@@ -77,7 +77,7 @@ void GuiManager::init(
 
     this->install_fonts();
 
-    nucleus::Raster<glm::u8vec4> logo = nucleus::utils::image_loader::rgba8(":/gfx/sujet_shadow.png");
+    nucleus::Raster<glm::u8vec4> logo = nucleus::utils::image_loader::rgba8(":/gfx/sujet_shadow.png").value();
 
     m_webigeo_logo_size = ImVec2(logo.width(), logo.height());
 
@@ -279,7 +279,7 @@ void GuiManager::draw()
                     m_selected_camera_preset = int(n);
 
                     const auto position_storage = nucleus::camera::PositionStorage::instance();
-                    const auto camera_controller = m_terrain_renderer->get_controller()->camera_controller();
+                    const auto camera_controller = m_terrain_renderer->get_camera_controller();
                     auto new_definition = position_storage->get_by_index(m_selected_camera_preset);
                     auto old_vp_size = camera_controller->definition().viewport_size();
                     new_definition.set_viewport_size(old_vp_size);
@@ -297,9 +297,9 @@ void GuiManager::draw()
         m_terrain_renderer->render_gui();
         static float render_quality = 0.5f;
         if (ImGui::SliderFloat("Level of Detail", &render_quality, 0.1f, 2.0f)) {
-            auto* const tile_scheduler = m_terrain_renderer->get_controller()->tile_scheduler();
+            auto* const tile_geometry = m_terrain_renderer->get_context()->tile_geometry();
             const auto permissible_error = 1.0f / render_quality;
-            tile_scheduler->set_permissible_screen_space_error(permissible_error);
+            tile_geometry->set_permissible_screen_space_error(permissible_error);
             m_terrain_renderer->update_camera();
             qDebug() << "Setting permissible error to " << permissible_error;
         }
@@ -391,7 +391,7 @@ void GuiManager::draw()
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0)); // No padding for better icon alignment
         ImGui::Begin("RotateNorthButton", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize);
 
-        auto camController = m_terrain_renderer->get_controller()->camera_controller();
+        auto camController = m_terrain_renderer->get_camera_controller();
 
         if (ImGui::InvisibleButton("RotateNorthBtn", ImVec2(48, 48))) {
             camController->rotate_north();
