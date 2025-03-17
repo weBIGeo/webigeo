@@ -88,7 +88,7 @@ endif()
 
 ########################################### dependencies #################################################
 find_package(Qt6 REQUIRED COMPONENTS Core Gui OpenGL Network Quick QuickControls2 LinguistTools)
-qt_standard_project_setup(REQUIRES 6.8)
+qt_standard_project_setup(REQUIRES 6.7)
 
 include(cmake/alp_add_git_repository.cmake)
 alp_add_git_repository(renderer_static_data URL https://github.com/AlpineMapsOrg/renderer_static_data.git COMMITISH v23.11 DO_NOT_ADD_SUBPROJECT)
