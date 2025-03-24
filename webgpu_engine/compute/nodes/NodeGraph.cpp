@@ -215,11 +215,15 @@ static std::unique_ptr<NodeGraph> create_trajectories_compute_graph_unconnected(
 {
     auto node_graph = create_release_points_compute_graph_unconnected(manager, device);
 
-    ComputeAvalancheTrajectoriesNode* trajectories_node = static_cast<ComputeAvalancheTrajectoriesNode*>(
-        node_graph->add_node("compute_avalanche_trajectories_node", std::make_unique<ComputeAvalancheTrajectoriesNode>(manager, device)));
+    ComputeAvalancheTrajectoriesNode* trajectories_node
+        = static_cast<ComputeAvalancheTrajectoriesNode*>(node_graph->add_node("compute_avalanche_trajectories_node", std::make_unique<ComputeAvalancheTrajectoriesNode>(manager, device)));
 
+    BufferToTextureNode::BufferToTextureSettings buffer_to_texture_settings {
+        .format = WGPUTextureFormat_RGBA8Unorm,
+        .usage = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc),
+    };
     BufferToTextureNode* buffer_to_texture_node
-        = static_cast<BufferToTextureNode*>(node_graph->add_node("buffer_to_texture_node", std::make_unique<BufferToTextureNode>(manager, device)));
+        = static_cast<BufferToTextureNode*>(node_graph->add_node("buffer_to_texture_node", std::make_unique<BufferToTextureNode>(manager, device, buffer_to_texture_settings)));
 
     // connect trajectories node inputs
     trajectories_node->input_socket("region aabb").connect(node_graph->get_node("select_tiles_node").output_socket("region aabb"));
@@ -367,19 +371,26 @@ std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_with_export_compute_gr
 
     // === SETUP EXPORT NODES ===
     {
-        TileExportNode::ExportSettings export_settings_rp = { true, true, true, true, "rp_export" };
-        TileExportNode* rp_export_node
-            = static_cast<TileExportNode*>(node_graph->add_node("rp_export", std::make_unique<TileExportNode>(device, export_settings_rp)));
+        TileExportNode::ExportSettings export_settings_rp = { true, true, true, true, "export/release_points" };
+        TileExportNode* rp_export_node = static_cast<TileExportNode*>(node_graph->add_node("rp_export", std::make_unique<TileExportNode>(device, export_settings_rp)));
 
-        TileExportNode::ExportSettings export_settings_height = { true, true, true, true, "height_export" };
-        TileExportNode* height_export_node
-            = static_cast<TileExportNode*>(node_graph->add_node("height_export", std::make_unique<TileExportNode>(device, export_settings_height)));
+        TileExportNode::ExportSettings export_settings_height = { true, true, true, true, "export/heights" };
+        TileExportNode* height_export_node = static_cast<TileExportNode*>(node_graph->add_node("height_export", std::make_unique<TileExportNode>(device, export_settings_height)));
+
+        TileExportNode::ExportSettings export_settings_trajectories = { true, true, true, true, "export/trajectories" };
+        TileExportNode* trajectories_export_node = static_cast<TileExportNode*>(node_graph->add_node("trajectories_export", std::make_unique<TileExportNode>(device, export_settings_trajectories)));
 
         // Connect release points export node
         rp_export_node->input_socket("texture").connect(node_graph->get_node("compute_release_points_node").output_socket("release point texture"));
+        rp_export_node->input_socket("region aabb").connect(node_graph->get_node("select_tiles_node").output_socket("region aabb"));
 
         // Connect height tiles export node
         height_export_node->input_socket("texture").connect(node_graph->get_node("stitch_node").output_socket("texture"));
+        height_export_node->input_socket("region aabb").connect(node_graph->get_node("select_tiles_node").output_socket("region aabb"));
+
+        // Connect trajectories export node
+        trajectories_export_node->input_socket("texture").connect(node_graph->get_node("buffer_to_texture_node").output_socket("texture"));
+        trajectories_export_node->input_socket("region aabb").connect(node_graph->get_node("select_tiles_node").output_socket("region aabb"));
     }
 
     node_graph->connect_node_signals_and_slots();
