@@ -403,6 +403,7 @@ void TerrainRenderer::start() {
 #endif
     webgpu_release_context();
     m_webgpu_window->destroy();
+    m_context->destroy();
 
     SDL_DestroyWindow(m_sdl_window);
     SDL_Quit();
