@@ -34,8 +34,9 @@ namespace webgpu_engine::compute::nodes {
 webgpu_engine::compute::nodes::TileExportNode::TileExportNode(WGPUDevice device, ExportSettings settings)
     : Node(
           {
-              // need to pass EITHER texture
+              // need to pass EITHER single texture
               InputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>()),
+              InputSocket(*this, "region aabb", data_type<const radix::geometry::Aabb<2, double>*>()), // optional, aabb file only written if connected
 
               // OR tile ids, hashmap and textures
               InputSocket(*this, "tile ids", data_type<const std::vector<radix::tile::Id>*>()),
@@ -63,6 +64,20 @@ void TileExportNode::run_impl()
         assert(input_socket("hash map").is_socket_connected());
         assert(input_socket("textures").is_socket_connected());
         impl_texture_array();
+    }
+}
+
+void TileExportNode::write_aabb_file(const QString& file_path, const radix::geometry::Aabb<2, double>& bounds)
+{
+    QFile file(file_path);
+    if (file.open(QIODevice::WriteOnly)) {
+        QTextStream stream(&file);
+        stream.setRealNumberPrecision(30);
+        stream << bounds.min.x << "\n";
+        stream << bounds.min.y << "\n";
+        stream << bounds.max.x << "\n";
+        stream << bounds.max.y << "\n";
+        file.close();
     }
 }
 
@@ -98,14 +113,20 @@ void TileExportNode::impl_single_texture()
 
         // Make sure output directory exists
         const auto parent_directory = std::filesystem::path(m_settings.output_directory);
-        std::filesystem::create_directory(parent_directory);
+        std::filesystem::create_directories(parent_directory);
         qDebug() << "Writing file to " << std::filesystem::canonical(parent_directory).string();
 
         // Write to file
-        QString file_path = QString::fromStdString((parent_directory / "texture.png").string());
-        nucleus::utils::image_writer::rgba8_as_png(raster, file_path);
+        QString texture_file_path = QString::fromStdString((parent_directory / "texture.png").string());
+        nucleus::utils::image_writer::rgba8_as_png(raster, texture_file_path);
 
-        emit this->run_completed();
+        if (input_socket("region aabb").is_socket_connected()) {
+            const auto& region_aabb = *std::get<data_type<const radix::geometry::Aabb<2, double>*>()>(input_socket("region aabb").get_connected_data());
+            QString region_file_path = QString::fromStdString((parent_directory / "aabb.txt").string());
+            write_aabb_file(region_file_path, region_aabb);
+        }
+
+        emit this->run_completed(); 
     });
 }
 
@@ -162,7 +183,7 @@ void TileExportNode::readback_done()
 
     // Make sure output directory exists
     const auto parent_directory = std::filesystem::path(m_settings.output_directory);
-    std::filesystem::create_directory(parent_directory);
+    std::filesystem::create_directories(parent_directory);
     qDebug() << "Writing files to " << std::filesystem::canonical(parent_directory).string();
 
     if (m_settings.stitch_tiles) {
@@ -246,22 +267,13 @@ void TileExportNode::readback_done()
             uint32_t zoom_level = stitched_raster.first;
             const auto& raster = stitched_raster.second;
 
-            QString file_path = QString::fromStdString((parent_directory / (std::to_string(zoom_level) + ".png")).string());
-            nucleus::utils::image_writer::rgba8_as_png(raster, file_path);
+            QString texture_file_path = QString::fromStdString((parent_directory / (std::to_string(zoom_level) + ".png")).string());
+            nucleus::utils::image_writer::rgba8_as_png(raster, texture_file_path);
 
             if (m_settings.stitch_export_aabb_text_files) {
                 // Write out text file with the bounding box in SRS coordinates as saved in bounds_srs
-                QString file_path = QString::fromStdString((parent_directory / (std::to_string(zoom_level) + "_aabb.txt")).string());
-                QFile file(file_path);
-                if (file.open(QIODevice::WriteOnly)) {
-                    QTextStream stream(&file);
-                    stream.setRealNumberPrecision(30);
-                    stream << bounds_srs[zoom_level].x << "\n";
-                    stream << bounds_srs[zoom_level].y << "\n";
-                    stream << bounds_srs[zoom_level].z << "\n";
-                    stream << bounds_srs[zoom_level].w << "\n";
-                    file.close();
-                }
+                QString region_file_path = QString::fromStdString((parent_directory / (std::to_string(zoom_level) + "_aabb.txt")).string());
+                write_aabb_file(region_file_path, { { bounds_srs[zoom_level].x, bounds_srs[zoom_level].y }, { bounds_srs[zoom_level].z, bounds_srs[zoom_level].w } });
             }
         }
 
