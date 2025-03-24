@@ -54,6 +54,7 @@ set(SOURCES
     compute/nodes/HeightDecodeNode.h compute/nodes/HeightDecodeNode.cpp
     compute/nodes/FxaaNode.h compute/nodes/FxaaNode.cpp
     compute/nodes/IterativeSimulationNode.h compute/nodes/IterativeSimulationNode.cpp
+    compute/nodes/LoadTextureNode.h compute/nodes/LoadTextureNode.cpp
 )
 
 qt_add_library(webgpu_engine STATIC ${SOURCES})

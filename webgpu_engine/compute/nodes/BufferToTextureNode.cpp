@@ -25,7 +25,7 @@ glm::uvec3 BufferToTextureNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
 const uint32_t BufferToTextureNode::MAX_TEXTURE_RESOLUTION = 8192;
 
 BufferToTextureNode::BufferToTextureNode(const PipelineManager& pipeline_manager, WGPUDevice device)
-    : webgpu_engine::compute::nodes::BufferToTextureNode(pipeline_manager, device, BufferToTextureSettings())
+    : BufferToTextureNode(pipeline_manager, device, BufferToTextureSettings())
 {
 }
 
