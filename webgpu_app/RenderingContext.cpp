@@ -87,9 +87,9 @@ void RenderingContext::initialize(WGPUDevice webgpu_device)
     connect(m_ortho_scheduler_holder.scheduler.get(), &nucleus::tile::TextureScheduler::gpu_quads_updated, m_engine_context->tile_geometry(), &webgpu_engine::TileGeometry::update_gpu_quads_ortho);
     nucleus::utils::thread::async_call(m_geometry_scheduler_holder.scheduler.get(), [this]() { m_geometry_scheduler_holder.scheduler->set_enabled(true); });
 
-    const auto texture_compression = nucleus::utils::ColourTexture::Format::Uncompressed_RGBA;
-    nucleus::utils::thread::async_call(m_ortho_scheduler_holder.scheduler.get(), [this, texture_compression]() {
-        m_ortho_scheduler_holder.scheduler->set_texture_compression_algorithm(texture_compression);
+    // TODO: texture compression
+    nucleus::utils::thread::async_call(m_ortho_scheduler_holder.scheduler.get(), [this]() {
+        m_ortho_scheduler_holder.scheduler->set_texture_compression_algorithm(nucleus::utils::ColourTexture::Format::Uncompressed_RGBA);
         m_ortho_scheduler_holder.scheduler->set_enabled(true);
     });
 
