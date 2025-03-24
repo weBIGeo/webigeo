@@ -33,13 +33,13 @@ TEST_CASE("webgpu hash map")
     };
 
     HashMapValue default_value = {};
-    tile::Id default_key = tile::Id { unsigned(-1), {} };
+    radix::tile::Id default_key = radix::tile::Id { unsigned(-1), {} };
 
     SECTION("store values")
     {
         // non-colliding tile ids
-        tile::Id key1 { 1, { 1, 1 } };
-        tile::Id key2 { 1, { 2, 3 } };
+        radix::tile::Id key1 { 1, { 1, 1 } };
+        radix::tile::Id key2 { 1, { 2, 3 } };
         const HashMapValue value1 { 1 };
         const HashMapValue value2 { 2 };
         const uint16_t hash1 = webgpu_engine::compute::gpu_hash(key1);
@@ -47,7 +47,7 @@ TEST_CASE("webgpu hash map")
         assert(hash1 != hash2);
 
         // store values in gpu hash map
-        webgpu_engine::compute::GpuHashMap<tile::Id, HashMapValue, compute::GpuTileId> gpu_hash_map(context.device, default_key, default_value);
+        webgpu_engine::compute::GpuHashMap<radix::tile::Id, HashMapValue, compute::GpuTileId> gpu_hash_map(context.device, default_key, default_value);
         gpu_hash_map.store(key1, value1);
         gpu_hash_map.store(key2, value2);
         gpu_hash_map.update_gpu_data();
@@ -98,20 +98,20 @@ TEST_CASE("webgpu hash map")
     SECTION("collision handling")
     {
         // colliding tile ids
-        tile::Id key1 { 11, { 59333, 45444 } };
-        tile::Id key2 { 5, { 20012, 35075 } };
+        radix::tile::Id key1 { 11, { 59333, 45444 } };
+        radix::tile::Id key2 { 5, { 20012, 35075 } };
         const HashMapValue value1 { 1 };
         const HashMapValue value2 { 2 };
         const uint16_t hash1 = webgpu_engine::compute::gpu_hash(key1);
         assert(hash1 == webgpu_engine::compute::gpu_hash(key2));
 
         // store values in gpu hash map
-        webgpu_engine::compute::GpuHashMap<tile::Id, HashMapValue> gpu_hash_map(context.device, default_key, default_value);
+        webgpu_engine::compute::GpuHashMap<radix::tile::Id, HashMapValue> gpu_hash_map(context.device, default_key, default_value);
         gpu_hash_map.store(key1, value1);
         gpu_hash_map.store(key2, value2);
         gpu_hash_map.update_gpu_data();
 
-        std::vector<tile::Id> ids;
+        std::vector<radix::tile::Id> ids;
         gpu_hash_map.key_buffer().read_back_sync(context.device, ids, 1000);
         std::vector<HashMapValue> values;
         gpu_hash_map.value_buffer().read_back_sync(context.device, values, 1000);
