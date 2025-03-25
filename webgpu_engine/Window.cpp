@@ -1074,6 +1074,7 @@ void Window::update_image_overlay_texture(const std::string& image_file_path)
     recreate_compose_bind_group();
 }
 
+// TODO duplicate code, also in LoadRegionAabbNode!
 bool Window::update_image_overlay_aabb(const std::string& aabb_file_path)
 {
     QFile aabb_file(QString::fromStdString(aabb_file_path));
