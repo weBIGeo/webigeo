@@ -66,6 +66,11 @@ struct ComputePipelineSettings {
     int runout_model_type = int(compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType::FLOWPY);
     compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutPerlaParams perla;
     float runout_flowpy_alpha = 25.0f; // degrees
+
+    // file paths for evaluation pipeline
+    std::string release_points_texture_path;
+    std::string heightmap_texture_path;
+    std::string aabb_file_path;
 };
 
 struct GuiErrorState {
@@ -80,6 +85,7 @@ public:
         NORMALS = 0,
         NORMALS_AND_SNOW = 1,
         AVALANCHE_TRAJECTORIES = 2,
+        AVALANCHE_TRAJECTORIES_EVAL = 3,
         D8_DIRECTIONS = 4,
         RELEASE_POINTS = 5,
         ITERATIVE_SIMULATION = 6,

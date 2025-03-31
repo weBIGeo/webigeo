@@ -21,6 +21,8 @@
 #include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
 #include "compute/nodes/ComputeReleasePointsNode.h"
 #include "compute/nodes/ComputeSnowNode.h"
+#include "compute/nodes/LoadRegionAabbNode.h"
+#include "compute/nodes/LoadTextureNode.h"
 #include "compute/nodes/SelectTilesNode.h"
 #include "nucleus/track/GPX.h"
 #include "nucleus/utils/image_loader.h"
@@ -433,6 +435,7 @@ void Window::paint_compute_pipeline_gui()
             { "Normals", ComputePipelineType::NORMALS },
             { "Snow + Normals", ComputePipelineType::NORMALS_AND_SNOW },
             { "Avalanche trajectories", ComputePipelineType::AVALANCHE_TRAJECTORIES },
+            { "Avalanche trajectories (eval)", ComputePipelineType::AVALANCHE_TRAJECTORIES_EVAL },
             { "D8 directions", ComputePipelineType::D8_DIRECTIONS },
             { "Release points", ComputePipelineType::RELEASE_POINTS },
             { "Iterative simulation (WIP)", ComputePipelineType::ITERATIVE_SIMULATION },
@@ -562,14 +565,144 @@ void Window::paint_compute_pipeline_gui()
                         update_settings_and_rerun_pipeline();
                     }
                 }
+            } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES_EVAL) {
+
+                const uint32_t min_resolution_multiplier = 1;
+                const uint32_t max_resolution_multiplier = 32;
+                ImGui::SliderScalar("Resolution", ImGuiDataType_U32, &m_compute_pipeline_settings.trajectory_resolution_multiplier, &min_resolution_multiplier, &max_resolution_multiplier, "%ux");
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    update_settings_and_rerun_pipeline();
+                }
+
+                const uint32_t min_steps = 1;
+                const uint32_t max_steps = 1024;
+                ImGui::DragScalar("Num steps", ImGuiDataType_U32, &m_compute_pipeline_settings.num_steps, 1.0f, &min_steps, &max_steps, "%u");
+                // ImGui::SliderScalar("Num steps", ImGuiDataType_U32, &m_compute_pipeline_settings.num_steps, &min_steps, &max_steps, "%u");
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    update_settings_and_rerun_pipeline();
+                }
+
+                const uint32_t min_num_samples = 1;
+                const uint32_t max_num_samples = 1024;
+                ImGui::DragScalar("Paths per release point", ImGuiDataType_U32, &m_compute_pipeline_settings.num_paths_per_release_cell, 1.0f, &min_num_samples, &max_num_samples, "%u");
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    update_settings_and_rerun_pipeline();
+                }
+
+                ImGui::DragFloat("Random contribution", &m_compute_pipeline_settings.random_contribution, 0.01f, 0.0f, 1.0f, "%.3f");
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    update_settings_and_rerun_pipeline();
+                }
+
+                ImGui::DragFloat("Persistence", &m_compute_pipeline_settings.persistence_contribution, 0.01f, 0.0f, 1.0f, "%.3f");
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    update_settings_and_rerun_pipeline();
+                }
+
+                static int runout_models_current_item = 1;
+                const std::vector<std::pair<std::string, int>> runout_models = {
+                    { "None", 0 },
+                    { "FlowPy (Alpha)", 2 },
+                };
+                const char* current_item_label = runout_models[runout_models_current_item].first.c_str();
+                if (ImGui::BeginCombo("Runout model", current_item_label)) {
+                    for (size_t i = 0; i < runout_models.size(); i++) {
+                        bool is_selected = ((size_t)runout_models_current_item == i);
+                        if (ImGui::Selectable(runout_models[i].first.c_str(), is_selected)) {
+                            runout_models_current_item = i;
+                            m_compute_pipeline_settings.runout_model_type = runout_models[i].second;
+                            update_settings_and_rerun_pipeline();
+                        }
+                        if (is_selected)
+                            ImGui::SetItemDefaultFocus();
+                    }
+                    ImGui::EndCombo();
+                }
+
+                if (m_compute_pipeline_settings.runout_model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType::PERLA) {
+                    ImGui::SliderFloat("My##runout_perla", &m_compute_pipeline_settings.perla.my, 0.004f, 0.6f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        update_settings_and_rerun_pipeline();
+                    }
+                    ImGui::SliderFloat("M/D##runout_perla", &m_compute_pipeline_settings.perla.md, 20.0f, 150.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        update_settings_and_rerun_pipeline();
+                    }
+                    ImGui::SliderFloat("L##runout_perla", &m_compute_pipeline_settings.perla.l, 1.0f, 15.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        update_settings_and_rerun_pipeline();
+                    }
+                    ImGui::SliderFloat("Gravity##runout_perla", &m_compute_pipeline_settings.perla.g, 0.0f, 15.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        update_settings_and_rerun_pipeline();
+                    }
+                } else if (m_compute_pipeline_settings.runout_model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType::FLOWPY) {
+                    ImGui::DragFloat("Alpha##runout_flowpy", &m_compute_pipeline_settings.runout_flowpy_alpha, 0.01f, 0.0f, 90.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        update_settings_and_rerun_pipeline();
+                    }
+                }
+
+                if (ImGui::Button("Open release points file ...", ImVec2(250, 20))) {
+                    IGFD::FileDialogConfig config_release_points_file_dialog;
+                    config_release_points_file_dialog.path = ".";
+                    ImGuiFileDialog::Instance()->OpenDialog("EvalReleasePointsFileDialog", "Choose File", ".png,.*", config_release_points_file_dialog);
+                }
+                if (ImGui::Button("Open height map file ...", ImVec2(250, 20))) {
+                    IGFD::FileDialogConfig config_heightmap_file_dialog;
+                    config_heightmap_file_dialog.path = ".";
+                    ImGuiFileDialog::Instance()->OpenDialog("EvalHeightmapFileDialog", "Choose File", ".png,.*", config_heightmap_file_dialog);
+                }
+                if (ImGui::Button("Open AABB file ...", ImVec2(250, 20))) {
+                    IGFD::FileDialogConfig config_aabb_file_dialog;
+                    config_aabb_file_dialog.path = ".";
+                    ImGuiFileDialog::Instance()->OpenDialog("EvalAabbFileDialog", "Choose File", ".txt,.*", config_aabb_file_dialog);
+                }
+
+#ifndef __EMSCRIPTEN__
+                if (ImGuiFileDialog::Instance()->Display("EvalReleasePointsFileDialog")) {
+                    if (ImGuiFileDialog::Instance()->IsOk()) { // action if OK
+                        std::string file_path = ImGuiFileDialog::Instance()->GetFilePathName();
+                        m_compute_pipeline_settings.release_points_texture_path = file_path;
+                        update_compute_pipeline_settings();
+                    }
+                    ImGuiFileDialog::Instance()->Close();
+                }
+
+                if (ImGuiFileDialog::Instance()->Display("EvalHeightmapFileDialog")) {
+                    if (ImGuiFileDialog::Instance()->IsOk()) { // action if OK
+                        std::string file_path = ImGuiFileDialog::Instance()->GetFilePathName();
+                        m_compute_pipeline_settings.heightmap_texture_path = file_path;
+                        update_compute_pipeline_settings();
+                    }
+                    ImGuiFileDialog::Instance()->Close();
+                }
+
+                if (ImGuiFileDialog::Instance()->Display("EvalAabbFileDialog")) {
+                    if (ImGuiFileDialog::Instance()->IsOk()) { // action if OK
+                        std::string file_path = ImGuiFileDialog::Instance()->GetFilePathName();
+                        m_compute_pipeline_settings.aabb_file_path = file_path;
+                        update_compute_pipeline_settings();
+                    }
+                    ImGuiFileDialog::Instance()->Close();
+                }
+#endif
+
             } else if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS_AND_SNOW) {
                 if (ImGui::Checkbox("Sync with render settings", &m_compute_pipeline_settings.sync_snow_settings_with_render_settings)) {
                     update_compute_pipeline_settings();
                 }
 
                 if (!m_compute_pipeline_settings.sync_snow_settings_with_render_settings) {
-                    if (ImGui::DragFloatRange2("Angle limit##compute", &m_compute_pipeline_settings.snow_settings.angle.y,
-                            &m_compute_pipeline_settings.snow_settings.angle.z, 0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp)) {
+                    if (ImGui::DragFloatRange2("Angle limit##compute",
+                            &m_compute_pipeline_settings.snow_settings.angle.y,
+                            &m_compute_pipeline_settings.snow_settings.angle.z,
+                            0.1f,
+                            0.0f,
+                            90.0f,
+                            "Min: %.1f°",
+                            "Max: %.1f°",
+                            ImGuiSliderFlags_AlwaysClamp)) {
                         update_compute_pipeline_settings();
                     }
                     if (ImGui::SliderFloat("Angle blend##compute", &m_compute_pipeline_settings.snow_settings.angle.w, 0.0f, 90.0f, "%.1f°")) {
@@ -594,8 +727,15 @@ void Window::paint_compute_pipeline_gui()
                     update_settings_and_rerun_pipeline();
                 }
 
-                ImGui::DragFloatRange2("Release point steepness", &m_compute_pipeline_settings.trigger_point_min_slope_angle,
-                    &m_compute_pipeline_settings.trigger_point_max_slope_angle, 0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp);
+                ImGui::DragFloatRange2("Release point steepness",
+                    &m_compute_pipeline_settings.trigger_point_min_slope_angle,
+                    &m_compute_pipeline_settings.trigger_point_max_slope_angle,
+                    0.1f,
+                    0.0f,
+                    90.0f,
+                    "Min: %.1f°",
+                    "Max: %.1f°",
+                    ImGuiSliderFlags_AlwaysClamp);
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     update_settings_and_rerun_pipeline();
                 }
@@ -607,8 +747,15 @@ void Window::paint_compute_pipeline_gui()
                     update_settings_and_rerun_pipeline();
                 }
 
-                ImGui::DragFloatRange2("Release point steepness", &m_compute_pipeline_settings.trigger_point_min_slope_angle,
-                    &m_compute_pipeline_settings.trigger_point_max_slope_angle, 0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp);
+                ImGui::DragFloatRange2("Release point steepness",
+                    &m_compute_pipeline_settings.trigger_point_min_slope_angle,
+                    &m_compute_pipeline_settings.trigger_point_max_slope_angle,
+                    0.1f,
+                    0.0f,
+                    90.0f,
+                    "Min: %.1f°",
+                    "Max: %.1f°",
+                    ImGuiSliderFlags_AlwaysClamp);
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     update_settings_and_rerun_pipeline();
                 }
@@ -654,8 +801,10 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, 
     } else if (pipeline_type == ComputePipelineType::NORMALS_AND_SNOW) {
         m_compute_graph = compute::nodes::NodeGraph::create_normal_with_snow_compute_graph(*m_context->pipeline_manager(), m_device);
     } else if (pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
-        // m_compute_graph = compute::nodes::NodeGraph::create_trajectories_with_export_compute_graph(*m_context->pipeline_manager(), m_device);
-        m_compute_graph = compute::nodes::NodeGraph::create_fxaa_trajectories_compute_graph(*m_context->pipeline_manager(), m_device);
+        m_compute_graph = compute::nodes::NodeGraph::create_trajectories_with_export_compute_graph(*m_context->pipeline_manager(), m_device);
+        // m_compute_graph = compute::nodes::NodeGraph::create_fxaa_trajectories_compute_graph(*m_context->pipeline_manager(), m_device);
+    } else if (pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES_EVAL) {
+        m_compute_graph = compute::nodes::NodeGraph::create_trajectories_evaluation_compute_graph(*m_context->pipeline_manager(), m_device);
     } else if (pipeline_type == ComputePipelineType::D8_DIRECTIONS) {
         m_compute_graph = compute::nodes::NodeGraph::create_d8_compute_graph(*m_context->pipeline_manager(), m_device);
     } else if (pipeline_type == ComputePipelineType::RELEASE_POINTS) {
@@ -721,12 +870,10 @@ void Window::update_compute_pipeline_settings()
 
     } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
         // tile selection
-        m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
-            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.zoomlevel);
+        m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node").select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.zoomlevel);
 
         // tile source
-        m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node")
-            .set_settings(m_tile_source_settings.at(m_compute_pipeline_settings.tile_source_index));
+        m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node").set_settings(m_tile_source_settings.at(m_compute_pipeline_settings.tile_source_index));
 
         compute::nodes::ComputeReleasePointsNode::ReleasePointsSettings settings;
         settings.min_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_min_slope_angle);
@@ -743,29 +890,62 @@ void Window::update_compute_pipeline_settings()
         trajectory_settings.random_contribution = m_compute_pipeline_settings.random_contribution;
         trajectory_settings.persistence_contribution = m_compute_pipeline_settings.persistence_contribution;
 
-        trajectory_settings.active_runout_model
-            = compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType(m_compute_pipeline_settings.runout_model_type);
+        trajectory_settings.active_runout_model = compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType(m_compute_pipeline_settings.runout_model_type);
         trajectory_settings.runout_perla = m_compute_pipeline_settings.perla;
         trajectory_settings.runout_flowpy.alpha = glm::radians(m_compute_pipeline_settings.runout_flowpy_alpha);
 
         auto& trajectories_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("compute_avalanche_trajectories_node");
         trajectories_node.set_settings(trajectory_settings);
+    } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES_EVAL) {
+
+        // trajectories settings
+        compute::nodes::ComputeAvalancheTrajectoriesNode::AvalancheTrajectoriesSettings trajectory_settings {};
+        trajectory_settings.resolution_multiplier = m_compute_pipeline_settings.trajectory_resolution_multiplier;
+        trajectory_settings.num_steps = m_compute_pipeline_settings.num_steps;
+        trajectory_settings.step_length = m_compute_pipeline_settings.step_length;
+        trajectory_settings.num_paths_per_release_cell = m_compute_pipeline_settings.num_paths_per_release_cell;
+        trajectory_settings.random_contribution = m_compute_pipeline_settings.random_contribution;
+        trajectory_settings.persistence_contribution = m_compute_pipeline_settings.persistence_contribution;
+
+        trajectory_settings.active_runout_model = compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType(m_compute_pipeline_settings.runout_model_type);
+        trajectory_settings.runout_perla = m_compute_pipeline_settings.perla;
+        trajectory_settings.runout_flowpy.alpha = glm::radians(m_compute_pipeline_settings.runout_flowpy_alpha);
+
+        auto& trajectories_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("compute_avalanche_trajectories_node");
+        trajectories_node.set_settings(trajectory_settings);
+
+        {
+            compute::nodes::LoadTextureNode::LoadTextureNodeSettings settings;
+            settings.format = WGPUTextureFormat_RGBA8Unorm;
+            settings.file_path = m_compute_pipeline_settings.release_points_texture_path;
+            m_compute_graph->get_node_as<compute::nodes::LoadTextureNode>("load_rp_node").set_settings(settings);
+            qDebug() << "lel set node settings to " << settings.file_path << "lel";
+        }
+
+        {
+            compute::nodes::LoadTextureNode::LoadTextureNodeSettings settings;
+            settings.file_path = m_compute_pipeline_settings.heightmap_texture_path;
+            m_compute_graph->get_node_as<compute::nodes::LoadTextureNode>("load_heights_node").set_settings(settings);
+        }
+
+        {
+            compute::nodes::LoadRegionAabbNode::LoadRegionAabbNodeSettings settings;
+            settings.file_path = m_compute_pipeline_settings.aabb_file_path;
+            m_compute_graph->get_node_as<compute::nodes::LoadRegionAabbNode>("load_aabb_node").set_settings(settings);
+        }
+
     } else if (m_active_compute_pipeline_type == ComputePipelineType::D8_DIRECTIONS) {
         // tile selection
-        m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
-            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.zoomlevel);
+        m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node").select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.zoomlevel);
 
         // tile source
-        m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node")
-            .set_settings(m_tile_source_settings.at(m_compute_pipeline_settings.tile_source_index));
+        m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node").set_settings(m_tile_source_settings.at(m_compute_pipeline_settings.tile_source_index));
     } else if (m_active_compute_pipeline_type == ComputePipelineType::ITERATIVE_SIMULATION) {
         // tile selection
-        m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
-            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.zoomlevel);
+        m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node").select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.zoomlevel);
 
         // tile source
-        m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node")
-            .set_settings(m_tile_source_settings.at(m_compute_pipeline_settings.tile_source_index));
+        m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node").set_settings(m_tile_source_settings.at(m_compute_pipeline_settings.tile_source_index));
 
         compute::nodes::ComputeReleasePointsNode::ReleasePointsSettings settings;
         settings.min_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_min_slope_angle);

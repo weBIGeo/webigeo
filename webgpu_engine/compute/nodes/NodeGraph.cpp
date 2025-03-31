@@ -30,6 +30,8 @@
 #include "DownsampleTilesNode.h"
 #include "FxaaNode.h"
 #include "IterativeSimulationNode.h"
+#include "LoadRegionAabbNode.h"
+#include "LoadTextureNode.h"
 #include "RequestTilesNode.h"
 #include "SelectTilesNode.h"
 #include "UpsampleTexturesNode.h"
@@ -391,6 +393,84 @@ std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_with_export_compute_gr
         // Connect trajectories export node
         trajectories_export_node->input_socket("texture").connect(node_graph->get_node("buffer_to_texture_node").output_socket("texture"));
         trajectories_export_node->input_socket("region aabb").connect(node_graph->get_node("select_tiles_node").output_socket("region aabb"));
+    }
+
+    node_graph->connect_node_signals_and_slots();
+
+    return node_graph;
+}
+
+std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_evaluation_compute_graph(const PipelineManager& manager, WGPUDevice device)
+{
+    auto node_graph = std::make_unique<NodeGraph>();
+
+    Node* load_rp_node = node_graph->add_node("load_rp_node", std::make_unique<LoadTextureNode>(device));
+    Node* load_heights_node = node_graph->add_node("load_heights_node", std::make_unique<LoadTextureNode>(device));
+    Node* load_aabb_node = node_graph->add_node("load_aabb_node", std::make_unique<LoadRegionAabbNode>());
+
+    ComputeNormalsNode* normal_compute_node = static_cast<ComputeNormalsNode*>(node_graph->add_node("compute_normals_node", std::make_unique<ComputeNormalsNode>(manager, device)));
+
+    HeightDecodeNode::HeightDecodeSettings height_decode_settings = {
+        .texture_usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc,
+    };
+
+    HeightDecodeNode* height_decode_node = static_cast<HeightDecodeNode*>(node_graph->add_node("height_decode_node", std::make_unique<HeightDecodeNode>(manager, device, height_decode_settings)));
+
+    // connect decode node inputs
+    height_decode_node->input_socket("region aabb").connect(load_aabb_node->output_socket("region aabb"));
+    height_decode_node->input_socket("encoded texture").connect(load_heights_node->output_socket("texture"));
+
+    // connect normal node inputs
+    normal_compute_node->input_socket("bounds").connect(load_aabb_node->output_socket("region aabb"));
+    normal_compute_node->input_socket("height texture").connect(height_decode_node->output_socket("decoded texture"));
+
+    // NOTE dont compute release points but load instead - still leaving this code here to get it back up quickly (might be useful for testing angle calculations and stuff)
+    // add and connect release points node
+    // Node* release_points_node = node_graph->add_node("compute_release_points_node", std::make_unique<ComputeReleasePointsNode>(manager, device));
+    // release_points_node->input_socket("normal texture").connect(normal_compute_node->output_socket("normal texture"));
+
+    ComputeAvalancheTrajectoriesNode* trajectories_node
+        = static_cast<ComputeAvalancheTrajectoriesNode*>(node_graph->add_node("compute_avalanche_trajectories_node", std::make_unique<ComputeAvalancheTrajectoriesNode>(manager, device)));
+
+    BufferToTextureNode::BufferToTextureSettings buffer_to_texture_settings {
+        .format = WGPUTextureFormat_RGBA8Unorm,
+        .usage = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc),
+    };
+    BufferToTextureNode* buffer_to_texture_node
+        = static_cast<BufferToTextureNode*>(node_graph->add_node("buffer_to_texture_node", std::make_unique<BufferToTextureNode>(manager, device, buffer_to_texture_settings)));
+
+    // connect trajectories node inputs
+    trajectories_node->input_socket("region aabb").connect(load_aabb_node->output_socket("region aabb"));
+    trajectories_node->input_socket("normal texture").connect(normal_compute_node->output_socket("normal texture"));
+    trajectories_node->input_socket("height texture").connect(height_decode_node->output_socket("decoded texture"));
+    trajectories_node->input_socket("release point texture").connect(load_rp_node->output_socket("texture"));
+
+    // connect buffer to texture node inputs
+    buffer_to_texture_node->input_socket("raster dimensions").connect(trajectories_node->output_socket("raster dimensions"));
+    buffer_to_texture_node->input_socket("storage buffer").connect(trajectories_node->output_socket("storage buffer"));
+
+    // === SETUP EXPORT NODES ===
+    {
+        TileExportNode::ExportSettings export_settings_rp = { true, true, true, true, "export/release_points" };
+        TileExportNode* rp_export_node = static_cast<TileExportNode*>(node_graph->add_node("rp_export", std::make_unique<TileExportNode>(device, export_settings_rp)));
+
+        TileExportNode::ExportSettings export_settings_height = { true, true, true, true, "export/heights" };
+        TileExportNode* height_export_node = static_cast<TileExportNode*>(node_graph->add_node("height_export", std::make_unique<TileExportNode>(device, export_settings_height)));
+
+        TileExportNode::ExportSettings export_settings_trajectories = { true, true, true, true, "export/trajectories" };
+        TileExportNode* trajectories_export_node = static_cast<TileExportNode*>(node_graph->add_node("trajectories_export", std::make_unique<TileExportNode>(device, export_settings_trajectories)));
+
+        // Connect release points export node
+        rp_export_node->input_socket("texture").connect(load_rp_node->output_socket("texture"));
+        rp_export_node->input_socket("region aabb").connect(load_aabb_node->output_socket("region aabb"));
+
+        // Connect height tiles export node
+        height_export_node->input_socket("texture").connect(load_heights_node->output_socket("texture"));
+        height_export_node->input_socket("region aabb").connect(load_aabb_node->output_socket("region aabb"));
+
+        // Connect trajectories export node
+        trajectories_export_node->input_socket("texture").connect(buffer_to_texture_node->output_socket("texture"));
+        trajectories_export_node->input_socket("region aabb").connect(load_aabb_node->output_socket("region aabb"));
     }
 
     node_graph->connect_node_signals_and_slots();

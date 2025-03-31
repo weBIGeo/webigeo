@@ -31,8 +31,8 @@ public:
         std::string file_path;
 
         // WebGPU texture parameters
-        WGPUTextureFormat format = WGPUTextureFormat_RGBA8Unorm;
-        WGPUTextureUsage usage = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding);
+        WGPUTextureFormat format = WGPUTextureFormat_RGBA8Uint;
+        WGPUTextureUsage usage = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc);
     };
 
     LoadTextureNode(WGPUDevice device);
