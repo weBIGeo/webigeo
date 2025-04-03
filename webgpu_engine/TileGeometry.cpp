@@ -262,6 +262,8 @@ void TileGeometry::remove_ortho_tile(const radix::tile::Id id)
 
 void TileGeometry::set_permissible_screen_space_error(float new_permissible_screen_space_error) { m_draw_list_generator.set_permissible_screen_space_error(new_permissible_screen_space_error); }
 
+void TileGeometry::set_max_zoom_lvl(uint32_t max_zoom_level) { m_draw_list_generator.set_max_zoom_level(max_zoom_level); }
+
 void TileGeometry::set_pipeline_manager(const PipelineManager& pipeline_manager) { m_pipeline_manager = &pipeline_manager; }
 
 std::unique_ptr<webgpu::raii::BindGroup> TileGeometry::create_bind_group(const webgpu::raii::TextureView& view, const webgpu::raii::Sampler& sampler) const

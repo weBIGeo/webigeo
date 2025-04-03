@@ -113,6 +113,8 @@ public:
 
     void set_permissible_screen_space_error(float new_permissible_screen_space_error);
 
+    void set_max_zoom_lvl(uint32_t max_zoom_level);
+
     void set_pipeline_manager(const PipelineManager& pipeline_manager);
 
     std::unique_ptr<webgpu::raii::BindGroup> create_bind_group(const webgpu::raii::TextureView& view, const webgpu::raii::Sampler& sampler) const;

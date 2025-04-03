@@ -34,6 +34,7 @@ public:
 
     void set_permissible_screen_space_error(float new_permissible_screen_space_error);
     void set_aabb_decorator(const utils::AabbDecoratorPtr& new_aabb_decorator);
+    void set_max_zoom_level(uint32_t max_zoom_level);
     void add_tile(const tile::Id& id);
     void remove_tile(const tile::Id& id);
     [[nodiscard]] TileSet generate_for(const camera::Definition& camera) const;
@@ -58,5 +59,6 @@ private:
     utils::AabbDecoratorPtr m_aabb_decorator;
     TileSet m_available_tiles;
     float m_permissible_screen_space_error = 2.0;
+    uint32_t m_max_zoom_level = 18;
 };
 }

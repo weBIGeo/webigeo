@@ -42,6 +42,8 @@ void DrawListGenerator::set_aabb_decorator(const tile::utils::AabbDecoratorPtr& 
     m_aabb_decorator = new_aabb_decorator;
 }
 
+void DrawListGenerator::set_max_zoom_level(uint32_t max_zoom_level) { m_max_zoom_level = max_zoom_level; }
+
 void DrawListGenerator::add_tile(const tile::Id& id)
 {
     m_available_tiles.insert(id);
@@ -56,7 +58,7 @@ const TileSet& DrawListGenerator::tiles() const { return m_available_tiles; }
 
 DrawListGenerator::TileSet DrawListGenerator::generate_for(const nucleus::camera::Definition& camera) const
 {
-    const auto tile_refine_functor = tile::utils::refineFunctor(camera, m_aabb_decorator, m_permissible_screen_space_error);
+    const auto tile_refine_functor = tile::utils::refineFunctor(camera, m_aabb_decorator, m_permissible_screen_space_error, 256, m_max_zoom_level);
     const auto draw_refine_functor = [&tile_refine_functor, this](const tile::Id& tile) {
         bool all = true;
         for (const auto& child : tile.children()) {
