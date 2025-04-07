@@ -324,6 +324,7 @@ void GuiManager::draw()
                 geometry_load_service->set_base_url("https://alpinemaps.cg.tuwien.ac.at/tiles/at_dtm_alpinemaps/");
             }
 
+            // TODO might wanna put that into a method of scheduler, also don't hardcode values for limits
             // clear cache
             geometry_scheduler->set_gpu_quad_limit(0);
             geometry_scheduler->set_ram_quad_limit(0);
