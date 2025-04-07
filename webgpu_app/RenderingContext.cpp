@@ -137,6 +137,8 @@ nucleus::DataQuerier* RenderingContext::data_querier() { return m_data_querier.g
 
 nucleus::tile::GeometryScheduler* RenderingContext::geometry_scheduler() { return m_geometry_scheduler_holder.scheduler.get(); }
 
+nucleus::tile::TileLoadService* RenderingContext::geometry_tile_load_service() { return m_geometry_scheduler_holder.tile_service.get(); }
+
 nucleus::tile::TextureScheduler* RenderingContext::ortho_scheduler() { return m_ortho_scheduler_holder.scheduler.get(); }
 
 nucleus::tile::SchedulerDirector* RenderingContext::scheduler_director() { return m_scheduler_director.get(); }

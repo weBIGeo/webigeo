@@ -190,14 +190,6 @@ void Window::paint_gui()
 {
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
 
-    const uint32_t min_max_zoom_lvl = 1;
-    const uint32_t max_max_zoom_lvl = 18;
-    static uint32_t max_zoom_lvl = 18;
-    if (ImGui::SliderScalar("Max zoom level", ImGuiDataType_U32, &max_zoom_lvl, &min_max_zoom_lvl, &max_max_zoom_lvl, "%u")) {
-        m_context->tile_geometry()->set_max_zoom_lvl(max_zoom_lvl);
-        m_needs_redraw = true;
-    }
-
     if (ImGui::Combo("Normal Mode", (int*)&m_shared_config_ubo->data.m_normal_mode, "None\0Flat\0Smooth\0\0")) {
         m_needs_redraw = true;
     }

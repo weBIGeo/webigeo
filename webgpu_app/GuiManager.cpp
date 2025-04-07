@@ -297,11 +297,44 @@ void GuiManager::draw()
         m_terrain_renderer->render_gui();
         static float render_quality = 0.5f;
         if (ImGui::SliderFloat("Level of Detail", &render_quality, 0.1f, 2.0f)) {
-            auto* const tile_geometry = m_terrain_renderer->get_context()->tile_geometry();
+            auto* const tile_geometry = m_terrain_renderer->get_rendering_context()->engine_context()->tile_geometry();
             const auto permissible_error = 1.0f / render_quality;
             tile_geometry->set_permissible_screen_space_error(permissible_error);
             m_terrain_renderer->update_camera();
             qDebug() << "Setting permissible error to " << permissible_error;
+        }
+
+        const uint32_t min_max_zoom_lvl = 1;
+        const uint32_t max_max_zoom_lvl = 18;
+        static uint32_t max_zoom_lvl = 18;
+        if (ImGui::SliderScalar("Max zoom level", ImGuiDataType_U32, &max_zoom_lvl, &min_max_zoom_lvl, &max_max_zoom_lvl, "%u")) {
+            m_terrain_renderer->get_rendering_context()->engine_context()->tile_geometry()->set_max_zoom_lvl(max_zoom_lvl);
+            m_terrain_renderer->get_camera_controller()->update();
+        }
+
+        static int tile_source_index = 0; // 0 ... DSM, 1 ... DTM
+        if (ImGui::Combo("Tile source", &tile_source_index, "DSM\0DTM\0")) {
+            auto geometry_scheduler = m_terrain_renderer->get_rendering_context()->geometry_scheduler();
+            auto geometry_load_service = m_terrain_renderer->get_rendering_context()->geometry_tile_load_service();
+            if (tile_source_index == 0) {
+                qDebug() << "Changed tile source for rendering: selected DSM";
+                geometry_load_service->set_base_url("https://alpinemaps.cg.tuwien.ac.at/tiles/alpine_png/");
+            } else if (tile_source_index == 1) {
+                qDebug() << "Changed tile source for rendering: selected DTM";
+                geometry_load_service->set_base_url("https://alpinemaps.cg.tuwien.ac.at/tiles/at_dtm_alpinemaps/");
+            }
+
+            // clear cache
+            geometry_scheduler->set_gpu_quad_limit(0);
+            geometry_scheduler->set_ram_quad_limit(0);
+            geometry_scheduler->update_gpu_quads();
+            geometry_scheduler->purge_ram_cache();
+            geometry_scheduler->persist_tiles();
+            geometry_scheduler->set_gpu_quad_limit(256);
+            geometry_scheduler->set_ram_quad_limit(12000);
+            geometry_scheduler->update_gpu_quads();
+
+            m_terrain_renderer->get_camera_controller()->update();
         }
     }
 

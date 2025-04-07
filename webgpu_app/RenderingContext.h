@@ -57,6 +57,7 @@ public:
     nucleus::tile::utils::AabbDecorator* aabb_decorator();
     nucleus::DataQuerier* data_querier();
     nucleus::tile::GeometryScheduler* geometry_scheduler();
+    nucleus::tile::TileLoadService* geometry_tile_load_service();
     nucleus::tile::TextureScheduler* ortho_scheduler();
     nucleus::tile::SchedulerDirector* scheduler_director();
 

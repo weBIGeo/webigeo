@@ -63,7 +63,7 @@ public:
     [[nodiscard]] GuiManager* get_gui_manager() { return m_gui_manager.get(); }
     [[nodiscard]] webgpu::timing::GuiTimerManager* get_timer_manager() { return m_timer_manager.get(); }
     [[nodiscard]] webgpu_engine::Window* get_webgpu_window() { return m_webgpu_window.get(); }
-    [[nodiscard]] webgpu_engine::Context* get_context() { return m_context->engine_context(); }
+    [[nodiscard]] RenderingContext* get_rendering_context() { return m_context.get(); }
     [[nodiscard]] nucleus::camera::Controller* get_camera_controller() { return m_camera_controller.get(); }
 
 signals:
