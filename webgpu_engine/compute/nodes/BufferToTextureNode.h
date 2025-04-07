@@ -48,6 +48,7 @@ public:
     struct BufferToTextureSettings {
         WGPUTextureFormat format = WGPUTextureFormat_RGBA8Unorm;
         WGPUTextureUsage usage = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding);
+        WGPUFilterMode filter_mode = WGPUFilterMode_Nearest;
     };
 
     struct BufferToTextureSettingsUniform {
@@ -62,7 +63,7 @@ public slots:
 
 private:
     static std::unique_ptr<webgpu::raii::TextureWithSampler> create_texture(
-        WGPUDevice device, uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage);
+        WGPUDevice device, uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage, WGPUFilterMode filter_mode);
 
 private:
     const PipelineManager* m_pipeline_manager;

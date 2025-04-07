@@ -64,7 +64,7 @@ void BufferToTextureNode::run_impl()
         return;
     }
 
-    m_output_texture = create_texture(m_device, input_raster_dimensions.x, input_raster_dimensions.y, m_settings.format, m_settings.usage);
+    m_output_texture = create_texture(m_device, input_raster_dimensions.x, input_raster_dimensions.y, m_settings.format, m_settings.usage, m_settings.filter_mode);
 
     // create bind group
     std::vector<WGPUBindGroupEntry> entries {
@@ -121,7 +121,7 @@ uint32_t bit_width(uint32_t m)
 uint32_t getMaxMipLevelCount(const glm::uvec2 textureSize) { return std::max(1u, bit_width(std::max(textureSize.x, textureSize.y))); }
 
 std::unique_ptr<webgpu::raii::TextureWithSampler> BufferToTextureNode::create_texture(
-    WGPUDevice device, uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage)
+    WGPUDevice device, uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage, WGPUFilterMode filter_mode)
 {
     // create output texture
     WGPUTextureDescriptor texture_desc {};
@@ -138,13 +138,13 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> BufferToTextureNode::create_te
     sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Linear;
-    sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Linear;
-    sampler_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Linear;
+    sampler_desc.magFilter = filter_mode;
+    sampler_desc.minFilter = filter_mode;
+    sampler_desc.mipmapFilter = WGPUMipmapFilterMode_Nearest; // TODO mipmaps configurable - disabled for eval
     sampler_desc.lodMinClamp = 0.0f;
     sampler_desc.lodMaxClamp = 1.0f;
     sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
-    sampler_desc.maxAnisotropy = 4;
+    sampler_desc.maxAnisotropy = 1; // TODO mipmaps configurable - disabled for eval
 
     return std::make_unique<webgpu::raii::TextureWithSampler>(device, texture_desc, sampler_desc);
 }
