@@ -1,6 +1,7 @@
 /*****************************************************************************
  * weBIGeo
  * Copyright (C) 2025 Patrick Komon
+ * Copyright (C) 2025 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,6 +19,7 @@
 
 #pragma once
 
+#include <imgui.h>
 #include <string>
 #include <unordered_map>
 
@@ -33,6 +35,7 @@ public:
     NodeGraphRenderer() = default;
 
     void init(nodes::NodeGraph& m_node_graph);
+    void init_layout();
 
     void render();
 
@@ -40,7 +43,8 @@ private:
     nodes::NodeGraph* m_node_graph;
 
     std::unordered_map<std::string, std::unique_ptr<NodeRenderer>> m_node_renderers;
-    std::unordered_map<const nodes::Node*, const NodeRenderer*> m_node_renderers_by_node;
+    std::unordered_map<const nodes::Node*, NodeRenderer*> m_node_renderers_by_node;
+    std::vector<std::pair<int, int>> m_links;
 };
 
 class NodeRenderer {
@@ -57,12 +61,21 @@ public:
     int get_input_socket_id(const std::string& input_socket_name) const;
     int get_output_socket_id(const std::string& output_socket_name) const;
 
+    void set_position(const ImVec2& position) { m_position = position; }
+    ImVec2 get_position() const { return m_position; }
+    bool has_position() const { return m_position.x != -FLT_MAX && m_position.y != -FLT_MAX; }
+
+    nodes::Node* get_node() const { return m_node; }
+
 private:
     std::string m_name;
     nodes::Node* m_node;
     int m_node_id;
     std::vector<int> m_input_socket_ids;
     std::vector<int> m_output_socket_ids;
+
+    ImVec2 m_position = { -FLT_MAX, -FLT_MAX };
+    bool m_position_set = false;
 };
 
 class SelectTilesNodeRenderer : public NodeRenderer {

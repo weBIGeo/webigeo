@@ -1,6 +1,7 @@
 /*****************************************************************************
  * weBIGeo
  * Copyright (C) 2025 Patrick Komon
+ * Copyright (C) 2025 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,26 +29,20 @@ static std::hash<std::string> hasher;
 
 void NodeGraphRenderer::init(nodes::NodeGraph& node_graph)
 {
+    m_node_renderers.clear();
+    m_node_renderers_by_node.clear();
+    m_links.clear();
+
     m_node_graph = &node_graph;
     auto& nodes = m_node_graph->get_nodes();
     for (auto& [name, node] : nodes) {
-        m_node_renderers.emplace(name, std::make_unique<NodeRenderer>(name, *node.get()));
+        auto renderer = std::make_unique<NodeRenderer>(name, *node.get());
+        m_node_renderers.emplace(name, std::move(renderer));
         m_node_renderers_by_node.emplace(node.get(), m_node_renderers.at(name).get());
     }
-}
 
-void NodeGraphRenderer::render()
-{
-    ImGui::Begin("node editor");
-
-    ImNodes::BeginNodeEditor();
-
-    std::vector<std::pair<int, int>> links;
-
-    auto& nodes = m_node_graph->get_nodes();
+    // create links
     for (auto& [name, node_renderer] : m_node_renderers) {
-        node_renderer->render();
-
         // get connected attribute index
         const auto& node = *nodes.at(name).get();
         const auto& input_sockets = node.input_sockets();
@@ -63,19 +58,93 @@ void NodeGraphRenderer::render()
 
                 const auto second_attribute_index = connected_node_renderer->get_output_socket_id(connected_socket_name);
 
-                links.emplace_back(first_attribute_index, second_attribute_index);
+                m_links.emplace_back(first_attribute_index, second_attribute_index);
             }
         }
     }
 
+    // Layout the nodes in a grid-like structure
+    init_layout();
+}
+
+void NodeGraphRenderer::init_layout()
+{
+    ImVec2 node_distance_scaling(270.0f, 300.0f);
+    std::queue<std::pair<NodeRenderer*, int>> queue;
+
+    // Step 1: Enqueue root nodes (those with no inputs)
+    for (auto& [name, node_renderer] : m_node_renderers) {
+        nodes::Node* node = node_renderer->get_node();
+        // Root node = no input sockets
+        if (node->input_sockets().empty()) {
+            int x = 0;
+            node_renderer->set_position(ImVec2(x, 0));
+            queue.emplace(std::make_pair(node_renderer.get(), x));
+        }
+    }
+
+    // Step 2: BFS-style traversal to place child nodes
+    while (!queue.empty()) {
+        auto [node_renderer, current_x] = queue.front();
+        queue.pop();
+        nodes::Node* current_node = node_renderer->get_node();
+
+        const auto& output_sockets = current_node->output_sockets();
+        for (const auto& output_socket : output_sockets) {
+            auto connections = output_socket.connected_sockets();
+            for (const auto& connection : connections) {
+                nodes::Node* target_node = &connection->node();
+                NodeRenderer* target_renderer = m_node_renderers_by_node[target_node];
+
+                // NOTE: If we do this check it will mostly be vertically aligned as the
+                // select_tiles_node is connected to almost all other nodes
+                // if (target_renderer->has_position())
+                //     continue;
+
+                int x = current_x + 1;
+                target_renderer->set_position(ImVec2(x, 0));
+                queue.emplace(std::make_pair(target_renderer, x));
+            }
+        }
+    }
+
+    // Step 3: Go through all the nodes to determine y position based on how many share the same x position
+    std::unordered_map<int, std::vector<NodeRenderer*>> x_count_map;
+    for (auto& [name, node_renderer] : m_node_renderers) {
+        ImVec2 pos = node_renderer->get_position();
+        x_count_map[int(pos.x)].push_back(node_renderer.get());
+    }
+    for (auto& [x, renderers] : x_count_map) {
+        int y = 1;
+        for (auto& renderer : renderers) {
+            renderer->set_position(ImVec2(x * node_distance_scaling.x, y * node_distance_scaling.y));
+            y += 1;
+        }
+    }
+}
+
+void NodeGraphRenderer::render()
+{
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
+
+    ImGui::Begin("node editor");
+
+    ImNodes::BeginNodeEditor();
+
+    // draw nodes
+    for (auto& [name, node_renderer] : m_node_renderers) {
+        node_renderer->render();
+    }
+
     // draw links
-    for (size_t i = 0; i < links.size(); ++i) {
-        const std::pair<int, int> p = links[i];
+    for (size_t i = 0; i < m_links.size(); ++i) {
+        const std::pair<int, int> p = m_links[i];
         // in this case, we just use the array index of the link as the unique identifier
         ImNodes::Link(i, p.first, p.second);
     }
 
-    ImNodes::MiniMap();
+    ImNodes::MiniMap(0.1f, ImNodesMiniMapLocation_BottomRight);
     ImNodes::EndNodeEditor();
 
     ImGui::End();
@@ -101,6 +170,10 @@ NodeRenderer::NodeRenderer(const std::string& name, nodes::Node& node)
 
 void NodeRenderer::render()
 {
+    if (!m_position_set) {
+        ImNodes::SetNodeEditorSpacePos(m_node_id, m_position);
+        m_position_set = true;
+    }
     ImNodes::BeginNode(m_node_id);
 
     ImNodes::BeginNodeTitleBar();
