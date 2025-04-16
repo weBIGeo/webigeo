@@ -53,6 +53,8 @@ public:
     const Node& get_node(const std::string& node_name) const;
     bool exists_node(const std::string& node_name) const;
 
+    std::unordered_map<std::string, std::unique_ptr<Node>>& get_nodes();
+
     template <typename NodeType> NodeType& get_node_as(const std::string& node_name) { return static_cast<NodeType&>(get_node(node_name)); }
     template <typename NodeType> const NodeType& get_node_as(const std::string& node_name) const { return static_cast<const NodeType&>(get_node(node_name)); }
 

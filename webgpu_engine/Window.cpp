@@ -390,6 +390,9 @@ void Window::paint_gui()
         ImGui::EndPopup();
     }
 
+    // render node graph
+    // m_node_graph_renderer->render();
+
 #endif
 }
 
@@ -832,6 +835,9 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, 
         clear_compute_overlay();
         recreate_compose_bind_group();
     }
+
+    m_node_graph_renderer = std::make_unique<compute::NodeGraphRenderer>();
+    m_node_graph_renderer->init(*m_compute_graph.get());
 }
 
 void Window::update_compute_pipeline_settings()

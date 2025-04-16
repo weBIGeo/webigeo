@@ -24,6 +24,7 @@
 #include "TileGeometry.h"
 #include "TrackRenderer.h"
 #include "UniformBufferObjects.h"
+#include "compute/NodeGraphRenderer.h"
 #include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
 #include "compute/nodes/ComputeSnowNode.h"
 #include "compute/nodes/NodeGraph.h"
@@ -226,6 +227,8 @@ private:
 
     const webgpu::raii::TextureView* m_compute_overlay_texture_view = nullptr; // will be set to correct texture view after pipeline run completion
     const webgpu::raii::Sampler* m_compute_overlay_sampler = nullptr; // will be set to correct sampler after pipeline run completion
+
+    std::unique_ptr<compute::NodeGraphRenderer> m_node_graph_renderer;
 };
 
 } // namespace webgpu_engine

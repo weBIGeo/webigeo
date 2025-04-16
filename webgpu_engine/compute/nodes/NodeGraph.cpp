@@ -66,6 +66,8 @@ const Node& NodeGraph::get_node(const std::string& node_name) const { return *m_
 
 bool NodeGraph::exists_node(const std::string& node_name) const { return m_nodes.find(node_name) != m_nodes.end(); }
 
+std::unordered_map<std::string, std::unique_ptr<Node>>& NodeGraph::get_nodes() { return m_nodes; }
+
 const GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>& NodeGraph::output_normals_hash_map() const { return *m_output_normals_hash_map_ptr; }
 
 GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>& NodeGraph::output_normals_hash_map() { return *m_output_normals_hash_map_ptr; }

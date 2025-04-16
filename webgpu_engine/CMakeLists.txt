@@ -56,6 +56,8 @@ set(SOURCES
     compute/nodes/IterativeSimulationNode.h compute/nodes/IterativeSimulationNode.cpp
     compute/nodes/LoadTextureNode.h compute/nodes/LoadTextureNode.cpp
     compute/nodes/LoadRegionAabbNode.h compute/nodes/LoadRegionAabbNode.cpp
+
+    compute/NodeGraphRenderer.h compute/NodeGraphRenderer.cpp
 )
 
 qt_add_library(webgpu_engine STATIC ${SOURCES})
