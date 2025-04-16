@@ -34,7 +34,7 @@ fn signNotZero(v: vec2f) -> vec2f {
 // - Returns: A vec2f representing the normal vector encoded in the range [-1, 1] in an octahedral projection.
 // - Requirement: n must be normalized.
 fn v3f32_to_oct(n: vec3<f32>) -> vec2<f32> {
-    var en:vec2<f32> = n.xy * (1.0 / (abs(n.x) + abs(n.y) + abs(n.z)));
+    var en: vec2<f32> = n.xy * (1.0 / (abs(n.x) + abs(n.y) + abs(n.z)));
     if (n.z <= 0.0) {
         en = (1.0 - abs(en.yx)) * signNotZero(en);
     }
@@ -45,7 +45,7 @@ fn v3f32_to_oct(n: vec3<f32>) -> vec2<f32> {
 // - en: A vec2f representing the octahedral projection coordinates.
 // - Returns: A normalized vec3f containing the decoded normal vector.
 fn oct_to_v3f32(en: vec2<f32>) -> vec3<f32> {
-    var n:vec3<f32> = vec3f(en.xy, 1.0 - abs(en.x) - abs(en.y));
+    var n: vec3<f32> = vec3f(en.xy, 1.0 - abs(en.x) - abs(en.y));
     if (n.z < 0.0) {
         n = vec3f((1.0 - abs(n.yx)) * signNotZero(n.xy), n.z);
     }
@@ -79,5 +79,29 @@ fn octNormalEncode2u16(n: vec3<f32>) -> vec2<u32> {
 // - e: A vec2u32 representing the encoded octahedral projection coordinates with each component in the range [0, 65535].
 // - Returns: A vec3f representing the normalized decoded normal vector.
 fn octNormalDecode2u16(e: vec2<u32>) -> vec3<f32> {
-    return oct_to_v3f32(fma(v2u16_to_v2f32(e), vec2f(2.0), vec2f(-1.0)));
+    return oct_to_v3f32(fma(v2u16_to_v2f32(e), vec2f(2.0), vec2f(- 1.0)));
+}
+
+// Common range constants
+const U32_ENCODING_RANGE_NORM: vec2f = vec2f(0.0, 1.0);
+//const RANGE_360: vec2f = vec2f(0.0, 360.0);       // Degrees
+//const RANGE_2PI: vec2f = vec2f(0.0, 6.283185307);   // Radians (2π)
+//const RANGE_PI: vec2f = vec2f(-3.141592653, 3.141592653);  // [-π, π]
+
+// Encodes a float value into a 32-bit unsigned integer using a range
+// - value: Input value to encode
+// - range: vec2f containing (min, max) of input range (default: [0,1])
+// - Returns: u32 in [0, 4294967295]
+fn range_to_u32(value: f32, range: vec2f) -> u32 {
+    let normalized = clamp((value - range.x) / (range.y - range.x), 0.0, 1.0);
+    return u32(normalized * f32(0xFFFFFFFFu));
+}
+
+// Decodes a u32 back to original range
+// - encoded: u32 to decode
+// - range: vec2f containing (min, max) of output range (default: [0,1])
+// - Returns: Reconstructed float value
+fn u32_to_range(encoded: u32, range: vec2f) -> f32 {
+    let normalized = f32(encoded) / f32(0xFFFFFFFFu);
+    return mix(range.x, range.y, normalized);
 }

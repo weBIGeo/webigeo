@@ -17,6 +17,7 @@
  *****************************************************************************/
 
 #include "util/color_mapping.wgsl"
+#include "util/encoder.wgsl"
 
 // input
 @group(0) @binding(0) var<uniform> settings: BufferToTextureSettings;
@@ -44,7 +45,7 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     }
     // id.xy in [0, texture_dimensions(output_tiles) - 1]
 
-    let risk_value = f32(read_buffer_at(id.xy)) / (1 << 31);
+    let risk_value = u32_to_range(read_buffer_at(id.xy), U32_ENCODING_RANGE_NORM);
     //let risk_value = f32(input_storage_buffer[buffer_index]) / 1000f;
 
     var output_color: vec4f;

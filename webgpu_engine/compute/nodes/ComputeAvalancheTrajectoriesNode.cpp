@@ -40,6 +40,10 @@ ComputeAvalancheTrajectoriesNode::ComputeAvalancheTrajectoriesNode(const Pipelin
           {
               OutputSocket(*this, "storage buffer", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_output_storage_buffer.get(); }),
               OutputSocket(*this, "raster dimensions", data_type<glm::uvec2>(), [this]() { return m_output_dimensions; }),
+              OutputSocket(*this, "layer1_zdelta", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_layer1_zdelta_buffer.get(); }),
+              OutputSocket(*this, "layer2_cellCounts", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_layer2_cellCounts_buffer.get(); }),
+              OutputSocket(*this, "layer3_travelLength", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_layer3_travelLength_buffer.get(); }),
+              OutputSocket(*this, "layer4_travelAngle", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_layer4_travelAngle_buffer.get(); }),
           })
     , m_pipeline_manager { &pipeline_manager }
     , m_device { device }
@@ -78,6 +82,9 @@ void ComputeAvalancheTrajectoriesNode::update_gpu_settings()
     m_settings_uniform.data.runout_perla_g = m_settings.runout_perla.g;
     m_settings_uniform.data.runout_flowpy_alpha = m_settings.runout_flowpy.alpha;
 
+    // TODO: Get activation of layer if output socket is connected and following node is enabled?
+    m_settings_uniform.data.output_layer = m_settings.output_layer;
+
     m_settings_uniform.update_gpu_data(m_queue);
 }
 
@@ -114,6 +121,24 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
         = std::make_unique<webgpu::raii::RawBuffer<uint32_t>>(m_device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc,
             m_output_dimensions.x * m_output_dimensions.y, "avalanche trajectories compute output storage");
 
+    // create layer buffers
+    m_layer1_zdelta_buffer = std::make_unique<webgpu::raii::RawBuffer<uint32_t>>(m_device,
+        WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc,
+        m_settings.output_layer.layer1_zdelta_enabled ? (m_output_dimensions.x * m_output_dimensions.y) : 1,
+        "avalanche trajectories zdelta storage");
+    m_layer2_cellCounts_buffer = std::make_unique<webgpu::raii::RawBuffer<uint32_t>>(m_device,
+        WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc,
+        m_settings.output_layer.layer2_cellCounts_enabled ? (m_output_dimensions.x * m_output_dimensions.y) : 1,
+        "avalanche trajectories cellCounts storage");
+    m_layer3_travelLength_buffer = std::make_unique<webgpu::raii::RawBuffer<uint32_t>>(m_device,
+        WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc,
+        m_settings.output_layer.layer3_travelLength_enabled ? (m_output_dimensions.x * m_output_dimensions.y) : 1,
+        "avalanche trajectories travelLength storage");
+    m_layer4_travelAngle_buffer = std::make_unique<webgpu::raii::RawBuffer<uint32_t>>(m_device,
+        WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc,
+        m_settings.output_layer.layer4_travelAngle_enabled ? (m_output_dimensions.x * m_output_dimensions.y) : 1,
+        "avalanche trajectories travelAngle storage");
+
     // update input settings on GPU side
     m_settings_uniform.data.output_resolution = m_output_dimensions;
     m_settings_uniform.data.region_size = glm::fvec2(region_aabb->size());
@@ -128,6 +153,10 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
         m_normal_sampler->create_bind_group_entry(4),
         m_height_sampler->create_bind_group_entry(5),
         m_output_storage_buffer->create_bind_group_entry(6),
+        m_layer1_zdelta_buffer->create_bind_group_entry(7),
+        m_layer2_cellCounts_buffer->create_bind_group_entry(8),
+        m_layer3_travelLength_buffer->create_bind_group_entry(9),
+        m_layer4_travelAngle_buffer->create_bind_group_entry(10),
     };
 
     webgpu::raii::BindGroup compute_bind_group(

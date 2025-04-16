@@ -75,6 +75,13 @@ public:
         float alpha = glm::radians(25.0f);
     };
 
+    struct OutputLayerParams {
+        uint32_t layer1_zdelta_enabled = 0u;
+        uint32_t layer2_cellCounts_enabled = 1u;
+        uint32_t layer3_travelLength_enabled = 0u;
+        uint32_t layer4_travelAngle_enabled = 0u;
+    };
+
     struct AvalancheTrajectoriesSettings {
         uint32_t resolution_multiplier = 1;
         uint32_t num_steps = 1024;
@@ -100,6 +107,8 @@ public:
         RunoutModelType active_runout_model = RunoutModelType::PERLA;
         RunoutPerlaParams runout_perla;
         RunoutFlowPyParams runout_flowpy;
+
+        OutputLayerParams output_layer;
     };
 
 private:
@@ -132,6 +141,8 @@ private:
 
         float runout_flowpy_alpha;
 
+        OutputLayerParams output_layer;
+
         uint32_t padding1;
         uint32_t padding2;
     };
@@ -161,6 +172,12 @@ private:
     std::unique_ptr<webgpu::raii::Sampler> m_normal_sampler;
     std::unique_ptr<webgpu::raii::Sampler> m_height_sampler;
     std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_output_storage_buffer;
+
+    std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_layer1_zdelta_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_layer2_cellCounts_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_layer3_travelLength_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_layer4_travelAngle_buffer;
+
     glm::uvec2 m_output_dimensions;
 };
 

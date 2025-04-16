@@ -22,6 +22,7 @@
 #include "util/tile_util.wgsl"
 #include "util/normals_util.wgsl"
 #include "util/random.wgsl"
+#include "util/encoder.wgsl"
 
 
 // weights need to match the texels that are chosen by textureGather - this does NOT align perfectly, and introduces some artifacts
@@ -58,6 +59,11 @@ struct AvalancheTrajectoriesSettings {
     runout_perla_g: f32, // acceleration due to gravity (in m/s^2)
 
     runout_flowpy_alpha: f32, // alpha runout angle in radians
+
+    layer1_zdelta_enabled: u32, // 0 = disabled, 1 = enabled
+    layer2_cellCounts_enabled: u32,
+    layer3_travelLength_enabled: u32,
+    layer4_travelAngle_enabled: u32
 }
 
 // input
@@ -70,6 +76,12 @@ struct AvalancheTrajectoriesSettings {
 
 // output
 @group(0) @binding(6) var<storage, read_write> output_storage_buffer: array<atomic<u32>>; // trajectory texture
+
+// output layers
+@group(0) @binding(7) var<storage, read_write> output_layer1_zdelta: array<atomic<u32>>;
+@group(0) @binding(8) var<storage, read_write> output_layer2_cellCounts: array<atomic<u32>>;
+@group(0) @binding(9) var<storage, read_write> output_layer3_travelLength: array<atomic<u32>>;
+@group(0) @binding(10) var<storage, read_write> output_layer4_travelAngle: array<atomic<u32>>;
 
 // note: as of writing this, wgsl only supports atomic access for storage buffers and only for u32 and i32
 //       therefore, we first write the risk value (along the trajectory as raster) into a buffer,
@@ -123,7 +135,12 @@ fn draw_line_pos(start_pos: vec2u, end_pos: vec2u, value: f32) {
     var y = i32(start_pos.y);
 
     while (true) {
-        write_pixel_at_pos(vec2u(u32(x), u32(y)), value);
+        let buffer_index = u32(y) * settings.output_resolution.x + u32(x);
+        atomicMax(&output_storage_buffer[buffer_index], range_to_u32(value, U32_ENCODING_RANGE_NORM)); // map value from [0,1] angle to [0, 2^32 - 1]
+        if (settings.layer2_cellCounts_enabled != 0) {
+            atomicAdd(&output_layer2_cellCounts[buffer_index], 1); // count number of steps in this layer
+        }
+        //write_pixel_at_pos(vec2u(u32(x), u32(y)), value);
         
         if (x == i32(end_pos.x) && y == i32(end_pos.y)) {
             break;
