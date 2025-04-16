@@ -643,7 +643,7 @@ void Window::paint_compute_pipeline_gui()
                         update_settings_and_rerun_pipeline();
                     }
                 }
-
+#ifndef __EMSCRIPTEN__
                 if (ImGui::Button("Open release points file ...", ImVec2(250, 20))) {
                     IGFD::FileDialogConfig config_release_points_file_dialog;
                     config_release_points_file_dialog.path = ".";
@@ -659,7 +659,7 @@ void Window::paint_compute_pipeline_gui()
                     config_aabb_file_dialog.path = ".";
                     ImGuiFileDialog::Instance()->OpenDialog("EvalAabbFileDialog", "Choose File", ".txt,.*", config_aabb_file_dialog);
                 }
-
+#endif
 #ifndef __EMSCRIPTEN__
                 if (ImGuiFileDialog::Instance()->Display("EvalReleasePointsFileDialog")) {
                     if (ImGuiFileDialog::Instance()->IsOk()) { // action if OK
