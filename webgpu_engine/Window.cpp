@@ -1105,7 +1105,7 @@ void Window::compute_mipmaps_for_texture(const webgpu::raii::Texture* texture)
             webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
 
             glm::uvec3 workgroup_counts = glm::ceil(glm::vec3(mipSizes[i + 1].width, mipSizes[i + 1].height, 1) / glm::vec3(SHADER_WORKGROUP_SIZE));
-            qDebug() << "executing mipmap creation for mip level " << i << " with workgroup counts: " << workgroup_counts.x << "x" << workgroup_counts.y;
+            // qDebug() << "executing mipmap creation for mip level " << i << " with workgroup counts: " << workgroup_counts.x << "x" << workgroup_counts.y;
             wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, m_bindGroups[i]->handle(), 0, nullptr);
             m_context->pipeline_manager()->mipmap_creation_pipeline().run(compute_pass, workgroup_counts);
         }
