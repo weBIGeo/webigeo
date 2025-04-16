@@ -503,9 +503,13 @@ void TerrainRenderer::webgpu_create_context()
     dawnToggles.chain.next = nullptr;
     dawnToggles.chain.sType = WGPUSType_DawnTogglesDescriptor;
 
-    std::vector<const char*> enabledToggles = {
-        "allow_unsafe_apis",
-    };
+    std::vector<const char*> enabledToggles = { "allow_unsafe_apis" };
+#if defined(QT_DEBUG)
+    // TODO: Figure out why this doesnt work
+    enabledToggles.push_back("use_user_defined_labels_in_backend");
+    enabledToggles.push_back("enable_vulkan_validation");
+#endif
+
     dawnToggles.enabledToggles = enabledToggles.data();
     dawnToggles.enabledToggleCount = enabledToggles.size();
     dawnToggles.disabledToggleCount = 0;
