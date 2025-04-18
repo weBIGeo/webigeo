@@ -125,8 +125,8 @@ void NodeGraphRenderer::init_layout()
 
 void NodeGraphRenderer::render()
 {
-    ImGui::SetNextWindowPos(ImVec2(0, 0));
-    ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
+    ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Appearing);
+    ImGui::SetNextWindowSize({ ImGui::GetIO().DisplaySize.x - 400, ImGui::GetIO().DisplaySize.y }, ImGuiCond_Appearing);
 
     ImGui::Begin("node editor");
 
