@@ -103,16 +103,11 @@ fn calculate_illumination(
     return ambientIllumination + diffAndSpecIllumination * (1.0 - shadow_term);
 }
 
-const FLOAT_MIN_ENCODING: f32 = -10000.0;
-const FLOAT_MAX_ENCODING: f32 = 10000.0;
-
 fn decode_rgba_to_normalized_value(rgba: vec4<f32>) -> f32 {
     let rgba_u8: vec4<u32> = vec4<u32>(rgba * 255.0);
     let packed_value: u32 = (rgba_u8.r << 24) | (rgba_u8.g << 16) | (rgba_u8.b << 8) | rgba_u8.a;
-    let normalized_value: f32 = f32(packed_value) / 4294967295.0;
-    return normalized_value * (FLOAT_MAX_ENCODING - FLOAT_MIN_ENCODING) + FLOAT_MIN_ENCODING;
+    return u32_to_range(packed_value, U32_ENCODING_RANGE_VALIDATION);
 }
-
 
 @fragment
 fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
