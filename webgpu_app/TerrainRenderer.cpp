@@ -508,7 +508,13 @@ void TerrainRenderer::webgpu_create_context()
     // TODO: Figure out why this doesnt work
     enabledToggles.push_back("use_user_defined_labels_in_backend");
     enabledToggles.push_back("enable_vulkan_validation");
+    enabledToggles.push_back("disable_symbol_renaming");
 #endif
+
+    QStringList toggleList;
+    for (const auto& toggle : enabledToggles)
+        toggleList << QString::fromStdString(toggle);
+    qDebug() << "Dawn toggles:" << toggleList.join(", ");
 
     dawnToggles.enabledToggles = enabledToggles.data();
     dawnToggles.enabledToggleCount = enabledToggles.size();
