@@ -390,9 +390,6 @@ void Window::paint_gui()
         ImGui::EndPopup();
     }
 
-    // render node graph
-    // m_node_graph_renderer->render();
-
 #endif
 }
 
@@ -456,6 +453,15 @@ void Window::paint_compute_pipeline_gui()
                     ImGui::SetItemDefaultFocus();
             }
             ImGui::EndCombo();
+        }
+
+        if (ImGui::Button(m_should_render_node_graph ? "Hide node graph" : "Show node graph", ImVec2(250, 20))) {
+            m_should_render_node_graph = !m_should_render_node_graph;
+        }
+
+        // render node graph
+        if (m_should_render_node_graph) {
+            m_node_graph_renderer->render();
         }
 
         if (ImGui::TreeNodeEx("Pipeline-specific settings", ImGuiTreeNodeFlags_DefaultOpen)) {

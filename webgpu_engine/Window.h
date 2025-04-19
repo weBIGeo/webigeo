@@ -229,6 +229,7 @@ private:
     const webgpu::raii::Sampler* m_compute_overlay_sampler = nullptr; // will be set to correct sampler after pipeline run completion
 
     std::unique_ptr<compute::NodeGraphRenderer> m_node_graph_renderer;
+    bool m_should_render_node_graph = false;
 };
 
 } // namespace webgpu_engine
