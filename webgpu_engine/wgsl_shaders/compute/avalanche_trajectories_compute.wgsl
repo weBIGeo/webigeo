@@ -63,7 +63,7 @@ struct AvalancheTrajectoriesSettings {
     layer1_zdelta_enabled: u32, // 0 = disabled, 1 = enabled
     layer2_cellCounts_enabled: u32,
     layer3_travelLength_enabled: u32,
-    layer4_travelAngle_enabled: u32
+    layer4_travelAngle_enabled: u32,
 }
 
 // input
@@ -117,15 +117,15 @@ fn write_pixel_at_pos(pos: vec2u, value: f32) {
     atomicMax(&output_storage_buffer[buffer_index], value_u32);         
 }
 
-fn draw_line_uv(start_uv: vec2f, end_uv: vec2f, value: f32) {
+fn draw_line_uv(start_uv: vec2f, end_uv: vec2f, value: f32, z_delta: f32, travel_length: f32, travel_angle: f32) {
     let start_pos = vec2u(floor(start_uv * vec2f(settings.output_resolution)));
     let end_pos = vec2u(floor(end_uv * vec2f(settings.output_resolution)));
-    draw_line_pos(start_pos, end_pos, value);
+    draw_line_pos(start_pos, end_pos, value, z_delta, travel_length, travel_angle);
 }
 
 // implementation of bresenham's line algorithm
 // adapted from https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm#All_cases (used last one, with error) 
-fn draw_line_pos(start_pos: vec2u, end_pos: vec2u, value: f32) {
+fn draw_line_pos(start_pos: vec2u, end_pos: vec2u, value: f32, z_delta: f32, travel_length: f32, travel_angle: f32) {
     let dx = abs(i32(end_pos.x) - i32(start_pos.x));
     let sx = select(-1, 1, start_pos.x < end_pos.x);
     let dy = -abs(i32(end_pos.y) - i32(start_pos.y));
@@ -137,8 +137,18 @@ fn draw_line_pos(start_pos: vec2u, end_pos: vec2u, value: f32) {
     while (true) {
         let buffer_index = u32(y) * settings.output_resolution.x + u32(x);
         atomicMax(&output_storage_buffer[buffer_index], range_to_u32(value, U32_ENCODING_RANGE_NORM)); // map value from [0,1] angle to [0, 2^32 - 1]
+        if (settings.layer1_zdelta_enabled != 0) {
+            atomicMax(&output_layer1_zdelta[buffer_index], u32(z_delta)); // zdelta in m (we lose some precision here)
+        }
         if (settings.layer2_cellCounts_enabled != 0) {
             atomicAdd(&output_layer2_cellCounts[buffer_index], 1); // count number of steps in this layer
+        }
+        if (settings.layer3_travelLength_enabled != 0) {
+            atomicMax(&output_layer3_travelLength[buffer_index], u32(travel_length)); // travel length in m (we lose some precision here)
+        }
+        if (settings.layer4_travelAngle_enabled != 0) {
+            let travel_angle_value: f32 = degrees(travel_angle); // travel angle in deg (we lose some precision here)
+            atomicMax(&output_layer4_travelAngle[buffer_index], u32(travel_angle_value));
         }
         //write_pixel_at_pos(vec2u(u32(x), u32(y)), value);
         
@@ -356,28 +366,39 @@ fn trajectory_overlay(id: vec3<u32>) {
 
         let normal = sample_normal_texture(current_uv);
 
-        if (settings.runout_model_type == 1) {
-            perla_velocity = runout_perla(perla_velocity, perla_theta, normal, &perla_theta);
-
-            //let buffer_index = get_storage_buffer_index(output_texture_array_index, output_coords, settings.output_resolution);
-            //atomicMax(&output_storage_buffer[buffer_index], u32(1000f * (perla_velocity / 10.0f)));
-
-            if (perla_velocity < 0.01) { //TODO
-                break;
-            }
-        } else if (settings.runout_model_type == 2 && i > 0) {
-            // more info: https://docs.avaframe.org/en/latest/theoryCom4FlowPy.html
+        if (i > 0) {
+            // calculate physical quantities
+            //  - altitude difference from starting point
+            //  - z_delta (kinetic energy ~ velocity)
+            //  - delta (local runout angle)
+            //  - distance we have already
             let current_height = sample_height_texture(current_uv);
             let height_difference = start_point_height - current_height;
+            let z_alpha = tan(settings.runout_flowpy_alpha) * world_space_travel_distance;
+            let z_gamma = height_difference;
+            let z_delta = z_gamma - z_alpha;
             let gamma = atan(height_difference / world_space_travel_distance); // will always be positive -> [ 0 , PI/2 ]
-            if (gamma < settings.runout_flowpy_alpha) {
-                break;
-            }
-        }
+            let delta = gamma - settings.runout_flowpy_alpha;
 
-        // draw line from last to current position
-        if (i > 0) {
-            draw_line_uv(last_uv, current_uv, trajectory_value);
+            // evaluate runout model, terminate, if necessary
+            if (settings.runout_model_type == 1) {
+                perla_velocity = runout_perla(perla_velocity, perla_theta, normal, &perla_theta);
+
+                //let buffer_index = get_storage_buffer_index(output_texture_array_index, output_coords, settings.output_resolution);
+                //atomicMax(&output_storage_buffer[buffer_index], u32(1000f * (perla_velocity / 10.0f)));
+
+                if (perla_velocity < 0.01) { //TODO
+                    break;
+                }
+            } else if (settings.runout_model_type == 2) {
+                // more info: https://docs.avaframe.org/en/latest/theoryCom4FlowPy.html
+                if (z_delta <= 0) {
+                    break;
+                }
+            }
+
+            // draw line from last to current position
+            draw_line_uv(last_uv, current_uv, trajectory_value, z_delta, world_space_travel_distance, delta);
         }
         last_uv = current_uv;
 

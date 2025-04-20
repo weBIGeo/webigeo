@@ -76,10 +76,10 @@ public:
     };
 
     struct OutputLayerParams {
-        uint32_t layer1_zdelta_enabled = 0u;
+        uint32_t layer1_zdelta_enabled = 1u;
         uint32_t layer2_cellCounts_enabled = 1u;
-        uint32_t layer3_travelLength_enabled = 0u;
-        uint32_t layer4_travelAngle_enabled = 0u;
+        uint32_t layer3_travelLength_enabled = 1u;
+        uint32_t layer4_travelAngle_enabled = 1u;
     };
 
     struct AvalancheTrajectoriesSettings {
