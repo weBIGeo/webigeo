@@ -80,6 +80,7 @@ public:
         uint32_t layer2_cellCounts_enabled = 1u;
         uint32_t layer3_travelLength_enabled = 1u;
         uint32_t layer4_travelAngle_enabled = 1u;
+        uint32_t layer5_altitudeDifference_enabled = 1u;
     };
 
     struct AvalancheTrajectoriesSettings {
@@ -144,7 +145,6 @@ private:
         OutputLayerParams output_layer;
 
         uint32_t padding1;
-        uint32_t padding2;
     };
 
 public:
@@ -177,6 +177,7 @@ private:
     std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_layer2_cellCounts_buffer;
     std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_layer3_travelLength_buffer;
     std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_layer4_travelAngle_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_layer5_altitudeDifference_buffer;
 
     glm::uvec2 m_output_dimensions;
 };

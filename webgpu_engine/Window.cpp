@@ -932,7 +932,6 @@ void Window::update_compute_pipeline_settings()
             settings.format = WGPUTextureFormat_RGBA8Unorm;
             settings.file_path = m_compute_pipeline_settings.release_points_texture_path;
             m_compute_graph->get_node_as<compute::nodes::LoadTextureNode>("load_rp_node").set_settings(settings);
-            qDebug() << "lel set node settings to " << settings.file_path << "lel";
         }
 
         {

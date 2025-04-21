@@ -64,6 +64,7 @@ struct AvalancheTrajectoriesSettings {
     layer2_cellCounts_enabled: u32,
     layer3_travelLength_enabled: u32,
     layer4_travelAngle_enabled: u32,
+    layer5_altitudeDifference_enabled: u32,
 }
 
 // input
@@ -82,6 +83,7 @@ struct AvalancheTrajectoriesSettings {
 @group(0) @binding(8) var<storage, read_write> output_layer2_cellCounts: array<atomic<u32>>;
 @group(0) @binding(9) var<storage, read_write> output_layer3_travelLength: array<atomic<u32>>;
 @group(0) @binding(10) var<storage, read_write> output_layer4_travelAngle: array<atomic<u32>>;
+@group(0) @binding(11) var<storage, read_write> output_layer5_altitudeDifference: array<atomic<u32>>;
 
 // note: as of writing this, wgsl only supports atomic access for storage buffers and only for u32 and i32
 //       therefore, we first write the risk value (along the trajectory as raster) into a buffer,
@@ -117,15 +119,15 @@ fn write_pixel_at_pos(pos: vec2u, value: f32) {
     atomicMax(&output_storage_buffer[buffer_index], value_u32);         
 }
 
-fn draw_line_uv(start_uv: vec2f, end_uv: vec2f, value: f32, z_delta: f32, travel_length: f32, travel_angle: f32) {
+fn draw_line_uv(start_uv: vec2f, end_uv: vec2f, value: f32, z_delta: f32, travel_length: f32, travel_angle: f32, altitude_difference: f32) {
     let start_pos = vec2u(floor(start_uv * vec2f(settings.output_resolution)));
     let end_pos = vec2u(floor(end_uv * vec2f(settings.output_resolution)));
-    draw_line_pos(start_pos, end_pos, value, z_delta, travel_length, travel_angle);
+    draw_line_pos(start_pos, end_pos, value, z_delta, travel_length, travel_angle, altitude_difference);
 }
 
 // implementation of bresenham's line algorithm
 // adapted from https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm#All_cases (used last one, with error) 
-fn draw_line_pos(start_pos: vec2u, end_pos: vec2u, value: f32, z_delta: f32, travel_length: f32, travel_angle: f32) {
+fn draw_line_pos(start_pos: vec2u, end_pos: vec2u, value: f32, z_delta: f32, travel_length: f32, travel_angle: f32, altitude_difference: f32) {
     let dx = abs(i32(end_pos.x) - i32(start_pos.x));
     let sx = select(-1, 1, start_pos.x < end_pos.x);
     let dy = -abs(i32(end_pos.y) - i32(start_pos.y));
@@ -149,6 +151,9 @@ fn draw_line_pos(start_pos: vec2u, end_pos: vec2u, value: f32, z_delta: f32, tra
         if (settings.layer4_travelAngle_enabled != 0) {
             let travel_angle_value: f32 = degrees(travel_angle); // travel angle in deg (we lose some precision here)
             atomicMax(&output_layer4_travelAngle[buffer_index], u32(travel_angle_value));
+        }
+        if (settings.layer5_altitudeDifference_enabled != 0) {
+            atomicMax(&output_layer5_altitudeDifference[buffer_index], u32(altitude_difference));
         }
         //write_pixel_at_pos(vec2u(u32(x), u32(y)), value);
         
@@ -398,7 +403,7 @@ fn trajectory_overlay(id: vec3<u32>) {
             }
 
             // draw line from last to current position
-            draw_line_uv(last_uv, current_uv, trajectory_value, z_delta, world_space_travel_distance, delta);
+            draw_line_uv(last_uv, current_uv, trajectory_value, z_delta, world_space_travel_distance, delta, height_difference);
         }
         last_uv = current_uv;
 

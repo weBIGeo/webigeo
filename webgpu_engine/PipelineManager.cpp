@@ -789,8 +789,15 @@ void PipelineManager::create_avalanche_trajectory_bind_group_layout()
     output_layer4_buffer_entry.buffer.type = WGPUBufferBindingType_Storage;
     output_layer4_buffer_entry.buffer.minBindingSize = 0;
 
+    WGPUBindGroupLayoutEntry output_layer5_buffer_entry {};
+    output_layer5_buffer_entry.binding = 11;
+    output_layer5_buffer_entry.visibility = WGPUShaderStage_Compute;
+    output_layer5_buffer_entry.buffer.type = WGPUBufferBindingType_Storage;
+    output_layer5_buffer_entry.buffer.minBindingSize = 0;
+
     m_avalanche_trajectories_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
-        std::vector<WGPUBindGroupLayoutEntry> { input_settings,
+        std::vector<WGPUBindGroupLayoutEntry> {
+            input_settings,
             input_normal_texture_entry,
             input_height_texture_entry,
             input_release_points_texture_entry,
@@ -800,7 +807,9 @@ void PipelineManager::create_avalanche_trajectory_bind_group_layout()
             output_layer1_buffer_entry,
             output_layer2_buffer_entry,
             output_layer3_buffer_entry,
-            output_layer4_buffer_entry },
+            output_layer4_buffer_entry,
+            output_layer5_buffer_entry,
+        },
         "avalanche trajectories compute bind group layout");
 }
 

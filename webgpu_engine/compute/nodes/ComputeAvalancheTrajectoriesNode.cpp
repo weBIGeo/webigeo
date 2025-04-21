@@ -44,6 +44,7 @@ ComputeAvalancheTrajectoriesNode::ComputeAvalancheTrajectoriesNode(const Pipelin
               OutputSocket(*this, "layer2_cellCounts", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_layer2_cellCounts_buffer.get(); }),
               OutputSocket(*this, "layer3_travelLength", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_layer3_travelLength_buffer.get(); }),
               OutputSocket(*this, "layer4_travelAngle", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_layer4_travelAngle_buffer.get(); }),
+              OutputSocket(*this, "layer5_altitudeDifference", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_layer5_altitudeDifference_buffer.get(); }),
           })
     , m_pipeline_manager { &pipeline_manager }
     , m_device { device }
@@ -138,6 +139,10 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
         WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc,
         m_settings.output_layer.layer4_travelAngle_enabled ? (m_output_dimensions.x * m_output_dimensions.y) : 1,
         "avalanche trajectories travelAngle storage");
+    m_layer5_altitudeDifference_buffer = std::make_unique<webgpu::raii::RawBuffer<uint32_t>>(m_device,
+        WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc,
+        m_settings.output_layer.layer5_altitudeDifference_enabled ? (m_output_dimensions.x * m_output_dimensions.y) : 1,
+        "avalanche trajectories altitudeDifference storage");
 
     // update input settings on GPU side
     m_settings_uniform.data.output_resolution = m_output_dimensions;
@@ -157,6 +162,7 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
         m_layer2_cellCounts_buffer->create_bind_group_entry(8),
         m_layer3_travelLength_buffer->create_bind_group_entry(9),
         m_layer4_travelAngle_buffer->create_bind_group_entry(10),
+        m_layer5_altitudeDifference_buffer->create_bind_group_entry(11),
     };
 
     webgpu::raii::BindGroup compute_bind_group(
