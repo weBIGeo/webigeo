@@ -655,48 +655,42 @@ void Window::paint_compute_pipeline_gui()
                     }
                 }
 #ifndef __EMSCRIPTEN__
-                if (ImGui::Button("Open release points file ...", ImVec2(250, 20))) {
-                    IGFD::FileDialogConfig config_release_points_file_dialog;
-                    config_release_points_file_dialog.path = ".";
-                    ImGuiFileDialog::Instance()->OpenDialog("EvalReleasePointsFileDialog", "Choose File", ".png,.*", config_release_points_file_dialog);
+                if (ImGui::Button("Open eval dir ...", ImVec2(250, 20))) {
+                    IGFD::FileDialogConfig config_eval_dir_file_dialog;
+                    config_eval_dir_file_dialog.path = ".";
+                    ImGuiFileDialog::Instance()->OpenDialog("EvalDirFileDialog", "Choose evaluation directory", nullptr, config_eval_dir_file_dialog);
                 }
-                if (ImGui::Button("Open height map file ...", ImVec2(250, 20))) {
-                    IGFD::FileDialogConfig config_heightmap_file_dialog;
-                    config_heightmap_file_dialog.path = ".";
-                    ImGuiFileDialog::Instance()->OpenDialog("EvalHeightmapFileDialog", "Choose File", ".png,.*", config_heightmap_file_dialog);
-                }
-                if (ImGui::Button("Open AABB file ...", ImVec2(250, 20))) {
-                    IGFD::FileDialogConfig config_aabb_file_dialog;
-                    config_aabb_file_dialog.path = ".";
-                    ImGuiFileDialog::Instance()->OpenDialog("EvalAabbFileDialog", "Choose File", ".txt,.*", config_aabb_file_dialog);
-                }
-#endif
-#ifndef __EMSCRIPTEN__
-                if (ImGuiFileDialog::Instance()->Display("EvalReleasePointsFileDialog")) {
+
+                if (ImGuiFileDialog::Instance()->Display("EvalDirFileDialog")) {
                     if (ImGuiFileDialog::Instance()->IsOk()) { // action if OK
-                        std::string file_path = ImGuiFileDialog::Instance()->GetFilePathName();
-                        m_compute_pipeline_settings.release_points_texture_path = file_path;
-                        update_compute_pipeline_settings();
+                        std::string file_path = ImGuiFileDialog::Instance()->GetCurrentPath();
+                        load_eval_dir(file_path);
                     }
                     ImGuiFileDialog::Instance()->Close();
                 }
 
-                if (ImGuiFileDialog::Instance()->Display("EvalHeightmapFileDialog")) {
-                    if (ImGuiFileDialog::Instance()->IsOk()) { // action if OK
-                        std::string file_path = ImGuiFileDialog::Instance()->GetFilePathName();
-                        m_compute_pipeline_settings.heightmap_texture_path = file_path;
-                        update_compute_pipeline_settings();
-                    }
-                    ImGuiFileDialog::Instance()->Close();
-                }
+                if (ImGui::CollapsingHeader("Loaded files", ImGuiTreeNodeFlags_DefaultOpen)) {
 
-                if (ImGuiFileDialog::Instance()->Display("EvalAabbFileDialog")) {
-                    if (ImGuiFileDialog::Instance()->IsOk()) { // action if OK
-                        std::string file_path = ImGuiFileDialog::Instance()->GetFilePathName();
-                        m_compute_pipeline_settings.aabb_file_path = file_path;
-                        update_compute_pipeline_settings();
+                    ImGui::Text("Heights: %s", m_compute_pipeline_settings.heightmap_texture_path.c_str());
+                    if (ImGui::IsItemHovered()) {
+                        ImGui::BeginTooltip();
+                        ImGui::Text("%s", m_compute_pipeline_settings.heightmap_texture_path.c_str());
+                        ImGui::EndTooltip();
                     }
-                    ImGuiFileDialog::Instance()->Close();
+
+                    ImGui::Text("Release points: %s", m_compute_pipeline_settings.release_points_texture_path.c_str());
+                    if (ImGui::IsItemHovered()) {
+                        ImGui::BeginTooltip();
+                        ImGui::Text("%s", m_compute_pipeline_settings.release_points_texture_path.c_str());
+                        ImGui::EndTooltip();
+                    }
+
+                    ImGui::Text("AABB: %s", m_compute_pipeline_settings.aabb_file_path.c_str());
+                    if (ImGui::IsItemHovered()) {
+                        ImGui::BeginTooltip();
+                        ImGui::Text("%s", m_compute_pipeline_settings.aabb_file_path.c_str());
+                        ImGui::EndTooltip();
+                    }
                 }
 #endif
 
@@ -1415,6 +1409,45 @@ void Window::update_compute_overlay_aabb(const radix::geometry::Aabb<2, double>&
     m_compute_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
 }
 
+void Window::load_eval_dir(const std::string& path)
+{
+    const std::filesystem::path dir = path;
+    const auto settings_path = dir / "settings.json";
+
+    qDebug() << "try to load settings and raster files from directory " << path;
+
+    if (!std::filesystem::exists(settings_path)) {
+        display_message("Directory " + path + " does not contain settings.json - abort");
+        return;
+    }
+
+    const auto heights_path = (dir / "heights" / "texture.png");
+    if (!std::filesystem::exists(heights_path)) {
+        display_message("Directory " + path + " does not contain heights - expected in " + heights_path.string() + " - abort");
+        return;
+    }
+
+    const auto release_points_path = dir / "release_points" / "texture.png";
+    if (!std::filesystem::exists(release_points_path)) {
+        display_message("Directory " + path + " does not contain heights - expected in " + release_points_path.string() + " - abort");
+        return;
+    }
+
+    const auto aabb_path = dir / "trajectories" / "aabb.txt";
+    if (!std::filesystem::exists(aabb_path)) {
+        display_message("Directory " + path + " does not contain heights - expected in " + aabb_path.string() + " - abort");
+        return;
+    }
+
+    qDebug() << "required files exist - update settings and set eval input paths";
+
+    m_compute_pipeline_settings = ComputePipelineSettings::read_from_json_file(settings_path);
+    m_compute_pipeline_settings.heightmap_texture_path = heights_path.string();
+    m_compute_pipeline_settings.release_points_texture_path = release_points_path.string();
+    m_compute_pipeline_settings.aabb_file_path = aabb_path.string();
+    update_compute_pipeline_settings();
+}
+
 void Window::after_first_frame()
 {
 #if defined(QT_DEBUG)
@@ -1467,8 +1500,8 @@ void Window::on_pipeline_run_completed()
 
     if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES || m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES_EVAL) {
         std::filesystem::path trajectory_export_path = m_compute_graph->get_node_as<compute::nodes::TileExportNode>("trajectories_export").get_settings().output_directory;
-        std::string settings_export_path = (trajectory_export_path.parent_path() / "settings.json").string();
-        qDebug() << "writing settings to " << settings_export_path;
+        std::filesystem::path settings_export_path = trajectory_export_path.parent_path() / "settings.json";
+        qDebug() << "writing settings to " << settings_export_path.string();
         ComputePipelineSettings::write_to_json_file(m_compute_pipeline_settings, settings_export_path);
     }
 }

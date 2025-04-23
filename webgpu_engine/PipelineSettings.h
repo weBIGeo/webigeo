@@ -56,8 +56,8 @@ struct ComputePipelineSettings {
     std::string heightmap_texture_path;
     std::string aabb_file_path;
 
-    static void write_to_json_file(const ComputePipelineSettings& settings, const std::string& output_path);
-    static ComputePipelineSettings read_from_json_file(const std::string& input_path);
+    static void write_to_json_file(const ComputePipelineSettings& settings, const std::filesystem::path& output_path);
+    static ComputePipelineSettings read_from_json_file(const std::filesystem::path& input_path);
 };
 
 } // namespace webgpu_engine

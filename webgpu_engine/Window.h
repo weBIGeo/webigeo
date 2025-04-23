@@ -133,6 +133,8 @@ private:
     void update_compute_overlay_texture(const webgpu::raii::TextureWithSampler& texture_with_sampler);
     void update_compute_overlay_aabb(const radix::geometry::Aabb<2, double>& aabb);
 
+    void load_eval_dir(const std::string& path);
+
     void after_first_frame();
 
     void display_message(const std::string& message);

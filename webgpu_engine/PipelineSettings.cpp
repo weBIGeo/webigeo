@@ -25,7 +25,7 @@
 
 namespace webgpu_engine {
 
-void ComputePipelineSettings::write_to_json_file(const ComputePipelineSettings& settings, const std::string& output_path)
+void ComputePipelineSettings::write_to_json_file(const ComputePipelineSettings& settings, const std::filesystem::path& output_path)
 {
     QJsonObject object;
     object["tile_source"] = settings.tile_source_index == 0 ? "dtm" : "dsm";
@@ -39,28 +39,30 @@ void ComputePipelineSettings::write_to_json_file(const ComputePipelineSettings& 
     object["num_paths_per_release_cell"] = qint64(settings.num_paths_per_release_cell);
 
     object["random_contribution"] = settings.random_contribution;
-    object["persistence_contribution"] = settings.random_contribution;
+    object["persistence_contribution"] = settings.persistence_contribution;
     object["alpha"] = settings.runout_flowpy_alpha;
+
+    object["trajectory_resolution_multiplier"] = qint64(settings.trajectory_resolution_multiplier);
 
     QJsonDocument doc;
     doc.setObject(object);
 
-    QFile output_file(QString::fromStdString(output_path));
+    QFile output_file(output_path);
     output_file.open(QIODevice::WriteOnly);
     output_file.write(doc.toJson());
     output_file.close();
 }
 
-ComputePipelineSettings read_from_json_file(const std::string& input_path)
+ComputePipelineSettings ComputePipelineSettings::read_from_json_file(const std::filesystem::path& input_path)
 {
     QJsonObject object;
     {
         QJsonDocument document;
 
-        QFile input_file(QString::fromStdString(input_path));
+        QFile input_file(input_path);
         input_file.open(QIODevice::ReadOnly);
         QByteArray data = input_file.readAll();
-        QJsonDocument::fromJson(data);
+        document = QJsonDocument::fromJson(data);
         input_file.close();
         assert(document.isObject());
         object = document.object();
@@ -78,8 +80,10 @@ ComputePipelineSettings read_from_json_file(const std::string& input_path)
     settings.num_paths_per_release_cell = uint32_t(object["num_paths_per_release_cell"].toInteger());
 
     settings.random_contribution = float(object["random_contribution"].toDouble());
-    settings.random_contribution = float(object["persistence_contribution"].toDouble());
+    settings.persistence_contribution = float(object["persistence_contribution"].toDouble());
     settings.runout_flowpy_alpha = float(object["alpha"].toDouble());
+
+    settings.trajectory_resolution_multiplier = uint32_t(object["trajectory_resolution_multiplier"].toInteger());
     return settings;
 }
 
