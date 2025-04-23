@@ -151,14 +151,15 @@ public:
     ComputeAvalancheTrajectoriesNode(const PipelineManager& pipeline_manager, WGPUDevice device);
     ComputeAvalancheTrajectoriesNode(const PipelineManager& pipeline_manager, WGPUDevice device, const AvalancheTrajectoriesSettings& settings);
 
-    void update_gpu_settings();
-
-    void set_settings(const AvalancheTrajectoriesSettings& settings) { m_settings = settings; }
+    void set_settings(const AvalancheTrajectoriesSettings& settings);
+    const AvalancheTrajectoriesSettings& get_settings() const;
 
 public slots:
     void run_impl() override;
 
 private:
+    void update_gpu_settings();
+
     static std::unique_ptr<webgpu::raii::Sampler> create_normal_sampler(WGPUDevice device);
     static std::unique_ptr<webgpu::raii::Sampler> create_height_sampler(WGPUDevice device);
 

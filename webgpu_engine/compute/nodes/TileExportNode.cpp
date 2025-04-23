@@ -52,6 +52,8 @@ webgpu_engine::compute::nodes::TileExportNode::TileExportNode(WGPUDevice device,
 
 void TileExportNode::set_settings(const ExportSettings& settings) { m_settings = settings; }
 
+const TileExportNode::ExportSettings& TileExportNode::get_settings() const { return m_settings; }
+
 void TileExportNode::run_impl()
 {
     qDebug() << "running TileExportNode ...";

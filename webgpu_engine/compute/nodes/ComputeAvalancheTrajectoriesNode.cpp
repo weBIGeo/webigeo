@@ -89,6 +89,10 @@ void ComputeAvalancheTrajectoriesNode::update_gpu_settings()
     m_settings_uniform.update_gpu_data(m_queue);
 }
 
+void ComputeAvalancheTrajectoriesNode::set_settings(const AvalancheTrajectoriesSettings& settings) { m_settings = settings; }
+
+const ComputeAvalancheTrajectoriesNode::AvalancheTrajectoriesSettings& ComputeAvalancheTrajectoriesNode::get_settings() const { return m_settings; }
+
 void ComputeAvalancheTrajectoriesNode::run_impl()
 {
     qDebug() << "running ComputeAvalancheTrajectoriesNode ...";

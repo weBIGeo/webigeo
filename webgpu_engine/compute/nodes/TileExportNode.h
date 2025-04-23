@@ -51,6 +51,7 @@ public:
     TileExportNode(WGPUDevice device, const ExportSettings& settings);
 
     void set_settings(const ExportSettings& settings);
+    const ExportSettings& get_settings() const;
 
 public slots:
     void run_impl() override;

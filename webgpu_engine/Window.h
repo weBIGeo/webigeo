@@ -20,13 +20,11 @@
 
 #include "Context.h"
 #include "PipelineManager.h"
+#include "PipelineSettings.h"
 #include "ShaderModuleManager.h"
-#include "TileGeometry.h"
 #include "TrackRenderer.h"
 #include "UniformBufferObjects.h"
 #include "compute/NodeGraphRenderer.h"
-#include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
-#include "compute/nodes/ComputeSnowNode.h"
 #include "compute/nodes/NodeGraph.h"
 #include "compute/nodes/RequestTilesNode.h"
 #include "nucleus/AbstractRenderWindow.h"
@@ -42,37 +40,6 @@ class QOpenGLFramebufferObject;
 namespace webgpu_engine {
 
 #define DEFAULT_GPX_TRACK_PATH ":/gpx/breite_ries.gpx"
-
-// for preserving settings upon switching graph
-// TODO quite ugly solution
-struct ComputePipelineSettings {
-    radix::geometry::Aabb<3, double> target_region = {}; // select tiles node
-    uint32_t zoomlevel = 15;
-    uint32_t trajectory_resolution_multiplier = 16;
-    uint32_t num_steps = 256u;
-    float step_length = 1.0f;
-    bool sync_snow_settings_with_render_settings = true; // snow node
-    compute::nodes::ComputeSnowNode::SnowSettings snow_settings; // snow node
-
-    int release_point_interval = 8; // trajectories node
-    uint32_t num_paths_per_release_cell = 1024u;
-    float random_contribution = 0.16f;
-    float persistence_contribution = 0.9f;
-
-    float trigger_point_min_slope_angle = 30.0f; // release points node
-    float trigger_point_max_slope_angle = 45.0f; // release points node
-
-    int tile_source_index = 0; // 0 DTM, 1 DSM
-
-    int runout_model_type = int(compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType::FLOWPY);
-    compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutPerlaParams perla;
-    float runout_flowpy_alpha = 25.0f; // degrees
-
-    // file paths for evaluation pipeline
-    std::string release_points_texture_path;
-    std::string heightmap_texture_path;
-    std::string aabb_file_path;
-};
 
 struct GuiErrorState {
     bool should_open_modal = false;

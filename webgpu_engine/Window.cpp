@@ -1464,6 +1464,13 @@ void Window::on_pipeline_run_completed()
         selected_aabb.max -= glm::dvec2(nucleus::srs::tile_width(18) / 65, nucleus::srs::tile_height(18) / 65); // stitch node ignores last col/row
         update_compute_overlay_aabb(selected_aabb);
     }
+
+    if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES || m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES_EVAL) {
+        std::filesystem::path trajectory_export_path = m_compute_graph->get_node_as<compute::nodes::TileExportNode>("trajectories_export").get_settings().output_directory;
+        std::string settings_export_path = (trajectory_export_path.parent_path() / "settings.json").string();
+        qDebug() << "writing settings to " << settings_export_path;
+        ComputePipelineSettings::write_to_json_file(m_compute_pipeline_settings, settings_export_path);
+    }
 }
 
 void Window::create_buffers()

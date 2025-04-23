@@ -23,6 +23,7 @@ project(alpine-renderer-webgpu_engine LANGUAGES C CXX)
 
 set(SOURCES
     Window.h Window.cpp
+    PipelineSettings.h PipelineSettings.cpp
     ShaderModuleManager.h ShaderModuleManager.cpp
     PipelineManager.h PipelineManager.cpp
     UniformBufferObjects.h UniformBufferObjects.cpp
@@ -35,6 +36,7 @@ set(SOURCES
     compute/GpuTileStorage.h compute/GpuTileStorage.cpp
     compute/GpuTileId.h compute/GpuTileId.cpp
     compute/RectangularTileRegion.h compute/RectangularTileRegion.cpp
+    compute/NodeGraphRenderer.h compute/NodeGraphRenderer.cpp
     compute/nodes/Node.h compute/nodes/Node.cpp
     compute/nodes/SelectTilesNode.h compute/nodes/SelectTilesNode.cpp
     compute/nodes/RequestTilesNode.h compute/nodes/RequestTilesNode.cpp
@@ -57,8 +59,6 @@ set(SOURCES
     compute/nodes/IterativeSimulationNode.h compute/nodes/IterativeSimulationNode.cpp
     compute/nodes/LoadTextureNode.h compute/nodes/LoadTextureNode.cpp
     compute/nodes/LoadRegionAabbNode.h compute/nodes/LoadRegionAabbNode.cpp
-
-    compute/NodeGraphRenderer.h compute/NodeGraphRenderer.cpp
 )
 
 qt_add_library(webgpu_engine STATIC ${SOURCES})
