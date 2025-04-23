@@ -18,12 +18,14 @@
  *****************************************************************************/
 
 #include "Window.h"
+#include "compute/nodes/BufferExportNode.h"
 #include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
 #include "compute/nodes/ComputeReleasePointsNode.h"
 #include "compute/nodes/ComputeSnowNode.h"
 #include "compute/nodes/LoadRegionAabbNode.h"
 #include "compute/nodes/LoadTextureNode.h"
 #include "compute/nodes/SelectTilesNode.h"
+#include "compute/nodes/TileExportNode.h"
 #include "nucleus/track/GPX.h"
 #include "nucleus/utils/image_loader.h"
 #include "webgpu/raii/RenderPassEncoder.h"
@@ -846,6 +848,8 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, 
     m_node_graph_renderer->init(*m_compute_graph.get());
 }
 
+std::string get_current_date_time_string() { return std::format("{:%Y-%m-%d_%H-%M-%S}", std::chrono::system_clock::now()); }
+
 void Window::update_compute_pipeline_settings()
 {
     if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS || m_active_compute_pipeline_type == ComputePipelineType::RELEASE_POINTS) {
@@ -909,6 +913,36 @@ void Window::update_compute_pipeline_settings()
 
         auto& trajectories_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("compute_avalanche_trajectories_node");
         trajectories_node.set_settings(trajectory_settings);
+
+        // update file export path to include current date and time
+        {
+            const std::filesystem::path export_root_dir = "export_" + get_current_date_time_string();
+
+            // set trajectory layer export directories
+            compute::nodes::BufferExportNode::ExportSettings zdelta_export_settings { (export_root_dir / "trajectories/texture_layer1_zdelta.png").string() };
+            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l1_export_node").set_settings(zdelta_export_settings);
+            compute::nodes::BufferExportNode::ExportSettings cell_counts_export_settings { (export_root_dir / "trajectories/texture_layer2_cellCounts.png").string() };
+            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l2_export_node").set_settings(cell_counts_export_settings);
+            compute::nodes::BufferExportNode::ExportSettings travel_length_export_settings { (export_root_dir / "trajectories/texture_layer3_travelLength.png").string() };
+            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l3_export_node").set_settings(travel_length_export_settings);
+            compute::nodes::BufferExportNode::ExportSettings travel_angle_export_settings { (export_root_dir / "trajectories/texture_layer4_travelAngle.png").string() };
+            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l4_export_node").set_settings(travel_angle_export_settings);
+            compute::nodes::BufferExportNode::ExportSettings height_diff_export_settings { (export_root_dir / "trajectories/texture_layer5_heightDifference.png").string() };
+            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l5_export_node").set_settings(height_diff_export_settings);
+
+            // set trajectory color buffer export directory
+            compute::nodes::TileExportNode::ExportSettings export_trajectory_settings = { true, true, true, true, (export_root_dir / "trajectories").string() };
+            m_compute_graph->get_node_as<compute::nodes::TileExportNode>("trajectories_export").set_settings(export_trajectory_settings);
+
+            // set heightmap export directory
+            compute::nodes::TileExportNode::ExportSettings export_height_settings = { true, true, true, true, (export_root_dir / "heights").string() };
+            m_compute_graph->get_node_as<compute::nodes::TileExportNode>("height_export").set_settings(export_height_settings);
+
+            // set release point export directory
+            compute::nodes::TileExportNode::ExportSettings export_releasepoints_settings = { true, true, true, true, (export_root_dir / "release_points").string() };
+            m_compute_graph->get_node_as<compute::nodes::TileExportNode>("rp_export").set_settings(export_releasepoints_settings);
+        }
+
     } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES_EVAL) {
 
         // trajectories settings
@@ -944,6 +978,35 @@ void Window::update_compute_pipeline_settings()
             compute::nodes::LoadRegionAabbNode::LoadRegionAabbNodeSettings settings;
             settings.file_path = m_compute_pipeline_settings.aabb_file_path;
             m_compute_graph->get_node_as<compute::nodes::LoadRegionAabbNode>("load_aabb_node").set_settings(settings);
+        }
+
+        // update file export path to include current date and time
+        {
+            const std::filesystem::path export_root_dir = "export_" + get_current_date_time_string();
+
+            // set trajectory layer export directories
+            compute::nodes::BufferExportNode::ExportSettings zdelta_export_settings { (export_root_dir / "trajectories/texture_layer1_zdelta.png").string() };
+            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l1_export_node").set_settings(zdelta_export_settings);
+            compute::nodes::BufferExportNode::ExportSettings cell_counts_export_settings { (export_root_dir / "trajectories/texture_layer2_cellCounts.png").string() };
+            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l2_export_node").set_settings(cell_counts_export_settings);
+            compute::nodes::BufferExportNode::ExportSettings travel_length_export_settings { (export_root_dir / "trajectories/texture_layer3_travelLength.png").string() };
+            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l3_export_node").set_settings(travel_length_export_settings);
+            compute::nodes::BufferExportNode::ExportSettings travel_angle_export_settings { (export_root_dir / "trajectories/texture_layer4_travelAngle.png").string() };
+            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l4_export_node").set_settings(travel_angle_export_settings);
+            compute::nodes::BufferExportNode::ExportSettings height_diff_export_settings { (export_root_dir / "trajectories/texture_layer5_heightDifference.png").string() };
+            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l5_export_node").set_settings(height_diff_export_settings);
+
+            // set trajectory color buffer export directory
+            compute::nodes::TileExportNode::ExportSettings export_trajectory_settings = { true, true, true, true, (export_root_dir / "trajectories").string() };
+            m_compute_graph->get_node_as<compute::nodes::TileExportNode>("trajectories_export").set_settings(export_trajectory_settings);
+
+            // set heightmap export directory
+            compute::nodes::TileExportNode::ExportSettings export_height_settings = { true, true, true, true, (export_root_dir / "heights").string() };
+            m_compute_graph->get_node_as<compute::nodes::TileExportNode>("height_export").set_settings(export_height_settings);
+
+            // set release point export directory
+            compute::nodes::TileExportNode::ExportSettings export_releasepoints_settings = { true, true, true, true, (export_root_dir / "release_points").string() };
+            m_compute_graph->get_node_as<compute::nodes::TileExportNode>("rp_export").set_settings(export_releasepoints_settings);
         }
 
     } else if (m_active_compute_pipeline_type == ComputePipelineType::D8_DIRECTIONS) {

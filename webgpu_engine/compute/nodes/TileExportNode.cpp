@@ -31,7 +31,7 @@
 
 namespace webgpu_engine::compute::nodes {
 
-webgpu_engine::compute::nodes::TileExportNode::TileExportNode(WGPUDevice device, ExportSettings settings)
+webgpu_engine::compute::nodes::TileExportNode::TileExportNode(WGPUDevice device, const ExportSettings& settings)
     : Node(
           {
               // need to pass EITHER single texture
@@ -49,6 +49,8 @@ webgpu_engine::compute::nodes::TileExportNode::TileExportNode(WGPUDevice device,
     , m_should_output_files { true }
 {
 }
+
+void TileExportNode::set_settings(const ExportSettings& settings) { m_settings = settings; }
 
 void TileExportNode::run_impl()
 {

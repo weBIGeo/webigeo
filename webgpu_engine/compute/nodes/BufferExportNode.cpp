@@ -29,7 +29,7 @@
 
 namespace webgpu_engine::compute::nodes {
 
-BufferExportNode::BufferExportNode(WGPUDevice device, ExportSettings settings)
+BufferExportNode::BufferExportNode(WGPUDevice device, const ExportSettings& settings)
     : Node(
           {
               InputSocket(*this, "buffer", data_type<webgpu::raii::RawBuffer<uint32_t>*>()),
@@ -40,6 +40,8 @@ BufferExportNode::BufferExportNode(WGPUDevice device, ExportSettings settings)
     , m_settings(settings)
 {
 }
+
+void BufferExportNode::set_settings(const ExportSettings& settings) { m_settings = settings; }
 
 void BufferExportNode::run_impl()
 {
@@ -112,7 +114,7 @@ void BufferExportNode::run_impl()
 
         // Make sure output directory exists
         const auto output_path = std::filesystem::path(m_settings.output_file);
-        // std::filesystem::create_directories(output_path.parent_path());
+        std::filesystem::create_directories(output_path.parent_path());
         qDebug() << "Writing file to " << output_path.string();
 
         // Write to file

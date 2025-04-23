@@ -48,7 +48,9 @@ public:
         std::string output_directory = "tile_export";
     };
 
-    TileExportNode(WGPUDevice device, ExportSettings settings);
+    TileExportNode(WGPUDevice device, const ExportSettings& settings);
+
+    void set_settings(const ExportSettings& settings);
 
 public slots:
     void run_impl() override;

@@ -30,7 +30,9 @@ public:
         std::string output_file = "output_buffer.png";
     };
 
-    BufferExportNode(WGPUDevice device, ExportSettings settings);
+    BufferExportNode(WGPUDevice device, const ExportSettings& settings);
+
+    void set_settings(const ExportSettings& settings);
 
 public slots:
     void run_impl() override;
