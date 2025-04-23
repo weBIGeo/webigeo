@@ -297,6 +297,11 @@ void Window::paint_gui()
                     aabb_filepath = filename.parent_path() / (trackname + "_aabb.txt");
                 }
 
+                // if trackname aabb does not exist, try just aabb.txt
+                if (!std::filesystem::exists(aabb_filepath)) {
+                    aabb_filepath = filename.parent_path() / "aabb.txt";
+                }
+
                 // If the AABB file exists, call the appropriate functions
                 if (std::filesystem::exists(aabb_filepath)) {
                     update_image_overlay_texture(filename_str);
@@ -401,8 +406,12 @@ void Window::paint_compute_pipeline_gui()
     if (ImGui::CollapsingHeader("Compute pipeline", ImGuiTreeNodeFlags_DefaultOpen)) {
 
         if (ImGui::Button("Run", ImVec2(250, 20))) {
-            if (m_is_region_selected) {
+            bool eval_ready_to_run = (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES_EVAL) && (!m_compute_pipeline_settings.heightmap_texture_path.empty());
+            bool normal_pipeline_ready_to_run = (m_active_compute_pipeline_type != ComputePipelineType::AVALANCHE_TRAJECTORIES_EVAL) && m_is_region_selected;
+            if (normal_pipeline_ready_to_run || eval_ready_to_run) {
                 m_compute_graph->run();
+            } else {
+                display_message("Cannot run pipeline - No region selected (track for normal pipeline, eval dir for eval pipeline)");
             }
         }
 
@@ -1429,13 +1438,13 @@ void Window::load_eval_dir(const std::string& path)
 
     const auto release_points_path = dir / "release_points" / "texture.png";
     if (!std::filesystem::exists(release_points_path)) {
-        display_message("Directory " + path + " does not contain heights - expected in " + release_points_path.string() + " - abort");
+        display_message("Directory " + path + " does not contain release points - expected in " + release_points_path.string() + " - abort");
         return;
     }
 
-    const auto aabb_path = dir / "trajectories" / "aabb.txt";
+    const auto aabb_path = dir / "heights" / "aabb.txt";
     if (!std::filesystem::exists(aabb_path)) {
-        display_message("Directory " + path + " does not contain heights - expected in " + aabb_path.string() + " - abort");
+        display_message("Directory " + path + " does not contain aabb - expected in " + aabb_path.string() + " - abort");
         return;
     }
 
