@@ -49,14 +49,15 @@ public:
 
     Node* add_node(const std::string& name, std::unique_ptr<Node> node);
 
-    Node& get_node(const std::string& node_name);
-    const Node& get_node(const std::string& node_name) const;
-    bool exists_node(const std::string& node_name) const;
+    [[nodiscard]] Node& get_node(const std::string& node_name);
+    [[nodiscard]] const Node& get_node(const std::string& node_name) const;
+    [[nodiscard]] bool exists_node(const std::string& node_name) const;
 
-    std::unordered_map<std::string, std::unique_ptr<Node>>& get_nodes();
+    [[nodiscard]] std::unordered_map<std::string, std::unique_ptr<Node>>& get_nodes();
+    [[nodiscard]] const std::unordered_map<std::string, std::unique_ptr<Node>>& get_nodes() const;
 
-    template <typename NodeType> NodeType& get_node_as(const std::string& node_name) { return static_cast<NodeType&>(get_node(node_name)); }
-    template <typename NodeType> const NodeType& get_node_as(const std::string& node_name) const { return static_cast<const NodeType&>(get_node(node_name)); }
+    template <typename NodeType> [[nodiscard]] NodeType& get_node_as(const std::string& node_name) { return static_cast<NodeType&>(get_node(node_name)); }
+    template <typename NodeType> [[nodiscard]] const NodeType& get_node_as(const std::string& node_name) const { return static_cast<const NodeType&>(get_node(node_name)); }
 
     // obtain outputs - for now all node graphs always output
     //  - a hashmap for overlay tiles (mapping tile id to texture array layer)

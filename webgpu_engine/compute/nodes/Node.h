@@ -176,6 +176,9 @@ public:
     [[nodiscard]] std::vector<OutputSocket>& output_sockets();
     [[nodiscard]] const std::vector<OutputSocket>& output_sockets() const;
 
+    /// Returns running time of the last execution of this node in ms.
+    [[nodiscard]] float last_run_duration() const;
+
 public slots:
     void run();
 
@@ -194,8 +197,6 @@ protected:
 protected:
     [[nodiscard]] Data get_output_data(const std::string& output_socket_name);
     [[nodiscard]] Data get_input_data(const std::string& input_socket_name);
-
-    [[nodiscard]] float last_run_duration() const;
 
 private:
     std::vector<InputSocket> m_input_sockets;

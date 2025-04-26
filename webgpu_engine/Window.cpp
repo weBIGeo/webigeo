@@ -26,6 +26,7 @@
 #include "compute/nodes/LoadTextureNode.h"
 #include "compute/nodes/SelectTilesNode.h"
 #include "compute/nodes/TileExportNode.h"
+#include "compute/nodes/util.h"
 #include "nucleus/track/GPX.h"
 #include "nucleus/utils/image_loader.h"
 #include "webgpu/raii/RenderPassEncoder.h"
@@ -1509,9 +1510,14 @@ void Window::on_pipeline_run_completed()
 
     if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES || m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES_EVAL) {
         std::filesystem::path trajectory_export_path = m_compute_graph->get_node_as<compute::nodes::TileExportNode>("trajectories_export").get_settings().output_directory;
+
         std::filesystem::path settings_export_path = trajectory_export_path.parent_path() / "settings.json";
         qDebug() << "writing settings to " << settings_export_path.string();
         ComputePipelineSettings::write_to_json_file(m_compute_pipeline_settings, settings_export_path);
+
+        std::filesystem::path timings_export_path = trajectory_export_path.parent_path() / "timings.json";
+        qDebug() << "writing timings to " << timings_export_path.string();
+        compute::nodes::write_timings_to_json_file(*m_compute_graph, timings_export_path);
     }
 }
 
