@@ -403,7 +403,7 @@ fn trajectory_overlay(id: vec3<u32>) {
             }
 
             // draw line from last to current position
-            draw_line_uv(last_uv, current_uv, trajectory_value, z_delta, world_space_travel_distance, delta, height_difference);
+            draw_line_uv(last_uv, current_uv, trajectory_value, z_delta, world_space_travel_distance, gamma, height_difference);
         }
         last_uv = current_uv;
 
