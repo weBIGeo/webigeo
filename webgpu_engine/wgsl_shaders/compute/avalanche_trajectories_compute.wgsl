@@ -371,13 +371,18 @@ fn trajectory_overlay(id: vec3<u32>) {
 
         let normal = sample_normal_texture(current_uv);
 
+        let current_height = sample_height_texture(current_uv);
+        if (current_height == 0) {
+            break;
+        }
+
         if (i > 0) {
             // calculate physical quantities
             //  - altitude difference from starting point
             //  - z_delta (kinetic energy ~ velocity)
             //  - delta (local runout angle)
             //  - distance we have already
-            let current_height = sample_height_texture(current_uv);
+            
             let height_difference = start_point_height - current_height;
             let z_alpha = tan(settings.runout_flowpy_alpha) * world_space_travel_distance;
             let z_gamma = height_difference;
