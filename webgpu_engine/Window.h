@@ -199,6 +199,7 @@ private:
 
     std::unique_ptr<compute::NodeGraphRenderer> m_node_graph_renderer;
     bool m_should_render_node_graph = false;
+    std::filesystem::path m_eval_dir;
 };
 
 } // namespace webgpu_engine

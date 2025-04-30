@@ -539,7 +539,7 @@ void Window::paint_compute_pipeline_gui()
                     update_settings_and_rerun_pipeline();
                 }
 
-                ImGui::DragFloat("Persistence", &m_compute_pipeline_settings.persistence_contribution, 0.01f, 0.0f, 1.0f, "%.3f");
+                ImGui::DragFloat("Persistence", &m_compute_pipeline_settings.persistence_contribution, 0.01f, 0.0f, .999f, "%.3f");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     update_settings_and_rerun_pipeline();
                 }
@@ -616,7 +616,7 @@ void Window::paint_compute_pipeline_gui()
                     update_settings_and_rerun_pipeline();
                 }
 
-                ImGui::DragFloat("Persistence", &m_compute_pipeline_settings.persistence_contribution, 0.01f, 0.0f, 1.0f, "%.3f");
+                ImGui::DragFloat("Persistence", &m_compute_pipeline_settings.persistence_contribution, 0.01f, 0.0f, .999f, "%.3f");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     update_settings_and_rerun_pipeline();
                 }
@@ -667,7 +667,9 @@ void Window::paint_compute_pipeline_gui()
 #ifndef __EMSCRIPTEN__
                 if (ImGui::Button("Open eval dir ...", ImVec2(250, 20))) {
                     IGFD::FileDialogConfig config_eval_dir_file_dialog;
-                    config_eval_dir_file_dialog.path = ".";
+                    std::filesystem::path input_path = "input";
+                    std::filesystem::create_directory(input_path);
+                    config_eval_dir_file_dialog.path = input_path.string();
                     ImGuiFileDialog::Instance()->OpenDialog("EvalDirFileDialog", "Choose evaluation directory", nullptr, config_eval_dir_file_dialog);
                 }
 
@@ -920,7 +922,8 @@ void Window::update_compute_pipeline_settings()
 
         // update file export path to include current date and time
         {
-            const std::filesystem::path export_root_dir = "export_" + get_current_date_time_string();
+            const std::filesystem::path export_root_dir = std::filesystem::path("export") / get_current_date_time_string();
+            std::filesystem::create_directory(export_root_dir);
 
             // set trajectory layer export directories
             compute::nodes::BufferExportNode::ExportSettings zdelta_export_settings { (export_root_dir / "trajectories/texture_layer1_zdelta.png").string() };
@@ -986,7 +989,14 @@ void Window::update_compute_pipeline_settings()
 
         // update file export path to include current date and time
         {
-            const std::filesystem::path export_root_dir = "export_" + get_current_date_time_string();
+            const std::filesystem::path export_root_dir = "export" / m_eval_dir.lexically_normal().filename() / std::format("pers_{:.2f}_rand_{:.2f}_n_{}_l_{}_res_{}_a_{:.2f}",
+                    trajectory_settings.persistence_contribution,
+                    trajectory_settings.random_contribution,
+                    trajectory_settings.num_paths_per_release_cell,
+                    trajectory_settings.step_length,
+                    trajectory_settings.resolution_multiplier,
+                    trajectory_settings.runout_flowpy.alpha);
+
 
             // set trajectory layer export directories
             compute::nodes::BufferExportNode::ExportSettings zdelta_export_settings { (export_root_dir / "trajectories/texture_layer1_zdelta.png").string() };
@@ -1423,6 +1433,7 @@ void Window::load_eval_dir(const std::string& path)
 {
     const std::filesystem::path dir = path;
     const auto settings_path = dir / "settings.json";
+    m_eval_dir = dir;
 
     qDebug() << "try to load settings and raster files from directory " << path;
 
