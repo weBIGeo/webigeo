@@ -43,7 +43,7 @@ public:
     void update_settings(const Settings& node_graph_settings);
 
     /**
-     * Executes the node graph and blocks until the execution has completed or failed. \
+     * Executes the node graph and blocks until the execution has completed or failed.
      */
     void run();
 
