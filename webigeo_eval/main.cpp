@@ -23,6 +23,24 @@
 #include "WebigeoApp.h"
 #include "util/error_logging.h"
 
+void resolve_relative_paths(webigeo_eval::Settings& settings, std::filesystem::path settings_path)
+{
+    const auto settings_dir = settings_path.parent_path();
+
+    if (std::filesystem::path(settings.aabb_file_path).is_relative()) {
+        settings.aabb_file_path = (settings_dir / settings.aabb_file_path).string();
+    }
+    if (std::filesystem::path(settings.heightmap_texture_path).is_relative()) {
+        settings.heightmap_texture_path = (settings_dir / settings.heightmap_texture_path).string();
+    }
+    if (std::filesystem::path(settings.release_points_texture_path).is_relative()) {
+        settings.release_points_texture_path = (settings_dir / settings.release_points_texture_path).string();
+    }
+    if (std::filesystem::path(settings.output_dir_path).is_relative()) {
+        settings.output_dir_path = (settings_dir / settings.output_dir_path).string();
+    }
+}
+
 int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
 {
     if (argc != 2) {
@@ -38,6 +56,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
 
     // load and parse input file
     webigeo_eval::Settings pipeline_settings = webigeo_eval::Settings::read_from_json_file(settings_path);
+    resolve_relative_paths(pipeline_settings, settings_path);
 
     // Init QCoreApplication is necessary as it declares the current thread
     // as a Qt-Thread. Otherwise functionalities like QTimers wouldnt work.
