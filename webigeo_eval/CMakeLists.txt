@@ -20,6 +20,8 @@
 
 project(alpine-renderer-webigeo_eval LANGUAGES C CXX)
 
+include(GenerateBatchScript.cmake)
+
 set(SOURCES
     main.cpp
     WebigeoApp.h WebigeoApp.cpp
@@ -41,3 +43,4 @@ set_target_properties(webigeo_eval PROPERTIES
 target_link_libraries(webigeo_eval PRIVATE webgpu webgpu_engine Qt::Core)
 target_include_directories(webigeo_eval PRIVATE .)
 
+generate_webigeo_eval_batch_script()

@@ -26,13 +26,13 @@
 int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
 {
     if (argc != 2) {
-        std::cerr << "usage: webigeo-egal <settings-file-path>";
+        std::cerr << "usage: webigeo-egal <settings-file-path>" << std::endl;
         return 1;
     }
 
     std::filesystem::path settings_path = argv[1];
     if (!std::filesystem::exists(settings_path)) {
-        std::cerr << "error: input-dir-path " << settings_path.string() << "does not exist";
+        std::cerr << "error: input-dir-path " << settings_path.string() << " does not exist" << std::endl;
         return 1;
     }
 
