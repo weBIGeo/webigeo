@@ -43,21 +43,6 @@ void resolve_relative_paths(webigeo_eval::Settings& settings, std::filesystem::p
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
 {
-    if (argc != 2) {
-        std::cerr << "usage: webigeo-egal <settings-file-path>" << std::endl;
-        return 1;
-    }
-
-    std::filesystem::path settings_path = argv[1];
-    if (!std::filesystem::exists(settings_path)) {
-        std::cerr << "error: input-dir-path " << settings_path.string() << " does not exist" << std::endl;
-        return 1;
-    }
-
-    // load and parse input file
-    webigeo_eval::Settings pipeline_settings = webigeo_eval::Settings::read_from_json_file(settings_path);
-    resolve_relative_paths(pipeline_settings, settings_path);
-
     // Init QCoreApplication is necessary as it declares the current thread
     // as a Qt-Thread. Otherwise functionalities like QTimers wouldnt work.
     // It basically initializes the Qt environment
@@ -65,6 +50,19 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
 
     // Set custom logging handler for Qt
     qInstallMessageHandler(qt_logging_callback);
+
+    if (argc != 2) {
+        qFatal() << "usage: webigeo-egal <settings-file-path>";
+    }
+
+    std::filesystem::path settings_path = argv[1];
+    if (!std::filesystem::exists(settings_path)) {
+        qFatal() << "error: input-dir-path " << settings_path.string() << " does not exist";
+    }
+
+    // load and parse input file
+    webigeo_eval::Settings pipeline_settings = webigeo_eval::Settings::read_from_json_file(settings_path);
+    resolve_relative_paths(pipeline_settings, settings_path);
 
     webigeo_eval::WebigeoApp webigeo_app;
     webigeo_app.update_settings(pipeline_settings);

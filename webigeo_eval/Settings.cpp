@@ -50,16 +50,25 @@ void Settings::write_to_json_file(const Settings& settings, const std::filesyste
 
 Settings Settings::read_from_json_file(const std::filesystem::path& input_path)
 {
+    if (std::filesystem::is_directory(input_path)) {
+        qFatal() << "error: input path" << input_path.string() << "is a directory";
+    }
 
     QJsonObject object;
     {
-        QJsonDocument document;
-
+        // Read input file
         QFile input_file(input_path);
         input_file.open(QIODevice::ReadOnly);
         QByteArray data = input_file.readAll();
-        document = QJsonDocument::fromJson(data);
         input_file.close();
+
+        // Parse input file as JSON
+        QJsonDocument document;
+        QJsonParseError json_parse_error;
+        document = QJsonDocument::fromJson(data, &json_parse_error);
+        if (document.isNull()) {
+            qFatal() << "error: JSON parsing failed at offset " << json_parse_error.offset << ", " << json_parse_error.errorString();
+        }
         assert(document.isObject());
         object = document.object();
     }
