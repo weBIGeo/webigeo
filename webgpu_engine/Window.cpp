@@ -534,14 +534,37 @@ void Window::paint_compute_pipeline_gui()
                     update_settings_and_rerun_pipeline();
                 }
 
-                ImGui::DragFloat("Random contribution", &m_compute_pipeline_settings.random_contribution, 0.01f, 0.0f, 1.0f, "%.3f");
-                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                if (ImGui::Combo("Model", (int*)&m_compute_pipeline_settings.model_type, "Default\0physics_less_simple\0Gradients\0Discretized gradients\0D8 (no weights)\0D8 (with weights)\0")) {
                     update_settings_and_rerun_pipeline();
                 }
 
-                ImGui::DragFloat("Persistence", &m_compute_pipeline_settings.persistence_contribution, 0.01f, 0.0f, 1.0f, "%.3f");
-                if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    update_settings_and_rerun_pipeline();
+                if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_SIMPLE) {
+                    ImGui::DragFloat("Random contribution", &m_compute_pipeline_settings.random_contribution, 0.01f, 0.0f, 1.0f, "%.3f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        update_settings_and_rerun_pipeline();
+                    }
+
+                    ImGui::DragFloat("Persistence", &m_compute_pipeline_settings.persistence_contribution, 0.01f, 0.0f, 1.0f, "%.3f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        update_settings_and_rerun_pipeline();
+                    }
+                } else if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_LESS_SIMPLE) {
+                    ImGui::SliderFloat("Gravity##model_less_simple", &m_compute_pipeline_settings.model_less_simple_params.gravity, 0.0f, 15.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        update_settings_and_rerun_pipeline();
+                    }
+                    ImGui::SliderFloat("Mass##model_less_simple", &m_compute_pipeline_settings.model_less_simple_params.mass, 0.0f, 100.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        update_settings_and_rerun_pipeline();
+                    }
+                    ImGui::SliderFloat("Drag coeff##model_less_simple", &m_compute_pipeline_settings.model_less_simple_params.drag_coeff, 0.0f, 1.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        update_settings_and_rerun_pipeline();
+                    }
+                    ImGui::SliderFloat("Friction coeff##model_less_simple", &m_compute_pipeline_settings.model_less_simple_params.friction_coeff, 0.0f, 1.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        update_settings_and_rerun_pipeline();
+                    }
                 }
 
                 static int runout_models_current_item = 1;
@@ -611,16 +634,38 @@ void Window::paint_compute_pipeline_gui()
                     update_settings_and_rerun_pipeline();
                 }
 
-                ImGui::DragFloat("Random contribution", &m_compute_pipeline_settings.random_contribution, 0.01f, 0.0f, 1.0f, "%.3f");
-                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                if (ImGui::Combo("Model", (int*)&m_compute_pipeline_settings.model_type, "Default\0physics_less_simple)\0Gradients\0Discretized gradients\0D8 (no weights)\0D8 (with weights)\0")) {
                     update_settings_and_rerun_pipeline();
                 }
 
-                ImGui::DragFloat("Persistence", &m_compute_pipeline_settings.persistence_contribution, 0.01f, 0.0f, 1.0f, "%.3f");
-                if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    update_settings_and_rerun_pipeline();
-                }
+                if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_SIMPLE) {
+                    ImGui::DragFloat("Random contribution", &m_compute_pipeline_settings.random_contribution, 0.01f, 0.0f, 1.0f, "%.3f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        update_settings_and_rerun_pipeline();
+                    }
 
+                    ImGui::DragFloat("Persistence", &m_compute_pipeline_settings.persistence_contribution, 0.01f, 0.0f, 1.0f, "%.3f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        update_settings_and_rerun_pipeline();
+                    }
+                } else if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_LESS_SIMPLE) {
+                    ImGui::SliderFloat("Gravity##model2", &m_compute_pipeline_settings.model_less_simple_params.gravity, 0.0f, 15.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        update_settings_and_rerun_pipeline();
+                    }
+                    ImGui::SliderFloat("Mass##model2", &m_compute_pipeline_settings.model_less_simple_params.mass, 0.0f, 100.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        update_settings_and_rerun_pipeline();
+                    }
+                    ImGui::SliderFloat("Drag coeff##model2", &m_compute_pipeline_settings.model_less_simple_params.drag_coeff, 0.0f, 1.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        update_settings_and_rerun_pipeline();
+                    }
+                    ImGui::SliderFloat("Friction coeff##model2", &m_compute_pipeline_settings.model_less_simple_params.friction_coeff, 0.0f, 1.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        update_settings_and_rerun_pipeline();
+                    }
+                }
                 static int runout_models_current_item = 1;
                 const std::vector<std::pair<std::string, int>> runout_models = {
                     { "None", 0 },
@@ -910,7 +955,8 @@ void Window::update_compute_pipeline_settings()
         trajectory_settings.num_paths_per_release_cell = m_compute_pipeline_settings.num_paths_per_release_cell;
         trajectory_settings.random_contribution = m_compute_pipeline_settings.random_contribution;
         trajectory_settings.persistence_contribution = m_compute_pipeline_settings.persistence_contribution;
-
+        trajectory_settings.active_model = m_compute_pipeline_settings.model_type;
+        trajectory_settings.model2 = m_compute_pipeline_settings.model_less_simple_params;
         trajectory_settings.active_runout_model = compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType(m_compute_pipeline_settings.runout_model_type);
         trajectory_settings.runout_perla = m_compute_pipeline_settings.perla;
         trajectory_settings.runout_flowpy.alpha = glm::radians(m_compute_pipeline_settings.runout_flowpy_alpha);
@@ -957,7 +1003,8 @@ void Window::update_compute_pipeline_settings()
         trajectory_settings.num_paths_per_release_cell = m_compute_pipeline_settings.num_paths_per_release_cell;
         trajectory_settings.random_contribution = m_compute_pipeline_settings.random_contribution;
         trajectory_settings.persistence_contribution = m_compute_pipeline_settings.persistence_contribution;
-
+        trajectory_settings.active_model = m_compute_pipeline_settings.model_type;
+        trajectory_settings.model2 = m_compute_pipeline_settings.model_less_simple_params;
         trajectory_settings.active_runout_model = compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType(m_compute_pipeline_settings.runout_model_type);
         trajectory_settings.runout_perla = m_compute_pipeline_settings.perla;
         trajectory_settings.runout_flowpy.alpha = glm::radians(m_compute_pipeline_settings.runout_flowpy_alpha);

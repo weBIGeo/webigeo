@@ -423,6 +423,7 @@ fn trajectory_overlay(id: vec3<u32>) {
         } else if (settings.model_type == 1) {
             velocity += settings.step_length * model_physics_less_simple(normal, velocity);
             world_space_offset = world_space_offset + settings.step_length * velocity.xy;
+            world_space_travel_distance += length(settings.step_length * velocity.xy);
         } else if (settings.model_type == 2) {
             let direction = model_gradient(normal);
             world_space_offset = world_space_offset + settings.step_length * direction;
