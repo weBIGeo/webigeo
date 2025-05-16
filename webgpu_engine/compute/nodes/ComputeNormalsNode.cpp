@@ -40,6 +40,8 @@ ComputeNormalsNode::ComputeNormalsNode(const PipelineManager& pipeline_manager, 
 {
 }
 
+void ComputeNormalsNode::set_settings(const NormalSettings& settings) { m_settings = settings; }
+
 void ComputeNormalsNode::run_impl()
 {
     qDebug() << "running NormalComputeNode ...";

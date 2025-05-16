@@ -43,6 +43,8 @@ public:
 
     ComputeNormalsNode(const PipelineManager& pipeline_manager, WGPUDevice device);
 
+    void set_settings(const NormalSettings& settings);
+
 public slots:
     void run_impl() override;
 

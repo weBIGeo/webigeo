@@ -448,7 +448,12 @@ std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_evaluation_compute_gra
     Node* load_heights_node = node_graph->add_node("load_heights_node", std::make_unique<LoadTextureNode>(device));
     Node* load_aabb_node = node_graph->add_node("load_aabb_node", std::make_unique<LoadRegionAabbNode>());
 
+    ComputeNormalsNode::NormalSettings normals_settings {
+        .format = WGPUTextureFormat_RGBA8Unorm,
+        .usage = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc),
+    };
     ComputeNormalsNode* normal_compute_node = static_cast<ComputeNormalsNode*>(node_graph->add_node("compute_normals_node", std::make_unique<ComputeNormalsNode>(manager, device)));
+    normal_compute_node->set_settings(normals_settings);
 
     HeightDecodeNode::HeightDecodeSettings height_decode_settings = {
         .texture_usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc,
@@ -500,6 +505,9 @@ std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_evaluation_compute_gra
         TileExportNode::ExportSettings export_settings_trajectories = { true, true, true, true, "export/trajectories" };
         TileExportNode* trajectories_export_node = static_cast<TileExportNode*>(node_graph->add_node("trajectories_export", std::make_unique<TileExportNode>(device, export_settings_trajectories)));
 
+        TileExportNode::ExportSettings export_settings_normals = { true, true, true, true, "export/normals" };
+        TileExportNode* normals_export_node = static_cast<TileExportNode*>(node_graph->add_node("normals_export", std::make_unique<TileExportNode>(device, export_settings_normals)));
+
         // Connect release points export node
         rp_export_node->input_socket("texture").connect(load_rp_node->output_socket("texture"));
         rp_export_node->input_socket("region aabb").connect(load_aabb_node->output_socket("region aabb"));
@@ -511,6 +519,10 @@ std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_evaluation_compute_gra
         // Connect trajectories export node
         trajectories_export_node->input_socket("texture").connect(buffer_to_texture_node->output_socket("texture"));
         trajectories_export_node->input_socket("region aabb").connect(load_aabb_node->output_socket("region aabb"));
+
+        // Connect normals export node
+        normals_export_node->input_socket("texture").connect(normal_compute_node->output_socket("normal texture"));
+        normals_export_node->input_socket("region aabb").connect(load_aabb_node->output_socket("region aabb"));
 
         BufferExportNode* l1_export_node = static_cast<BufferExportNode*>(
             node_graph->add_node("l1_export_node", std::make_unique<BufferExportNode>(device, BufferExportNode::ExportSettings { "export/trajectories/texture_layer1_zdelta.png" })));

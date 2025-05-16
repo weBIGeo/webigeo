@@ -150,6 +150,10 @@ void WebigeoApp::update_settings(const Settings& node_graph_settings)
         // set release point export directory
         TileExportNode::ExportSettings export_releasepoints_settings = { true, true, true, true, (export_root_dir / "release_points").string() };
         m_node_graph->get_node_as<TileExportNode>("rp_export").set_settings(export_releasepoints_settings);
+
+        // set normals export directory
+        TileExportNode::ExportSettings export_normals_settings = { true, true, true, true, (export_root_dir / "normals").string() };
+        m_node_graph->get_node_as<TileExportNode>("normals_export").set_settings(export_normals_settings);
     }
 }
 
