@@ -28,6 +28,18 @@
 // weights need to match the texels that are chosen by textureGather - this does NOT align perfectly, and introduces some artifacts
 // adding offset fixes this issue, see https://www.reedbeta.com/blog/texture-gathers-and-coordinate-precision/
 const TEXTURE_GATHER_OFFSET = 1.0f / 512.0f;
+const timesteps: u32 = 10000u;
+const g: f32 = 9.81;
+const pixel_size_m: f32 = 5.0;
+const density_kg_m3: f32 = 200.0;
+const slab_height_m: f32 = 0.5;
+const cfl: f32 = 0.8;
+
+const area_m2: f32 = pixel_size_m * pixel_size_m;
+const mass_pixel_kg: f32 = density_kg_m3 * area_m2 * slab_height_m;
+const mass_per_area = density_kg_m3 * slab_height_m;
+const acceleration_gravity = vec3f(0.0, 0.0, -g);
+const velocity_threshold: f32 = 0.01f;
 
 struct AvalancheTrajectoriesSettings {
     output_resolution: vec2u,
@@ -35,6 +47,7 @@ struct AvalancheTrajectoriesSettings {
 
     num_steps: u32, // maximum number of steps (along gradient)
     step_length: f32, // length of one simulation step in world space
+//    num_paths_per_release_cell: u32,
 
     random_contribution: f32, // randomness contribution on normal in [0,1], 0 means no randomness, 1 means only randomness
     persistence_contribution: f32, // persistence contribution on normal in [0,1], 0 means only local normal, 1 means only last normal
@@ -51,7 +64,7 @@ struct AvalancheTrajectoriesSettings {
     model5_center_height_offset: f32,
     model5_weights: array<vec4f, 2>,
 
-    runout_model_type: u32, //0 none, 1 perla
+    runout_model_type: u32, //actually: friction model: 0 coulomb, 1 voellmy, 2 voellmy minshear, 3 samosAt
 
     runout_perla_my: f32, // sliding friction coeff
     runout_perla_md: f32, // M/D mass-to-drag ratio
@@ -139,22 +152,22 @@ fn draw_line_pos(start_pos: vec2u, end_pos: vec2u, value: f32, z_delta: f32, tra
     while (true) {
         let buffer_index = u32(y) * settings.output_resolution.x + u32(x);
         atomicMax(&output_storage_buffer[buffer_index], range_to_u32(value, U32_ENCODING_RANGE_NORM)); // map value from [0,1] angle to [0, 2^32 - 1]
-        if (settings.layer1_zdelta_enabled != 0) {
-            atomicMax(&output_layer1_zdelta[buffer_index], u32(z_delta)); // zdelta in m (we lose some precision here)
-        }
-        if (settings.layer2_cellCounts_enabled != 0) {
-            atomicAdd(&output_layer2_cellCounts[buffer_index], 1); // count number of steps in this layer
-        }
-        if (settings.layer3_travelLength_enabled != 0) {
-            atomicMax(&output_layer3_travelLength[buffer_index], u32(travel_length)); // travel length in m (we lose some precision here)
-        }
-        if (settings.layer4_travelAngle_enabled != 0) {
-            let travel_angle_value: f32 = degrees(travel_angle); // travel angle in deg (we lose some precision here)
-            atomicMax(&output_layer4_travelAngle[buffer_index], u32(travel_angle_value));
-        }
-        if (settings.layer5_altitudeDifference_enabled != 0) {
-            atomicMax(&output_layer5_altitudeDifference[buffer_index], u32(altitude_difference));
-        }
+//        if (settings.layer1_zdelta_enabled != 0) {
+//            atomicMax(&output_layer1_zdelta[buffer_index], u32(z_delta)); // zdelta in m (we lose some precision here)
+//        }
+//        if (settings.layer2_cellCounts_enabled != 0) {
+//            atomicAdd(&output_layer2_cellCounts[buffer_index], 1); // count number of steps in this layer
+//        }
+//        if (settings.layer3_travelLength_enabled != 0) {
+//            atomicMax(&output_layer3_travelLength[buffer_index], u32(travel_length)); // travel length in m (we lose some precision here)
+//        }
+//        if (settings.layer4_travelAngle_enabled != 0) {
+//            let travel_angle_value: f32 = degrees(travel_angle); // travel angle in deg (we lose some precision here)
+//            atomicMax(&output_layer4_travelAngle[buffer_index], u32(travel_angle_value));
+//        }
+//        if (settings.layer5_altitudeDifference_enabled != 0) {
+//            atomicMax(&output_layer5_altitudeDifference[buffer_index], u32(altitude_difference));
+//        }
         //write_pixel_at_pos(vec2u(u32(x), u32(y)), value);
         
         if (x == i32(end_pos.x) && y == i32(end_pos.y)) {
@@ -175,149 +188,7 @@ fn draw_line_pos(start_pos: vec2u, end_pos: vec2u, value: f32, z_delta: f32, tra
 
 // ***** MODELS *****
 
-fn model_physics_simple(normal: vec3f, velocity: vec3f) -> vec3f {
-    // simple model: slows down by a constant factor of the velocity, speeds up by constant factor of normalized gradient
-    let gradient = get_gradient(normal);
 
-    let velocity_change = -settings.model1_linear_drag_coeff * velocity + settings.model1_downward_acceleration_coeff * gradient;
-    return velocity_change;
-}
-
-fn model_physics_less_simple(normal: vec3f, velocity: vec3f) -> vec3f {
-    // trying to come up with a more realistic model with tunable parameters
-    //   Fw = m * g * (0,0,-1)                  ... weight force
-    //   Fn = (-Fw . normal) * normal           ... normal force (Fw + Fn is the part of the weight force acting along gradient)
-    //   Ff = friction_coeff * |N| * (-v / |v|) ... friction force, acting against direction of current velocity
-    //   Fd = drag_coeff * |v|^2 * (-v / |v|)   ... drag force, acting against direction of current velocity
-    // TODO need to convert between world space and meters
-    let gravity = vec3f(0, 0, -settings.model2_gravity);
-    let mass = settings.model2_mass;
-    let friction_coefficient = settings.model2_friction_coeff;
-    let drag_coefficient = settings.model2_drag_coeff;
-    
-    let velocity_magnitude = length(velocity);
-    let against_motion_dir = -normalize(velocity);
-
-    let f_weight = mass * gravity;
-    let f_normal = dot(-f_weight, normal) * normal;
-    let f_friction = friction_coefficient * length(f_normal) * select(vec3f(0), against_motion_dir, velocity_magnitude > 0);
-    let f_drag = drag_coefficient * pow(velocity_magnitude, 2) * select(vec3f(0), against_motion_dir, velocity_magnitude > 0);
-    let f_net = f_weight + f_normal + f_friction + f_drag;
-    
-    let a = f_net / mass;
-    return settings.step_length * a;
-}
-
-fn model_gradient(normal: vec3f) -> vec2f {
-    return get_gradient(normal).xy;
-}
-
-fn model_discretized_gradient(normal: vec3f) -> vec2f {
-    // discreticed gradient, probably not the most efficient way of doing that
-    let grad = get_gradient(normal).xy;
-    if (grad.x == 0 && grad.y == 0) {
-        return vec2f(0);
-    }
-    let angle = atan2(-grad.y, grad.x) + PI; // now [0, 2*pi]
-    let angle_adjusted = (angle + PI / 8) % (2 * PI);
-    let neighbor_index = min(i32((angle_adjusted) / (2 * PI) * 8), 7); //could be 8 if angle = +pi
-    const possible_neighbors = array<vec2f, 8>(
-                            vec2f(-1,0),
-                            vec2f(-1,1),
-                            vec2f(0,1),
-                            vec2f(1,1),
-                            vec2f(1,0),
-                            vec2f(1,-1),
-                            vec2f(0,-1),
-                            vec2f(-1,-1));
-    return possible_neighbors[neighbor_index];
-}
-
-fn model_d8_without_weights(tile_id: TileId, uv: vec2f) -> vec2f {
-    /*const directions = array<vec2f, 8>(vec2f(1, 0), vec2f(1, 1), vec2f(0, 1), vec2f(-1, 1), vec2f(-1, 0), vec2f(-1, -1), vec2f(0, -1), vec2f(1, -1));
-    let step_size_to_neighbor = vec2f(1) / vec2f(settings.output_resolution - 1);
-
-    var min_height: u32 = 1 << 31;
-    var min_index: u32;
-    for (var i: u32 = 0; i < 8; i++) {
-        var neighbor_tile_id: TileId;
-        var neighbor_uv: vec2f;
-        offset_uv(tile_id, uv + step_size_to_neighbor * directions[i], &neighbor_tile_id, &neighbor_uv);
-
-        var neighbor_height: u32;
-        if (!get_height(neighbor_tile_id, neighbor_uv, settings.source_zoomlevel, &neighbor_height)) {
-            //TODO handle error somehow, maybe return incorrect dir or something?
-            return vec2f(0);
-        }
-
-        if (neighbor_height < min_height) {
-            min_height = neighbor_height;
-            min_index = i;
-        }
-    }
-    return directions[min_index];*/
-    return vec2f(0, 0);
-}
-
-// like d8, but multiplies heights with a weight before comparing them
-// the weight is chosen based on the last direction taken (passed via index into directions array)
-// if there was no previous movement, all directions are weighted equally (indicated by passing -1)
-// if all weights are 1, the output should be the same as d8 without weights 
-fn model_d8_with_weights(tile_id: TileId, uv: vec2f, last_dir_index: i32, selected_dir_index: ptr<function, i32>, weights: array<f32, 8>) -> vec2f {
-    /*const directions = array<vec2f, 8>(vec2f(1, 0), vec2f(1, 1), vec2f(0, 1), vec2f(-1, 1), vec2f(-1, 0), vec2f(-1, -1), vec2f(0, -1), vec2f(1, -1));
-    //const weights = array<f32, 8>(1, 0.707, 0, 0, 0, 0, 0, 0.707);
-
-    let step_size_to_neighbor = vec2f(1) / vec2f(settings.output_resolution - 1);
-
-    var this_height_u32: u32;
-    if (!get_height(tile_id, uv, settings.source_zoomlevel, &this_height_u32)) {
-        //TODO handle error somehow, maybe return incorrect dir or something?
-        return vec2f(0);
-    }
-    let this_height = f32(this_height_u32) + settings.model5_center_height_offset;
-
-    var max_weighted_descent: f32 = -100000; // positive if neighboring cell has lower height than this 
-    var max_weighted_descent_index: i32;
-    for (var i: i32 = 0; i < 8; i++) {
-        var neighbor_tile_id: TileId;
-        var neighbor_uv: vec2f;
-        offset_uv(tile_id, uv + step_size_to_neighbor * directions[i], &neighbor_tile_id, &neighbor_uv);
-
-        var neighbor_height: u32;
-        if (!get_height(neighbor_tile_id, neighbor_uv, settings.source_zoomlevel, &neighbor_height)) {
-            //TODO handle error somehow, maybe return incorrect dir or something?
-            return vec2f(0);
-        }
-        
-        let weight = select(weights[(i - last_dir_index) % 8], 1, last_dir_index == -1);
-        let weighted_descent = weight * (this_height - f32(neighbor_height));
-
-        if (weighted_descent > max_weighted_descent) {
-            max_weighted_descent = weighted_descent;
-            max_weighted_descent_index = i;
-        }
-    }
-    *selected_dir_index = max_weighted_descent_index; 
-    return directions[max_weighted_descent_index];*/
-    return vec2f(0, 0);
-}
-
-
-fn runout_perla(last_velocity: f32, last_theta: f32, normal: vec3f, out_theta: ptr<function, f32>) -> f32 {
-    let my = settings.runout_perla_my; // sliding friction coeff
-    let md = settings.runout_perla_md; // M/D mass-to-drag ratio
-    let l = settings.runout_perla_l; // distance between grid cells
-    let g = settings.runout_perla_g; // acceleration due to gravity
-    let this_theta = get_slope_angle(normal); // local slope angle
-
-    let this_alpha = g * (sin(this_theta) - my * cos(this_theta));
-    let this_beta = -2f * l / (md);
-    let diff_theta = max(0, last_theta - this_theta);
-    let this_velocity = sqrt(this_alpha * md * (1 - exp(this_beta)) + pow(last_velocity, 2) * exp(this_beta) * cos(diff_theta));
-    
-    *out_theta = this_theta;
-    return this_velocity;
-}
 
 // returns UV coordinates for the trajectory starting point for a thread id
 fn get_starting_point_uv(id: vec3<u32>) -> vec2f {
@@ -332,8 +203,14 @@ fn get_starting_point_uv(id: vec3<u32>) -> vec2f {
 fn trajectory_overlay(id: vec3<u32>) {
     //TODO replace hardcoded 1 with field in settings uniform (can then use current time, for example)
     seed(vec4u(id, 1)); //seed PRNG with thread id
+    let pixel_size = vec2f(settings.region_size) / vec2f(textureDimensions(input_normal_texture));
+    let dx = min(pixel_size.x, pixel_size.y);
+
+//    let mass_particle_kg: f32 = mass_pixel_kg / f32(settings.num_paths_per_release_cell);
+    let mass_particle_kg: f32 = mass_pixel_kg / f32(512);
 
     let uv = get_starting_point_uv(id);
+//    let uv = vec2f(f32(id.x), f32(id.y)) * texel_size_uv;
 
     if (!sample_release_point_texture(uv)) {
         return;
@@ -341,14 +218,12 @@ fn trajectory_overlay(id: vec3<u32>) {
 
     // get slope angle at start
     let start_normal = sample_normal_texture(uv);
-    let start_slope_angle = get_slope_angle(start_normal);
-    let trajectory_value = start_slope_angle / (PI / 2);
-
-
     var velocity = vec3f(0, 0, 0);
 
-    var perla_velocity = 0f;
-    var perla_theta = 0f;
+    let start_slope_angle = get_slope_angle(start_normal);
+    let trajectory_value = start_slope_angle / (PI / 2);
+    var perla_velocity = 0.0f;
+    var perla_theta = 0.0f;
 
     // alpha-beta model state
     let start_point_height: f32 = sample_height_texture(uv);
@@ -359,6 +234,9 @@ fn trajectory_overlay(id: vec3<u32>) {
     var world_space_offset = vec2f(0, 0); // offset from original world position
 
     var normal_t = vec3f(0, 0, 1);
+
+    var acceleration_tangential =  acceleration_gravity - dot(acceleration_gravity, start_normal) * start_normal;
+    var dt = sqrt(2 * dx / length(acceleration_tangential));
 
     for (var i: u32 = 0; i < settings.num_steps; i++) {
         // compute uv coordinates for current position
@@ -372,7 +250,7 @@ fn trajectory_overlay(id: vec3<u32>) {
         let normal = sample_normal_texture(current_uv);
 
         let current_height = sample_height_texture(current_uv);
-        if (current_height == 0) {
+        if (current_height < 10) {
             break;
         }
 
@@ -386,26 +264,9 @@ fn trajectory_overlay(id: vec3<u32>) {
             let height_difference = start_point_height - current_height;
             let z_alpha = tan(settings.runout_flowpy_alpha) * world_space_travel_distance;
             let z_gamma = height_difference;
-            let z_delta = z_gamma - z_alpha;
+            let z_delta = length(velocity);
             let gamma = atan(height_difference / world_space_travel_distance); // will always be positive -> [ 0 , PI/2 ]
             let delta = gamma - settings.runout_flowpy_alpha;
-
-            // evaluate runout model, terminate, if necessary
-            if (settings.runout_model_type == 1) {
-                perla_velocity = runout_perla(perla_velocity, perla_theta, normal, &perla_theta);
-
-                //let buffer_index = get_storage_buffer_index(output_texture_array_index, output_coords, settings.output_resolution);
-                //atomicMax(&output_storage_buffer[buffer_index], u32(1000f * (perla_velocity / 10.0f)));
-
-                if (perla_velocity < 0.01) { //TODO
-                    break;
-                }
-            } else if (settings.runout_model_type == 2) {
-                // more info: https://docs.avaframe.org/en/latest/theoryCom4FlowPy.html
-                if (z_delta <= 0) {
-                    break;
-                }
-            }
 
             // draw line from last to current position
             draw_line_uv(last_uv, current_uv, trajectory_value, z_delta, world_space_travel_distance, gamma, height_difference);
@@ -421,34 +282,79 @@ fn trajectory_overlay(id: vec3<u32>) {
             world_space_offset = world_space_offset + settings.step_length * 5.0 * gradient.xy;
             world_space_travel_distance += length(settings.step_length * 5.0 * gradient.xy);
         } else if (settings.model_type == 1) {
-            velocity += settings.step_length * model_physics_less_simple(normal, velocity);
-            world_space_offset = world_space_offset + settings.step_length * velocity.xy;
-        } else if (settings.model_type == 2) {
-            let direction = model_gradient(normal);
-            world_space_offset = world_space_offset + settings.step_length * direction;
-        } else if (settings.model_type == 3) {
-            let direction = model_discretized_gradient(normal);
-            world_space_offset = world_space_offset + settings.step_length * direction;
-        } else if (settings.model_type == 4) {
-            /*let uv_direction = model_d8_without_weights(current_tile_id, current_tile_uv);
-            let world_direction = vec2f(uv_direction.x, -uv_direction.y);
-            let step_uv_offset = (1f / vec2f(settings.output_resolution));
-            world_space_offset = world_space_offset + world_direction * step_uv_offset * settings.region_size;*/
-        } else if (settings.model_type == 5) {
-            /*let w1 = settings.model5_weights[0];
-            let w2 = settings.model5_weights[1];
-            let weights = array<f32, 8>(w1.x, w1.y, w1.z, w1.w, w2.x, w2.y, w2.z, w2.w);
-            let uv_direction = model_d8_with_weights(current_tile_id, current_tile_uv, last_dir_index, &last_dir_index, weights);
-            let world_direction = vec2f(uv_direction.x, -uv_direction.y);
-            let step_uv_offset = (1f / vec2f(settings.output_resolution));
-            world_space_offset = world_space_offset + world_direction * step_uv_offset * settings.region_size;*/
+            let acceleration_normal = -dot(acceleration_gravity, normal) * normal;
+            let acceleration_tangential = acceleration_gravity + acceleration_normal;
+            // estimate optimal timestep
+            dt = cfl * dx / length(velocity + acceleration_tangential * dt);
+            velocity = velocity + acceleration_tangential * dt;
+
+            let acceleration_friction = acceleration_by_friction(acceleration_normal, mass_particle_kg, velocity);
+            velocity = velocity + acceleration_friction * dt;
+
+            //    let f_weight = mass * gravity;
+            //    let f_normal = dot(-f_weight, normal) * normal;
+            //    let f_friction = friction_coefficient * length(f_normal) * select(vec3f(0), against_motion_dir, velocity_magnitude > 0);
+            //    let f_drag = drag_coefficient * pow(velocity_magnitude, 2) * select(vec3f(0), against_motion_dir, velocity_magnitude > 0);
+            //    let f_net = f_weight + f_normal + f_friction + f_drag;
+
+
+            world_space_offset = world_space_offset + dt * velocity.xy;
+            world_space_travel_distance += length(dt * velocity.xy);
+            let velocity_magnitude = length(velocity);
+            if (velocity_magnitude < velocity_threshold ){ //|| velocity_magnitude < length(acceleration_friction) * dt) {
+                break;
+            }
         }
-
-
     }
 
     // overpaint start point
     //textureStore(output_tiles, vec2u(col, row), id.x, vec4f(0.0, 0.0, 1.0, 1.0));
+}
+
+fn acceleration_by_friction(acceleration_normal: vec3f, mass_per_particle: f32, velocity: vec3f) -> vec3f {
+    let velocity_magnitude = length(velocity);
+    if (velocity_magnitude < velocity_threshold || settings.runout_model_type == 4) {
+        return vec3f(0.0, 0.0, 0.0);
+    }
+
+//    let friction_coefficient = settings.model2_friction_coeff; // standard 0.155, samos: standard 0.155, small 0.22, medium 0.17
+//    let drag_coefficient = settings.model2_drag_coeff; // only used for voellmy, standard 4000.
+    let friction_coefficient = 0.155;
+    let drag_coefficient = 4000.;
+    let sigma_bottom = length(acceleration_normal * mass_per_area);
+    const min_shear_stress = 70f;
+    var tau = 0.0f;
+
+    //actually: friction model: 0 coulomb, 1 voellmy, 2 voellmy minshear, 3 samosAt
+    // Coulomb friction model
+    if (settings.runout_model_type == 0){
+        tau = friction_coefficient * sigma_bottom;
+    }
+    // Voellmy friction model
+    else if (settings.runout_model_type == 1){
+        tau = friction_coefficient * sigma_bottom + mass_per_area  * velocity_magnitude * velocity_magnitude / drag_coefficient;
+    }
+    // Voellmy min shear friction model
+    else if (settings.runout_model_type == 2){
+        tau = min_shear_stress + friction_coefficient * sigma_bottom + mass_per_area  * velocity_magnitude * velocity_magnitude / drag_coefficient;
+    }
+    // samosAT friction model
+    else if (settings.runout_model_type == 3){
+        let tau0 = 0f;
+        let rs0 = 0.222;
+        let kappa = 0.43;
+        let r = 0.05;
+        let b = 4.13;
+        let rs = density_kg_m3 * velocity_magnitude * velocity_magnitude / (sigma_bottom + 0.001);
+        var div = slab_height_m / r;
+        if (div < 1.0){
+            div = 1.0;
+        }
+        div = log(div) / kappa + b;
+        tau = tau0 + sigma_bottom * friction_coefficient * (1.0 + rs0 / (rs0 + rs)) + density_kg_m3 * velocity_magnitude * velocity_magnitude / (div * div);
+    }
+    let force_friction = - (tau * (velocity / velocity_magnitude));
+    return force_friction/mass_per_particle;
 }
 
 @compute @workgroup_size(16, 16, 1)

@@ -40,10 +40,12 @@ public:
         D8_WEIGHTS = 5,
     };
 
-    enum RunoutModelType : uint32_t {
-        NONE = 0,
-        PERLA = 1,
-        FLOWPY = 2,
+    enum FrictionModelType : uint32_t {
+        //actually: friction model: 0 coulomb, 1 voellmy, 2 voellmy minshear, 3 samosAt
+        Coulomb = 0,
+        Voellmy = 1,
+        VoellmyMinShear = 2,
+        SamosAt = 3,
     };
 
     struct ModelPhysicsSimpleParams {
@@ -54,8 +56,8 @@ public:
     struct ModelPhysicsLessSimpleParams {
         float gravity = 9.81f;
         float mass = 10.0f;
-        float friction_coeff = 0.01f;
-        float drag_coeff = 0.2f;
+        float friction_coeff = 0.155f;
+        float drag_coeff = 4000.f;
     };
 
     struct ModelD8WithWeightsParams {
@@ -85,12 +87,12 @@ public:
 
     struct AvalancheTrajectoriesSettings {
         uint32_t resolution_multiplier = 1;
-        uint32_t num_steps = 1024;
+        uint32_t num_steps = 2048;
         float step_length = 0.1f;
 
         /* Number of trajectories to start from the same release cell.
          * This only makes sense when random_contribution is greater than 0.*/
-        uint32_t num_paths_per_release_cell = 1u;
+        uint32_t num_paths_per_release_cell = 500u;
 
         /* Randomness contribution to the sampled normal in [0,1].
            0 means no randomness, 1 means only randomness */
@@ -105,7 +107,7 @@ public:
         ModelPhysicsLessSimpleParams model2;
         ModelD8WithWeightsParams model_d8_with_weights;
 
-        RunoutModelType active_runout_model = RunoutModelType::PERLA;
+        FrictionModelType active_runout_model = FrictionModelType::VoellmyMinShear;
         RunoutPerlaParams runout_perla;
         RunoutFlowPyParams runout_flowpy;
 
@@ -119,6 +121,7 @@ private:
 
         uint32_t num_steps = 128;
         float step_length = 0.5f;
+        // uint32_t num_paths_per_release_cell = 256;
 
         float normal_offset = 0.2f;
         float direction_offset = 0.0f;
@@ -133,7 +136,7 @@ private:
         float model_d8_with_weights_center_height_offset;
         float model_d8_with_weights_weights[8];
 
-        RunoutModelType runout_model_type;
+        FrictionModelType runout_model_type;
 
         float runout_perla_my;
         float runout_perla_md;
