@@ -30,13 +30,10 @@
 const TEXTURE_GATHER_OFFSET = 1.0f / 512.0f;
 const timesteps: u32 = 10000u;
 const g: f32 = 9.81;
-const pixel_size_m: f32 = 5.0;
 const density_kg_m3: f32 = 200.0;
 const slab_height_m: f32 = 0.5;
 const cfl: f32 = 0.8;
 
-const area_m2: f32 = pixel_size_m * pixel_size_m;
-const mass_pixel_kg: f32 = density_kg_m3 * area_m2 * slab_height_m;
 const mass_per_area = density_kg_m3 * slab_height_m;
 const acceleration_gravity = vec3f(0.0, 0.0, -g);
 const velocity_threshold: f32 = 0.01f;
@@ -206,8 +203,6 @@ fn trajectory_overlay(id: vec3<u32>) {
     let pixel_size = vec2f(settings.region_size) / vec2f(textureDimensions(input_normal_texture));
     let dx = min(pixel_size.x, pixel_size.y);
 
-//    let mass_particle_kg: f32 = mass_pixel_kg / f32(settings.num_paths_per_release_cell);
-    let mass_particle_kg: f32 = mass_pixel_kg / f32(512);
 
     let uv = get_starting_point_uv(id);
 //    let uv = vec2f(f32(id.x), f32(id.y)) * texel_size_uv;
@@ -235,7 +230,7 @@ fn trajectory_overlay(id: vec3<u32>) {
 
     var normal_t = vec3f(0, 0, 1);
 
-    var acceleration_tangential =  acceleration_gravity - dot(acceleration_gravity, start_normal) * start_normal;
+    var acceleration_tangential =  acceleration_gravity - g * start_normal.z * start_normal;
     var dt = sqrt(2 * dx / length(acceleration_tangential));
 
     for (var i: u32 = 0; i < settings.num_steps; i++) {
@@ -282,25 +277,27 @@ fn trajectory_overlay(id: vec3<u32>) {
             world_space_offset = world_space_offset + settings.step_length * 5.0 * gradient.xy;
             world_space_travel_distance += length(settings.step_length * 5.0 * gradient.xy);
         } else if (settings.model_type == 1) {
-            let acceleration_normal = -dot(acceleration_gravity, normal) * normal;
+            let acceleration_normal = -g * normal.z * normal;
             let acceleration_tangential = acceleration_gravity + acceleration_normal;
             // estimate optimal timestep
             dt = cfl * dx / length(velocity + acceleration_tangential * dt);
+//            let acceleration_friction = acceleration_by_friction(acceleration_normal, mass_particle_kg, velocity);
             velocity = velocity + acceleration_tangential * dt;
 
-            let acceleration_friction = acceleration_by_friction(acceleration_normal, mass_particle_kg, velocity);
+            let acceleration_friction = acceleration_by_friction(acceleration_normal, mass_per_area, velocity);
             velocity = velocity + acceleration_friction * dt;
 
             //    let f_weight = mass * gravity;
             //    let f_normal = dot(-f_weight, normal) * normal;
-            //    let f_friction = friction_coefficient * length(f_normal) * select(vec3f(0), against_motion_dir, velocity_magnitude > 0);
-            //    let f_drag = drag_coefficient * pow(velocity_magnitude, 2) * select(vec3f(0), against_motion_dir, velocity_magnitude > 0);
-            //    let f_net = f_weight + f_normal + f_friction + f_drag;
+            let velocity_magnitude = length(velocity);
+//            let against_motion_dir = -normalize(velocity);
+//                let f_friction = 0.155 * length(acceleration_normal * mass_particle_kg) * select(vec3f(0), against_motion_dir, velocity_magnitude > 0);
+//                let f_drag = 1 / 2000 * pow(velocity_magnitude, 2) * select(vec3f(0), against_motion_dir, velocity_magnitude > 0);
+//                velocity = velocity + (f_friction + f_drag)/mass_particle_kg * dt;
 
 
             world_space_offset = world_space_offset + dt * velocity.xy;
             world_space_travel_distance += length(dt * velocity.xy);
-            let velocity_magnitude = length(velocity);
             if (velocity_magnitude < velocity_threshold ){ //|| velocity_magnitude < length(acceleration_friction) * dt) {
                 break;
             }
@@ -311,7 +308,7 @@ fn trajectory_overlay(id: vec3<u32>) {
     //textureStore(output_tiles, vec2u(col, row), id.x, vec4f(0.0, 0.0, 1.0, 1.0));
 }
 
-fn acceleration_by_friction(acceleration_normal: vec3f, mass_per_particle: f32, velocity: vec3f) -> vec3f {
+fn acceleration_by_friction(acceleration_normal: vec3f, mass_per_area: f32, velocity: vec3f) -> vec3f {
     let velocity_magnitude = length(velocity);
     if (velocity_magnitude < velocity_threshold || settings.runout_model_type == 4) {
         return vec3f(0.0, 0.0, 0.0);
@@ -324,22 +321,23 @@ fn acceleration_by_friction(acceleration_normal: vec3f, mass_per_particle: f32, 
     let sigma_bottom = length(acceleration_normal * mass_per_area);
     const min_shear_stress = 70f;
     var tau = 0.0f;
-
+    let model = settings.runout_model_type;
+//    let model = 2;
     //actually: friction model: 0 coulomb, 1 voellmy, 2 voellmy minshear, 3 samosAt
     // Coulomb friction model
-    if (settings.runout_model_type == 0){
+    if (model == 0){
         tau = friction_coefficient * sigma_bottom;
     }
     // Voellmy friction model
-    else if (settings.runout_model_type == 1){
+    else if (model == 1){
         tau = friction_coefficient * sigma_bottom + mass_per_area  * velocity_magnitude * velocity_magnitude / drag_coefficient;
     }
     // Voellmy min shear friction model
-    else if (settings.runout_model_type == 2){
+    else if (model == 2){
         tau = min_shear_stress + friction_coefficient * sigma_bottom + mass_per_area  * velocity_magnitude * velocity_magnitude / drag_coefficient;
     }
     // samosAT friction model
-    else if (settings.runout_model_type == 3){
+    else if (model == 3){
         let tau0 = 0f;
         let rs0 = 0.222;
         let kappa = 0.43;
@@ -353,8 +351,8 @@ fn acceleration_by_friction(acceleration_normal: vec3f, mass_per_particle: f32, 
         div = log(div) / kappa + b;
         tau = tau0 + sigma_bottom * friction_coefficient * (1.0 + rs0 / (rs0 + rs)) + density_kg_m3 * velocity_magnitude * velocity_magnitude / (div * div);
     }
-    let force_friction = - (tau * (velocity / velocity_magnitude));
-    return force_friction/mass_per_particle;
+    let acceleration_magnitude = tau / mass_per_area;
+    return - acceleration_magnitude * normalize(velocity);
 }
 
 @compute @workgroup_size(16, 16, 1)
