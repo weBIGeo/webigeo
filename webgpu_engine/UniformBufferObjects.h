@@ -62,7 +62,7 @@ public:
 
     float m_overlay_strength = 1.0f;
     float m_ssao_falloff_to_value = 0.5f;
-    float padf1 = 0.0f;
+    uint32_t m_atmosphere_enabled = true;
     float padf2 = 0.0f;
 
     uint32_t m_phong_enabled = true;

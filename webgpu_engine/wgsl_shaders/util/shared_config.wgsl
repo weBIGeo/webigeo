@@ -28,7 +28,7 @@ struct shared_config {
 
     overlay_strength: f32,
     ssao_falloff_to_value: f32,
-    padf1: f32,
+    atmosphere_enabled: u32,
     padf2: f32,
 
     phong_enabled: u32,
@@ -45,4 +45,6 @@ struct shared_config {
     csm_enabled: u32,
     overlay_shadowmaps_enabled: u32,
     track_render_mode: u32,
-};
+}
+
+;

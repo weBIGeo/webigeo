@@ -130,11 +130,10 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
     var shaded_color = vec3f(0.0);
     
     var amb_occlusion = 1.0;
-    // Gather ambient occlusion from ssao texture
+    /* TODO: Implement ambient occlusion
     if (bool(conf.ssao_enabled)) {
-        //TODO
-        //amb_occlusion = texture(texin_ssao, texcoords).r;
-    }
+        amb_occlusion = texture(texin_ssao, texcoords).r;
+    }*/
     
     let sampled_shadow_layer: i32 = -1;
     
@@ -185,14 +184,14 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         let ray_direction = pos_cws / dist;
         var material_light_response = conf.material_light_response;
 
-        //TODO (unused in original code?)
-        //let light_through_atmosphere = calculate_atmospheric_light(origin / 1000.0, ray_direction, dist / 1000.0, albedo, 10);
+        // Apply material color by blending with albedo
+        albedo = mix(albedo, conf.material_color.rgb, conf.material_color.a);
 
         var shadow_term = 0.0;
+        /*TODO: implement shadow
         if (bool(conf.csm_enabled)) {
-            //TODO
-            //shadow_term = csm_shadow_term(vec4(pos_cws, 1.0), normal, sampled_shadow_layer);
-        }
+            shadow_term = csm_shadow_term(vec4(pos_cws, 1.0), normal, sampled_shadow_layer);
+        }*/
 
         if (bool(conf.snow_settings_angle.x)) {
             // note: for now we use fragment snow with overlays (trajectories on top of fragment snow)
@@ -236,15 +235,19 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         if (bool(conf.phong_enabled)) {
             shaded_color = calculate_illumination(shaded_color, origin, pos_ws, normal, conf.sun_light, conf.amb_light, conf.sun_light_dir.xyz, material_light_response, amb_occlusion, shadow_term);
         }
-        shaded_color = calculate_atmospheric_light(origin / 1000.0, ray_direction, dist / 1000.0, shaded_color, 10);
+        if (bool(conf.atmosphere_enabled)) {
+            shaded_color = calculate_atmospheric_light(origin / 1000.0, ray_direction, dist / 1000.0, shaded_color, 10);
+        }
         shaded_color = max(vec3(0.0), shaded_color);    
     }
 
-    // Blend with atmospheric background:
-    let atmospheric_color = textureLoad(atmosphere_texture, vec2u(0,tci.y), 0).rgb;
-    //let atmospheric_color = textureSample(atmosphere_texture, compose_sampler_filtering, vertex_out.texcoords.xy).rgb;
-    var out_Color = vec4f(mix(atmospheric_color, shaded_color, alpha), 1.0);
-
+    var out_Color = vec4f(shaded_color, 1.0);
+    if (bool(conf.atmosphere_enabled)) {
+        // Blend with atmospheric background:
+        let atmospheric_color = textureLoad(atmosphere_texture, vec2u(0,tci.y), 0).rgb;
+        //let atmospheric_color = textureSample(atmosphere_texture, compose_sampler_filtering, vertex_out.texcoords.xy).rgb;
+        out_Color = vec4f(mix(atmospheric_color, shaded_color, alpha), 1.0);
+    }
     if (dist > 0.0 && all(pos_ws.xy >= image_overlay_settings.aabb_min) && all(pos_ws.xy <= image_overlay_settings.aabb_max)) {
         if (image_overlay_settings.mode == 0u) {
             out_Color = vec4f(mix(out_Color.rgb, image_overlay_color.rgb, image_overlay_color.a * image_overlay_settings.alpha), out_Color.a);
@@ -283,44 +286,6 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         overlay_color.a *= conf.overlay_strength;
         out_Color = vec4(mix(out_Color.rgb, overlay_color.rgb, overlay_color.a), out_Color.a);
     }
-
-/*
-    // OVERLAY SHADOW MAPS
-    if (bool(conf.overlay_shadowmaps_enabled)) {
-        highp float wsize = 1.0 / float(SHADOW_CASCADES);
-        highp float invwsize = 1.0/wsize;
-        if (texcoords.x < wsize) {
-            for (int i = 0 ; i < SHADOW_CASCADES; i++)
-            {
-                if (texcoords.y < wsize * float(i+1)) {
-                    highp float val = sample_shadow_texture(i, (texcoords - vec2(0.0, wsize*float(i))) * invwsize);
-                    out_Color = vec4(val, val, val, 1.0);
-                    break;
-                }
-            }
-        }
-    }
-
-    // == HEIGHT LINES ==============
-    if (bool(conf.height_lines_enabled) && dist > 0.0) {
-        highp float alpha_line = 1.0 - min((dist / 20000.0), 1.0);
-        highp float line_width = (2.0 + dist / 5000.0) * 5.0;
-        // Calculate steepness based on fragment normal (this alone gives woobly results)
-        highp float steepness = (1.0 - dot(normal, vec3(0.0,0.0,1.0))) / 2.0;
-        // Discretize the steepness -> Doesnt work
-        //float steepness_discretized = int(steepness * 10.0f) / 10.0f;
-        line_width = line_width * max(0.01,steepness);
-        if (alpha_line > 0.05)
-        {
-            highp float alt = pos_cws.z + camera.position.z;
-            highp float alt_rest = (alt - float(int(alt / 100.0)) * 100.0) - line_width / 2.0;
-            if (alt_rest < line_width) {
-                out_Color = vec4(mix(out_Color.rgb, vec3(out_Color.r - 0.2, out_Color.g - 0.2, out_Color.b - 0.2), alpha_line), out_Color.a);
-            }
-        }
-    }
-
-    */
 
     return out_Color;
 }

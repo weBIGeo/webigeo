@@ -231,37 +231,57 @@ void Window::paint_gui()
             m_needs_redraw = true;
         }
 
+        if (ImGui::Checkbox("Atmosphere", (bool*)&m_shared_config_ubo->data.m_atmosphere_enabled)) {
+            m_needs_redraw = true;
+        }
+
         bool snow_on = (m_shared_config_ubo->data.m_snow_settings_angle.x == 1.0f);
         if (ImGui::Checkbox("Snow", &snow_on)) {
             m_needs_redraw = true;
             m_shared_config_ubo->data.m_snow_settings_angle.x = (snow_on ? 1.0f : 0.0f);
         }
 
-        if (m_shared_config_ubo->data.m_snow_settings_angle.x) {
-            if (ImGui::DragFloatRange2("Angle limit", &m_shared_config_ubo->data.m_snow_settings_angle.y, &m_shared_config_ubo->data.m_snow_settings_angle.z,
-                    0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp)) {
+        if (ImGui::CollapsingHeader("Snow Settings")) {
+            bool changed = ImGui::DragFloatRange2("Angle limit",
+                &m_shared_config_ubo->data.m_snow_settings_angle.y,
+                &m_shared_config_ubo->data.m_snow_settings_angle.z,
+                0.1f,
+                0.0f,
+                90.0f,
+                "Min: %.1f°",
+                "Max: %.1f°",
+                ImGuiSliderFlags_AlwaysClamp);
+
+            changed |= ImGui::SliderFloat("Angle blend", &m_shared_config_ubo->data.m_snow_settings_angle.w, 0.0f, 90.0f, "%.1f°");
+            changed |= ImGui::SliderFloat("Altitude limit", &m_shared_config_ubo->data.m_snow_settings_alt.x, 0.0f, 4000.0f, "%.1fm");
+            changed |= ImGui::SliderFloat("Altitude variation", &m_shared_config_ubo->data.m_snow_settings_alt.y, 0.0f, 1000.0f, "%.1f°");
+            changed |= ImGui::SliderFloat("Altitude blend", &m_shared_config_ubo->data.m_snow_settings_alt.z, 0.0f, 1000.0f);
+            changed |= ImGui::SliderFloat("Specular", &m_shared_config_ubo->data.m_snow_settings_alt.w, 0.0f, 5.0f);
+
+            if (changed) {
                 m_needs_redraw = true;
                 update_compute_pipeline_settings();
             }
-            if (ImGui::SliderFloat("Angle blend", &m_shared_config_ubo->data.m_snow_settings_angle.w, 0.0f, 90.0f, "%.1f°")) {
+        }
+
+        if (ImGui::CollapsingHeader("Illumination")) {
+            bool changed = ImGui::ColorEdit3("Light Color", (float*)&m_shared_config_ubo->data.m_sun_light);
+            changed |= ImGui::SliderFloat("Light Intensity", &m_shared_config_ubo->data.m_sun_light.w, 0.0f, 10.0f);
+            changed |= ImGui::DragFloat3("Light Direction", (float*)&m_shared_config_ubo->data.m_sun_light_dir, 0.01f, -1.0f, 1.0f);
+            ImGui::Separator();
+            changed |= ImGui::ColorEdit3("Ambient Color", (float*)&m_shared_config_ubo->data.m_amb_light);
+            changed |= ImGui::SliderFloat("Ambient Intensity", &m_shared_config_ubo->data.m_amb_light.w, 0.0f, 10.0f);
+            ImGui::Separator();
+            changed |= ImGui::ColorEdit4("Material Color", (float*)&m_shared_config_ubo->data.m_material_color);
+            ImGui::Separator();
+            changed |= ImGui::SliderFloat("Ambient Strength", &m_shared_config_ubo->data.m_material_light_response.x, 0.0f, 5.0f);
+            changed |= ImGui::SliderFloat("Diffuse Strength", &m_shared_config_ubo->data.m_material_light_response.y, 0.0f, 5.0f);
+            changed |= ImGui::SliderFloat("Specular Strength", &m_shared_config_ubo->data.m_material_light_response.z, 0.0f, 5.0f);
+            changed |= ImGui::SliderFloat("Shininess", &m_shared_config_ubo->data.m_material_light_response.w, 1.0f, 256.0f);
+
+            if (changed) {
+                m_shared_config_ubo->data.m_sun_light_dir = glm::normalize(m_shared_config_ubo->data.m_sun_light_dir);
                 m_needs_redraw = true;
-                update_compute_pipeline_settings();
-            }
-            if (ImGui::SliderFloat("Altitude limit", &m_shared_config_ubo->data.m_snow_settings_alt.x, 0.0f, 4000.0f, "%.1fm")) {
-                m_needs_redraw = true;
-                update_compute_pipeline_settings();
-            }
-            if (ImGui::SliderFloat("Altitude variation", &m_shared_config_ubo->data.m_snow_settings_alt.y, 0.0f, 1000.0f, "%.1f°")) {
-                m_needs_redraw = true;
-                update_compute_pipeline_settings();
-            }
-            if (ImGui::SliderFloat("Altitude blend", &m_shared_config_ubo->data.m_snow_settings_alt.z, 0.0f, 1000.0f)) {
-                m_needs_redraw = true;
-                update_compute_pipeline_settings();
-            }
-            if (ImGui::SliderFloat("Specular", &m_shared_config_ubo->data.m_snow_settings_alt.w, 0.0f, 5.0f)) {
-                m_needs_redraw = true;
-                update_compute_pipeline_settings();
             }
         }
     }
