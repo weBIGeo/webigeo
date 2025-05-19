@@ -38,6 +38,7 @@ void ComputePipelineSettings::write_to_json_file(const ComputePipelineSettings& 
     object["num_steps"] = qint64(settings.num_steps);
     object["num_paths_per_release_cell"] = qint64(settings.num_paths_per_release_cell);
 
+    object["random_seed"] = qint64(settings.random_seed);
     object["random_contribution"] = settings.random_contribution;
     object["persistence_contribution"] = settings.persistence_contribution;
     object["alpha"] = settings.runout_flowpy_alpha;
@@ -76,6 +77,9 @@ ComputePipelineSettings ComputePipelineSettings::read_from_json_file(const std::
     settings.trigger_point_min_slope_angle = float(object["trigger_point_min_slope_angle"].toDouble());
     settings.trigger_point_max_slope_angle = float(object["trigger_point_max_slope_angle"].toDouble());
 
+    if (object.contains("random_seed")) {
+        settings.random_seed = uint32_t(object["random_seed"].toInteger());
+    }
     settings.num_steps = uint32_t(object["num_steps"].toInteger());
     settings.num_paths_per_release_cell = uint32_t(object["num_paths_per_release_cell"].toInteger());
 

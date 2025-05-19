@@ -38,6 +38,7 @@ void Settings::write_to_json_file(const Settings& settings, const std::filesyste
     object["release_points_texture_path"] = QString::fromStdString(settings.release_points_texture_path);
     object["heightmap_texture_path"] = QString::fromStdString(settings.heightmap_texture_path);
     object["output_dir_path"] = QString::fromStdString(settings.output_dir_path);
+    object["random_seed"] = qint64(settings.random_seed);
 
     QJsonDocument doc;
     doc.setObject(object);
@@ -84,6 +85,9 @@ Settings Settings::read_from_json_file(const std::filesystem::path& input_path)
     settings.release_points_texture_path = object["release_points_texture_path"].toString().toStdString();
     settings.heightmap_texture_path = object["heightmap_texture_path"].toString().toStdString();
     settings.output_dir_path = object["output_dir_path"].toString().toStdString();
+    if (object.contains("random_seed")) {
+        settings.random_seed = uint32_t(object["random_seed"].toInteger());
+    }
     return settings;
 }
 } // namespace webigeo_eval

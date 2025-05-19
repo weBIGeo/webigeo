@@ -499,6 +499,13 @@ void Window::paint_compute_pipeline_gui()
                     ImGui::EndCombo();
                 }
 
+                const uint32_t min_seed = 1;
+                const uint32_t max_seed = 1000000;
+                ImGui::DragScalar("Random seed", ImGuiDataType_U32, &m_compute_pipeline_settings.random_seed, 1.0f, &min_seed, &max_seed);
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    update_settings_and_rerun_pipeline();
+                }
+
                 const uint32_t min_resolution_multiplier = 1;
                 const uint32_t max_resolution_multiplier = 32;
                 ImGui::SliderScalar("Resolution", ImGuiDataType_U32, &m_compute_pipeline_settings.trajectory_resolution_multiplier, &min_resolution_multiplier,
@@ -960,6 +967,7 @@ void Window::update_compute_pipeline_settings()
         trajectory_settings.active_runout_model = compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType(m_compute_pipeline_settings.runout_model_type);
         trajectory_settings.runout_perla = m_compute_pipeline_settings.perla;
         trajectory_settings.runout_flowpy.alpha = glm::radians(m_compute_pipeline_settings.runout_flowpy_alpha);
+        trajectory_settings.random_seed = m_compute_pipeline_settings.random_seed;
 
         auto& trajectories_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("compute_avalanche_trajectories_node");
         trajectories_node.set_settings(trajectory_settings);

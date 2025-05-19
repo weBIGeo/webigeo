@@ -65,6 +65,8 @@ struct AvalancheTrajectoriesSettings {
     layer3_travelLength_enabled: u32,
     layer4_travelAngle_enabled: u32,
     layer5_altitudeDifference_enabled: u32,
+
+    random_seed: u32,
 }
 
 // input
@@ -330,8 +332,7 @@ fn get_starting_point_uv(id: vec3<u32>) -> vec2f {
 }
 
 fn trajectory_overlay(id: vec3<u32>) {
-    //TODO replace hardcoded 1 with field in settings uniform (can then use current time, for example)
-    seed(vec4u(id, 1)); //seed PRNG with thread id
+    seed(vec4u(id, settings.random_seed)); //seed PRNG with thread id
 
     let uv = get_starting_point_uv(id);
 
@@ -372,9 +373,9 @@ fn trajectory_overlay(id: vec3<u32>) {
         let normal = sample_normal_texture(current_uv);
 
         let current_height = sample_height_texture(current_uv);
-        if (current_height == 0) {
-            break;
-        }
+        //if (current_height == 0) {
+        //    break;
+        //}
 
         if (i > 0) {
             // calculate physical quantities
@@ -414,12 +415,25 @@ fn trajectory_overlay(id: vec3<u32>) {
 
         // sample normal and get new world space offset based on chosen model
         if (settings.model_type == 0) {
-            let n_l = normalize(normal * (1 - settings.random_contribution) + (rand3() * 2 - 1) * settings.random_contribution);  // n_l     ...  local normal with random offset
-            normal_t = normalize(n_l * (1 - settings.persistence_contribution) + normal_t * settings.persistence_contribution);   // normal_t ... local normal with random offset from last step
-            let gradient = normalize(normal_t.xy);
-            // ToDo step length factor remove -> put into gui
-            world_space_offset = world_space_offset + settings.step_length * 5.0 * gradient.xy;
-            world_space_travel_distance += length(settings.step_length * 5.0 * gradient.xy);
+            if (false) {
+                let n_l = normalize(normal * (1 - settings.random_contribution) + (rand3() * 2 - 1) * settings.random_contribution);  // n_l     ...  local normal with random offset
+                normal_t = normalize(n_l * (1 - settings.persistence_contribution) + normal_t * settings.persistence_contribution);   // normal_t ... local normal with random offset from last step
+                let gradient = normalize(normal_t.xy);
+                // ToDo step length factor remove -> put into gui
+                world_space_offset = world_space_offset + settings.step_length * 5.0 * gradient.xy;
+                world_space_travel_distance += length(settings.step_length * 5.0 * gradient.xy);
+            } else {
+                let MOMENTUM_DAMPING = min(max(settings.persistence_contribution, 0.0001), 0.99999); // lets missuse persistence_contribution for momentum damping ]0,1[, screenshot taken with 0.99
+                const SPEED_FACTOR = 5.0; // same as in the old model
+
+                let n_l = normalize(normal * (1 - settings.random_contribution) + (rand3() * 2 - 1) * settings.random_contribution);
+                velocity = velocity * MOMENTUM_DAMPING + n_l * (1 - MOMENTUM_DAMPING);
+                let velocity_projected = normalize(velocity.xy);
+
+                world_space_offset += velocity_projected * settings.step_length * SPEED_FACTOR;
+                world_space_travel_distance += length(velocity_projected * settings.step_length * SPEED_FACTOR);
+            }
+
         } else if (settings.model_type == 1) {
             velocity += settings.step_length * model_physics_less_simple(normal, velocity);
             world_space_offset = world_space_offset + settings.step_length * velocity.xy;

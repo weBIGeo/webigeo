@@ -110,6 +110,8 @@ public:
         RunoutFlowPyParams runout_flowpy;
 
         OutputLayerParams output_layer;
+
+        uint32_t random_seed = 1u;
     };
 
 private:
@@ -117,34 +119,42 @@ private:
         glm::uvec2 output_resolution;
         glm::fvec2 region_size;
 
+        // ^^ 4 byte ^^
+
         uint32_t num_steps = 128;
         float step_length = 0.5f;
 
         float normal_offset = 0.2f;
         float direction_offset = 0.0f;
 
+        // ^^ 4 byte ^^
+
         PhysicsModelType physics_model_type;
         float model1_linear_drag_coeff;
         float model1_downward_acceleration_coeff;
         float model2_gravity;
+        // ^^ 4 byte ^^
         float model2_mass;
         float model2_friction_coeff;
         float model2_drag_coeff;
         float model_d8_with_weights_center_height_offset;
+        // ^^ 4 byte ^^
         float model_d8_with_weights_weights[8];
 
         RunoutModelType runout_model_type;
 
         float runout_perla_my;
         float runout_perla_md;
+        // ^^ 4 byte ^^
         float runout_perla_l;
         float runout_perla_g;
 
         float runout_flowpy_alpha;
 
         OutputLayerParams output_layer;
+        // ^^ 8 byte ^^
 
-        uint32_t padding1;
+        uint32_t random_seed;
     };
 
 public:

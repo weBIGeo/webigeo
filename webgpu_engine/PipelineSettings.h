@@ -44,6 +44,7 @@ struct ComputePipelineSettings {
     uint32_t num_paths_per_release_cell = 1024u;
     float random_contribution = 0.16f;
     float persistence_contribution = 0.9f;
+    uint32_t random_seed = 1u;
 
     float trigger_point_min_slope_angle = 30.0f; // release points node
     float trigger_point_max_slope_angle = 45.0f; // release points node

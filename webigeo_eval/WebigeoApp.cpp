@@ -95,6 +95,7 @@ void WebigeoApp::update_settings(const Settings& node_graph_settings)
     trajectory_settings.num_paths_per_release_cell = node_graph_settings.num_paths_per_release_cell;
     trajectory_settings.random_contribution = node_graph_settings.random_contribution;
     trajectory_settings.persistence_contribution = node_graph_settings.persistence_contribution;
+    trajectory_settings.random_seed = node_graph_settings.random_seed;
 
     trajectory_settings.active_runout_model = ComputeAvalancheTrajectoriesNode::RunoutModelType::FLOWPY;
     trajectory_settings.runout_perla = {};

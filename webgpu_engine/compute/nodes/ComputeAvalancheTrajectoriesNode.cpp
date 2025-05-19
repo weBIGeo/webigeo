@@ -86,6 +86,8 @@ void ComputeAvalancheTrajectoriesNode::update_gpu_settings()
     // TODO: Get activation of layer if output socket is connected and following node is enabled?
     m_settings_uniform.data.output_layer = m_settings.output_layer;
 
+    m_settings_uniform.data.random_seed = m_settings.random_seed;
+
     m_settings_uniform.update_gpu_data(m_queue);
 }
 

@@ -28,6 +28,7 @@ struct Settings {
     uint32_t num_steps = 256u;
     uint32_t num_paths_per_release_cell = 1024u;
 
+    uint32_t random_seed = 1u;
     float random_contribution = 0.16f;
     float persistence_contribution = 0.9f;
     float runout_flowpy_alpha = 25.0f; // in degrees
