@@ -39,7 +39,7 @@ public:
 public:
     TrackRenderer(WGPUDevice device, const PipelineManager& pipeline_manager);
 
-    void add_track(const Track& track, const glm::vec4& color = { 1.0f, 0.0f, 0.0f, 1.0f });
+    void add_track(const Track& track, const glm::vec4& color = { 78.0 / 255.0f, 163.0 / 255.0f, 196.0 / 255.0f, 1.0f });
     void add_world_positions(const std::vector<glm::vec4>& world_positions, const glm::vec4& color = { 1.0f, 0.0f, 0.0f, 1.0f });
 
     void render(WGPUCommandEncoder command_encoder, const webgpu::raii::BindGroup& shared_config, const webgpu::raii::BindGroup& camera_config,
