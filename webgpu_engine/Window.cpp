@@ -1375,12 +1375,12 @@ void Window::load_track_and_focus(const std::string& path)
     const auto aabb_size = track_aabb.size();
 
     // add debug axis
-    std::vector<glm::vec4> x_axis = { glm::vec4(track_aabb.min, 1), glm::vec4(track_aabb.max.x, track_aabb.min.y, track_aabb.min.z, 1) };
+    /*std::vector<glm::vec4> x_axis = { glm::vec4(track_aabb.min, 1), glm::vec4(track_aabb.max.x, track_aabb.min.y, track_aabb.min.z, 1) };
     std::vector<glm::vec4> y_axis = { glm::vec4(track_aabb.min, 1), glm::vec4(track_aabb.min.x, track_aabb.max.y, track_aabb.min.z, 1) };
     std::vector<glm::vec4> z_axis = { glm::vec4(track_aabb.min, 1), glm::vec4(track_aabb.min.x, track_aabb.min.y, track_aabb.max.z, 1) };
     m_track_renderer->add_world_positions(x_axis, { 1.0f, 0.0f, 0.0f, 1.0f });
     m_track_renderer->add_world_positions(y_axis, { 0.0f, 1.0f, 0.0f, 1.0f });
-    m_track_renderer->add_world_positions(z_axis, { 0.0f, 0.0f, 1.0f, 1.0f });
+    m_track_renderer->add_world_positions(z_axis, { 0.0f, 0.0f, 1.0f, 1.0f });*/
 
     nucleus::camera::Definition new_camera_definition = { track_aabb.centre() + glm::dvec3 { 0, 0, std::max(aabb_size.x, aabb_size.y) }, track_aabb.centre() };
     new_camera_definition.set_viewport_size(m_camera.viewport_size());

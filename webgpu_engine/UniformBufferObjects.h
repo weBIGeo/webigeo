@@ -52,7 +52,7 @@ public:
     // rgb...Color, a...intensity
     glm::vec4 m_amb_light = glm::vec4(1.0, 1.0, 1.0, 0.4);
     // rgba...Color of the phong-material (if a 0 -> ortho picture)
-    glm::vec4 m_material_color = glm::vec4(0.5, 0.5, 0.5, 0.0);
+    glm::vec4 m_material_color = glm::vec4(1.0, 1.0, 1.0, 0.0);
     // amb, diff, spec, shininess
     glm::vec4 m_material_light_response = glm::vec4(1.5, 3.0, 0.0, 32.0);
     // enabled, min angle, max angle, angle blend space
