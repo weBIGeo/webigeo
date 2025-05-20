@@ -1,5 +1,6 @@
 /*****************************************************************************
  * weBIGeo
+ * Copyright (C) 2025 Gerald Kimmersdorfer
  * Copyright (C) 2024 Patrick Komon
  *
  * This program is free software: you can redistribute it and/or modify
@@ -45,6 +46,16 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     }
     // id.xy in [0, texture_dimensions(output_tiles) - 1]
 
+    let z_delta = f32(read_buffer_at(id.xy)); // zdelta in m
+    var output_color: vec4f = vec4f(0.0);
+    if (z_delta != 0.0) {
+        output_color = color_mapping_flowpy(z_delta, 0.0, 100.0, true);
+    }
+
+    
+
+
+/*
     let risk_value = u32_to_range(read_buffer_at(id.xy), U32_ENCODING_RANGE_NORM);
     //let risk_value = f32(input_storage_buffer[buffer_index]) / 1000f;
 
@@ -53,6 +64,6 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
         output_color = vec4f(0.0);
     } else {
         output_color = vec4f(color_mapping_bergfex(risk_value), 1.0);
-    }
+    }*/
     textureStore(output_texture, id.xy, output_color);
 }

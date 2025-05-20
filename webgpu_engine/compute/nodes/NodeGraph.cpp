@@ -256,7 +256,8 @@ static std::unique_ptr<NodeGraph> create_trajectories_compute_graph_unconnected(
 
     // connect buffer to texture node inputs
     buffer_to_texture_node->input_socket("raster dimensions").connect(trajectories_node->output_socket("raster dimensions"));
-    buffer_to_texture_node->input_socket("storage buffer").connect(trajectories_node->output_socket("storage buffer"));
+    // buffer_to_texture_node->input_socket("storage buffer").connect(trajectories_node->output_socket("storage buffer"));
+    buffer_to_texture_node->input_socket("storage buffer").connect(trajectories_node->output_socket("layer1_zdelta"));
 
     // connect l1 export node inputs
     l1_export_node->input_socket("buffer").connect(trajectories_node->output_socket("layer1_zdelta"));
