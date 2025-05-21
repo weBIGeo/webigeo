@@ -827,8 +827,14 @@ void PipelineManager::create_buffer_to_texture_bind_group_layout()
     input_storage_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
     input_storage_buffer_entry.buffer.minBindingSize = 0;
 
+    WGPUBindGroupLayoutEntry input_transparency_buffer_entry {};
+    input_transparency_buffer_entry.binding = 2;
+    input_transparency_buffer_entry.visibility = WGPUShaderStage_Compute;
+    input_transparency_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    input_transparency_buffer_entry.buffer.minBindingSize = 0;
+
     WGPUBindGroupLayoutEntry output_texture_entry {};
-    output_texture_entry.binding = 2;
+    output_texture_entry.binding = 5;
     output_texture_entry.visibility = WGPUShaderStage_Compute;
     output_texture_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
     output_texture_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
@@ -838,6 +844,7 @@ void PipelineManager::create_buffer_to_texture_bind_group_layout()
         std::vector<WGPUBindGroupLayoutEntry> {
             input_settings_entry,
             input_storage_buffer_entry,
+            input_transparency_buffer_entry,
             output_texture_entry,
         },
         "buffer to texture compute bind group layout");

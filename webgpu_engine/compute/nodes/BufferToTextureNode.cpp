@@ -30,11 +30,9 @@ BufferToTextureNode::BufferToTextureNode(const PipelineManager& pipeline_manager
 }
 
 BufferToTextureNode::BufferToTextureNode(const PipelineManager& pipeline_manager, WGPUDevice device, const BufferToTextureSettings& settings)
-    : Node(
-          {
-              InputSocket(*this, "raster dimensions", data_type<glm::uvec2>()),
-              InputSocket(*this, "storage buffer", data_type<webgpu::raii::RawBuffer<uint32_t>*>()),
-          },
+    : Node({ InputSocket(*this, "raster dimensions", data_type<glm::uvec2>()),
+               InputSocket(*this, "storage buffer", data_type<webgpu::raii::RawBuffer<uint32_t>*>()),
+               InputSocket(*this, "transparency buffer", data_type<webgpu::raii::RawBuffer<uint32_t>*>()) },
           {
               OutputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }),
           })
@@ -51,6 +49,7 @@ void BufferToTextureNode::run_impl()
     qDebug() << "running BufferToTextureNode ...";
     const auto input_raster_dimensions = std::get<data_type<glm::uvec2>()>(input_socket("raster dimensions").get_connected_data());
     const auto& input_storage_buffer = *std::get<data_type<webgpu::raii::RawBuffer<uint32_t>*>()>(input_socket("storage buffer").get_connected_data());
+    const auto& input_transparency_buffer = *std::get<data_type<webgpu::raii::RawBuffer<uint32_t>*>()>(input_socket("transparency buffer").get_connected_data());
 
     m_settings_uniform.data.input_resolution = input_raster_dimensions;
     m_settings_uniform.update_gpu_data(m_queue);
@@ -70,7 +69,8 @@ void BufferToTextureNode::run_impl()
     std::vector<WGPUBindGroupEntry> entries {
         m_settings_uniform.raw_buffer().create_bind_group_entry(0),
         input_storage_buffer.create_bind_group_entry(1),
-        m_output_texture->texture_view().create_bind_group_entry(2),
+        input_transparency_buffer.create_bind_group_entry(2),
+        m_output_texture->texture_view().create_bind_group_entry(5),
     };
     webgpu::raii::BindGroup compute_bind_group(
         m_device, m_pipeline_manager->buffer_to_texture_bind_group_layout(), entries, "buffer to texture compute bind group");

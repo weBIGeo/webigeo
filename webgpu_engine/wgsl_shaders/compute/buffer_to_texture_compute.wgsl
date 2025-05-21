@@ -22,18 +22,22 @@
 
 // input
 @group(0) @binding(0) var<uniform> settings: BufferToTextureSettings;
-@group(0) @binding(1) var<storage> input_storage_buffer: array<u32>;
+@group(0) @binding(1) var<storage, read> input_storage_buffer: array<u32>;
+@group(0) @binding(2) var<storage, read> input_transparency_buffer: array<u32>;
 
 // output
-@group(0) @binding(2) var output_texture: texture_storage_2d<rgba8unorm, write>;
+@group(0) @binding(5) var output_texture: texture_storage_2d<rgba8unorm, write>;
 
 struct BufferToTextureSettings {
     input_resolution: vec2u,
 }
 
-fn read_buffer_at(pos: vec2u) -> u32 {
-    let index = pos.y * settings.input_resolution.x + pos.x;
-    return input_storage_buffer[index];
+fn index_from_pos(pos: vec2u) -> u32 {
+    return pos.y * settings.input_resolution.x + pos.x;
+}
+
+fn remap_clamped(x: f32, min_val: f32, max_val: f32) -> f32 {
+    return clamp((x - min_val) / (max_val - min_val), 0.0, 1.0);
 }
 
 @compute @workgroup_size(16, 16, 1)
@@ -46,14 +50,14 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     }
     // id.xy in [0, texture_dimensions(output_tiles) - 1]
 
-    let z_delta = f32(read_buffer_at(id.xy)); // zdelta in m
-    var output_color: vec4f = vec4f(0.0);
-    if (z_delta != 0.0) {
-        output_color = color_mapping_flowpy(z_delta, 0.0, 100.0, true);
-    }
-
+    let buffer_index = index_from_pos(id.xy);
     
+    let cell_counts = f32(input_transparency_buffer[buffer_index]);
+    let alpha = remap_clamped(cell_counts, 0.0, 100.0);
 
+    let z_delta = f32(input_storage_buffer[buffer_index]); // zdelta in m
+    var output_color = color_mapping_flowpy(z_delta, 0.0, 100.0, true);
+    output_color.a = output_color.a * alpha;
 
 /*
     let risk_value = u32_to_range(read_buffer_at(id.xy), U32_ENCODING_RANGE_NORM);
