@@ -42,6 +42,7 @@ struct ComputePipelineSettings {
 
     int release_point_interval = 8; // trajectories node
     uint32_t num_paths_per_release_cell = 1024u;
+    uint32_t num_runs = 1u;
     float random_contribution = 0.16f;
     float persistence_contribution = 0.9f;
     uint32_t random_seed = 1u;

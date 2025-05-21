@@ -1,6 +1,7 @@
 /*****************************************************************************
  * weBIGeo
  * Copyright (C) 2024 Patrick Komon
+ * Copyright (C) 2025 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -92,6 +93,11 @@ public:
          * This only makes sense when random_contribution is greater than 0.*/
         uint32_t num_paths_per_release_cell = 1u;
 
+        /* With only num_paths_per_release_cell we are limited by a maximum of dispatches
+         * for a single compute call. This is a workaround to allow more paths, by executing
+         * the compute dispatch multiple times with a different seed.*/
+        uint32_t num_runs = 1u;
+
         /* Randomness contribution to the sampled normal in [0,1].
            0 means no randomness, 1 means only randomness */
         float random_contribution = 0.2f;
@@ -168,7 +174,7 @@ public slots:
     void run_impl() override;
 
 private:
-    void update_gpu_settings();
+    void update_gpu_settings(uint32_t run = 0u);
 
     static std::unique_ptr<webgpu::raii::Sampler> create_normal_sampler(WGPUDevice device);
     static std::unique_ptr<webgpu::raii::Sampler> create_height_sampler(WGPUDevice device);

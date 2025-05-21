@@ -561,6 +561,12 @@ void Window::paint_compute_pipeline_gui()
                     update_settings_and_rerun_pipeline();
                 }
 
+                const glm::uvec2 num_runs_bounds = glm::uvec2(1, 1000);
+                ImGui::DragScalar("Runs##trajectories", ImGuiDataType_U32, &m_compute_pipeline_settings.num_runs, 1.0f, &num_runs_bounds.x, &num_runs_bounds.y, "%u");
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    update_settings_and_rerun_pipeline();
+                }
+
                 if (ImGui::Combo("Model", (int*)&m_compute_pipeline_settings.model_type, "Default\0physics_less_simple\0Gradients\0Discretized gradients\0D8 (no weights)\0D8 (with weights)\0")) {
                     update_settings_and_rerun_pipeline();
                 }
@@ -657,6 +663,12 @@ void Window::paint_compute_pipeline_gui()
                 const uint32_t min_num_samples = 1;
                 const uint32_t max_num_samples = 1024;
                 ImGui::DragScalar("Paths per release point", ImGuiDataType_U32, &m_compute_pipeline_settings.num_paths_per_release_cell, 1.0f, &min_num_samples, &max_num_samples, "%u");
+                if (ImGui::IsItemDeactivatedAfterEdit()) {
+                    update_settings_and_rerun_pipeline();
+                }
+
+                const glm::uvec2 num_runs_bounds = glm::uvec2(1, 1000);
+                ImGui::DragScalar("Runs##trajectories", ImGuiDataType_U32, &m_compute_pipeline_settings.num_runs, 1.0f, &num_runs_bounds.x, &num_runs_bounds.y, "%u");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
                     update_settings_and_rerun_pipeline();
                 }
@@ -988,6 +1000,7 @@ void Window::update_compute_pipeline_settings()
         trajectory_settings.runout_perla = m_compute_pipeline_settings.perla;
         trajectory_settings.runout_flowpy.alpha = glm::radians(m_compute_pipeline_settings.runout_flowpy_alpha);
         trajectory_settings.random_seed = m_compute_pipeline_settings.random_seed;
+        trajectory_settings.num_runs = m_compute_pipeline_settings.num_runs;
 
         auto& trajectories_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("compute_avalanche_trajectories_node");
         trajectories_node.set_settings(trajectory_settings);

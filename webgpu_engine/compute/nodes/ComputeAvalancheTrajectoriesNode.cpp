@@ -1,6 +1,7 @@
 /*****************************************************************************
  * weBIGeo
  * Copyright (C) 2024 Patrick Komon
+ * Copyright (C) 2025 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,7 +57,7 @@ ComputeAvalancheTrajectoriesNode::ComputeAvalancheTrajectoriesNode(const Pipelin
 {
 }
 
-void ComputeAvalancheTrajectoriesNode::update_gpu_settings()
+void ComputeAvalancheTrajectoriesNode::update_gpu_settings(uint32_t run)
 {
     m_settings_uniform.data.num_steps = m_settings.num_steps;
     m_settings_uniform.data.step_length = m_settings.step_length;
@@ -86,7 +87,7 @@ void ComputeAvalancheTrajectoriesNode::update_gpu_settings()
     // TODO: Get activation of layer if output socket is connected and following node is enabled?
     m_settings_uniform.data.output_layer = m_settings.output_layer;
 
-    m_settings_uniform.data.random_seed = m_settings.random_seed;
+    m_settings_uniform.data.random_seed = m_settings.random_seed + run;
 
     m_settings_uniform.update_gpu_data(m_queue);
 }
@@ -175,7 +176,8 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
         m_device, m_pipeline_manager->avalanche_trajectories_bind_group_layout(), entries, "avalanche trajectories compute bind group");
 
     // bind GPU resources and run pipeline
-    {
+    for (uint32_t run = 0; run < m_settings.num_runs; run++) {
+        update_gpu_settings(run); // change seed each run
         WGPUCommandEncoderDescriptor descriptor {};
         descriptor.label = "avalanche trajectories compute command encoder";
         webgpu::raii::CommandEncoder encoder(m_device, descriptor);
