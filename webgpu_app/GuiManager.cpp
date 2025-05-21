@@ -346,73 +346,7 @@ void GuiManager::draw()
         }
     }
 
-    /*if (ImGui::Button(!m_show_nodeeditor ? ICON_FA_NETWORK_WIRED "  Show Node Editor" : ICON_FA_NETWORK_WIRED "  Hide Node Editor")) {
-        m_show_nodeeditor = !m_show_nodeeditor;
-    }*/
     ImGui::End();
-
-    if (first_frame) {
-        ImNodes::SetNodeScreenSpacePos(1, ImVec2(50, 50));
-        ImNodes::SetNodeScreenSpacePos(2, ImVec2(400, 50));
-    }
-
-    if (m_show_nodeeditor) {
-        // ========== BEGIN NODE WINDOW ===========
-        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
-        ImGui::SetNextWindowSize(ImVec2(ImGui::GetIO().DisplaySize.x - 400, ImGui::GetIO().DisplaySize.y), ImGuiCond_Always);
-        ImGui::Begin("Node Editor", NULL, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar);
-
-        // BEGINN NODE EDITOR
-        ImNodes::BeginNodeEditor();
-
-        // DRAW NODE 1
-        ImNodes::BeginNode(1);
-
-        ImNodes::BeginNodeTitleBar();
-        ImGui::TextUnformatted("input node");
-        ImNodes::EndNodeTitleBar();
-
-        ImNodes::BeginOutputAttribute(2);
-        ImGui::Text("data");
-        ImNodes::EndOutputAttribute();
-
-        ImNodes::EndNode();
-
-        // DRAW NODE 2
-        ImNodes::BeginNode(2);
-
-        ImNodes::BeginNodeTitleBar();
-        ImGui::TextUnformatted("output node");
-        ImNodes::EndNodeTitleBar();
-
-        ImNodes::BeginInputAttribute(3);
-        ImGui::Text("data");
-        ImNodes::EndInputAttribute();
-
-        ImNodes::BeginInputAttribute(4, ImNodesPinShape_Triangle);
-        ImGui::Text("overlay");
-        ImNodes::EndInputAttribute();
-
-        ImNodes::EndNode();
-
-        // IMNODES - DRAW LINKS
-        int id = 0;
-        for (const auto& p : links) {
-            ImNodes::Link(id++, p.first, p.second);
-        }
-
-        // IMNODES - MINIMAP
-        ImNodes::MiniMap(0.1f, ImNodesMiniMapLocation_BottomRight);
-
-        ImNodes::EndNodeEditor();
-
-        int start_attr, end_attr;
-        if (ImNodes::IsLinkCreated(&start_attr, &end_attr)) {
-            links.push_back(std::make_pair(start_attr, end_attr));
-        }
-
-        ImGui::End();
-    }
 
     {
         // === ROTATE NORTH BUTTON ===
@@ -481,9 +415,10 @@ void GuiManager::draw()
         ImVec2 scaledSize = ImVec2(m_webigeo_logo_size.x * scaleFactor, m_webigeo_logo_size.y * scaleFactor);
         ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
         ImGui::SetNextWindowBgAlpha(0.0f);
-        ImGui::Begin("weBIGeo-Logo", nullptr,
-            ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar
-                | ImGuiWindowFlags_NoScrollWithMouse);
+        ImGui::Begin("weBIGeo-Logo",
+            nullptr,
+            ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse
+                | ImGuiWindowFlags_AlwaysAutoResize);
 
         ImGui::Image((ImTextureID)m_webigeo_logo_view->handle(), scaledSize);
         ImGui::End();
@@ -507,7 +442,7 @@ void GuiManager::draw()
             util::open_website("https://basemap.at/");
         }
 
-        ImGui::PopStyleColor(3); // Restore previous color settings
+        ImGui::PopStyleColor(3);
         ImGui::End();
         ImGui::PopStyleColor();
         ImGui::PopStyleVar(); // Restore padding

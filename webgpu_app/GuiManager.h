@@ -58,7 +58,6 @@ private:
     SDL_Window* m_window;
     WGPUDevice m_device;
     TerrainRenderer* m_terrain_renderer = nullptr;
-    bool m_show_nodeeditor = false;
     bool m_gui_visible = true;
 
     std::vector<std::string> m_camera_preset_names;
