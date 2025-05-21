@@ -200,7 +200,7 @@ private:
     std::unique_ptr<compute::NodeGraphRenderer> m_node_graph_renderer;
     bool m_should_render_node_graph = false;
 
-    bool paint_legend_gui(float& min_value, float& max_value, bool& bin_interpolation);
+    bool paint_legend_gui(float& min_value, float& max_value, bool& bin_interpolation, const std::string& unit = "");
 };
 
 } // namespace webgpu_engine

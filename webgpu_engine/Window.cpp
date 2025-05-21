@@ -422,7 +422,7 @@ void Window::paint_gui()
 #endif
 }
 
-bool Window::paint_legend_gui(float& min_value, float& max_value, bool& bin_interpolation)
+bool Window::paint_legend_gui(float& min_value, float& max_value, bool& bin_interpolation, const std::string& unit)
 {
     bool somethingChanged = false;
 
@@ -474,16 +474,16 @@ bool Window::paint_legend_gui(float& min_value, float& max_value, bool& bin_inte
             ImGui::SameLine();
 
             if (i == bin_count - 1) {
-                ImGui::SetNextItemWidth(60);
-                ImGui::DragFloat("##max", &max_value, 0.01f, min_value + step, FLT_MAX, "%.2f");
+                ImGui::SetNextItemWidth(70);
+                ImGui::DragFloat("##max", &max_value, 0.01f, min_value + step, FLT_MAX, ("%.1f" + unit).c_str());
                 somethingChanged |= ImGui::IsItemDeactivatedAfterEdit();
             } else if (i == 0) {
-                ImGui::SetNextItemWidth(60);
-                ImGui::DragFloat("##min", &min_value, 0.01f, -FLT_MAX, max_value - step, "%.2f");
+                ImGui::SetNextItemWidth(70);
+                ImGui::DragFloat("##min", &min_value, 0.01f, -FLT_MAX, max_value - step, ("%.1f" + unit).c_str());
                 somethingChanged |= ImGui::IsItemDeactivatedAfterEdit();
             } else {
                 float bin_min_value = min_value + (i * step);
-                ImGui::Text("%.2f", bin_min_value);
+                ImGui::Text("%.1f", bin_min_value);
             }
             ImGui::PopID();
         }
@@ -729,7 +729,7 @@ void Window::paint_compute_pipeline_gui()
                         rerun_buffer_to_texture |= ImGui::IsItemDeactivatedAfterEdit();
                     }
                     rerun_buffer_to_texture
-                        |= paint_legend_gui(m_compute_pipeline_settings.color_map_bounds.x, m_compute_pipeline_settings.color_map_bounds.y, m_compute_pipeline_settings.use_bin_interpolation);
+                        |= paint_legend_gui(m_compute_pipeline_settings.color_map_bounds.x, m_compute_pipeline_settings.color_map_bounds.y, m_compute_pipeline_settings.use_bin_interpolation, " m/s");
                     if (rerun_buffer_to_texture) {
                         update_settings_and_rerun_pipeline("buffer_to_texture_node");
                     }
