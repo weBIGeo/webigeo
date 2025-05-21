@@ -2,6 +2,7 @@
  * weBIGeo
  * Copyright (C) 2024 Adam Celarek
  * Copyright (C) 2025 Patrick Komon
+ * Copyright (C) 2025 Gerald Kimmersdorfer
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -60,6 +61,7 @@ public:
     nucleus::tile::TileLoadService* geometry_tile_load_service();
     nucleus::tile::TextureScheduler* ortho_scheduler();
     nucleus::tile::SchedulerDirector* scheduler_director();
+    nucleus::tile::TileLoadService* ortho_tile_load_service();
 
 signals:
     void initialised();

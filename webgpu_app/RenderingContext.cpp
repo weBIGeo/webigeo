@@ -2,6 +2,7 @@
  * weBIGeo
  * Copyright (C) 2024 Adam Celarek
  * Copyright (C) 2025 Patrick Komon
+ * Copyright (C) 2025 Gerald Kimmersdorfer
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -54,6 +55,8 @@ RenderingContext::RenderingContext()
         m_scheduler_director->check_in("geometry", m_geometry_scheduler_holder.scheduler);
         m_data_querier = std::make_shared<nucleus::DataQuerier>(&m_geometry_scheduler_holder.scheduler->ram_cache());
         auto ortho_service = std::make_unique<nucleus::tile::TileLoadService>("https://gataki.cg.tuwien.ac.at/raw/basemap/tiles/", TilePattern::ZYX_yPointingSouth, ".jpeg");
+        // auto ortho_service = std::make_unique<nucleus::tile::TileLoadService>("https://maps.wien.gv.at/basemap/bmaporthofoto30cm/normal/google3857/", TilePattern::ZYX_yPointingSouth, ".jpeg");
+        // auto ortho_service = std::make_unique<nucleus::tile::TileLoadService>("https://mapsneu.wien.gv.at/basemap/bmapgelaende/grau/google3857/", TilePattern::ZYX_yPointingSouth, ".jpeg");
         m_ortho_scheduler_holder = nucleus::tile::setup::texture_scheduler(std::move(ortho_service), m_aabb_decorator, m_scheduler_thread.get());
         m_ortho_scheduler_holder.scheduler->set_gpu_quad_limit(256); // TODO
         m_scheduler_director->check_in("ortho", m_ortho_scheduler_holder.scheduler);
@@ -142,5 +145,7 @@ nucleus::tile::TileLoadService* RenderingContext::geometry_tile_load_service() {
 nucleus::tile::TextureScheduler* RenderingContext::ortho_scheduler() { return m_ortho_scheduler_holder.scheduler.get(); }
 
 nucleus::tile::SchedulerDirector* RenderingContext::scheduler_director() { return m_scheduler_director.get(); }
+
+nucleus::tile::TileLoadService* RenderingContext::ortho_tile_load_service() { return m_ortho_scheduler_holder.tile_service.get(); }
 
 } // namespace webgpu_app
