@@ -1,6 +1,7 @@
 /*****************************************************************************
  * weBIGeo
  * Copyright (C) 2024 Patrick Komon
+ * Copyright (C) 2025 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,11 +50,22 @@ public:
         WGPUTextureFormat format = WGPUTextureFormat_RGBA8Unorm;
         WGPUTextureUsage usage = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding);
         WGPUFilterMode filter_mode = WGPUFilterMode_Nearest;
+
+        glm::vec2 color_map_bounds = { 0.0f, 100.0f };
+        glm::vec2 transparency_map_bounds = { 0.0f, 10.0f }; // x gets mapped to 0, y to 1
+        bool use_bin_interpolation = true; // if true, use linear interpolation between color bins
+        bool use_transparency_buffer = true; // if true, the transparency texture is used to evaluate an alpha factor based on the alpha_remap_bounds
     };
 
     struct BufferToTextureSettingsUniform {
         glm::uvec2 input_resolution = glm::uvec2(0u); // is set based on input "raster dimensions"
+        glm::vec2 color_map_bounds;
+        glm::vec2 transparency_map_bounds;
+        uint32_t use_bin_interpolation;
+        uint32_t use_transparency_buffer;
     };
+
+    BufferToTextureSettings& settings() { return m_settings; }
 
     BufferToTextureNode(const PipelineManager& pipeline_manager, WGPUDevice device);
     BufferToTextureNode(const PipelineManager& pipeline_manager, WGPUDevice device, const BufferToTextureSettings& settings);
@@ -62,6 +74,8 @@ public slots:
     void run_impl() override;
 
 private:
+    void update_gpu_settings();
+
     static std::unique_ptr<webgpu::raii::TextureWithSampler> create_texture(
         WGPUDevice device, uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage, WGPUFilterMode filter_mode);
 

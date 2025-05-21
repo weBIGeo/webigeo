@@ -30,6 +30,10 @@
 
 struct BufferToTextureSettings {
     input_resolution: vec2u,
+    color_map_bounds: vec2f,
+    transparency_map_bounds: vec2f,
+    use_bin_interpolation: u32,
+    use_transparency_buffer: u32,
 }
 
 fn index_from_pos(pos: vec2u) -> u32 {
@@ -52,11 +56,15 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
 
     let buffer_index = index_from_pos(id.xy);
     
-    let cell_counts = f32(input_transparency_buffer[buffer_index]);
-    let alpha = remap_clamped(cell_counts, 0.0, 100.0);
+    var alpha: f32 = 1.0;
+    if (bool(settings.use_transparency_buffer)) {
+        let transparency_value = f32(input_transparency_buffer[buffer_index]);
+        alpha = remap_clamped(transparency_value, settings.transparency_map_bounds.x, settings.transparency_map_bounds.y);
+    }
 
     let z_delta = f32(input_storage_buffer[buffer_index]); // zdelta in m
-    var output_color = color_mapping_flowpy(z_delta, 0.0, 100.0, true);
+    let velocity = sqrt(z_delta * 2.0 * 9.81); // calculate velocity based on grommis formula
+    var output_color = color_mapping_flowpy(velocity, settings.color_map_bounds.x, settings.color_map_bounds.y, bool(settings.use_bin_interpolation));
     output_color.a = output_color.a * alpha;
 
 /*

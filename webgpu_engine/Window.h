@@ -120,7 +120,7 @@ private:
     void refresh_compute_pipeline_settings(const radix::geometry::Aabb3d& world_aabb, const nucleus::track::Point& focused_track_point_coords);
     void create_and_set_compute_pipeline(ComputePipelineType pipeline_type, bool should_recreate_compose_bind_group = true);
     void update_compute_pipeline_settings();
-    void update_settings_and_rerun_pipeline();
+    void update_settings_and_rerun_pipeline(const std::string& entry_node = "");
     void init_compute_pipeline_presets();
     void apply_compute_pipeline_preset(size_t preset_index);
 
@@ -199,6 +199,8 @@ private:
 
     std::unique_ptr<compute::NodeGraphRenderer> m_node_graph_renderer;
     bool m_should_render_node_graph = false;
+
+    bool paint_legend_gui(float& min_value, float& max_value, bool& bin_interpolation);
 };
 
 } // namespace webgpu_engine

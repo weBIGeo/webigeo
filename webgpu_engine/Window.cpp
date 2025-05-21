@@ -19,6 +19,7 @@
 
 #include "Window.h"
 #include "compute/nodes/BufferExportNode.h"
+#include "compute/nodes/BufferToTextureNode.h"
 #include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
 #include "compute/nodes/ComputeReleasePointsNode.h"
 #include "compute/nodes/ComputeSnowNode.h"
@@ -421,6 +422,77 @@ void Window::paint_gui()
 #endif
 }
 
+bool Window::paint_legend_gui(float& min_value, float& max_value, bool& bin_interpolation)
+{
+    bool somethingChanged = false;
+
+    // NOTE: Define the same color bins as in the WGSL shader
+    static const std::vector<ImVec4> colors = {
+        ImVec4(0x40 / 255.0f, 0x40 / 255.0f, 0x43 / 255.0f, 1.0f), // 404043
+        ImVec4(0x45 / 255.0f, 0x44 / 255.0f, 0x55 / 255.0f, 1.0f), // 454455
+        ImVec4(0x50 / 255.0f, 0x4a / 255.0f, 0x6b / 255.0f, 1.0f), // 504a6b
+        ImVec4(0x5e / 255.0f, 0x4c / 255.0f, 0x83 / 255.0f, 1.0f), // 5e4c83
+        ImVec4(0x6f / 255.0f, 0x4b / 255.0f, 0x96 / 255.0f, 1.0f), // 6f4b96
+        ImVec4(0x7f / 255.0f, 0x4f / 255.0f, 0x9d / 255.0f, 1.0f), // 7f4f9d
+        ImVec4(0x90 / 255.0f, 0x55 / 255.0f, 0xa1 / 255.0f, 1.0f), // 9055a1
+        ImVec4(0x9f / 255.0f, 0x5b / 255.0f, 0xa1 / 255.0f, 1.0f), // 9f5ba1
+        ImVec4(0xb0 / 255.0f, 0x61 / 255.0f, 0xa1 / 255.0f, 1.0f), // b061a1
+        ImVec4(0xc0 / 255.0f, 0x66 / 255.0f, 0x9d / 255.0f, 1.0f), // c0669d
+        ImVec4(0xd1 / 255.0f, 0x6b / 255.0f, 0x97 / 255.0f, 1.0f), // d16b97
+        ImVec4(0xe0 / 255.0f, 0x73 / 255.0f, 0x91 / 255.0f, 1.0f), // e07391
+        ImVec4(0xee / 255.0f, 0x7e / 255.0f, 0x89 / 255.0f, 1.0f), // ee7e89
+        ImVec4(0xf7 / 255.0f, 0x8e / 255.0f, 0x85 / 255.0f, 1.0f), // f78e85
+        ImVec4(0xfc / 255.0f, 0xa1 / 255.0f, 0x87 / 255.0f, 1.0f), // fca187
+        ImVec4(0xfe / 255.0f, 0xb3 / 255.0f, 0x8f / 255.0f, 1.0f), // feb38f
+        ImVec4(0xfe / 255.0f, 0xc7 / 255.0f, 0x9c / 255.0f, 1.0f), // fec79c
+        ImVec4(0xfe / 255.0f, 0xd9 / 255.0f, 0xab / 255.0f, 1.0f), // fed9ab
+        ImVec4(0xfe / 255.0f, 0xec / 255.0f, 0xbc / 255.0f, 1.0f), // feecbc
+        ImVec4(0xfd / 255.0f, 0xfe / 255.0f, 0xcf / 255.0f, 1.0f) // fdfecf
+    };
+
+    const int bin_count = static_cast<int>(colors.size());
+    const float step = (max_value - min_value) / (bin_count - 1);
+
+    // first calculate how much vertical space the legend will need
+    const float item_height = ImGui::GetTextLineHeightWithSpacing();
+    const float estimated_window_height = (bin_count + 1) * item_height;
+
+    // set window position to be vertically centered
+    ImVec2 window_pos = ImVec2(10, (ImGui::GetIO().DisplaySize.y - estimated_window_height) * 0.5f);
+
+    ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, ImVec2(0.0f, 0.0f));
+    ImGui::SetNextWindowBgAlpha(0.5f);
+
+    if (ImGui::Begin("Flowpy Legend",
+            nullptr,
+            ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings
+                | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav)) {
+        for (int i = bin_count - 1; i >= 0; i--) {
+            ImGui::PushID(i);
+
+            ImGui::ColorButton("##color", colors[i], ImGuiColorEditFlags_NoTooltip, ImVec2(20, 20));
+            ImGui::SameLine();
+
+            if (i == bin_count - 1) {
+                ImGui::SetNextItemWidth(60);
+                ImGui::DragFloat("##max", &max_value, 0.01f, min_value + step, FLT_MAX, "%.2f");
+                somethingChanged |= ImGui::IsItemDeactivatedAfterEdit();
+            } else if (i == 0) {
+                ImGui::SetNextItemWidth(60);
+                ImGui::DragFloat("##min", &min_value, 0.01f, -FLT_MAX, max_value - step, "%.2f");
+                somethingChanged |= ImGui::IsItemDeactivatedAfterEdit();
+            } else {
+                float bin_min_value = min_value + (i * step);
+                ImGui::Text("%.2f", bin_min_value);
+            }
+            ImGui::PopID();
+        }
+    }
+    somethingChanged |= ImGui::Checkbox("continuous", &bin_interpolation);
+    ImGui::End();
+    return somethingChanged;
+}
+
 void Window::paint_compute_pipeline_gui()
 {
 #if ALP_WEBGPU_APP_ENABLE_IMGUI
@@ -564,7 +636,7 @@ void Window::paint_compute_pipeline_gui()
                 const glm::uvec2 num_runs_bounds = glm::uvec2(1, 1000);
                 ImGui::DragScalar("Runs##trajectories", ImGuiDataType_U32, &m_compute_pipeline_settings.num_runs, 1.0f, &num_runs_bounds.x, &num_runs_bounds.y, "%u");
                 if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    update_settings_and_rerun_pipeline();
+                    update_settings_and_rerun_pipeline("compute_avalanche_trajectories_node");
                 }
 
                 if (ImGui::Combo("Model", (int*)&m_compute_pipeline_settings.model_type, "Default\0physics_less_simple\0Gradients\0Discretized gradients\0D8 (no weights)\0D8 (with weights)\0")) {
@@ -641,6 +713,25 @@ void Window::paint_compute_pipeline_gui()
                     ImGui::DragFloat("Alpha##runout_flowpy", &m_compute_pipeline_settings.runout_flowpy_alpha, 0.01f, 0.0f, 90.0f, "%.2f");
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
                         update_settings_and_rerun_pipeline();
+                    }
+                }
+
+                { // Buffer to Texture Settings
+                    ImGui::Separator();
+                    bool rerun_buffer_to_texture = false;
+                    rerun_buffer_to_texture |= ImGui::Checkbox("Alpha Blending", &m_compute_pipeline_settings.use_transparency_buffer);
+                    if (m_compute_pipeline_settings.use_transparency_buffer) {
+                        auto& bounds = m_compute_pipeline_settings.transparency_map_bounds;
+                        ImGui::DragFloat2("Alpha Bounds", &bounds.x, 1.0f, 0.0f, 1000.0f, "%.2f");
+                        if (bounds.x > bounds.y) {
+                            bounds.x = bounds.y;
+                        }
+                        rerun_buffer_to_texture |= ImGui::IsItemDeactivatedAfterEdit();
+                    }
+                    rerun_buffer_to_texture
+                        |= paint_legend_gui(m_compute_pipeline_settings.color_map_bounds.x, m_compute_pipeline_settings.color_map_bounds.y, m_compute_pipeline_settings.use_bin_interpolation);
+                    if (rerun_buffer_to_texture) {
+                        update_settings_and_rerun_pipeline("buffer_to_texture_node");
                     }
                 }
             } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES_EVAL) {
@@ -1005,6 +1096,15 @@ void Window::update_compute_pipeline_settings()
         auto& trajectories_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("compute_avalanche_trajectories_node");
         trajectories_node.set_settings(trajectory_settings);
 
+        // buffertotexture settings
+        {
+            auto& node = m_compute_graph->get_node_as<compute::nodes::BufferToTextureNode>("buffer_to_texture_node");
+            node.settings().color_map_bounds = m_compute_pipeline_settings.color_map_bounds;
+            node.settings().transparency_map_bounds = m_compute_pipeline_settings.transparency_map_bounds;
+            node.settings().use_bin_interpolation = m_compute_pipeline_settings.use_bin_interpolation;
+            node.settings().use_transparency_buffer = m_compute_pipeline_settings.use_transparency_buffer;
+        }
+
         // update file export path to include current date and time
         {
             const std::filesystem::path export_root_dir = "export_" + get_current_date_time_string();
@@ -1122,11 +1222,21 @@ void Window::update_compute_pipeline_settings()
     }
 }
 
-void Window::update_settings_and_rerun_pipeline()
+void Window::update_settings_and_rerun_pipeline(const std::string& entry_node)
 {
     update_compute_pipeline_settings();
     if (m_is_region_selected) {
-        m_compute_graph->run();
+        if (!entry_node.empty()) {
+            if (m_compute_graph->exists_node(entry_node)) {
+                m_compute_graph->get_node_as<compute::nodes::Node>(entry_node).run();
+            } else {
+                qCritical() << "Entry node" << entry_node << "does not exist.";
+            }
+        } else {
+            m_compute_graph->run();
+        }
+    } else {
+        qWarning() << "No region selected. Please load track.";
     }
 }
 

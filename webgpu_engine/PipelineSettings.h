@@ -56,6 +56,12 @@ struct ComputePipelineSettings {
     compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutPerlaParams perla;
     float runout_flowpy_alpha = 25.0f; // degrees
 
+    // settings for buffer to texture
+    glm::vec2 color_map_bounds = { 0.0f, 50.0f };
+    glm::vec2 transparency_map_bounds = { 0.0f, 1.0f };
+    bool use_bin_interpolation = false;
+    bool use_transparency_buffer = true;
+
     // file paths for evaluation pipeline
     std::string release_points_texture_path;
     std::string heightmap_texture_path;

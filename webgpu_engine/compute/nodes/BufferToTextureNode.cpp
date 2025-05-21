@@ -1,6 +1,7 @@
 /*****************************************************************************
  * weBIGeo
  * Copyright (C) 2024 Patrick Komon
+ * Copyright (C) 2025 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -52,8 +53,7 @@ void BufferToTextureNode::run_impl()
     const auto& input_transparency_buffer = *std::get<data_type<webgpu::raii::RawBuffer<uint32_t>*>()>(input_socket("transparency buffer").get_connected_data());
 
     m_settings_uniform.data.input_resolution = input_raster_dimensions;
-    m_settings_uniform.update_gpu_data(m_queue);
-    qDebug() << "input resolution: " << input_raster_dimensions.x << "x" << input_raster_dimensions.y;
+    update_gpu_settings();
 
     // assert input textures have same size, otherwise fail run
     if (input_raster_dimensions.x > MAX_TEXTURE_RESOLUTION || input_raster_dimensions.y > MAX_TEXTURE_RESOLUTION) {
@@ -104,6 +104,15 @@ void BufferToTextureNode::run_impl()
             _this->run_completed(); // emits signal run_finished()
         },
         this);
+}
+
+void BufferToTextureNode::update_gpu_settings()
+{
+    m_settings_uniform.data.color_map_bounds = m_settings.color_map_bounds;
+    m_settings_uniform.data.transparency_map_bounds = m_settings.transparency_map_bounds;
+    m_settings_uniform.data.use_bin_interpolation = m_settings.use_bin_interpolation;
+    m_settings_uniform.data.use_transparency_buffer = m_settings.use_transparency_buffer;
+    m_settings_uniform.update_gpu_data(m_queue);
 }
 
 uint32_t bit_width(uint32_t m)
