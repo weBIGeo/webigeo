@@ -217,16 +217,12 @@ void Window::paint_gui()
         }
         m_shared_config_ubo->data.m_overlay_mode = overlays[currentItem].second;
         if (m_shared_config_ubo->data.m_overlay_mode > 0) {
-            if (ImGui::SliderFloat("Overlay Strength", &m_shared_config_ubo->data.m_overlay_strength, 0.0f, 1.0f)) {
-                m_needs_redraw = true;
-            }
+            m_needs_redraw |= ImGui::SliderFloat("Overlay Strength", &m_shared_config_ubo->data.m_overlay_strength, 0.0f, 1.0f);
         }
 
-        if (m_shared_config_ubo->data.m_overlay_mode > 0) {
-            if (ImGui::Checkbox("Overlay Post Shading", (bool*)&m_shared_config_ubo->data.m_overlay_postshading_enabled)) {
-                m_needs_redraw = true;
-            }
-        }
+        m_needs_redraw |= ImGui::Checkbox("Overlay Post Shading", (bool*)&m_shared_config_ubo->data.m_overlay_postshading_enabled);
+
+        ImGui::Separator();
 
         m_needs_redraw |= ImGui::Checkbox("Phong Shading", (bool*)&m_shared_config_ubo->data.m_phong_enabled);
         m_needs_redraw |= ImGui::Checkbox("Atmosphere", (bool*)&m_shared_config_ubo->data.m_atmosphere_enabled);

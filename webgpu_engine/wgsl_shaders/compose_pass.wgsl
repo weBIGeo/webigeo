@@ -249,12 +249,13 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
             }
             overlay_color.a *= conf.overlay_strength;
             albedo = mix(albedo, overlay_color.rgb, overlay_color.a);
+
+            if (dist > 0.0 && all(pos_ws.xy >= compute_overlay_settings.aabb_min) && all(pos_ws.xy <= compute_overlay_settings.aabb_max)) {
+                albedo = mix(albedo.rgb, compute_overlay_color.rgb, compute_overlay_color.a * compute_overlay_settings.alpha);
+            }
         }
 
-        if (dist > 0.0 && all(pos_ws.xy >= compute_overlay_settings.aabb_min) && all(pos_ws.xy <= compute_overlay_settings.aabb_max)) {
-            albedo = mix(albedo.rgb, compute_overlay_color.rgb, compute_overlay_color.a * compute_overlay_settings.alpha);
-            // could support F32 decoding here too (similar to image overlay), but not needed for now
-        }
+
 
         shaded_color = albedo;
         if (bool(conf.phong_enabled)) {
@@ -286,12 +287,6 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         }
     }
 
-    // TODO: setting to switch between post/pre-shading
-    //if (dist > 0.0 && all(pos_ws.xy >= compute_overlay_settings.aabb_min) && all(pos_ws.xy <= compute_overlay_settings.aabb_max)) {
-        //out_Color = vec4f(mix(out_Color.rgb, compute_overlay_color.rgb, compute_overlay_color.a * compute_overlay_settings.alpha), out_Color.a);
-        // could support F32 decoding here too (similar to image overlay), but not needed for now
-    //}
-
     if (bool(conf.overlay_postshading_enabled)) {
         var overlay_color = vec4f(0.0);
         if (conf.overlay_mode == 100u) {
@@ -310,13 +305,17 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         }
         overlay_color.a *= conf.overlay_strength;
         out_Color = vec4(mix(out_Color.rgb, overlay_color.rgb, overlay_color.a), out_Color.a);
+
+        if (dist > 0.0 && all(pos_ws.xy >= compute_overlay_settings.aabb_min) && all(pos_ws.xy <= compute_overlay_settings.aabb_max)) {
+            out_Color = vec4(mix(out_Color.rgb, compute_overlay_color.rgb, compute_overlay_color.a * compute_overlay_settings.alpha), out_Color.a);
+        }
     }
 
     // == HEIGHT LINES ==============
     if (bool(conf.height_lines_enabled) && dist > 0.0) {
         var draw_line = true; // ensures that we only darken the pixel once
         apply_height_lines(&out_Color, pos_ws, normal, dist, conf.height_lines_settings.x, conf.height_lines_settings.z, conf.height_lines_settings.w, &draw_line);
-        apply_height_lines(&out_Color, pos_ws, normal, dist, conf.height_lines_settings.y, conf.height_lines_settings.z * 0.5, conf.height_lines_settings.w * 0.5, &draw_line);
+        apply_height_lines(&out_Color, pos_ws, normal, dist, conf.height_lines_settings.y, conf.height_lines_settings.z * 0.5, conf.height_lines_settings.w * 0.75, &draw_line);
     }
 
 
