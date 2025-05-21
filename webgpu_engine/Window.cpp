@@ -228,40 +228,46 @@ void Window::paint_gui()
             }
         }
 
-        if (ImGui::Checkbox("Phong Shading", (bool*)&m_shared_config_ubo->data.m_phong_enabled)) {
-            m_needs_redraw = true;
-        }
-
-        if (ImGui::Checkbox("Atmosphere", (bool*)&m_shared_config_ubo->data.m_atmosphere_enabled)) {
-            m_needs_redraw = true;
-        }
+        m_needs_redraw |= ImGui::Checkbox("Phong Shading", (bool*)&m_shared_config_ubo->data.m_phong_enabled);
+        m_needs_redraw |= ImGui::Checkbox("Atmosphere", (bool*)&m_shared_config_ubo->data.m_atmosphere_enabled);
 
         bool snow_on = (m_shared_config_ubo->data.m_snow_settings_angle.x == 1.0f);
         if (ImGui::Checkbox("Snow", &snow_on)) {
             m_needs_redraw = true;
             m_shared_config_ubo->data.m_snow_settings_angle.x = (snow_on ? 1.0f : 0.0f);
         }
+        if (snow_on) {
+            ImGui::SameLine();
+            if (ImGui::CollapsingHeader("###Snow Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+                auto& snow_settings_angle = m_shared_config_ubo->data.m_snow_settings_angle;
+                bool changed = ImGui::DragFloatRange2("Angle limit", &snow_settings_angle.y, &snow_settings_angle.z, 0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp);
+                changed |= ImGui::SliderFloat("Angle blend", &snow_settings_angle.w, 0.0f, 90.0f, "%.1f°");
+                changed |= ImGui::SliderFloat("Altitude limit", &m_shared_config_ubo->data.m_snow_settings_alt.x, 0.0f, 4000.0f, "%.1fm");
+                changed |= ImGui::SliderFloat("Altitude variation", &m_shared_config_ubo->data.m_snow_settings_alt.y, 0.0f, 1000.0f, "%.1f°");
+                changed |= ImGui::SliderFloat("Altitude blend", &m_shared_config_ubo->data.m_snow_settings_alt.z, 0.0f, 1000.0f);
+                changed |= ImGui::SliderFloat("Specular", &m_shared_config_ubo->data.m_snow_settings_alt.w, 0.0f, 5.0f);
 
-        if (ImGui::CollapsingHeader("Snow Settings")) {
-            bool changed = ImGui::DragFloatRange2("Angle limit",
-                &m_shared_config_ubo->data.m_snow_settings_angle.y,
-                &m_shared_config_ubo->data.m_snow_settings_angle.z,
-                0.1f,
-                0.0f,
-                90.0f,
-                "Min: %.1f°",
-                "Max: %.1f°",
-                ImGuiSliderFlags_AlwaysClamp);
+                if (changed) {
+                    m_needs_redraw = true;
+                    update_compute_pipeline_settings();
+                }
+            }
+        }
 
-            changed |= ImGui::SliderFloat("Angle blend", &m_shared_config_ubo->data.m_snow_settings_angle.w, 0.0f, 90.0f, "%.1f°");
-            changed |= ImGui::SliderFloat("Altitude limit", &m_shared_config_ubo->data.m_snow_settings_alt.x, 0.0f, 4000.0f, "%.1fm");
-            changed |= ImGui::SliderFloat("Altitude variation", &m_shared_config_ubo->data.m_snow_settings_alt.y, 0.0f, 1000.0f, "%.1f°");
-            changed |= ImGui::SliderFloat("Altitude blend", &m_shared_config_ubo->data.m_snow_settings_alt.z, 0.0f, 1000.0f);
-            changed |= ImGui::SliderFloat("Specular", &m_shared_config_ubo->data.m_snow_settings_alt.w, 0.0f, 5.0f);
-
-            if (changed) {
-                m_needs_redraw = true;
-                update_compute_pipeline_settings();
+        m_needs_redraw |= ImGui::Checkbox("Heightlines", (bool*)&m_shared_config_ubo->data.m_height_lines_enabled);
+        if (m_shared_config_ubo->data.m_height_lines_enabled) {
+            ImGui::SameLine();
+            if (ImGui::CollapsingHeader("###Height Lines", ImGuiTreeNodeFlags_DefaultOpen)) {
+                float& primary = m_shared_config_ubo->data.m_height_lines_settings.x;
+                float& secondary = m_shared_config_ubo->data.m_height_lines_settings.y;
+                float ratio = primary / secondary;
+                if (ImGui::DragFloat("Primary Interval", &primary, 1.0f, 5.0f, 1000.0f, "%.2f m")) {
+                    m_needs_redraw = true;
+                    secondary = primary / ratio;
+                }
+                m_needs_redraw |= ImGui::DragFloat("Secondary Interval", &secondary, 1.0f, 1.0f, 1000.0f, "%.2f m");
+                m_needs_redraw |= ImGui::DragFloat("Base Line Width", &m_shared_config_ubo->data.m_height_lines_settings.z, 0.01f, 0.1f, 5.0f, "%.2f");
+                m_needs_redraw |= ImGui::DragFloat("Darkening Factor", &m_shared_config_ubo->data.m_height_lines_settings.w, 0.01f, 0.0f, 1.0f, "%.2f");
             }
         }
 

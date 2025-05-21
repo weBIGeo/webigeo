@@ -45,6 +45,10 @@ struct shared_config {
     csm_enabled: u32,
     overlay_shadowmaps_enabled: u32,
     track_render_mode: u32,
+
+    // primary interval, secondary interval, base size, base darkening
+    height_lines_settings: vec4f,
+
 }
 
 ;

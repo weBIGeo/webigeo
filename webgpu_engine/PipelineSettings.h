@@ -57,7 +57,7 @@ struct ComputePipelineSettings {
     float runout_flowpy_alpha = 25.0f; // degrees
 
     // settings for buffer to texture
-    glm::vec2 color_map_bounds = { 0.0f, 50.0f };
+    glm::vec2 color_map_bounds = { 0.0f, 40.0f };
     glm::vec2 transparency_map_bounds = { 0.0f, 1.0f };
     bool use_bin_interpolation = false;
     bool use_transparency_buffer = true;
