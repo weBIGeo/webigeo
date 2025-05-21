@@ -442,6 +442,22 @@ std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_with_export_compute_gr
     return node_graph;
 }
 
+void NodeGraph::set_enabled_for_nodes_with_name(const std::string& name_substring, bool enable)
+{
+    int set_count = 0;
+    for (auto& [name, node] : m_nodes) {
+        if (name.find(name_substring) != std::string::npos) {
+            if (enable) {
+                node->enable();
+            } else {
+                node->disable();
+            }
+            set_count++;
+        }
+    }
+    qInfo() << (enable ? "Enabled" : "Disabled") << set_count << "nodes with name containing:" << QString::fromStdString(name_substring);
+}
+
 std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_evaluation_compute_graph(const PipelineManager& manager, WGPUDevice device)
 {
     auto node_graph = std::make_unique<NodeGraph>();

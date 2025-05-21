@@ -107,14 +107,21 @@ Node::Node(const std::vector<InputSocket>& input_sockets, const std::vector<Outp
     connect(this, &webgpu_engine::compute::nodes::Node::run_started, this, [this]() { this->m_last_run_started = std::chrono::high_resolution_clock::now(); });
     connect(
         this, &webgpu_engine::compute::nodes::Node::run_completed, this, [this]() { this->m_last_run_finished = std::chrono::high_resolution_clock::now(); });
-    connect(this, &webgpu_engine::compute::nodes::Node::run_completed, this,
-        [this]() { qDebug() << " node execution took " << this->last_run_duration() << "ms"; });
+    connect(this, &webgpu_engine::compute::nodes::Node::run_completed, this, [this]() {
+        if (is_enabled()) {
+            qDebug() << " node execution took " << this->last_run_duration() << "ms";
+        }
+    });
 }
 
 void Node::run()
 {
-    emit run_started();
-    run_impl();
+    if (m_enabled) {
+        emit run_started();
+        run_impl();
+    } else {
+        emit run_completed();
+    }
 }
 
 bool Node::has_input_socket(const std::string& name) const
@@ -196,5 +203,9 @@ Data Node::get_input_data(const std::string& input_socket_name)
 }
 
 float Node::last_run_duration() const { return std::chrono::duration_cast<std::chrono::milliseconds>(m_last_run_finished - m_last_run_started).count(); }
+
+bool Node::is_enabled() const { return m_enabled; }
+void Node::enable() { m_enabled = true; }
+void Node::disable() { m_enabled = false; }
 
 } // namespace webgpu_engine::compute::nodes

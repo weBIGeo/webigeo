@@ -1234,11 +1234,21 @@ void Window::update_settings_and_rerun_pipeline(const std::string& entry_node)
     if (m_is_region_selected) {
         if (!entry_node.empty()) {
             if (m_compute_graph->exists_node(entry_node)) {
+                // ToDo: remove in the long run, this is unexpected behaviour
+                if (!m_suppress_export) {
+                    m_suppress_export = true;
+                    m_compute_graph->set_enabled_for_nodes_with_name("export", false);
+                }
                 m_compute_graph->get_node_as<compute::nodes::Node>(entry_node).run();
             } else {
                 qCritical() << "Entry node" << entry_node << "does not exist.";
             }
         } else {
+            // ToDo: remove in the long run, this is unexpected behaviour
+            if (m_suppress_export) {
+                m_suppress_export = false;
+                m_compute_graph->set_enabled_for_nodes_with_name("export", true);
+            }
             m_compute_graph->run();
         }
     } else {
@@ -1712,7 +1722,7 @@ void Window::on_pipeline_run_completed()
         update_compute_overlay_aabb(selected_aabb);
     }
 
-    if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES || m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES_EVAL) {
+    if (!m_suppress_export && (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES || m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES_EVAL)) {
         std::filesystem::path trajectory_export_path = m_compute_graph->get_node_as<compute::nodes::TileExportNode>("trajectories_export").get_settings().output_directory;
 
         std::filesystem::path settings_export_path = trajectory_export_path.parent_path() / "settings.json";

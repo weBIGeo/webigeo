@@ -179,6 +179,10 @@ public:
     /// Returns running time of the last execution of this node in ms.
     [[nodiscard]] float last_run_duration() const;
 
+    [[nodiscard]] bool is_enabled() const;
+    void disable();
+    void enable();
+
 public slots:
     void run();
 
@@ -204,6 +208,8 @@ private:
 
     std::chrono::high_resolution_clock::time_point m_last_run_started;
     std::chrono::high_resolution_clock::time_point m_last_run_finished;
+
+    bool m_enabled = true;
 };
 
 } // namespace webgpu_engine::compute::nodes

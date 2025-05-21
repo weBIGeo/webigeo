@@ -174,6 +174,15 @@ void NodeRenderer::render()
         ImNodes::SetNodeEditorSpacePos(m_node_id, m_position);
         m_position_set = true;
     }
+
+    const bool disabled = !m_node->is_enabled();
+    if (disabled) {
+        ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.3f);
+        ImNodes::PushColorStyle(ImNodesCol_TitleBar, IM_COL32(100, 100, 100, 255));
+        ImNodes::PushColorStyle(ImNodesCol_TitleBarHovered, IM_COL32(100, 100, 100, 255));
+        ImNodes::PushColorStyle(ImNodesCol_TitleBarSelected, IM_COL32(100, 100, 100, 255));
+    }
+
     ImNodes::BeginNode(m_node_id);
 
     ImNodes::BeginNodeTitleBar();
@@ -184,6 +193,13 @@ void NodeRenderer::render()
     render_sockets();
 
     ImNodes::EndNode();
+
+    if (disabled) {
+        ImNodes::PopColorStyle();
+        ImNodes::PopColorStyle();
+        ImNodes::PopColorStyle();
+        ImGui::PopStyleVar();
+    }
 }
 
 void NodeRenderer::render_sockets()
