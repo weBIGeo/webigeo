@@ -641,12 +641,12 @@ void Window::paint_compute_pipeline_gui()
                     update_settings_and_rerun_pipeline("compute_avalanche_trajectories_node");
                 }
 
-                if (ImGui::Combo("Model", (int*)&m_compute_pipeline_settings.model_type, "Default\0physics_less_simple\0Gradients\0Discretized gradients\0D8 (no weights)\0D8 (with weights)\0")) {
+                if (ImGui::Combo("Model", (int*)&m_compute_pipeline_settings.model_type, "Default\0physics_less_simple\0")) {
                     update_settings_and_rerun_pipeline();
                 }
 
                 if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_SIMPLE) {
-                    ImGui::DragFloat("Random contribution", &m_compute_pipeline_settings.random_contribution, 0.01f, 0.0f, 1.0f, "%.3f");
+                    ImGui::DragFloat("Randomness", &m_compute_pipeline_settings.random_contribution, 0.01f, 0.0f, 90.0f, "%.1f");
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
                         update_settings_and_rerun_pipeline();
                     }
@@ -655,6 +655,12 @@ void Window::paint_compute_pipeline_gui()
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
                         update_settings_and_rerun_pipeline();
                     }
+
+                    ImGui::DragFloat("Alpha##runout_flowpy", &m_compute_pipeline_settings.runout_flowpy_alpha, 0.01f, 0.0f, 90.0f, "%.2f");
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        update_settings_and_rerun_pipeline();
+                    }
+
                 } else if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_LESS_SIMPLE) {
                     ImGui::SliderFloat("Gravity##model_less_simple", &m_compute_pipeline_settings.model_less_simple_params.gravity, 0.0f, 15.0f, "%.2f");
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
@@ -664,57 +670,35 @@ void Window::paint_compute_pipeline_gui()
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
                         update_settings_and_rerun_pipeline();
                     }
-                    ImGui::SliderFloat("Drag coeff##model_less_simple", &m_compute_pipeline_settings.model_less_simple_params.drag_coeff, 0.0f, 1.0f, "%.2f");
+                    ImGui::SliderFloat("Drag coeff##model_less_simple", &m_compute_pipeline_settings.model_less_simple_params.drag_coeff, 1.0f, 10000.0f, "%.0f");
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
                         update_settings_and_rerun_pipeline();
                     }
-                    ImGui::SliderFloat("Friction coeff##model_less_simple", &m_compute_pipeline_settings.model_less_simple_params.friction_coeff, 0.0f, 1.0f, "%.2f");
+                    ImGui::SliderFloat("Friction coeff##model_less_simple", &m_compute_pipeline_settings.model_less_simple_params.friction_coeff, 0.0f, 0.5f, "%.3f");
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
                         update_settings_and_rerun_pipeline();
                     }
-                }
-
-                static int runout_models_current_item = 1;
-                const std::vector<std::pair<std::string, int>> runout_models = {
-                    { "None", 0 },
-                    { "FlowPy (Alpha)", 2 },
-                };
-                const char* current_item_label = runout_models[runout_models_current_item].first.c_str();
-                if (ImGui::BeginCombo("Runout model", current_item_label)) {
-                    for (size_t i = 0; i < runout_models.size(); i++) {
-                        bool is_selected = ((size_t)runout_models_current_item == i);
-                        if (ImGui::Selectable(runout_models[i].first.c_str(), is_selected)) {
-                            runout_models_current_item = i;
-                            m_compute_pipeline_settings.runout_model_type = runout_models[i].second;
-                            update_settings_and_rerun_pipeline();
+                    static int friction_model_current_item = 1;
+                    const std::vector<std::pair<std::string, int>> friction_model = {
+                        { "Coulomb", 0 },
+                        { "Voellmy", 1 },
+                        { "Voellmy Min Shear", 2 },
+                        { "SamosAt", 3 },
+                        { "None", 4 },
+                    };
+                    const char* current_item_label = friction_model[friction_model_current_item].first.c_str();
+                    if (ImGui::BeginCombo("Friction model", current_item_label)) {
+                        for (size_t i = 0; i < friction_model.size(); i++) {
+                            bool is_selected = ((size_t)friction_model_current_item == i);
+                            if (ImGui::Selectable(friction_model[i].first.c_str(), is_selected)) {
+                                friction_model_current_item = i;
+                                m_compute_pipeline_settings.friction_model_type = friction_model[i].second;
+                                update_settings_and_rerun_pipeline();
+                            }
+                            if (is_selected)
+                                ImGui::SetItemDefaultFocus();
                         }
-                        if (is_selected)
-                            ImGui::SetItemDefaultFocus();
-                    }
-                    ImGui::EndCombo();
-                }
-
-                if (m_compute_pipeline_settings.runout_model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType::PERLA) {
-                    ImGui::SliderFloat("My##runout_perla", &m_compute_pipeline_settings.perla.my, 0.004f, 0.6f, "%.2f");
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        update_settings_and_rerun_pipeline();
-                    }
-                    ImGui::SliderFloat("M/D##runout_perla", &m_compute_pipeline_settings.perla.md, 20.0f, 150.0f, "%.2f");
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        update_settings_and_rerun_pipeline();
-                    }
-                    ImGui::SliderFloat("L##runout_perla", &m_compute_pipeline_settings.perla.l, 1.0f, 15.0f, "%.2f");
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        update_settings_and_rerun_pipeline();
-                    }
-                    ImGui::SliderFloat("Gravity##runout_perla", &m_compute_pipeline_settings.perla.g, 0.0f, 15.0f, "%.2f");
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        update_settings_and_rerun_pipeline();
-                    }
-                } else if (m_compute_pipeline_settings.runout_model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType::FLOWPY) {
-                    ImGui::DragFloat("Alpha##runout_flowpy", &m_compute_pipeline_settings.runout_flowpy_alpha, 0.01f, 0.0f, 90.0f, "%.2f");
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        update_settings_and_rerun_pipeline();
+                        ImGui::EndCombo();
                     }
                 }
 
@@ -771,11 +755,10 @@ void Window::paint_compute_pipeline_gui()
                 }
 
                 if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_SIMPLE) {
-                    ImGui::DragFloat("Random contribution", &m_compute_pipeline_settings.random_contribution, 0.01f, 0.0f, 1.0f, "%.3f");
+                    ImGui::DragFloat("Randomness", &m_compute_pipeline_settings.random_contribution, 0.01f, 0.0f, 90.0f, "%.1f");
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
                         update_settings_and_rerun_pipeline();
                     }
-
                     ImGui::DragFloat("Persistence", &m_compute_pipeline_settings.persistence_contribution, 0.01f, 0.0f, 1.0f, "%.3f");
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
                         update_settings_and_rerun_pipeline();
@@ -793,7 +776,7 @@ void Window::paint_compute_pipeline_gui()
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
                         update_settings_and_rerun_pipeline();
                     }
-                    ImGui::SliderFloat("Friction coeff##model2", &m_compute_pipeline_settings.model_less_simple_params.friction_coeff, 0.0f, 1.0f, "%.2f");
+                    ImGui::SliderFloat("Friction coeff##model2", &m_compute_pipeline_settings.model_less_simple_params.friction_coeff, 0.0f, 1.0f, "%.4f");
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
                         update_settings_and_rerun_pipeline();
                     }
@@ -809,7 +792,7 @@ void Window::paint_compute_pipeline_gui()
                         bool is_selected = ((size_t)runout_models_current_item == i);
                         if (ImGui::Selectable(runout_models[i].first.c_str(), is_selected)) {
                             runout_models_current_item = i;
-                            m_compute_pipeline_settings.runout_model_type = runout_models[i].second;
+                            m_compute_pipeline_settings.friction_model_type = runout_models[i].second;
                             update_settings_and_rerun_pipeline();
                         }
                         if (is_selected)
@@ -818,29 +801,29 @@ void Window::paint_compute_pipeline_gui()
                     ImGui::EndCombo();
                 }
 
-                if (m_compute_pipeline_settings.runout_model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType::PERLA) {
-                    ImGui::SliderFloat("My##runout_perla", &m_compute_pipeline_settings.perla.my, 0.004f, 0.6f, "%.2f");
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        update_settings_and_rerun_pipeline();
-                    }
-                    ImGui::SliderFloat("M/D##runout_perla", &m_compute_pipeline_settings.perla.md, 20.0f, 150.0f, "%.2f");
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        update_settings_and_rerun_pipeline();
-                    }
-                    ImGui::SliderFloat("L##runout_perla", &m_compute_pipeline_settings.perla.l, 1.0f, 15.0f, "%.2f");
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        update_settings_and_rerun_pipeline();
-                    }
-                    ImGui::SliderFloat("Gravity##runout_perla", &m_compute_pipeline_settings.perla.g, 0.0f, 15.0f, "%.2f");
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        update_settings_and_rerun_pipeline();
-                    }
-                } else if (m_compute_pipeline_settings.runout_model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType::FLOWPY) {
-                    ImGui::DragFloat("Alpha##runout_flowpy", &m_compute_pipeline_settings.runout_flowpy_alpha, 0.01f, 0.0f, 90.0f, "%.2f");
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        update_settings_and_rerun_pipeline();
-                    }
-                }
+                // if (m_compute_pipeline_settings.runout_model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::FrictionModelType::PERLA) {
+                //     ImGui::SliderFloat("My##runout_perla", &m_compute_pipeline_settings.perla.my, 0.004f, 0.6f, "%.2f");
+                //     if (ImGui::IsItemDeactivatedAfterEdit()) {
+                //         update_settings_and_rerun_pipeline();
+                //     }
+                //     ImGui::SliderFloat("M/D##runout_perla", &m_compute_pipeline_settings.perla.md, 20.0f, 150.0f, "%.2f");
+                //     if (ImGui::IsItemDeactivatedAfterEdit()) {
+                //         update_settings_and_rerun_pipeline();
+                //     }
+                //     ImGui::SliderFloat("L##runout_perla", &m_compute_pipeline_settings.perla.l, 1.0f, 15.0f, "%.2f");
+                //     if (ImGui::IsItemDeactivatedAfterEdit()) {
+                //         update_settings_and_rerun_pipeline();
+                //     }
+                //     ImGui::SliderFloat("Gravity##runout_perla", &m_compute_pipeline_settings.perla.g, 0.0f, 15.0f, "%.2f");
+                //     if (ImGui::IsItemDeactivatedAfterEdit()) {
+                //         update_settings_and_rerun_pipeline();
+                //     }
+                // } else if (m_compute_pipeline_settings.runout_model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::FrictionModelType::FLOWPY) {
+                //     ImGui::DragFloat("Alpha##runout_flowpy", &m_compute_pipeline_settings.runout_flowpy_alpha, 0.01f, 0.0f, 90.0f, "%.2f");
+                //     if (ImGui::IsItemDeactivatedAfterEdit()) {
+                //         update_settings_and_rerun_pipeline();
+                //     }
+                // }
 #ifndef __EMSCRIPTEN__
                 if (ImGui::Button("Open eval dir ...", ImVec2(250, 20))) {
                     IGFD::FileDialogConfig config_eval_dir_file_dialog;
@@ -1089,7 +1072,7 @@ void Window::update_compute_pipeline_settings()
         trajectory_settings.persistence_contribution = m_compute_pipeline_settings.persistence_contribution;
         trajectory_settings.active_model = m_compute_pipeline_settings.model_type;
         trajectory_settings.model2 = m_compute_pipeline_settings.model_less_simple_params;
-        trajectory_settings.active_runout_model = compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType(m_compute_pipeline_settings.runout_model_type);
+        trajectory_settings.active_runout_model = compute::nodes::ComputeAvalancheTrajectoriesNode::FrictionModelType(m_compute_pipeline_settings.friction_model_type);
         trajectory_settings.runout_perla = m_compute_pipeline_settings.perla;
         trajectory_settings.runout_flowpy.alpha = glm::radians(m_compute_pipeline_settings.runout_flowpy_alpha);
         trajectory_settings.random_seed = m_compute_pipeline_settings.random_seed;
@@ -1148,7 +1131,7 @@ void Window::update_compute_pipeline_settings()
         trajectory_settings.persistence_contribution = m_compute_pipeline_settings.persistence_contribution;
         trajectory_settings.active_model = m_compute_pipeline_settings.model_type;
         trajectory_settings.model2 = m_compute_pipeline_settings.model_less_simple_params;
-        trajectory_settings.active_runout_model = compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType(m_compute_pipeline_settings.runout_model_type);
+        trajectory_settings.active_runout_model = compute::nodes::ComputeAvalancheTrajectoriesNode::FrictionModelType(m_compute_pipeline_settings.friction_model_type);
         trajectory_settings.runout_perla = m_compute_pipeline_settings.perla;
         trajectory_settings.runout_flowpy.alpha = glm::radians(m_compute_pipeline_settings.runout_flowpy_alpha);
 
