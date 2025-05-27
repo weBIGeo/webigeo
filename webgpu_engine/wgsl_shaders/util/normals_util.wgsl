@@ -30,7 +30,6 @@ fn normal_by_finite_difference_method(
 {
     let height_texture_size = textureDimensions(texture_array);
     // from here: https://stackoverflow.com/questions/6656358/calculating-normals-in-a-triangle-mesh/21660173#21660173
-    let height = quad_width + quad_height;
     
     // 0 is texel center of first texel, 1 is texel center of last texel
     let uv_tex = vec2i(floor(uv * vec2f(height_texture_size - 1) + 0.5));
@@ -53,7 +52,13 @@ fn normal_by_finite_difference_method(
     let hU_sample = textureLoad(texture_array, hU_uv, texture_layer, 0);
     let hU = f32(hU_sample.r) * altitude_correction_factor;
 
-    return normalize(vec3<f32>(hL - hR, hD - hU, height));
+    let threshold = 0.5 / (vec2f(height_texture_size) - 1.0);
+
+    // half on the edge of a packed_tile_id, as the height texture is clamped
+    var actual_quad_width = select(quad_width, quad_width / 2, uv.x < threshold.x || uv.x > 1.0 - threshold.x);
+    var actual_quad_height = select(quad_height, quad_height / 2, uv.y < threshold.y || uv.y > 1.0 - threshold.y);
+
+    return normalize(vec3f((hL - hR) / actual_quad_width, (hD - hU) / actual_quad_height, 2.0));
 }
 
 fn normal_by_finite_difference_method_texture_f32(
