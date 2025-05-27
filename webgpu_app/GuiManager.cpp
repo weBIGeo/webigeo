@@ -1,6 +1,8 @@
 /*****************************************************************************
  * weBIGeo
  * Copyright (C) 2024 Gerald Kimmersdorfer
+ * Copyright (C) 2025 Patrick Komon
+ * Copyright (C) 2025 Markus Rampp
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -220,6 +222,10 @@ void GuiManager::draw()
 
     ImGui::Begin("weBIGeo", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar);
 
+    static uint32_t max_zoom_lvl = 15;
+    m_terrain_renderer->get_rendering_context()->engine_context()->tile_geometry()->set_max_zoom_lvl(max_zoom_lvl);
+    m_terrain_renderer->get_camera_controller()->update();
+
     if (ImGui::CollapsingHeader(ICON_FA_STOPWATCH "  Timing")) {
 
         const webgpu::timing::GuiTimerWrapper* selected_timer = nullptr;
@@ -306,7 +312,6 @@ void GuiManager::draw()
 
         const uint32_t min_max_zoom_lvl = 1;
         const uint32_t max_max_zoom_lvl = 18;
-        static uint32_t max_zoom_lvl = 18;
         if (ImGui::SliderScalar("Max zoom level", ImGuiDataType_U32, &max_zoom_lvl, &min_max_zoom_lvl, &max_max_zoom_lvl, "%u")) {
             m_terrain_renderer->get_rendering_context()->engine_context()->tile_geometry()->set_max_zoom_lvl(max_zoom_lvl);
             m_terrain_renderer->get_camera_controller()->update();

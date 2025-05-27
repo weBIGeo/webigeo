@@ -2,6 +2,7 @@
  * weBIGeo
  * Copyright (C) 2025 Patrick Komon
  * Copyright (C) 2025 Gerald Kimmersdorfer
+ * Copyright (C) 2025 Markus Rampp
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,8 +33,8 @@ struct ComputePipelineSettings {
     radix::geometry::Aabb<3, double> target_region = {}; // select tiles node
     uint32_t zoomlevel = 15;
     uint32_t trajectory_resolution_multiplier = 16;
-    uint32_t num_steps = 256u;
-    float step_length = 1.0f;
+    uint32_t num_steps = 4096u;
+    float step_length = 0.1f;
     bool sync_snow_settings_with_render_settings = true; // snow node
     compute::nodes::ComputeSnowNode::SnowSettings snow_settings; // snow node
 
@@ -43,7 +44,8 @@ struct ComputePipelineSettings {
     int release_point_interval = 8; // trajectories node
     uint32_t num_paths_per_release_cell = 1024u;
     uint32_t num_runs = 1u;
-    float random_contribution = 0.16f;
+
+    float random_contribution = 25.0f;
     float persistence_contribution = 0.9f;
     uint32_t random_seed = 1u;
 
@@ -52,7 +54,7 @@ struct ComputePipelineSettings {
 
     int tile_source_index = 0; // 0 DTM, 1 DSM
 
-    int runout_model_type = int(compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutModelType::FLOWPY);
+    int friction_model_type = int(compute::nodes::ComputeAvalancheTrajectoriesNode::FrictionModelType::VoellmyMinShear);
     compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutPerlaParams perla;
     float runout_flowpy_alpha = 25.0f; // degrees
 

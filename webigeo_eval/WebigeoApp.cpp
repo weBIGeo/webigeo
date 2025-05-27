@@ -1,6 +1,7 @@
 /*****************************************************************************
  * weBIGeo
  * Copyright (C) 2025 Patrick Komon
+ * Copyright (C) 2025 Markus Rampp
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -97,9 +98,15 @@ void WebigeoApp::update_settings(const Settings& node_graph_settings)
     trajectory_settings.persistence_contribution = node_graph_settings.persistence_contribution;
     trajectory_settings.random_seed = node_graph_settings.random_seed;
 
-    trajectory_settings.active_runout_model = ComputeAvalancheTrajectoriesNode::RunoutModelType::FLOWPY;
+    trajectory_settings.active_runout_model = static_cast<ComputeAvalancheTrajectoriesNode::FrictionModelType>(node_graph_settings.friction_model_type);
     trajectory_settings.runout_perla = {};
     trajectory_settings.runout_flowpy.alpha = glm::radians(node_graph_settings.runout_flowpy_alpha);
+    trajectory_settings.active_model = static_cast<ComputeAvalancheTrajectoriesNode::PhysicsModelType>(node_graph_settings.model_type);
+    trajectory_settings.model2.friction_coeff = node_graph_settings.friction_coeff;
+    trajectory_settings.model2.drag_coeff = node_graph_settings.drag_coeff;
+    // trajectory_settings.model2.gravity = node_graph_settings.slab_thickness;
+    // trajectory_settings.model2.mass = node_graph_settings.density;
+
 
     auto& trajectories_node = m_node_graph->get_node_as<ComputeAvalancheTrajectoriesNode>("compute_avalanche_trajectories_node");
     trajectories_node.set_settings(trajectory_settings);
