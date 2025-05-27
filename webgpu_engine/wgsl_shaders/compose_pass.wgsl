@@ -108,10 +108,10 @@ fn apply_height_lines(out_Color: ptr<function, vec4f>, pos_ws: vec3f, normal: ve
         return;
     }
     let alpha_line = 1.0 - min(dist / 20000.0, 1.0);
-    var line_width = (2.0 + dist / 5000.0) * base_width;
+    var line_width = (1.0 + dist / 5000.0) * base_width;
     var aa_scaled = 0.0;
     if (aa_scale > 0.0) {
-        aa_scaled = clamp(0.03 + dist / 2000.0 * aa_scale, 0.0, 0.7);
+        aa_scaled = max(dist / 2000.0 * aa_scale, 0.03);
     }
     
     // Adjust line width by steepness (angle from up)

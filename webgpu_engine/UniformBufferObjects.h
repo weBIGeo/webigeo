@@ -80,7 +80,7 @@ public:
     uint32_t m_overlay_shadowmaps_enabled = false;
     uint32_t m_track_render_mode = 0; // 0...none, 1...without depth test, 2...with depth test, 3 semi-transparent if behind terrain
 
-    glm::vec4 m_height_lines_settings = glm::vec4(250.0f, 50.0f, 1.0, 0.3); // primary interval, secondary interval, base size, base darkening
+    glm::vec4 m_height_lines_settings = glm::vec4(250.0f, 50.0f, 2.0, 0.3); // primary interval, secondary interval, base size, base darkening
 };
 
 struct uboCameraConfig {
