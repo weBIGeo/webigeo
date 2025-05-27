@@ -45,12 +45,12 @@ namespace webgpu_engine {
 struct uboSharedConfig {
 public:
     // rgb...Color, a...intensity
-    glm::vec4 m_sun_light = glm::vec4(1.0, 1.0, 1.0, 0.15);
+    glm::vec4 m_sun_light = glm::vec4(1.0, 1.0, 1.0, 0.2);
     // The direction of the light/sun in WS (northwest lighting at 45 degrees)
     glm::vec4 m_sun_light_dir = glm::normalize(glm::vec4(1.0, -1.0, -1.0, 0.0));
     //glm::vec4 m_sun_pos = glm::vec4(1.0, 1.0, 3000.0, 1.0);
     // rgb...Color, a...intensity
-    glm::vec4 m_amb_light = glm::vec4(1.0, 1.0, 1.0, 0.4);
+    glm::vec4 m_amb_light = glm::vec4(1.0, 1.0, 1.0, 0.5);
     // rgba...Color of the phong-material (if a 0 -> ortho picture)
     glm::vec4 m_material_color = glm::vec4(1.0, 1.0, 1.0, 0.0);
     // amb, diff, spec, shininess
