@@ -30,11 +30,11 @@
 const TEXTURE_GATHER_OFFSET = 1.0f / 512.0f;
 const timesteps: u32 = 10000u;
 const g: f32 = 9.81;
-const density_kg_m3: f32 = 200.0;
-const slab_height_m: f32 = 0.5;
-const cfl: f32 = 0.8;
+const density: f32 = 200.0;
+const slab_thickness: f32 = 1;
+const cfl: f32 = 0.5;
 
-const mass_per_area = density_kg_m3 * slab_height_m;
+const mass_per_area = density * slab_thickness;
 const acceleration_gravity = vec3f(0.0, 0.0, -g);
 const velocity_threshold: f32 = 0.01f;
 
@@ -149,24 +149,24 @@ fn draw_line_pos(start_pos: vec2u, end_pos: vec2u, value: f32, z_delta: f32, tra
     while (true) {
         let buffer_index = u32(y) * settings.output_resolution.x + u32(x);
         atomicMax(&output_storage_buffer[buffer_index], range_to_u32(value, U32_ENCODING_RANGE_NORM)); // map value from [0,1] angle to [0, 2^32 - 1]
-//        if (settings.layer1_zdelta_enabled != 0) {
-//            atomicMax(&output_layer1_zdelta[buffer_index], u32(z_delta)); // zdelta in m (we lose some precision here)
-//        }
-//        if (settings.layer2_cellCounts_enabled != 0) {
-//            atomicAdd(&output_layer2_cellCounts[buffer_index], 1); // count number of steps in this layer
-//        }
-//        if (settings.layer3_travelLength_enabled != 0) {
-//            atomicMax(&output_layer3_travelLength[buffer_index], u32(travel_length)); // travel length in m (we lose some precision here)
-//        }
-//        if (settings.layer4_travelAngle_enabled != 0) {
-//            let travel_angle_value: f32 = degrees(travel_angle); // travel angle in deg (we lose some precision here)
-//            atomicMax(&output_layer4_travelAngle[buffer_index], u32(travel_angle_value));
-//        }
-//        if (settings.layer5_altitudeDifference_enabled != 0) {
-//            atomicMax(&output_layer5_altitudeDifference[buffer_index], u32(altitude_difference));
-//        }
-        //write_pixel_at_pos(vec2u(u32(x), u32(y)), value);
-        
+        if (settings.layer1_zdelta_enabled != 0) {
+            atomicMax(&output_layer1_zdelta[buffer_index], u32(z_delta)); // zdelta in m (we lose some precision here)
+        }
+        if (settings.layer2_cellCounts_enabled != 0) {
+            atomicAdd(&output_layer2_cellCounts[buffer_index], 1); // count number of steps in this layer
+        }
+        if (settings.layer3_travelLength_enabled != 0) {
+            atomicMax(&output_layer3_travelLength[buffer_index], u32(travel_length)); // travel length in m (we lose some precision here)
+        }
+        if (settings.layer4_travelAngle_enabled != 0) {
+            let travel_angle_value: f32 = degrees(travel_angle); // travel angle in deg (we lose some precision here)
+            atomicMax(&output_layer4_travelAngle[buffer_index], u32(travel_angle_value));
+        }
+        if (settings.layer5_altitudeDifference_enabled != 0) {
+            atomicMax(&output_layer5_altitudeDifference[buffer_index], u32(altitude_difference));
+        }
+        write_pixel_at_pos(vec2u(u32(x), u32(y)), value);
+
         if (x == i32(end_pos.x) && y == i32(end_pos.y)) {
             break;
         }
@@ -214,11 +214,10 @@ fn trajectory_overlay(id: vec3<u32>) {
     // get slope angle at start
     let start_normal = sample_normal_texture(uv);
     var velocity = vec3f(0, 0, 0);
+    var last_velocity = vec3f(0, 0, 0);
 
     let start_slope_angle = get_slope_angle(start_normal);
     let trajectory_value = start_slope_angle / (PI / 2);
-    var perla_velocity = 0.0f;
-    var perla_theta = 0.0f;
 
     // alpha-beta model state
     let start_point_height: f32 = sample_height_texture(uv);
@@ -231,7 +230,11 @@ fn trajectory_overlay(id: vec3<u32>) {
     var normal_t = vec3f(0, 0, 1);
 
     var acceleration_tangential =  acceleration_gravity - g * start_normal.z * start_normal;
+    var acceleration_friction = vec3f(0, 0, 0);
     var dt = sqrt(2 * dx / length(acceleration_tangential));
+    var z_delta = 0f;
+    var last_dir = vec2f(0, 0);
+    var velocity_magnitude = 0f;
 
     for (var i: u32 = 0; i < settings.num_steps; i++) {
         // compute uv coordinates for current position
@@ -242,12 +245,18 @@ fn trajectory_overlay(id: vec3<u32>) {
             break;
         }
 
-        let normal = sample_normal_texture(current_uv);
 
         let current_height = sample_height_texture(current_uv);
+
+        // check if we are still on the terrain
+        // avaframe examples have non rectangular terrain
+        // missing values are noramlly -9999
+        // webigeo sets them to 0
         if (current_height < 10) {
             break;
         }
+
+        let normal = sample_normal_texture(current_uv);
 
         if (i > 0) {
             // calculate physical quantities
@@ -255,13 +264,24 @@ fn trajectory_overlay(id: vec3<u32>) {
             //  - z_delta (kinetic energy ~ velocity)
             //  - delta (local runout angle)
             //  - distance we have already
-            
+
             let height_difference = start_point_height - current_height;
             let z_alpha = tan(settings.runout_flowpy_alpha) * world_space_travel_distance;
             let z_gamma = height_difference;
-            let z_delta = length(velocity);
+            if (settings.model_type == 0) {
+                z_delta = z_gamma - z_alpha;
+            } else{
+                z_delta = velocity_magnitude;
+            }
             let gamma = atan(height_difference / world_space_travel_distance); // will always be positive -> [ 0 , PI/2 ]
-            let delta = gamma - settings.runout_flowpy_alpha;
+//            let delta = gamma - settings.runout_flowpy_alpha;
+            // evaluate runout model, terminate, if necessary
+            if (settings.model_type == 0) {
+                // more info: https://docs.avaframe.org/en/latest/theoryCom4FlowPy.html
+                if (z_delta <= 0) {
+                    break;
+                }
+            }
 
             // draw line from last to current position
             draw_line_uv(last_uv, current_uv, trajectory_value, z_delta, world_space_travel_distance, gamma, height_difference);
@@ -270,37 +290,57 @@ fn trajectory_overlay(id: vec3<u32>) {
 
         // sample normal and get new world space offset based on chosen model
         if (settings.model_type == 0) {
-            let n_l = normalize(normal * (1 - settings.random_contribution) + (rand3() * 2 - 1) * settings.random_contribution);  // n_l     ...  local normal with random offset
-            normal_t = normalize(n_l * (1 - settings.persistence_contribution) + normal_t * settings.persistence_contribution);   // normal_t ... local normal with random offset from last step
-            let gradient = normalize(normal_t.xy);
-            // ToDo step length factor remove -> put into gui
-            world_space_offset = world_space_offset + settings.step_length * 5.0 * gradient.xy;
-            world_space_travel_distance += length(settings.step_length * 5.0 * gradient.xy);
+            let perturbed_normal: vec3f = perturb(normal);
+            let perturbed_normal_2d: vec2f = perturbed_normal.xy;
+            var velocity_magnitude = sqrt(z_delta*2*g);
+            if (velocity_magnitude < 1) { //check potential 0-division before normalization
+                velocity_magnitude = 1;
+            }
+            let this_dir = last_dir * settings.persistence_contribution + perturbed_normal_2d / velocity_magnitude  * (1 - settings.persistence_contribution);
+
+            let dir_magnitude = length(this_dir);
+            if (dir_magnitude < 0.001) { //check potential 0-division before normalization
+                break;
+            }
+            let normalized_this_dir = this_dir / dir_magnitude;
+            last_dir = normalized_this_dir;
+
+            world_space_offset = world_space_offset + settings.step_length * 2 * normalized_this_dir.xy;
+            world_space_travel_distance += length(settings.step_length * 2 * normalized_this_dir.xy);
         } else if (settings.model_type == 1) {
-            let acceleration_normal = -g * normal.z * normal;
+            let acceleration_normal = g * normal.z * normal;
             let acceleration_tangential = acceleration_gravity + acceleration_normal;
             // estimate optimal timestep
             dt = cfl * dx / length(velocity + acceleration_tangential * dt);
-//            let acceleration_friction = acceleration_by_friction(acceleration_normal, mass_particle_kg, velocity);
+            let acceleration_friction_magnitude = acceleration_by_friction(acceleration_normal, mass_per_area, velocity);
             velocity = velocity + acceleration_tangential * dt;
-
-            let acceleration_friction = acceleration_by_friction(acceleration_normal, mass_per_area, velocity);
-            velocity = velocity + acceleration_friction * dt;
-
-            //    let f_weight = mass * gravity;
-            //    let f_normal = dot(-f_weight, normal) * normal;
-            let velocity_magnitude = length(velocity);
-//            let against_motion_dir = -normalize(velocity);
-//                let f_friction = 0.155 * length(acceleration_normal * mass_particle_kg) * select(vec3f(0), against_motion_dir, velocity_magnitude > 0);
-//                let f_drag = 1 / 2000 * pow(velocity_magnitude, 2) * select(vec3f(0), against_motion_dir, velocity_magnitude > 0);
-//                velocity = velocity + (f_friction + f_drag)/mass_particle_kg * dt;
-
-
-            world_space_offset = world_space_offset + dt * velocity.xy;
-            world_space_travel_distance += length(dt * velocity.xy);
-            if (velocity_magnitude < velocity_threshold ){ //|| velocity_magnitude < length(acceleration_friction) * dt) {
+            // friction stop criterion, it has to use the new timestep
+            if(length(velocity) < acceleration_friction_magnitude * dt){
+                dt = length(velocity) / acceleration_friction_magnitude;
+//                let relative_trajectory = dt * 0.5 * (last_velocity + velocity);
+                let relative_trajectory = velocity * dt;
+                world_space_offset = world_space_offset + relative_trajectory.xy;
+                world_space_travel_distance += length(relative_trajectory.xy);
                 break;
             }
+            last_velocity = velocity;
+            velocity = velocity + acceleration_tangential * dt;
+            // explicit
+            velocity = velocity - acceleration_friction_magnitude * normalize(velocity) * dt;
+            velocity = perturb(normalize(velocity)) * length(velocity); // perturb velocity
+            // implicit
+//            velocity_magnitude = length(velocity);
+//            velocity = velocity / (1.0 - acceleration_friction /
+//                select(velocity_magnitude, velocity_threshold, velocity_magnitude < velocity_threshold) * dt);
+//            let relative_trajectory = dt * 0.5 * (last_velocity + velocity);
+            let relative_trajectory = velocity * dt;
+            world_space_offset = world_space_offset + relative_trajectory.xy;
+            world_space_travel_distance += length(relative_trajectory.xy);
+            velocity_magnitude = length(velocity);
+            if (velocity_magnitude < velocity_threshold ){
+                break;
+            }
+            last_velocity = velocity;
         }
     }
 
@@ -308,51 +348,76 @@ fn trajectory_overlay(id: vec3<u32>) {
     //textureStore(output_tiles, vec2u(col, row), id.x, vec4f(0.0, 0.0, 1.0, 1.0));
 }
 
-fn acceleration_by_friction(acceleration_normal: vec3f, mass_per_area: f32, velocity: vec3f) -> vec3f {
+
+// Generate a random unit vector in a cone around the given vector
+fn perturb(v: vec3<f32>) -> vec3<f32> {
+    let max_angle_rad = 20 * settings.random_contribution * 3.141592653589793 / 180.0; // max angle in radians
+    let r = rand2();
+    let u1 = r.x;
+    let u2 = r.y;
+
+    // Convert from uniform random to spherical coordinates within cone
+    let cos_theta = cos(max_angle_rad) + (1 - cos(max_angle_rad)) * u1;
+    let sin_theta = sqrt(1.0 - cos_theta * cos_theta);
+    let phi = 2.0 * 3.141592653589793 * u2;
+
+    var up = vec3<f32>(0.0, 0.0, 1.0);
+    if (abs(v.z) >= 0.999) {
+        // If the vector is close to the z-axis, use a different up vector
+        up = vec3<f32>(1.0, 0.0, 0.0);
+    }
+    let tangent = normalize(cross(up, v));
+    let bitangent = cross(v, tangent);
+
+    // Compute perturbed direction
+    return
+        v * cos_theta +
+        tangent * sin_theta * cos(phi) +
+        bitangent * sin_theta * sin(phi);
+}
+
+fn acceleration_by_friction(acceleration_normal: vec3f, mass_per_area: f32, velocity: vec3f) -> f32 {
     let velocity_magnitude = length(velocity);
     if (velocity_magnitude < velocity_threshold || settings.runout_model_type == 4) {
-        return vec3f(0.0, 0.0, 0.0);
+        return 0.0f;
     }
-
-//    let friction_coefficient = settings.model2_friction_coeff; // standard 0.155, samos: standard 0.155, small 0.22, medium 0.17
-//    let drag_coefficient = settings.model2_drag_coeff; // only used for voellmy, standard 4000.
-    let friction_coefficient = 0.155;
-    let drag_coefficient = 4000.;
-    let sigma_bottom = length(acceleration_normal * mass_per_area);
-    const min_shear_stress = 70f;
-    var tau = 0.0f;
     let model = settings.runout_model_type;
-//    let model = 2;
+    // standard 0.155, samos: standard 0.155, small 0.22, medium 0.17
+    let friction_coefficient = settings.model2_friction_coeff;
+    let drag_coefficient = settings.model2_drag_coeff; // only used for voellmy, standard 4000.
+    let normal_stress = length(acceleration_normal * mass_per_area);
+    const min_shear_stress = 70f;
+    var shear_stress = 0.0f;
     //actually: friction model: 0 coulomb, 1 voellmy, 2 voellmy minshear, 3 samosAt
     // Coulomb friction model
     if (model == 0){
-        tau = friction_coefficient * sigma_bottom;
+        shear_stress = friction_coefficient * normal_stress;
     }
     // Voellmy friction model
     else if (model == 1){
-        tau = friction_coefficient * sigma_bottom + mass_per_area  * velocity_magnitude * velocity_magnitude / drag_coefficient;
+        shear_stress = friction_coefficient * normal_stress + density * g * velocity_magnitude * velocity_magnitude / drag_coefficient;
     }
     // Voellmy min shear friction model
     else if (model == 2){
-        tau = min_shear_stress + friction_coefficient * sigma_bottom + mass_per_area  * velocity_magnitude * velocity_magnitude / drag_coefficient;
+        shear_stress = min_shear_stress + friction_coefficient * normal_stress + density * g * velocity_magnitude * velocity_magnitude / drag_coefficient;
     }
     // samosAT friction model
     else if (model == 3){
-        let tau0 = 0f;
+        let min_shear_stress = 0f;
         let rs0 = 0.222;
         let kappa = 0.43;
         let r = 0.05;
         let b = 4.13;
-        let rs = density_kg_m3 * velocity_magnitude * velocity_magnitude / (sigma_bottom + 0.001);
-        var div = slab_height_m / r;
+        let rs = density * velocity_magnitude * velocity_magnitude / (normal_stress + 0.001);
+        var div = slab_thickness / r;
         if (div < 1.0){
             div = 1.0;
         }
         div = log(div) / kappa + b;
-        tau = tau0 + sigma_bottom * friction_coefficient * (1.0 + rs0 / (rs0 + rs)) + density_kg_m3 * velocity_magnitude * velocity_magnitude / (div * div);
+        shear_stress = min_shear_stress + normal_stress * friction_coefficient * (1.0 + rs0 / (rs0 + rs)) + density * velocity_magnitude * velocity_magnitude / (div * div);
     }
-    let acceleration_magnitude = tau / mass_per_area;
-    return - acceleration_magnitude * normalize(velocity);
+    let acceleration_magnitude = shear_stress / mass_per_area;
+    return acceleration_magnitude;
 }
 
 @compute @workgroup_size(16, 16, 1)
