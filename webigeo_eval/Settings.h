@@ -32,6 +32,15 @@ struct Settings {
     float persistence_contribution = 0.9f;
     float runout_flowpy_alpha = 25.0f; // in degrees
 
+    int model_type = 1;
+
+    int friction_model_type = 3;
+
+    float friction_coeff = .155;
+    float drag_coeff = 4000.0f;
+    float slab_thickness = 0.5f;
+    float density = 200.0f;
+
     std::string aabb_file_path;
     std::string release_points_texture_path;
     std::string heightmap_texture_path;

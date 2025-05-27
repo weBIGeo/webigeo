@@ -534,11 +534,11 @@ void Window::paint_compute_pipeline_gui()
                     update_settings_and_rerun_pipeline();
                 }
 
-                if (ImGui::Combo("Model", (int*)&m_compute_pipeline_settings.model_type, "Default\0physics_less_simple\0Gradients\0Discretized gradients\0D8 (no weights)\0D8 (with weights)\0")) {
+                if (ImGui::Combo("Model", (int*)&m_compute_pipeline_settings.model_type, "Default\0physics_less_simple\0")) {
                     update_settings_and_rerun_pipeline();
                 }
 
-                if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_SIMPLE) {
+                // if ((m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_SIMPLE) {
                     ImGui::DragFloat("Random contribution", &m_compute_pipeline_settings.random_contribution, 0.01f, 0.0f, 1.0f, "%.3f");
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
                         update_settings_and_rerun_pipeline();
@@ -548,7 +548,8 @@ void Window::paint_compute_pipeline_gui()
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
                         update_settings_and_rerun_pipeline();
                     }
-                } else if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_LESS_SIMPLE) {
+                // } else
+                    if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_LESS_SIMPLE) {
                     ImGui::SliderFloat("Gravity##model_less_simple", &m_compute_pipeline_settings.model_less_simple_params.gravity, 0.0f, 15.0f, "%.2f");
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
                         update_settings_and_rerun_pipeline();
@@ -561,7 +562,7 @@ void Window::paint_compute_pipeline_gui()
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
                         update_settings_and_rerun_pipeline();
                     }
-                    ImGui::SliderFloat("Friction coeff##model_less_simple", &m_compute_pipeline_settings.model_less_simple_params.friction_coeff, 0.0f, 1.0f, "%.2f");
+                    ImGui::SliderFloat("Friction coeff##model_less_simple", &m_compute_pipeline_settings.model_less_simple_params.friction_coeff, 0.0f, 0.5f, "%.3f");
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
                         update_settings_and_rerun_pipeline();
                     }
@@ -972,16 +973,16 @@ void Window::update_compute_pipeline_settings()
             const std::filesystem::path export_root_dir = "export_" + get_current_date_time_string();
 
             // set trajectory layer export directories
-            // compute::nodes::BufferExportNode::ExportSettings zdelta_export_settings { (export_root_dir / "trajectories/texture_layer1_zdelta.png").string() };
-            // m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l1_export_node").set_settings(zdelta_export_settings);
-            // compute::nodes::BufferExportNode::ExportSettings cell_counts_export_settings { (export_root_dir / "trajectories/texture_layer2_cellCounts.png").string() };
-            // m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l2_export_node").set_settings(cell_counts_export_settings);
-            // compute::nodes::BufferExportNode::ExportSettings travel_length_export_settings { (export_root_dir / "trajectories/texture_layer3_travelLength.png").string() };
-            // m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l3_export_node").set_settings(travel_length_export_settings);
-            // compute::nodes::BufferExportNode::ExportSettings travel_angle_export_settings { (export_root_dir / "trajectories/texture_layer4_travelAngle.png").string() };
-            // m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l4_export_node").set_settings(travel_angle_export_settings);
-            // compute::nodes::BufferExportNode::ExportSettings height_diff_export_settings { (export_root_dir / "trajectories/texture_layer5_heightDifference.png").string() };
-            // m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l5_export_node").set_settings(height_diff_export_settings);
+            compute::nodes::BufferExportNode::ExportSettings zdelta_export_settings { (export_root_dir / "trajectories/texture_layer1_zdelta.png").string() };
+            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l1_export_node").set_settings(zdelta_export_settings);
+            compute::nodes::BufferExportNode::ExportSettings cell_counts_export_settings { (export_root_dir / "trajectories/texture_layer2_cellCounts.png").string() };
+            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l2_export_node").set_settings(cell_counts_export_settings);
+            compute::nodes::BufferExportNode::ExportSettings travel_length_export_settings { (export_root_dir / "trajectories/texture_layer3_travelLength.png").string() };
+            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l3_export_node").set_settings(travel_length_export_settings);
+            compute::nodes::BufferExportNode::ExportSettings travel_angle_export_settings { (export_root_dir / "trajectories/texture_layer4_travelAngle.png").string() };
+            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l4_export_node").set_settings(travel_angle_export_settings);
+            compute::nodes::BufferExportNode::ExportSettings height_diff_export_settings { (export_root_dir / "trajectories/texture_layer5_heightDifference.png").string() };
+            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l5_export_node").set_settings(height_diff_export_settings);
 
             // set trajectory color buffer export directory
             compute::nodes::TileExportNode::ExportSettings export_trajectory_settings = { true, true, true, true, (export_root_dir / "trajectories").string() };
@@ -1039,16 +1040,16 @@ void Window::update_compute_pipeline_settings()
             const std::filesystem::path export_root_dir = "export_" + get_current_date_time_string();
 
             // set trajectory layer export directories
-            // compute::nodes::BufferExportNode::ExportSettings zdelta_export_settings { (export_root_dir / "trajectories/texture_layer1_zdelta.png").string() };
-            // m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l1_export_node").set_settings(zdelta_export_settings);
-            // compute::nodes::BufferExportNode::ExportSettings cell_counts_export_settings { (export_root_dir / "trajectories/texture_layer2_cellCounts.png").string() };
-            // m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l2_export_node").set_settings(cell_counts_export_settings);
-            // compute::nodes::BufferExportNode::ExportSettings travel_length_export_settings { (export_root_dir / "trajectories/texture_layer3_travelLength.png").string() };
-            // m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l3_export_node").set_settings(travel_length_export_settings);
-            // compute::nodes::BufferExportNode::ExportSettings travel_angle_export_settings { (export_root_dir / "trajectories/texture_layer4_travelAngle.png").string() };
-            // m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l4_export_node").set_settings(travel_angle_export_settings);
-            // compute::nodes::BufferExportNode::ExportSettings height_diff_export_settings { (export_root_dir / "trajectories/texture_layer5_heightDifference.png").string() };
-            // m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l5_export_node").set_settings(height_diff_export_settings);
+            compute::nodes::BufferExportNode::ExportSettings zdelta_export_settings { (export_root_dir / "trajectories/texture_layer1_zdelta.png").string() };
+            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l1_export_node").set_settings(zdelta_export_settings);
+            compute::nodes::BufferExportNode::ExportSettings cell_counts_export_settings { (export_root_dir / "trajectories/texture_layer2_cellCounts.png").string() };
+            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l2_export_node").set_settings(cell_counts_export_settings);
+            compute::nodes::BufferExportNode::ExportSettings travel_length_export_settings { (export_root_dir / "trajectories/texture_layer3_travelLength.png").string() };
+            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l3_export_node").set_settings(travel_length_export_settings);
+            compute::nodes::BufferExportNode::ExportSettings travel_angle_export_settings { (export_root_dir / "trajectories/texture_layer4_travelAngle.png").string() };
+            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l4_export_node").set_settings(travel_angle_export_settings);
+            compute::nodes::BufferExportNode::ExportSettings height_diff_export_settings { (export_root_dir / "trajectories/texture_layer5_heightDifference.png").string() };
+            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l5_export_node").set_settings(height_diff_export_settings);
 
             // set trajectory color buffer export directory
             compute::nodes::TileExportNode::ExportSettings export_trajectory_settings = { true, true, true, true, (export_root_dir / "trajectories").string() };

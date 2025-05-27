@@ -39,6 +39,15 @@ void Settings::write_to_json_file(const Settings& settings, const std::filesyste
     object["heightmap_texture_path"] = QString::fromStdString(settings.heightmap_texture_path);
     object["output_dir_path"] = QString::fromStdString(settings.output_dir_path);
 
+    object["trajectory_resolution_multiplier"] = qint64(settings.trajectory_resolution_multiplier);
+    object["model_type"] = qint64(settings.model_type);
+
+    object["friction_model"] = qint64(settings.friction_model_type);
+    object["friction_coeff"] = settings.friction_coeff;
+    object["drag_coeff"] = settings.drag_coeff;
+    object["slab_thickness"] = settings.slab_thickness;
+    object["density"] = settings.density;
+
     QJsonDocument doc;
     doc.setObject(object);
 
@@ -84,6 +93,13 @@ Settings Settings::read_from_json_file(const std::filesystem::path& input_path)
     settings.release_points_texture_path = object["release_points_texture_path"].toString().toStdString();
     settings.heightmap_texture_path = object["heightmap_texture_path"].toString().toStdString();
     settings.output_dir_path = object["output_dir_path"].toString().toStdString();
+    settings.model_type = int(object["model_type"].toInteger());
+
+    settings.friction_model_type = int(object["friction_model"].toInteger());
+    settings.friction_coeff = float(object["friction_coeff"].toDouble());
+    settings.drag_coeff = float(object["drag_coeff"].toDouble());
+    settings.slab_thickness = float(object["slab_thickness"].toDouble());
+    settings.density = float(object["density"].toDouble());
     return settings;
 }
 } // namespace webigeo_eval

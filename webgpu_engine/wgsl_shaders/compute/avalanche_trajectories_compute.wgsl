@@ -46,7 +46,7 @@ struct AvalancheTrajectoriesSettings {
     step_length: f32, // length of one simulation step in world space
 //    num_paths_per_release_cell: u32,
 
-    random_contribution: f32, // randomness contribution on normal in [0,1], 0 means no randomness, 1 means only randomness
+    max_perturbation: f32, // randomness contribution on normal in [0,1], 0 means no randomness, 1 means only randomness
     persistence_contribution: f32, // persistence contribution on normal in [0,1], 0 means only local normal, 1 means only last normal
 
     model_type: u32, //0 is simple, 1 is more complex
@@ -224,7 +224,7 @@ fn trajectory_overlay(id: vec3<u32>) {
     var world_space_travel_distance: f32 = 0.0;
 
     var last_dir_index: i32 = -1;  // used for d8 with weights
-    var last_uv = vec2f(0, 0);
+    var last_uv = uv;
     var world_space_offset = vec2f(0, 0); // offset from original world position
 
     var normal_t = vec3f(0, 0, 1);
@@ -233,7 +233,7 @@ fn trajectory_overlay(id: vec3<u32>) {
     var acceleration_friction = vec3f(0, 0, 0);
     var dt = sqrt(2 * dx / length(acceleration_tangential));
     var z_delta = 0f;
-    var last_dir = vec2f(0, 0);
+    var last_direction = vec2f(0, 0);
     var velocity_magnitude = 0f;
 
     for (var i: u32 = 0; i < settings.num_steps; i++) {
@@ -268,11 +268,7 @@ fn trajectory_overlay(id: vec3<u32>) {
             let height_difference = start_point_height - current_height;
             let z_alpha = tan(settings.runout_flowpy_alpha) * world_space_travel_distance;
             let z_gamma = height_difference;
-            if (settings.model_type == 0) {
-                z_delta = z_gamma - z_alpha;
-            } else{
-                z_delta = velocity_magnitude;
-            }
+            z_delta = z_gamma - z_alpha;
             let gamma = atan(height_difference / world_space_travel_distance); // will always be positive -> [ 0 , PI/2 ]
 //            let delta = gamma - settings.runout_flowpy_alpha;
             // evaluate runout model, terminate, if necessary
@@ -281,6 +277,9 @@ fn trajectory_overlay(id: vec3<u32>) {
                 if (z_delta <= 0) {
                     break;
                 }
+            }
+            if (settings.model_type == 1) {
+                z_delta = velocity_magnitude * velocity_magnitude / (2*g);
             }
 
             // draw line from last to current position
@@ -296,17 +295,18 @@ fn trajectory_overlay(id: vec3<u32>) {
             if (velocity_magnitude < 1) { //check potential 0-division before normalization
                 velocity_magnitude = 1;
             }
-            let this_dir = last_dir * settings.persistence_contribution + perturbed_normal_2d / velocity_magnitude  * (1 - settings.persistence_contribution);
+            let current_direction = last_direction * settings.persistence_contribution + perturbed_normal_2d / velocity_magnitude  * (1.0 - settings.persistence_contribution);
 
-            let dir_magnitude = length(this_dir);
+            let dir_magnitude = length(current_direction);
             if (dir_magnitude < 0.001) { //check potential 0-division before normalization
                 break;
             }
-            let normalized_this_dir = this_dir / dir_magnitude;
-            last_dir = normalized_this_dir;
+            let normalized_current_direction = current_direction / dir_magnitude;
+            last_direction = normalized_current_direction;
+            let relative_trajectory = normalized_current_direction.xy * 2 * settings.step_length;
 
-            world_space_offset = world_space_offset + settings.step_length * 2 * normalized_this_dir.xy;
-            world_space_travel_distance += length(settings.step_length * 2 * normalized_this_dir.xy);
+            world_space_offset = world_space_offset + relative_trajectory;
+            world_space_travel_distance += length(relative_trajectory);
         } else if (settings.model_type == 1) {
             let acceleration_normal = g * normal.z * normal;
             let acceleration_tangential = acceleration_gravity + acceleration_normal;
@@ -327,7 +327,6 @@ fn trajectory_overlay(id: vec3<u32>) {
             velocity = velocity + acceleration_tangential * dt;
             // explicit
             velocity = velocity - acceleration_friction_magnitude * normalize(velocity) * dt;
-            velocity = perturb(normalize(velocity)) * length(velocity); // perturb velocity
             // implicit
 //            velocity_magnitude = length(velocity);
 //            velocity = velocity / (1.0 - acceleration_friction /
@@ -343,15 +342,12 @@ fn trajectory_overlay(id: vec3<u32>) {
             last_velocity = velocity;
         }
     }
-
-    // overpaint start point
-    //textureStore(output_tiles, vec2u(col, row), id.x, vec4f(0.0, 0.0, 1.0, 1.0));
 }
 
 
 // Generate a random unit vector in a cone around the given vector
 fn perturb(v: vec3<f32>) -> vec3<f32> {
-    let max_angle_rad = 20 * settings.random_contribution * 3.141592653589793 / 180.0; // max angle in radians
+    let max_angle_rad = settings.max_perturbation * 3.141592653589793 / 180.0; // max angle in radians
     let r = rand2();
     let u1 = r.x;
     let u2 = r.y;

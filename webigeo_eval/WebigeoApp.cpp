@@ -96,9 +96,15 @@ void WebigeoApp::update_settings(const Settings& node_graph_settings)
     trajectory_settings.random_contribution = node_graph_settings.random_contribution;
     trajectory_settings.persistence_contribution = node_graph_settings.persistence_contribution;
 
-    trajectory_settings.active_runout_model = ComputeAvalancheTrajectoriesNode::FrictionModelType::VoellmyMinShear;
+    trajectory_settings.active_runout_model = static_cast<ComputeAvalancheTrajectoriesNode::FrictionModelType>(node_graph_settings.friction_model_type);
     trajectory_settings.runout_perla = {};
     trajectory_settings.runout_flowpy.alpha = glm::radians(node_graph_settings.runout_flowpy_alpha);
+    trajectory_settings.active_model = static_cast<ComputeAvalancheTrajectoriesNode::PhysicsModelType>(node_graph_settings.model_type);
+    trajectory_settings.model2.friction_coeff = node_graph_settings.friction_coeff;
+    trajectory_settings.model2.drag_coeff = node_graph_settings.drag_coeff;
+    // trajectory_settings.model2.gravity = node_graph_settings.slab_thickness;
+    // trajectory_settings.model2.mass = node_graph_settings.density;
+
 
     auto& trajectories_node = m_node_graph->get_node_as<ComputeAvalancheTrajectoriesNode>("compute_avalanche_trajectories_node");
     trajectories_node.set_settings(trajectory_settings);
@@ -128,16 +134,16 @@ void WebigeoApp::update_settings(const Settings& node_graph_settings)
         const std::filesystem::path export_root_dir = node_graph_settings.output_dir_path;
 
         // set trajectory layer export directories
-        // BufferExportNode::ExportSettings zdelta_export_settings { (export_root_dir / "trajectories/texture_layer1_zdelta.png").string() };
-        // m_node_graph->get_node_as<BufferExportNode>("l1_export_node").set_settings(zdelta_export_settings);
-        // BufferExportNode::ExportSettings cell_counts_export_settings { (export_root_dir / "trajectories/texture_layer2_cellCounts.png").string() };
-        // m_node_graph->get_node_as<BufferExportNode>("l2_export_node").set_settings(cell_counts_export_settings);
-        // BufferExportNode::ExportSettings travel_length_export_settings { (export_root_dir / "trajectories/texture_layer3_travelLength.png").string() };
-        // m_node_graph->get_node_as<BufferExportNode>("l3_export_node").set_settings(travel_length_export_settings);
-        // BufferExportNode::ExportSettings travel_angle_export_settings { (export_root_dir / "trajectories/texture_layer4_travelAngle.png").string() };
-        // m_node_graph->get_node_as<BufferExportNode>("l4_export_node").set_settings(travel_angle_export_settings);
-        // BufferExportNode::ExportSettings height_diff_export_settings { (export_root_dir / "trajectories/texture_layer5_heightDifference.png").string() };
-        // m_node_graph->get_node_as<BufferExportNode>("l5_export_node").set_settings(height_diff_export_settings);
+        BufferExportNode::ExportSettings zdelta_export_settings { (export_root_dir / "trajectories/texture_layer1_zdelta.png").string() };
+        m_node_graph->get_node_as<BufferExportNode>("l1_export_node").set_settings(zdelta_export_settings);
+        BufferExportNode::ExportSettings cell_counts_export_settings { (export_root_dir / "trajectories/texture_layer2_cellCounts.png").string() };
+        m_node_graph->get_node_as<BufferExportNode>("l2_export_node").set_settings(cell_counts_export_settings);
+        BufferExportNode::ExportSettings travel_length_export_settings { (export_root_dir / "trajectories/texture_layer3_travelLength.png").string() };
+        m_node_graph->get_node_as<BufferExportNode>("l3_export_node").set_settings(travel_length_export_settings);
+        BufferExportNode::ExportSettings travel_angle_export_settings { (export_root_dir / "trajectories/texture_layer4_travelAngle.png").string() };
+        m_node_graph->get_node_as<BufferExportNode>("l4_export_node").set_settings(travel_angle_export_settings);
+        BufferExportNode::ExportSettings height_diff_export_settings { (export_root_dir / "trajectories/texture_layer5_heightDifference.png").string() };
+        m_node_graph->get_node_as<BufferExportNode>("l5_export_node").set_settings(height_diff_export_settings);
 
         // set trajectory color buffer export directory
         TileExportNode::ExportSettings export_trajectory_settings = { true, true, true, true, (export_root_dir / "trajectories").string() };
