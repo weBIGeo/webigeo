@@ -103,13 +103,17 @@ fn calculate_illumination(
     return ambientIllumination + diffAndSpecIllumination * (1.0 - shadow_term);
 }
 
-fn apply_height_lines(out_Color: ptr<function, vec4f>, pos_ws: vec3f, normal: vec3f, dist: f32, interval: f32, base_width: f32, darkening_factor: f32, draw_line: ptr<function, bool>) {
+fn apply_height_lines(out_Color: ptr<function, vec4f>, pos_ws: vec3f, normal: vec3f, dist: f32, interval: f32, base_width: f32, darkening_factor: f32, draw_line: ptr<function, bool>, aa_scale: f32) {
     if (!(*draw_line)) {
         return;
     }
     let alpha_line = 1.0 - min(dist / 20000.0, 1.0);
     var line_width = (2.0 + dist / 5000.0) * base_width;
-
+    var aa_scaled = 0.0;
+    if (aa_scale > 0.0) {
+        aa_scaled = clamp(0.03 + dist / 2000.0 * aa_scale, 0.0, 0.7);
+    }
+    
     // Adjust line width by steepness (angle from up)
     let steepness = acos(clamp(normal.z, -1.0, 1.0)); 
     line_width = line_width * max(0.01, steepness);
@@ -117,16 +121,28 @@ fn apply_height_lines(out_Color: ptr<function, vec4f>, pos_ws: vec3f, normal: ve
     if (alpha_line > 0.01) {
         let latitude_correction = cos(y_to_lat(pos_ws.y));
         let altitude = pos_ws.z * latitude_correction;
-        let alt_rest = (altitude - f32(i32(altitude / interval)) * interval) - line_width / 2.0;
-
-        if (alt_rest < line_width) {
+        let fractional_part = altitude - f32(i32(altitude / interval)) * interval;
+        //distance to line center
+        let dist_from_line = min(fractional_part, interval - fractional_part);
+        //distance to line edge: 0 = edge, positive = inside line
+        let dist_from_edge = (line_width / 2.0) - dist_from_line;
+        if (abs(dist_from_edge) < aa_scaled) {
+            let aa_factor = smoothstep(-aa_scaled, aa_scaled, dist_from_edge);
+            let effective_alpha = alpha_line * aa_factor;
+            if (effective_alpha > 0.01) {
+                let darken = (*out_Color).rgb - vec3f(darkening_factor);
+                *out_Color = vec4f(mix((*out_Color).rgb, darken, effective_alpha), (*out_Color).a);
+                *draw_line = false;
+            }
+        } 
+        else if (dist_from_edge > 0.0) {
             let darken = (*out_Color).rgb - vec3f(darkening_factor);
             *out_Color = vec4f(mix((*out_Color).rgb, darken, alpha_line), (*out_Color).a);
             *draw_line = false;
         }
+        
     }
 }
-
 
 fn decode_rgba_to_normalized_value(rgba: vec4<f32>) -> f32 {
     let rgba_u8: vec4<u32> = vec4<u32>(rgba * 255.0);
@@ -314,8 +330,8 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
     // == HEIGHT LINES ==============
     if (bool(conf.height_lines_enabled) && dist > 0.0) {
         var draw_line = true; // ensures that we only darken the pixel once
-        apply_height_lines(&out_Color, pos_ws, normal, dist, conf.height_lines_settings.x, conf.height_lines_settings.z, conf.height_lines_settings.w, &draw_line);
-        apply_height_lines(&out_Color, pos_ws, normal, dist, conf.height_lines_settings.y, conf.height_lines_settings.z * 0.5, conf.height_lines_settings.w * 0.75, &draw_line);
+        apply_height_lines(&out_Color, pos_ws, normal, dist, conf.height_lines_settings.x, conf.height_lines_settings.z, conf.height_lines_settings.w, &draw_line, 1.0);
+        apply_height_lines(&out_Color, pos_ws, normal, dist, conf.height_lines_settings.y, conf.height_lines_settings.z * 0.5, conf.height_lines_settings.w * 0.75, &draw_line, 1.0);
     }
 
 
