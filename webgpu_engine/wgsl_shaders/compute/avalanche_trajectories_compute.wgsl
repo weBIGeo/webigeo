@@ -29,7 +29,6 @@
 // weights need to match the texels that are chosen by textureGather - this does NOT align perfectly, and introduces some artifacts
 // adding offset fixes this issue, see https://www.reedbeta.com/blog/texture-gathers-and-coordinate-precision/
 const TEXTURE_GATHER_OFFSET = 1.0f / 512.0f;
-const timesteps: u32 = 10000u;
 const g: f32 = 9.81;
 const density: f32 = 200.0;
 const slab_thickness: f32 = 1;
@@ -125,13 +124,6 @@ fn sample_release_point_texture(uv: vec2f) -> bool {
     return mask.a > 0;
 }
 
-// writes single pixel to storage buffer, value must be in [0,1]
-fn write_pixel_at_pos(pos: vec2u, value: f32) {
-    let buffer_index = pos.y * settings.output_resolution.x + pos.x;
-    let value_u32 =  u32(value * (1 << 31)); // map value from [0,1] angle to [0, 2^32 - 1]
-    atomicMax(&output_storage_buffer[buffer_index], value_u32);         
-}
-
 fn draw_line_uv(start_uv: vec2f, end_uv: vec2f, value: f32, z_delta: f32, travel_length: f32, travel_angle: f32, altitude_difference: f32) {
     let start_pos = vec2u(floor(start_uv * vec2f(settings.output_resolution)));
     let end_pos = vec2u(floor(end_uv * vec2f(settings.output_resolution)));
@@ -151,7 +143,8 @@ fn draw_line_pos(start_pos: vec2u, end_pos: vec2u, value: f32, z_delta: f32, tra
 
     while (true) {
         let buffer_index = u32(y) * settings.output_resolution.x + u32(x);
-        atomicMax(&output_storage_buffer[buffer_index], range_to_u32(value, U32_ENCODING_RANGE_NORM)); // map value from [0,1] angle to [0, 2^32 - 1]
+        // Commented out for a fair comparison, (other implementations also just write the other layers)
+        //atomicMax(&output_storage_buffer[buffer_index], range_to_u32(value, U32_ENCODING_RANGE_NORM)); // map value from [0,1] angle to [0, 2^32 - 1]
         if (settings.layer1_zdelta_enabled != 0) {
             atomicMax(&output_layer1_zdelta[buffer_index], u32(z_delta)); // zdelta in m (we lose some precision here)
         }
@@ -168,7 +161,6 @@ fn draw_line_pos(start_pos: vec2u, end_pos: vec2u, value: f32, z_delta: f32, tra
         if (settings.layer5_altitudeDifference_enabled != 0) {
             atomicMax(&output_layer5_altitudeDifference[buffer_index], u32(altitude_difference));
         }
-        write_pixel_at_pos(vec2u(u32(x), u32(y)), value);
 
         if (x == i32(end_pos.x) && y == i32(end_pos.y)) {
             break;
@@ -233,8 +225,10 @@ fn trajectory_overlay(id: vec3<u32>) {
     var acceleration_tangential =  acceleration_gravity - g * start_normal.z * start_normal;
     var acceleration_friction = vec3f(0, 0, 0);
     var dt = sqrt(2 * dx / length(acceleration_tangential));
-    var z_delta = 0f;
     var last_direction = vec2f(0, 0);
+
+    var z_delta = 0f;
+    
     var velocity_magnitude = 0f;
 
     for (var i: u32 = 0; i < settings.num_steps; i++) {
@@ -348,23 +342,22 @@ fn trajectory_overlay(id: vec3<u32>) {
 }
 
 
-// Generate a random unit vector in a cone around the given vector
+// Generates a random unit vector in a cone around the given vector
 fn perturb(v: vec3<f32>) -> vec3<f32> {
-    let max_angle_rad = settings.max_perturbation * 3.141592653589793 / 180.0; // max angle in radians
+    let cos_max_angle_rad = cos(settings.max_perturbation * PI / 180.0); // max angle in radians
     let r = rand2();
     let u1 = r.x;
     let u2 = r.y;
 
     // Convert from uniform random to spherical coordinates within cone
-    let cos_theta = cos(max_angle_rad) + (1 - cos(max_angle_rad)) * u1;
+    //let cos_theta = cos_max_angle_rad + (1 - cos_max_angle_rad) * u1;  // this is uniform
+    let cos_theta = cos_max_angle_rad + (1 - cos_max_angle_rad) * sqrt(u1); // this i think should be cosine weighted
     let sin_theta = sqrt(1.0 - cos_theta * cos_theta);
-    let phi = 2.0 * 3.141592653589793 * u2;
+    let phi = 2.0 * PI * u2;
 
-    var up = vec3<f32>(0.0, 0.0, 1.0);
-    if (abs(v.z) >= 0.999) {
-        // If the vector is close to the z-axis, use a different up vector
-        up = vec3<f32>(1.0, 0.0, 0.0);
-    }
+    // If the vector is close to the z-axis, use a different up vector
+    var up = select(vec3<f32>(0.0, 0.0, 1.0), vec3<f32>(1.0, 0.0, 0.0), abs(v.z) >= 0.999);
+
     let tangent = normalize(cross(up, v));
     let bitangent = cross(v, tangent);
 
