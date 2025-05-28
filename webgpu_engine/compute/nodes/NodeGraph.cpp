@@ -227,8 +227,8 @@ static std::unique_ptr<NodeGraph> create_trajectories_compute_graph_unconnected(
         = static_cast<ComputeAvalancheTrajectoriesNode*>(node_graph->add_node("compute_avalanche_trajectories_node", std::make_unique<ComputeAvalancheTrajectoriesNode>(manager, device)));
 
     BufferToTextureNode::BufferToTextureSettings buffer_to_texture_settings {
-        .format = WGPUTextureFormat_RGBA8Unorm,
-        .usage = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc),
+        .texture_format = WGPUTextureFormat_RGBA8Unorm,
+        .texture_usage = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc),
     };
     BufferToTextureNode* buffer_to_texture_node
         = static_cast<BufferToTextureNode*>(node_graph->add_node("buffer_to_texture_node", std::make_unique<BufferToTextureNode>(manager, device, buffer_to_texture_settings)));
@@ -496,10 +496,8 @@ std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_evaluation_compute_gra
     ComputeAvalancheTrajectoriesNode* trajectories_node
         = static_cast<ComputeAvalancheTrajectoriesNode*>(node_graph->add_node("compute_avalanche_trajectories_node", std::make_unique<ComputeAvalancheTrajectoriesNode>(manager, device)));
 
-    BufferToTextureNode::BufferToTextureSettings buffer_to_texture_settings {
-        .format = WGPUTextureFormat_RGBA8Unorm,
-        .usage = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc),
-    };
+    BufferToTextureNode::BufferToTextureSettings buffer_to_texture_settings { .texture_format = WGPUTextureFormat_RGBA8Unorm,
+        .texture_usage = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc) };
     BufferToTextureNode* buffer_to_texture_node
         = static_cast<BufferToTextureNode*>(node_graph->add_node("buffer_to_texture_node", std::make_unique<BufferToTextureNode>(manager, device, buffer_to_texture_settings)));
 

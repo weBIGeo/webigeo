@@ -193,13 +193,7 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         let dy: vec2<f32> = dpdy(image_overlay_uv_px);
         var mip_level: f32 = max(0.0, log2(max(length(dx), length(dy))));
         image_overlay_color = textureSampleLevel(image_overlay_texture, image_overlay_sampler, vec2f(image_overlay_uv.x, 1 - image_overlay_uv.y), mip_level);
-        
-        //image_overlay_color = textureSample(image_overlay_texture, image_overlay_sampler, vec2f(image_overlay_uv.x, 1 - image_overlay_uv.y));
-
-        //image_overlay_color = vec4f(mip_level / 10.0, 0.0, 0.0, 1.0);
     }
-    //let image_overlay_uv = (pos_ws.xy - image_overlay_settings.aabb_min) / (image_overlay_settings.aabb_max - image_overlay_settings.aabb_min);
-    //let image_overlay_color = textureSample(image_overlay_texture, image_overlay_sampler, vec2f(image_overlay_uv.x, 1 - image_overlay_uv.y)); 
 
     var compute_overlay_color = vec4f(0.0);
     {
@@ -210,14 +204,7 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         let dx: vec2<f32> = dpdx(compute_overlay_uv_px);
         let dy: vec2<f32> = dpdy(compute_overlay_uv_px);
         var mip_level: f32 = max(0.0, log2(max(length(dx), length(dy))));
-
-
-        compute_overlay_color = textureSampleLevel(compute_overlay_texture, compute_overlay_sampler, vec2f(compute_overlay_uv.x, 1 - compute_overlay_uv.y), mip_level);
-        //if (mip_level > 0.0) {
-        //    mip_level = 1.0;
-        //}
-        //mip_level = length(dy);
-        //compute_overlay_color = vec4f(mip_level / 10.0, 0.0, 0.0, 1.0);
+        compute_overlay_color = textureSampleLevel(compute_overlay_texture, compute_overlay_sampler, vec2f(compute_overlay_uv.x, 1.0 - compute_overlay_uv.y), mip_level);
     }
 
     // Don't do shading if not visible anyway and also don't for pixels where there is no geometry (depth==0.0)

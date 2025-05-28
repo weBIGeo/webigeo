@@ -63,14 +63,14 @@ void BufferToTextureNode::run_impl()
         return;
     }
 
-    m_output_texture = create_texture(m_device, input_raster_dimensions.x, input_raster_dimensions.y, m_settings.format, m_settings.usage, m_settings.filter_mode);
+    m_output_texture = create_texture(m_device, input_raster_dimensions.x, input_raster_dimensions.y, m_settings);
 
     // create bind group
     std::vector<WGPUBindGroupEntry> entries {
         m_settings_uniform.raw_buffer().create_bind_group_entry(0),
         input_storage_buffer.create_bind_group_entry(1),
         input_transparency_buffer.create_bind_group_entry(2),
-        m_output_texture->texture_view().create_bind_group_entry(5),
+        m_output_view->create_bind_group_entry(5),
     };
     webgpu::raii::BindGroup compute_bind_group(
         m_device, m_pipeline_manager->buffer_to_texture_bind_group_layout(), entries, "buffer to texture compute bind group");
@@ -129,33 +129,38 @@ uint32_t bit_width(uint32_t m)
 
 uint32_t getMaxMipLevelCount(const glm::uvec2 textureSize) { return std::max(1u, bit_width(std::max(textureSize.x, textureSize.y))); }
 
-std::unique_ptr<webgpu::raii::TextureWithSampler> BufferToTextureNode::create_texture(
-    WGPUDevice device, uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage, WGPUFilterMode filter_mode)
+std::unique_ptr<webgpu::raii::TextureWithSampler> BufferToTextureNode::create_texture(WGPUDevice device, uint32_t width, uint32_t height, BufferToTextureSettings& settings)
 {
     // create output texture
     WGPUTextureDescriptor texture_desc {};
     texture_desc.label = "buffer to texture output texture";
     texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
     texture_desc.size = { width, height, 1 };
-    texture_desc.mipLevelCount = getMaxMipLevelCount(glm::uvec2(width, height));
+    texture_desc.mipLevelCount = settings.create_mipmaps ? getMaxMipLevelCount(glm::uvec2(width, height)) : 1;
     texture_desc.sampleCount = 1;
-    texture_desc.format = format;
-    texture_desc.usage = usage;
+    texture_desc.format = settings.texture_format;
+    texture_desc.usage = settings.texture_usage;
 
     WGPUSamplerDescriptor sampler_desc {};
     sampler_desc.label = "buffer to texture sampler";
     sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    sampler_desc.magFilter = filter_mode;
-    sampler_desc.minFilter = filter_mode;
-    sampler_desc.mipmapFilter = WGPUMipmapFilterMode_Nearest; // TODO mipmaps configurable - disabled for eval
+    sampler_desc.magFilter = settings.texture_filter_mode;
+    sampler_desc.minFilter = settings.texture_filter_mode;
+    sampler_desc.mipmapFilter = settings.texture_mipmap_filter_mode;
     sampler_desc.lodMinClamp = 0.0f;
-    sampler_desc.lodMaxClamp = 1.0f;
+    sampler_desc.lodMaxClamp = float(texture_desc.mipLevelCount);
     sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
-    sampler_desc.maxAnisotropy = 1; // TODO mipmaps configurable - disabled for eval
+    sampler_desc.maxAnisotropy = settings.texture_max_aniostropy;
 
-    return std::make_unique<webgpu::raii::TextureWithSampler>(device, texture_desc, sampler_desc);
+    auto texture_with_sampler = std::make_unique<webgpu::raii::TextureWithSampler>(device, texture_desc, sampler_desc);
+
+    WGPUTextureViewDescriptor desc = texture_with_sampler->texture().default_texture_view_descriptor();
+    desc.mipLevelCount = 1;
+    m_output_view = texture_with_sampler->texture().create_view(desc);
+
+    return std::move(texture_with_sampler);
 }
 
 } // namespace webgpu_engine::compute::nodes

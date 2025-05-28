@@ -715,6 +715,7 @@ void Window::paint_compute_pipeline_gui()
                         }
                         rerun_buffer_to_texture |= ImGui::IsItemDeactivatedAfterEdit();
                     }
+                    rerun_buffer_to_texture |= ImGui::Checkbox("Texture Interpolation & MipMaps", &m_compute_pipeline_settings.texture_interpolation_mipmaps);
                     rerun_buffer_to_texture
                         |= paint_legend_gui(m_compute_pipeline_settings.color_map_bounds.x, m_compute_pipeline_settings.color_map_bounds.y, m_compute_pipeline_settings.use_bin_interpolation, " m/s");
                     if (rerun_buffer_to_texture) {
@@ -1089,6 +1090,17 @@ void Window::update_compute_pipeline_settings()
             node.settings().transparency_map_bounds = m_compute_pipeline_settings.transparency_map_bounds;
             node.settings().use_bin_interpolation = m_compute_pipeline_settings.use_bin_interpolation;
             node.settings().use_transparency_buffer = m_compute_pipeline_settings.use_transparency_buffer;
+            if (m_compute_pipeline_settings.texture_interpolation_mipmaps) {
+                node.settings().texture_filter_mode = WGPUFilterMode_Linear;
+                node.settings().texture_mipmap_filter_mode = WGPUMipmapFilterMode_Linear;
+                node.settings().texture_max_aniostropy = 16;
+                node.settings().create_mipmaps = true;
+            } else {
+                node.settings().texture_filter_mode = WGPUFilterMode_Nearest;
+                node.settings().texture_mipmap_filter_mode = WGPUMipmapFilterMode_Nearest;
+                node.settings().texture_max_aniostropy = 1;
+                node.settings().create_mipmaps = false;
+            }
         }
 
         // update file export path to include current date and time
@@ -1332,7 +1344,7 @@ void Window::compute_mipmaps_for_texture(const webgpu::raii::Texture* texture)
         qDebug() << "No mipmaps to compute";
         return;
     } else {
-        qDebug() << "Computing mipmaps for texture";
+        qDebug() << "Computing" << mipLevelCount << "mipmaps for texture";
     }
 
     std::vector<std::unique_ptr<webgpu::raii::TextureView>> m_textureMipViews;

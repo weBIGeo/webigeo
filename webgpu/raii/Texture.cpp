@@ -241,7 +241,7 @@ WGPUTextureViewDescriptor Texture::default_texture_view_descriptor() const
     // arrayLayerCount must be 1 for 3d textures, webGPU does not (yet) support 3d texture arrays
     view_desc.arrayLayerCount = m_descriptor.dimension == WGPUTextureDimension_3D ? 1u : m_descriptor.size.depthOrArrayLayers;
     view_desc.baseMipLevel = 0;
-    view_desc.mipLevelCount = 1;
+    view_desc.mipLevelCount = m_descriptor.mipLevelCount;
     // m_descriptor.mipLevelCount;
     return view_desc;
 }

@@ -47,12 +47,16 @@ public:
     static const uint32_t MAX_TEXTURE_RESOLUTION;
 
     struct BufferToTextureSettings {
-        WGPUTextureFormat format = WGPUTextureFormat_RGBA8Unorm;
-        WGPUTextureUsage usage = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding);
-        WGPUFilterMode filter_mode = WGPUFilterMode_Nearest;
+        WGPUTextureFormat texture_format = WGPUTextureFormat_RGBA8Unorm;
+        WGPUTextureUsage texture_usage = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_RenderAttachment);
+        WGPUFilterMode texture_filter_mode = WGPUFilterMode_Nearest;
+        WGPUMipmapFilterMode texture_mipmap_filter_mode = WGPUMipmapFilterMode_Nearest;
+        uint16_t texture_max_aniostropy = 1;
+
+        bool create_mipmaps = false;
 
         glm::vec2 color_map_bounds = { 0.0f, 100.0f };
-        glm::vec2 transparency_map_bounds = { 0.0f, 10.0f }; // x gets mapped to 0, y to 1
+        glm::vec2 transparency_map_bounds = { 0.0f, 10.0f }; // x gets mapped to fully invisible, y to fully visible
         bool use_bin_interpolation = true; // if true, use linear interpolation between color bins
         bool use_transparency_buffer = true; // if true, the transparency texture is used to evaluate an alpha factor based on the alpha_remap_bounds
     };
@@ -76,8 +80,7 @@ public slots:
 private:
     void update_gpu_settings();
 
-    static std::unique_ptr<webgpu::raii::TextureWithSampler> create_texture(
-        WGPUDevice device, uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage, WGPUFilterMode filter_mode);
+    std::unique_ptr<webgpu::raii::TextureWithSampler> create_texture(WGPUDevice device, uint32_t width, uint32_t height, BufferToTextureSettings& settings);
 
 private:
     const PipelineManager* m_pipeline_manager;
@@ -89,6 +92,8 @@ private:
 
     // output
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_output_texture; // texture per tile
+    // NOTE: We need a non default texture view as a storage texture can only have mipLevelCount = 1
+    std::unique_ptr<webgpu::raii::TextureView> m_output_view;
 };
 
 } // namespace webgpu_engine::compute::nodes

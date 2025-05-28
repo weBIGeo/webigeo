@@ -63,6 +63,7 @@ struct ComputePipelineSettings {
     glm::vec2 transparency_map_bounds = { 0.0f, 1.0f };
     bool use_bin_interpolation = false;
     bool use_transparency_buffer = true;
+    bool texture_interpolation_mipmaps = false;
 
     // file paths for evaluation pipeline
     std::string release_points_texture_path;
