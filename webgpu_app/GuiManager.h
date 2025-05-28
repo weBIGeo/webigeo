@@ -60,8 +60,10 @@ private:
     TerrainRenderer* m_terrain_renderer = nullptr;
     bool m_gui_visible = true;
 
+    bool m_first_frame = true;
     std::vector<std::string> m_camera_preset_names;
     int m_selected_camera_preset = 0;
+    uint32_t m_max_zoom_level = 15;
 
     std::set<uint32_t> m_selected_timer = {};
 
@@ -77,6 +79,8 @@ private:
 
     void toggle_timer(uint32_t timer_id);
     bool is_timer_selected(uint32_t timer_id);
+
+    void before_first_frame();
 };
 
 } // namespace webgpu_app

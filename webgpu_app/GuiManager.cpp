@@ -207,24 +207,27 @@ void GuiManager::toggle_timer(uint32_t timer_id)
 
 bool GuiManager::is_timer_selected(uint32_t timer_id) { return m_selected_timer.find(timer_id) != m_selected_timer.end(); }
 
+void GuiManager::before_first_frame()
+{
+    // Init m_max_zoom level
+    m_terrain_renderer->get_rendering_context()->engine_context()->tile_geometry()->set_max_zoom_lvl(m_max_zoom_level);
+    m_terrain_renderer->get_camera_controller()->update();
+}
+
 void GuiManager::draw()
 {
+    if (m_first_frame) {
+        before_first_frame();
+    }
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-    static std::vector<std::pair<int, int>> links;
-    static bool first_frame = true;
 
     if (!m_gui_visible)
         return;
-    // ImGuiIO& io = ImGui::GetIO();
 
     ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - 400, 0)); // Set position to top-left corner
     ImGui::SetNextWindowSize(ImVec2(400, ImGui::GetIO().DisplaySize.y)); // Set height to full screen height, width as desired
 
     ImGui::Begin("weBIGeo", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar);
-
-    static uint32_t max_zoom_lvl = 15;
-    m_terrain_renderer->get_rendering_context()->engine_context()->tile_geometry()->set_max_zoom_lvl(max_zoom_lvl);
-    m_terrain_renderer->get_camera_controller()->update();
 
     if (ImGui::CollapsingHeader(ICON_FA_STOPWATCH "  Timing")) {
 
@@ -312,8 +315,8 @@ void GuiManager::draw()
 
         const uint32_t min_max_zoom_lvl = 1;
         const uint32_t max_max_zoom_lvl = 18;
-        if (ImGui::SliderScalar("Max zoom level", ImGuiDataType_U32, &max_zoom_lvl, &min_max_zoom_lvl, &max_max_zoom_lvl, "%u")) {
-            m_terrain_renderer->get_rendering_context()->engine_context()->tile_geometry()->set_max_zoom_lvl(max_zoom_lvl);
+        if (ImGui::SliderScalar("Max zoom level", ImGuiDataType_U32, &m_max_zoom_level, &min_max_zoom_lvl, &max_max_zoom_lvl, "%u")) {
+            m_terrain_renderer->get_rendering_context()->engine_context()->tile_geometry()->set_max_zoom_lvl(m_max_zoom_level);
             m_terrain_renderer->get_camera_controller()->update();
         }
 
@@ -461,7 +464,7 @@ void GuiManager::draw()
         ImGui::PopStyleVar(); // Restore padding
     }
 
-    first_frame = false;
+    m_first_frame = false;
 #endif
 }
 
