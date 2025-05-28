@@ -350,8 +350,8 @@ fn perturb(v: vec3<f32>) -> vec3<f32> {
     let u2 = r.y;
 
     // Convert from uniform random to spherical coordinates within cone
-    //let cos_theta = cos_max_angle_rad + (1 - cos_max_angle_rad) * u1;  // this is uniform
-    let cos_theta = cos_max_angle_rad + (1 - cos_max_angle_rad) * sqrt(u1); // this i think should be cosine weighted
+    let cos_theta = cos_max_angle_rad + (1 - cos_max_angle_rad) * u1;  // this is uniform
+    //let cos_theta = cos_max_angle_rad + (1 - cos_max_angle_rad) * sqrt(u1); // this i think should be cosine weighted
     let sin_theta = sqrt(1.0 - cos_theta * cos_theta);
     let phi = 2.0 * PI * u2;
 
