@@ -9,6 +9,8 @@ All tests were run with parameters
  - step size (in xy-projected distance) $s=2m$
  - num particles per release cells $n = 8$
 
+For `com1DFA` and `com4FlowPy` we use default parameters.
+
 ## Synthetic datasets
 
 ### `avaBowl`
