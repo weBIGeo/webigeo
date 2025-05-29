@@ -510,6 +510,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_evaluation_compute_gra
     // connect buffer to texture node inputs
     buffer_to_texture_node->input_socket("raster dimensions").connect(trajectories_node->output_socket("raster dimensions"));
     buffer_to_texture_node->input_socket("storage buffer").connect(trajectories_node->output_socket("storage buffer"));
+    buffer_to_texture_node->input_socket("transparency buffer").connect(trajectories_node->output_socket("layer2_cellCounts"));
 
     // === SETUP EXPORT NODES ===
     {
