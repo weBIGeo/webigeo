@@ -141,25 +141,27 @@ fn draw_line_pos(start_pos: vec2u, end_pos: vec2u, value: f32, z_delta: f32, tra
     var x = i32(start_pos.x);
     var y = i32(start_pos.y);
 
+    const layer_scaling = 1.0;//1000.0; // scaling factor for layer values, to avoid precision loss (also change in buffer_to_texture)
+
     while (true) {
         let buffer_index = u32(y) * settings.output_resolution.x + u32(x);
         // Commented out for a fair comparison, (other implementations also just write the other layers)
         //atomicMax(&output_storage_buffer[buffer_index], range_to_u32(value, U32_ENCODING_RANGE_NORM)); // map value from [0,1] angle to [0, 2^32 - 1]
         if (settings.layer1_zdelta_enabled != 0) {
-            atomicMax(&output_layer1_zdelta[buffer_index], u32(z_delta)); // zdelta in m (we lose some precision here)
+            atomicMax(&output_layer1_zdelta[buffer_index], u32(z_delta * layer_scaling)); // zdelta in m (we lose some precision here)
         }
         if (settings.layer2_cellCounts_enabled != 0) {
-            atomicAdd(&output_layer2_cellCounts[buffer_index], 1); // count number of steps in this layer
+            atomicAdd(&output_layer2_cellCounts[buffer_index], 1 * u32(layer_scaling)); // count number of steps in this layer
         }
         if (settings.layer3_travelLength_enabled != 0) {
-            atomicMax(&output_layer3_travelLength[buffer_index], u32(travel_length)); // travel length in m (we lose some precision here)
+            atomicMax(&output_layer3_travelLength[buffer_index], u32(travel_length * layer_scaling)); // travel length in m (we lose some precision here)
         }
         if (settings.layer4_travelAngle_enabled != 0) {
             let travel_angle_value: f32 = degrees(travel_angle); // travel angle in deg (we lose some precision here)
-            atomicMax(&output_layer4_travelAngle[buffer_index], u32(travel_angle_value));
+            atomicMax(&output_layer4_travelAngle[buffer_index], u32(travel_angle_value * layer_scaling));
         }
         if (settings.layer5_altitudeDifference_enabled != 0) {
-            atomicMax(&output_layer5_altitudeDifference[buffer_index], u32(altitude_difference));
+            atomicMax(&output_layer5_altitudeDifference[buffer_index], u32(altitude_difference * layer_scaling));
         }
 
         if (x == i32(end_pos.x) && y == i32(end_pos.y)) {

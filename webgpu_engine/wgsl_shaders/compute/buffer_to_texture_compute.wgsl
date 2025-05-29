@@ -55,16 +55,21 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     // id.xy in [0, texture_dimensions(output_tiles) - 1]
 
     let buffer_index = index_from_pos(id.xy);
+
+    const layer_scaling = 1.0; //1000.0; // scaling factor for layer values, to avoid precision loss (also change in avalanche_trajectories_compute)
+    const calculate_velocity = true; // if true, calculate velocity based on grommis formula
     
     var alpha: f32 = 1.0;
     if (bool(settings.use_transparency_buffer)) {
-        let transparency_value = f32(input_transparency_buffer[buffer_index]);
+        let transparency_value = f32(input_transparency_buffer[buffer_index]) / layer_scaling;
         alpha = remap_clamped(transparency_value, settings.transparency_map_bounds.x, settings.transparency_map_bounds.y);
     }
 
-    let z_delta = f32(input_storage_buffer[buffer_index]); // zdelta in m
-    let velocity = sqrt(z_delta * 2.0 * 9.81); // calculate velocity based on grommis formula
-    var output_color = color_mapping_flowpy(velocity, settings.color_map_bounds.x, settings.color_map_bounds.y, bool(settings.use_bin_interpolation));
+    var value = f32(input_storage_buffer[buffer_index]) / layer_scaling;
+    if (calculate_velocity) {
+        value = sqrt(value * 2.0 * 9.81); // calculate velocity based on grommis formula
+    }
+    var output_color = color_mapping_flowpy(value, settings.color_map_bounds.x, settings.color_map_bounds.y, bool(settings.use_bin_interpolation));
     output_color.a = output_color.a * alpha;
 
 /*

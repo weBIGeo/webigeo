@@ -425,9 +425,39 @@ void Window::paint_gui()
 #endif
 }
 
+void Window::rewire_buffer_to_texture_node()
+{
+    if (m_compute_graph->exists_node("buffer_to_texture_node") && m_compute_graph->exists_node("compute_avalanche_trajectories_node")) {
+        auto& buffer_to_texture_node = m_compute_graph->get_node_as<compute::nodes::BufferToTextureNode>("buffer_to_texture_node");
+        auto& trajectories_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("compute_avalanche_trajectories_node");
+
+        const std::string& current_color_socket = m_compute_overlay_layers[m_current_compute_color_layer_index].socket_name;
+        const std::string& current_alpha_socket = m_compute_overlay_layers[m_current_compute_alpha_layer_index].socket_name;
+        buffer_to_texture_node.input_socket("storage buffer").connect(trajectories_node.output_socket(current_color_socket));
+        buffer_to_texture_node.input_socket("transparency buffer").connect(trajectories_node.output_socket(current_alpha_socket));
+    } else {
+        qWarning() << "Compute graph nodes not found!";
+    }
+}
+
 bool Window::paint_legend_gui(float& min_value, float& max_value, bool& bin_interpolation, const std::string& unit)
 {
     bool somethingChanged = false;
+
+    static bool print_mode = false;
+    if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_J))) {
+        print_mode = !print_mode;
+    }
+
+    static uint32_t digit_count = 1;
+    // Up and down modifies digit count, clamp 0
+    if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_UpArrow))) {
+        digit_count = std::min(digit_count + 1, 6u);
+    }
+    if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_DownArrow))) {
+        digit_count = std::max(digit_count - 1, 0u);
+    }
+    std::string digit_format = "%." + std::to_string(digit_count) + "f";
 
     // NOTE: Define the same color bins as in the WGSL shader
     static const std::vector<ImVec4> colors = {
@@ -464,7 +494,13 @@ bool Window::paint_legend_gui(float& min_value, float& max_value, bool& bin_inte
     ImVec2 window_pos = ImVec2(10, (ImGui::GetIO().DisplaySize.y - estimated_window_height) * 0.5f);
 
     ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, ImVec2(0.0f, 0.0f));
-    ImGui::SetNextWindowBgAlpha(0.5f);
+
+    if (print_mode) {
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(255, 255, 255, 255)); // Opaque white background
+        ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 0, 0, 255)); // Black text
+    } else {
+        ImGui::SetNextWindowBgAlpha(0.5f); // Transparent background
+    }
 
     if (ImGui::Begin("Flowpy Legend",
             nullptr,
@@ -473,26 +509,44 @@ bool Window::paint_legend_gui(float& min_value, float& max_value, bool& bin_inte
         for (int i = bin_count - 1; i >= 0; i--) {
             ImGui::PushID(i);
 
-            ImGui::ColorButton("##color", colors[i], ImGuiColorEditFlags_NoTooltip, ImVec2(20, 20));
+            if (print_mode) {
+                ImGui::ColorButton("##color", colors[i], ImGuiColorEditFlags_NoTooltip, ImVec2(16, 16));
+            } else {
+                ImGui::ColorButton("##color", colors[i], ImGuiColorEditFlags_NoTooltip, ImVec2(20, 20));
+            }
             ImGui::SameLine();
 
-            if (i == bin_count - 1) {
-                ImGui::SetNextItemWidth(70);
-                ImGui::DragFloat("##max", &max_value, 0.01f, min_value + step, FLT_MAX, ("%.1f" + unit).c_str());
-                somethingChanged |= ImGui::IsItemDeactivatedAfterEdit();
-            } else if (i == 0) {
-                ImGui::SetNextItemWidth(70);
-                ImGui::DragFloat("##min", &min_value, 0.01f, -FLT_MAX, max_value - step, ("%.1f" + unit).c_str());
-                somethingChanged |= ImGui::IsItemDeactivatedAfterEdit();
+            float bin_value = min_value + (i * step);
+
+            if (print_mode) {
+                ImGui::Text(digit_format.c_str(), bin_value);
+                ImGui::SameLine(0.0f, 0.0f); // No spacing between the texts
+                ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "%s", unit.c_str());
             } else {
-                float bin_min_value = min_value + (i * step);
-                ImGui::Text("%.1f", bin_min_value);
+                if (i == bin_count - 1) {
+                    ImGui::SetNextItemWidth(70);
+                    ImGui::DragFloat("##max", &max_value, 0.01f, min_value + step, FLT_MAX, ("%.1f" + unit).c_str());
+                    somethingChanged |= ImGui::IsItemDeactivatedAfterEdit();
+                } else if (i == 0) {
+                    ImGui::SetNextItemWidth(70);
+                    ImGui::DragFloat("##min", &min_value, 0.01f, -FLT_MAX, max_value - step, ("%.1f" + unit).c_str());
+                    somethingChanged |= ImGui::IsItemDeactivatedAfterEdit();
+                } else {
+                    ImGui::Text("%.1f %s", bin_value, unit.c_str());
+                }
             }
             ImGui::PopID();
         }
     }
-    somethingChanged |= ImGui::Checkbox("continuous", &bin_interpolation);
+    if (!print_mode) {
+        somethingChanged |= ImGui::Checkbox("continuous", &bin_interpolation);
+    }
     ImGui::End();
+
+    if (print_mode) {
+        ImGui::PopStyleColor(2); // Pop WindowBg and Text
+    }
+
     return somethingChanged;
 }
 
@@ -716,8 +770,40 @@ void Window::paint_compute_pipeline_gui()
                         rerun_buffer_to_texture |= ImGui::IsItemDeactivatedAfterEdit();
                     }
                     rerun_buffer_to_texture |= ImGui::Checkbox("Texture Interpolation & MipMaps", &m_compute_pipeline_settings.texture_interpolation_mipmaps);
+                    const std::string& unit = m_compute_overlay_layers[m_current_compute_color_layer_index].unit;
                     rerun_buffer_to_texture
-                        |= paint_legend_gui(m_compute_pipeline_settings.color_map_bounds.x, m_compute_pipeline_settings.color_map_bounds.y, m_compute_pipeline_settings.use_bin_interpolation, " m/s");
+                        |= paint_legend_gui(m_compute_pipeline_settings.color_map_bounds.x, m_compute_pipeline_settings.color_map_bounds.y, m_compute_pipeline_settings.use_bin_interpolation, unit);
+
+                    // HACK TO CHANGE INPUT LAYERS
+                    const char* current_color_layer = m_compute_overlay_layers[m_current_compute_color_layer_index].name.c_str();
+                    if (ImGui::BeginCombo("Color Layer", current_color_layer)) {
+                        for (size_t i = 0; i < m_compute_overlay_layers.size(); ++i) {
+                            bool is_selected = (m_current_compute_color_layer_index == i);
+                            if (ImGui::Selectable(m_compute_overlay_layers[i].name.c_str(), is_selected)) {
+                                m_current_compute_color_layer_index = i;
+                                rewire_buffer_to_texture_node();
+                                rerun_buffer_to_texture = true;
+                            }
+                            if (is_selected)
+                                ImGui::SetItemDefaultFocus();
+                        }
+                        ImGui::EndCombo();
+                    }
+                    const char* current_alpha_layer = m_compute_overlay_layers[m_current_compute_alpha_layer_index].name.c_str();
+                    if (ImGui::BeginCombo("Alpha Layer", current_alpha_layer)) {
+                        for (size_t i = 0; i < m_compute_overlay_layers.size(); ++i) {
+                            bool is_selected = (m_current_compute_alpha_layer_index == i);
+                            if (ImGui::Selectable(m_compute_overlay_layers[i].name.c_str(), is_selected)) {
+                                m_current_compute_alpha_layer_index = i;
+                                rewire_buffer_to_texture_node();
+                                rerun_buffer_to_texture = true;
+                            }
+                            if (is_selected)
+                                ImGui::SetItemDefaultFocus();
+                        }
+                        ImGui::EndCombo();
+                    }
+
                     if (rerun_buffer_to_texture) {
                         update_settings_and_rerun_pipeline("buffer_to_texture_node");
                     }
