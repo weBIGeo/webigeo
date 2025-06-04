@@ -1624,8 +1624,8 @@ void Window::focus_region_3d(const radix::geometry::Aabb3d& aabb)
 void Window::focus_region_2d(const radix::geometry::Aabb<2, double>& aabb)
 {
     glm::dvec2 pos = glm::dvec2(aabb.min + aabb.max) / 2.0;
-    auto size_x = aabb.max.x - m_image_overlay_settings_uniform_buffer->data.aabb_min.x;
-    auto size_y = aabb.max.y - m_image_overlay_settings_uniform_buffer->data.aabb_min.y;
+    auto size_x = aabb.max.x - aabb.min.x;
+    auto size_y = aabb.max.y - aabb.min.y;
     nucleus::camera::Definition new_camera_definition = { glm::dvec3 { pos.x, pos.y, std::max(size_x, size_y) }, { pos.x, pos.y, 0 } };
     new_camera_definition.set_viewport_size(m_camera.viewport_size());
     emit set_camera_definition_requested(new_camera_definition);
