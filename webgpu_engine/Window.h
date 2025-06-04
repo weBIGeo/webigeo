@@ -92,6 +92,7 @@ public slots:
 
     void request_redraw();
     void load_track_and_focus(const std::string& path);
+    void focus_region(const radix::geometry::Aabb3d& aabb);
     void reload_shaders();
     void on_pipeline_run_completed();
 

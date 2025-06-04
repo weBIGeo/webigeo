@@ -1589,30 +1589,36 @@ void Window::load_track_and_focus(const std::string& path)
     m_track_renderer->add_track(points);
 
     const auto track_aabb = nucleus::track::compute_world_aabb(*gpx_track);
-    const auto aabb_size = track_aabb.size();
-
-    // add debug axis
-    /*std::vector<glm::vec4> x_axis = { glm::vec4(track_aabb.min, 1), glm::vec4(track_aabb.max.x, track_aabb.min.y, track_aabb.min.z, 1) };
-    std::vector<glm::vec4> y_axis = { glm::vec4(track_aabb.min, 1), glm::vec4(track_aabb.min.x, track_aabb.max.y, track_aabb.min.z, 1) };
-    std::vector<glm::vec4> z_axis = { glm::vec4(track_aabb.min, 1), glm::vec4(track_aabb.min.x, track_aabb.min.y, track_aabb.max.z, 1) };
-    m_track_renderer->add_world_positions(x_axis, { 1.0f, 0.0f, 0.0f, 1.0f });
-    m_track_renderer->add_world_positions(y_axis, { 0.0f, 1.0f, 0.0f, 1.0f });
-    m_track_renderer->add_world_positions(z_axis, { 0.0f, 0.0f, 1.0f, 1.0f });*/
-
-    nucleus::camera::Definition new_camera_definition = { track_aabb.centre() + glm::dvec3 { 0, 0, std::max(aabb_size.x, aabb_size.y) }, track_aabb.centre() };
-    new_camera_definition.set_viewport_size(m_camera.viewport_size());
-
-    // update pipeline settings
-    m_is_region_selected = true;
-    m_compute_pipeline_settings.target_region = track_aabb;
-    update_compute_pipeline_settings();
-
-    emit set_camera_definition_requested(new_camera_definition);
+    focus_region(track_aabb);
 
     if (m_shared_config_ubo->data.m_track_render_mode == 0) {
         m_shared_config_ubo->data.m_track_render_mode = 1;
     }
     m_needs_redraw = true;
+}
+
+void Window::focus_region(const radix::geometry::Aabb3d& aabb)
+{
+
+    // add debug axis
+    /*std::vector<glm::vec4> x_axis = { glm::vec4(aabb.min, 1), glm::vec4(aabb.max.x, aabb.min.y, aabb.min.z, 1) };
+    std::vector<glm::vec4> y_axis = { glm::vec4(aabb.min, 1), glm::vec4(aabb.min.x, aabb.max.y, aabb.min.z, 1) };
+    std::vector<glm::vec4> z_axis = { glm::vec4(aabb.min, 1), glm::vec4(aabb.min.x, aabb.min.y, aabb.max.z, 1) };
+    m_track_renderer->add_world_positions(x_axis, { 1.0f, 0.0f, 0.0f, 1.0f });
+    m_track_renderer->add_world_positions(y_axis, { 0.0f, 1.0f, 0.0f, 1.0f });
+    m_track_renderer->add_world_positions(z_axis, { 0.0f, 0.0f, 1.0f, 1.0f });*/
+
+    const auto aabb_size = aabb.size();
+
+    nucleus::camera::Definition new_camera_definition = { aabb.centre() + glm::dvec3 { 0, 0, std::max(aabb_size.x, aabb_size.y) }, aabb.centre() };
+    new_camera_definition.set_viewport_size(m_camera.viewport_size());
+
+    // update pipeline settings
+    m_is_region_selected = true;
+    m_compute_pipeline_settings.target_region = aabb;
+    update_compute_pipeline_settings();
+
+    emit set_camera_definition_requested(new_camera_definition);
 }
 
 void Window::update_image_overlay_texture(const std::string& image_file_path)
