@@ -92,7 +92,8 @@ public slots:
 
     void request_redraw();
     void load_track_and_focus(const std::string& path);
-    void focus_region(const radix::geometry::Aabb3d& aabb);
+    void focus_region_3d(const radix::geometry::Aabb3d& aabb);
+    void focus_region_2d(const radix::geometry::Aabb<2, double>& aabb);
     void reload_shaders();
     void on_pipeline_run_completed();
 
@@ -127,7 +128,7 @@ private:
 
     std::unique_ptr<webgpu::raii::TextureWithSampler> create_overlay_texture(unsigned int width, unsigned int height);
     void update_image_overlay_texture(const std::string& image_file_path);
-    bool update_image_overlay_aabb(const std::string& aabb_file_path);
+    bool update_image_overlay_aabb(const radix::geometry::Aabb<2, double>& aabb);
     void update_image_overlay_aabb_and_focus(const std::string& aabb_file_path);
 
     void clear_compute_overlay();

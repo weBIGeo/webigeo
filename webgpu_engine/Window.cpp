@@ -1589,7 +1589,7 @@ void Window::load_track_and_focus(const std::string& path)
     m_track_renderer->add_track(points);
 
     const auto track_aabb = nucleus::track::compute_world_aabb(*gpx_track);
-    focus_region(track_aabb);
+    focus_region_3d(track_aabb);
 
     if (m_shared_config_ubo->data.m_track_render_mode == 0) {
         m_shared_config_ubo->data.m_track_render_mode = 1;
@@ -1597,7 +1597,7 @@ void Window::load_track_and_focus(const std::string& path)
     m_needs_redraw = true;
 }
 
-void Window::focus_region(const radix::geometry::Aabb3d& aabb)
+void Window::focus_region_3d(const radix::geometry::Aabb3d& aabb)
 {
 
     // add debug axis
@@ -1621,6 +1621,16 @@ void Window::focus_region(const radix::geometry::Aabb3d& aabb)
     emit set_camera_definition_requested(new_camera_definition);
 }
 
+void Window::focus_region_2d(const radix::geometry::Aabb<2, double>& aabb)
+{
+    glm::dvec2 pos = glm::dvec2(aabb.min + aabb.max) / 2.0;
+    auto size_x = aabb.max.x - m_image_overlay_settings_uniform_buffer->data.aabb_min.x;
+    auto size_y = aabb.max.y - m_image_overlay_settings_uniform_buffer->data.aabb_min.y;
+    nucleus::camera::Definition new_camera_definition = { glm::dvec3 { pos.x, pos.y, std::max(size_x, size_y) }, { pos.x, pos.y, 0 } };
+    new_camera_definition.set_viewport_size(m_camera.viewport_size());
+    emit set_camera_definition_requested(new_camera_definition);
+}
+
 void Window::update_image_overlay_texture(const std::string& image_file_path)
 {
     nucleus::Raster<glm::u8vec4> image = nucleus::utils::image_loader::rgba8(QString::fromStdString(image_file_path)).value();
@@ -1631,37 +1641,11 @@ void Window::update_image_overlay_texture(const std::string& image_file_path)
     recreate_compose_bind_group();
 }
 
-// TODO duplicate code, also in LoadRegionAabbNode!
-bool Window::update_image_overlay_aabb(const std::string& aabb_file_path)
+bool Window::update_image_overlay_aabb(const radix::geometry::Aabb<2, double>& aabb)
 {
-    QFile aabb_file(QString::fromStdString(aabb_file_path));
-    if (!aabb_file.open(QIODevice::ReadOnly)) {
-        qCritical() << "failed to load aabb file from " << aabb_file_path;
-        return false;
-    }
-    QTextStream file_contents(&aabb_file);
-
-    // parse extent file (very barebones rn, in the future we want to use geotiff anyway)
-    // extent file contains the aabb of the aabb region (in world coordinates) the image overlay texture is associated with
-    // each line contains exactly one floating point number (. as separator) with the following meaning:
-    //   min_x
-    //   min_y
-    //   max_x
-    //   max_y
-    std::array<float, 4> contents;
-    bool float_conversion_ok = false;
-    for (size_t i = 0; i < contents.size(); i++) {
-        QString line = file_contents.readLine();
-        contents[i] = line.toFloat(&float_conversion_ok);
-        if (!float_conversion_ok) {
-            qCritical() << "failed to parse aabb file " << aabb_file_path << ": could not convert " << line << "to float";
-            return false;
-        }
-    }
-
     // Make sure the aabb actually changed
-    glm::fvec2 new_min = glm::fvec2 { contents[0], contents[1] };
-    glm::fvec2 new_max = glm::fvec2 { contents[2], contents[3] };
+    glm::fvec2 new_min = glm::fvec2 { aabb.min.x, aabb.min.y };
+    glm::fvec2 new_max = glm::fvec2 { aabb.max.x, aabb.max.y };
     if (new_min == m_image_overlay_settings_uniform_buffer->data.aabb_min && new_max == m_image_overlay_settings_uniform_buffer->data.aabb_max) {
         return false;
     }
@@ -1679,17 +1663,14 @@ bool Window::update_image_overlay_aabb(const std::string& aabb_file_path)
 
 void Window::update_image_overlay_aabb_and_focus(const std::string& aabb_file_path)
 {
-    bool update_successful = update_image_overlay_aabb(aabb_file_path);
+    const auto aabb = compute::nodes::LoadRegionAabbNode::load_aabb_from_file(aabb_file_path).value();
+
+    bool update_successful = update_image_overlay_aabb(aabb);
     if (!update_successful) {
         return;
     }
 
-    glm::dvec2 pos = glm::dvec2(m_image_overlay_settings_uniform_buffer->data.aabb_min + m_image_overlay_settings_uniform_buffer->data.aabb_max) / 2.0;
-    auto size_x = m_image_overlay_settings_uniform_buffer->data.aabb_max.x - m_image_overlay_settings_uniform_buffer->data.aabb_min.x;
-    auto size_y = m_image_overlay_settings_uniform_buffer->data.aabb_max.y - m_image_overlay_settings_uniform_buffer->data.aabb_min.y;
-    nucleus::camera::Definition new_camera_definition = { glm::dvec3 { pos.x, pos.y, std::max(size_x, size_y) }, { pos.x, pos.y, 0 } };
-    new_camera_definition.set_viewport_size(m_camera.viewport_size());
-    emit set_camera_definition_requested(new_camera_definition);
+    focus_region_2d(aabb);
 }
 
 void Window::clear_compute_overlay()
