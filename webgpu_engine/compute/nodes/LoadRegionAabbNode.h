@@ -41,7 +41,7 @@ public:
 public slots:
     void run_impl() override;
 
-private:
+public:
     // TODO move to some utility file; should also be used from Window.cpp (duplicate code)
     static tl::expected<radix::geometry::Aabb<2, double>, std::string> load_aabb_from_file(const std::string& file_path);
     static tl::expected<radix::geometry::Aabb<2, double>, std::string> load_aabb_from_file(const QString& file_path);
