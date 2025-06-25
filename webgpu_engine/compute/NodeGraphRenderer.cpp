@@ -192,6 +192,11 @@ void NodeRenderer::render()
     render_settings();
     render_sockets();
 
+    // Display the last run duration
+    float duration = m_node->last_run_duration();
+    ImGui::Dummy(ImVec2(0.0f, 4.0f)); // spacing
+    ImGui::Text("Last run: %.2f s", duration);
+
     ImNodes::EndNode();
 
     if (disabled) {
