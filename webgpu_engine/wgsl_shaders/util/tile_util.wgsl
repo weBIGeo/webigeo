@@ -103,15 +103,21 @@ fn decrease_zoom_level_until(
     output_uv: ptr<function, vec2f>,
 ) -> bool {
     if (input_tile_id.zoomlevel <= zoomlevel) {
+        *output_tile_id = input_tile_id;
+        *output_uv = input_uv;
         return false;
     }
 
-    let z_delta = input_tile_id.zoomlevel - zoomlevel;
-    let border_mask = (1u << z_delta) - 1u;
+    let z_delta: u32 = input_tile_id.zoomlevel - zoomlevel;
+    let border_mask: u32 = (1u << z_delta) - 1u;
     let x_border = f32(input_tile_id.x & border_mask) / f32(1u << z_delta);
     let y_border = f32((input_tile_id.y ^ border_mask) & border_mask) / f32(1u << z_delta);
 
-    *output_tile_id = TileId(input_tile_id.x >> z_delta, input_tile_id.y >> z_delta, input_tile_id.zoomlevel - z_delta, 0);
+    *output_tile_id = TileId(
+        input_tile_id.x >> z_delta,
+        input_tile_id.y >> z_delta,
+        input_tile_id.zoomlevel - z_delta,
+        0);
     *output_uv = input_uv / f32(1u << z_delta) + vec2f(x_border, y_border);
 
     return true;

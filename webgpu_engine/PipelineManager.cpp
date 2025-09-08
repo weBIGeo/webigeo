@@ -209,10 +209,12 @@ void PipelineManager::create_render_tiles_pipeline()
     ortho_texture_layer_buffer_info.add_attribute<int32_t, 1>(2);
     webgpu::util::SingleVertexBufferInfo tileset_id_buffer_info(WGPUVertexStepMode_Instance);
     tileset_id_buffer_info.add_attribute<int32_t, 1>(3);
-    webgpu::util::SingleVertexBufferInfo zoomlevel_buffer_info(WGPUVertexStepMode_Instance);
-    zoomlevel_buffer_info.add_attribute<int32_t, 1>(4);
+    webgpu::util::SingleVertexBufferInfo height_zoomlevel_buffer_info(WGPUVertexStepMode_Instance);
+    height_zoomlevel_buffer_info.add_attribute<int32_t, 1>(4);
     webgpu::util::SingleVertexBufferInfo tile_id_buffer_info(WGPUVertexStepMode_Instance);
     tile_id_buffer_info.add_attribute<uint32_t, 4>(5);
+    webgpu::util::SingleVertexBufferInfo ortho_zoomlevel_buffer_info(WGPUVertexStepMode_Instance);
+    ortho_zoomlevel_buffer_info.add_attribute<int32_t, 1>(6);
 
     webgpu::FramebufferFormat format {};
     format.depth_format = WGPUTextureFormat_Depth24Plus;
@@ -229,8 +231,9 @@ void PipelineManager::create_render_tiles_pipeline()
             texture_layer_buffer_info,
             ortho_texture_layer_buffer_info,
             tileset_id_buffer_info,
-            zoomlevel_buffer_info,
+            height_zoomlevel_buffer_info,
             tile_id_buffer_info,
+            ortho_zoomlevel_buffer_info,
         },
         format,
         std::vector<const webgpu::raii::BindGroupLayout*> {
@@ -437,7 +440,7 @@ void PipelineManager::create_tile_bind_group_layout()
     WGPUBindGroupLayoutEntry heightmap_texture_sampler {};
     heightmap_texture_sampler.binding = 2;
     heightmap_texture_sampler.visibility = WGPUShaderStage_Vertex;
-    heightmap_texture_sampler.sampler.type = WGPUSamplerBindingType_Filtering;
+    heightmap_texture_sampler.sampler.type = WGPUSamplerBindingType_NonFiltering;
 
     WGPUBindGroupLayoutEntry ortho_texture_entry {};
     ortho_texture_entry.binding = 3;

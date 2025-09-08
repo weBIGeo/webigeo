@@ -32,8 +32,10 @@ template <typename T> int bufferLengthInBytes(const std::vector<T>& vec) { retur
 
 namespace webgpu_engine {
 
-TileGeometry::TileGeometry(QObject* parent)
-    : QObject { parent }
+TileGeometry::TileGeometry(uint32_t height_resolution, uint32_t ortho_resolution)
+    : QObject { nullptr }
+    , m_height_resolution { height_resolution }
+    , m_ortho_resolution { ortho_resolution }
 {
 }
 
@@ -42,26 +44,27 @@ void TileGeometry::init(WGPUDevice device)
     m_device = device;
     m_queue = wgpuDeviceGetQueue(device);
 
-    const auto height_resolution = glm::uvec2(HEIGHTMAP_RESOLUTION);
-    const auto ortho_resolution = glm::uvec2(ORTHO_RESOLUTION);
-    const auto num_layers = m_loaded_height_textures.capacity();
-    const auto n_edge_vertices = N_EDGE_VERTICES;
+    const auto height_resolution = glm::uvec2(m_height_resolution);
+    const auto ortho_resolution = glm::uvec2(m_ortho_resolution);
+    const auto num_layers = m_loaded_height_textures.size();
 
-    using nucleus::utils::terrain_mesh_index_generator::surface_quads_with_curtains;
-
-    // create index buffer, vertex buffers and uniform buffer
-    const std::vector<uint16_t> indices = surface_quads_with_curtains<uint16_t>(unsigned(n_edge_vertices));
+    // create index buffer
+    const std::vector<uint16_t> indices = nucleus::utils::terrain_mesh_index_generator::surface_quads_with_curtains<uint16_t>(unsigned(m_height_resolution));
     m_index_buffer = std::make_unique<webgpu::raii::RawBuffer<uint16_t>>(m_device, WGPUBufferUsage_Index | WGPUBufferUsage_CopyDst, indices.size());
     m_index_buffer->write(m_queue, indices.data(), indices.size());
     m_index_buffer_size = indices.size();
+
+    // create buffers for bounds, tile ids, zoom level, height and ortho texture buffers
     m_bounds_buffer = std::make_unique<webgpu::raii::RawBuffer<glm::vec4>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
     m_tileset_id_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
-    m_zoom_level_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
+    m_height_zoom_level_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
     m_height_texture_layer_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
+    m_ortho_zoom_level_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
     m_ortho_texture_layer_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
+
     m_tile_id_buffer = std::make_unique<webgpu::raii::RawBuffer<compute::GpuTileId>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
     m_n_edge_vertices_buffer = std::make_unique<Buffer<int32_t>>(m_device, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst);
-    m_n_edge_vertices_buffer->data = int(n_edge_vertices);
+    m_n_edge_vertices_buffer->data = int(m_height_resolution);
     m_n_edge_vertices_buffer->update_gpu_data(m_queue);
 
     WGPUTextureDescriptor height_texture_desc {};
@@ -78,9 +81,12 @@ void TileGeometry::init(WGPUDevice device)
     height_sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     height_sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     height_sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    height_sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Linear;
-    height_sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Linear;
-    height_sampler_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Linear;
+    // height_sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Linear;
+    // height_sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Linear;
+    // height_sampler_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Linear;
+    height_sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
+    height_sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
+    height_sampler_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Nearest;
     height_sampler_desc.lodMinClamp = 0.0f;
     height_sampler_desc.lodMaxClamp = 1.0f;
     height_sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
@@ -135,11 +141,14 @@ void TileGeometry::draw(
     std::vector<int32_t> tileset_id;
     tileset_id.reserve(draw_tiles.size());
 
-    std::vector<int32_t> zoom_level;
-    zoom_level.reserve(draw_tiles.size());
+    std::vector<int32_t> height_zoom_levels;
+    height_zoom_levels.reserve(draw_tiles.size());
 
     std::vector<int32_t> height_texture_layer;
     height_texture_layer.reserve(draw_tiles.size());
+
+    std::vector<int32_t> ortho_zoom_levels;
+    ortho_zoom_levels.reserve(draw_tiles.size());
 
     std::vector<int32_t> ortho_texture_layers;
     ortho_texture_layers.reserve(draw_tiles.size());
@@ -148,26 +157,18 @@ void TileGeometry::draw(
     tile_ids.reserve(draw_tiles.size());
 
     for (const auto& id_bounds : draw_tiles) {
-        // const auto& [tile_id, tile_bounds] = tile_id_bounds_pair;
+        const auto& tile_id = id_bounds.id;
+        const auto& tile_bounds = id_bounds.bounds;
+        bounds.emplace_back(tile_bounds.min.x - camera.position().x, tile_bounds.min.y - camera.position().y, tile_bounds.max.x - camera.position().x, tile_bounds.max.y - camera.position().y);
+        tileset_id.emplace_back(tile_id.coords[0] + tile_id.coords[1]);
 
-        // TODO for now, just skip not-yet-loaded ones
-        if (!m_loaded_height_textures.contains(id_bounds.id)) {
-            continue;
-        }
+        const auto height_layer_info = m_loaded_height_textures.layer(tile_id);
+        height_zoom_levels.emplace_back(int(height_layer_info.id.zoom_level));
+        height_texture_layer.emplace_back(int(height_layer_info.index));
 
-        bounds.emplace_back(id_bounds.bounds.min.x - camera.position().x,
-            id_bounds.bounds.min.y - camera.position().y,
-            id_bounds.bounds.max.x - camera.position().x,
-            id_bounds.bounds.max.y - camera.position().y);
-        tileset_id.emplace_back(id_bounds.id.coords[0] + id_bounds.id.coords[1]);
-        zoom_level.emplace_back(id_bounds.id.zoom_level);
-        height_texture_layer.emplace_back(m_loaded_height_textures.get_texture_layer(id_bounds.id));
-
-        int ortho_texture_layer = -1;
-        if (m_loaded_ortho_textures.contains(id_bounds.id)) {
-            ortho_texture_layer = int(m_loaded_ortho_textures.get_texture_layer(id_bounds.id));
-        }
-        ortho_texture_layers.emplace_back(ortho_texture_layer);
+        const auto ortho_layer_info = m_loaded_ortho_textures.layer(tile_id);
+        ortho_zoom_levels.emplace_back(int(ortho_layer_info.id.zoom_level));
+        ortho_texture_layers.emplace_back(int(ortho_layer_info.index));
 
         tile_ids.emplace_back(compute::GpuTileId(id_bounds.id));
     }
@@ -175,8 +176,9 @@ void TileGeometry::draw(
     // write updated vertex buffers
     m_bounds_buffer->write(m_queue, bounds.data(), bounds.size());
     m_tileset_id_buffer->write(m_queue, tileset_id.data(), tileset_id.size());
-    m_zoom_level_buffer->write(m_queue, zoom_level.data(), zoom_level.size());
+    m_height_zoom_level_buffer->write(m_queue, height_zoom_levels.data(), height_zoom_levels.size());
     m_height_texture_layer_buffer->write(m_queue, height_texture_layer.data(), height_texture_layer.size());
+    m_ortho_zoom_level_buffer->write(m_queue, ortho_zoom_levels.data(), ortho_zoom_levels.size());
     m_ortho_texture_layer_buffer->write(m_queue, ortho_texture_layers.data(), ortho_texture_layers.size());
     m_tile_id_buffer->write(m_queue, tile_ids.data(), tile_ids.size());
 
@@ -189,8 +191,9 @@ void TileGeometry::draw(
     wgpuRenderPassEncoderSetVertexBuffer(render_pass, 1, m_height_texture_layer_buffer->handle(), 0, m_height_texture_layer_buffer->size_in_byte());
     wgpuRenderPassEncoderSetVertexBuffer(render_pass, 2, m_ortho_texture_layer_buffer->handle(), 0, m_ortho_texture_layer_buffer->size_in_byte());
     wgpuRenderPassEncoderSetVertexBuffer(render_pass, 3, m_tileset_id_buffer->handle(), 0, m_tileset_id_buffer->size_in_byte());
-    wgpuRenderPassEncoderSetVertexBuffer(render_pass, 4, m_zoom_level_buffer->handle(), 0, m_zoom_level_buffer->size_in_byte());
+    wgpuRenderPassEncoderSetVertexBuffer(render_pass, 4, m_height_zoom_level_buffer->handle(), 0, m_height_zoom_level_buffer->size_in_byte());
     wgpuRenderPassEncoderSetVertexBuffer(render_pass, 5, m_tile_id_buffer->handle(), 0, m_tile_id_buffer->size_in_byte());
+    wgpuRenderPassEncoderSetVertexBuffer(render_pass, 6, m_ortho_zoom_level_buffer->handle(), 0, m_ortho_zoom_level_buffer->size_in_byte());
 
     // set pipeline and draw call
     wgpuRenderPassEncoderSetPipeline(render_pass, m_pipeline_manager->render_tiles_pipeline().pipeline().handle());
@@ -199,44 +202,8 @@ void TileGeometry::draw(
 
 void TileGeometry::set_tile_limit(unsigned int num_tiles)
 {
-    m_loaded_height_textures.set_capacity(num_tiles);
-    m_loaded_ortho_textures.set_capacity(num_tiles);
-}
-
-void TileGeometry::add_height_tile(const radix::tile::Id id, nucleus::tile::SrsAndHeightBounds bounds, const nucleus::Raster<uint16_t>& heights)
-{
-    const auto layer_index = m_loaded_height_textures.insert(id);
-    m_heightmap_textures->texture().write(m_queue, heights, uint32_t(layer_index));
-    m_loaded_bounds.emplace(id, bounds);
-
-    std::cout << "add height tile" << std::endl;
-
-    emit tiles_changed();
-}
-
-void TileGeometry::remove_height_tile(const radix::tile::Id tile_id)
-{
-    m_loaded_height_textures.erase(tile_id);
-    m_loaded_bounds.erase(tile_id);
-
-    emit tiles_changed();
-}
-
-void TileGeometry::add_ortho_tile(const radix::tile::Id id, const nucleus::utils::ColourTexture& ortho)
-{
-    const auto layer_index = m_loaded_ortho_textures.insert(id);
-    m_ortho_textures->texture().write(m_queue, ortho, uint32_t(layer_index));
-
-    std::cout << "add ortho tile" << std::endl;
-
-    emit tiles_changed();
-}
-
-void TileGeometry::remove_ortho_tile(const radix::tile::Id id)
-{
-    m_loaded_ortho_textures.erase(id);
-
-    emit tiles_changed();
+    m_loaded_height_textures.set_tile_limit(num_tiles);
+    m_loaded_ortho_textures.set_tile_limit(num_tiles);
 }
 
 void TileGeometry::set_pipeline_manager(const PipelineManager& pipeline_manager) { m_pipeline_manager = &pipeline_manager; }
@@ -258,7 +225,7 @@ std::unique_ptr<webgpu::raii::BindGroup> TileGeometry::create_bind_group(const w
 void TileGeometry::update_gpu_tiles_height(const std::vector<radix::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuGeometryTile>& new_tiles)
 {
     for (const auto& id : deleted_tiles) {
-        remove_height_tile(id);
+        m_loaded_height_textures.remove_tile(id);
     }
 
     for (const auto& tile : new_tiles) {
@@ -266,25 +233,26 @@ void TileGeometry::update_gpu_tiles_height(const std::vector<radix::tile::Id>& d
         assert(tile.id.zoom_level < 100);
         assert(tile.surface);
 
-        add_height_tile(tile.id, tile.bounds, *tile.surface);
+        // find empty spot and upload texture
+        const uint32_t layer_index = m_loaded_height_textures.add_tile(tile.id);
+        m_heightmap_textures->texture().write(m_queue, *tile.surface, layer_index);
     }
-    emit tiles_changed();
 }
 
 void TileGeometry::update_gpu_tiles_ortho(const std::vector<nucleus::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuTextureTile>& new_tiles)
 {
     for (const auto& id : deleted_tiles) {
-        remove_ortho_tile(id);
+        m_loaded_ortho_textures.remove_tile(id);
     }
     for (const auto& tile : new_tiles) {
         // test for validity
         assert(tile.id.zoom_level < 100);
         assert(tile.texture);
 
-        add_ortho_tile(tile.id, tile.texture->front());
+        // find empty spot and upload texture
+        const auto layer_index = m_loaded_ortho_textures.add_tile(tile.id);
+        m_ortho_textures->texture().write(m_queue, tile.texture->front(), uint32_t(layer_index));
     }
-
-    emit tiles_changed();
 }
 
 } // namespace webgpu_engine

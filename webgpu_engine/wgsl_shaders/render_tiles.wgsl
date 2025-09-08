@@ -26,6 +26,7 @@
 #include "util/tile_hashmap.wgsl"
 #include "util/normals_util.wgsl"
 #include "util/snow.wgsl"
+#include "util/filtering.wgsl"
 
 @group(0) @binding(0) var<uniform> config: shared_config;
 
@@ -42,8 +43,9 @@ struct VertexIn {
     @location(1) height_texture_layer: i32,
     @location(2) ortho_texture_layer: i32,
     @location(3) tileset_id: i32,
-    @location(4) tileset_zoomlevel: i32,
+    @location(4) height_zoomlevel: i32,
     @location(5) tile_id: vec4<u32>,
+    @location(6) ortho_zoomlevel: i32,
 }
 
 struct VertexOut {
@@ -55,6 +57,7 @@ struct VertexOut {
     @location(4) @interpolate(flat) ortho_texture_layer: i32,
     @location(5) @interpolate(flat) color: vec3f,
     @location(6) @interpolate(flat) tile_id: vec3<u32>,
+    @location(7) @interpolate(flat) ortho_zoomlevel: i32,
 }
 
 struct FragOut {
@@ -68,11 +71,14 @@ fn camera_world_space_position(
     vertex_index: u32,
     bounds: vec4f,
     height_texture_layer: i32,
+    tile_id: TileId,
+    height_zoomlevel: i32,
     uv: ptr<function, vec2f>,
     n_quads_per_direction: ptr<function, f32>,
     quad_width: ptr<function, f32>,
     quad_height: ptr<function, f32>,
-    altitude_correction_factor: ptr<function, f32>
+    altitude_correction_factor: ptr<function, f32>,
+    height_uv: ptr<function, vec2f>,
 ) -> vec3f {
     let n_quads_per_direction_int = n_edge_vertices - 1;
     *n_quads_per_direction = f32(n_quads_per_direction_int);
@@ -108,7 +114,10 @@ fn camera_world_space_position(
     *altitude_correction_factor = 0.125 / cos(y_to_lat(pos_y)); // https://github.com/AlpineMapsOrg/renderer/issues/5
 
     *uv = vec2f(f32(col) / (*n_quads_per_direction), f32(row) / (*n_quads_per_direction));
-    let altitude_tex = f32(textureLoad(height_texture, vec2i(col, row), height_texture_layer, 0).r);
+
+    var output_tile_id: TileId;
+    decrease_zoom_level_until(tile_id, *uv, u32(height_zoomlevel), &output_tile_id, height_uv);
+    let altitude_tex = f32(bilinear_sample_u32(height_texture, height_sampler, *height_uv, u32(height_texture_layer)));
     let adjusted_altitude: f32 = altitude_tex * (*altitude_correction_factor);
 
     var var_pos_cws = vec3f(f32(col) * (*quad_width) + bounds.x, var_pos_cws_y, adjusted_altitude - camera.position.z);
@@ -138,11 +147,13 @@ fn normal_by_fragment_position_interpolation(pos_cws: vec3<f32>) -> vec3<f32> {
 @vertex
 fn vertexMain(@builtin(vertex_index) vertex_index: u32, vertex_in: VertexIn) -> VertexOut {
     var uv: vec2f;
+    var height_uv: vec2f;
     var n_quads_per_direction: f32;
     var quad_width: f32;
     var quad_height: f32;
     var altitude_correction_factor: f32;
-    let var_pos_cws = camera_world_space_position(vertex_index, vertex_in.bounds, vertex_in.height_texture_layer, &uv, &n_quads_per_direction, &quad_width, &quad_height, &altitude_correction_factor);
+    let tile_id = TileId(vertex_in.tile_id.x, vertex_in.tile_id.y, vertex_in.tile_id.z, 4294967295u);
+    let var_pos_cws = camera_world_space_position(vertex_index, vertex_in.bounds, vertex_in.height_texture_layer, tile_id, vertex_in.height_zoomlevel, &uv, &n_quads_per_direction, &quad_width, &quad_height, &altitude_correction_factor, &height_uv);
 
     let pos = vec4f(var_pos_cws, 1);
     let clip_pos = camera.view_proj_matrix * pos;
@@ -154,7 +165,7 @@ fn vertexMain(@builtin(vertex_index) vertex_index: u32, vertex_in: VertexIn) -> 
 
     vertex_out.normal = vec3f(0.0);
     if (config.normal_mode == 2) {
-        vertex_out.normal = normal_by_finite_difference_method(uv, quad_width, quad_height, altitude_correction_factor, vertex_in.height_texture_layer, height_texture);
+        vertex_out.normal = normal_by_finite_difference_method(height_uv, quad_width, quad_height, altitude_correction_factor, vertex_in.height_texture_layer, height_texture);
     }
     vertex_out.height_texture_layer = vertex_in.height_texture_layer;
     vertex_out.ortho_texture_layer = vertex_in.ortho_texture_layer;
@@ -163,28 +174,30 @@ fn vertexMain(@builtin(vertex_index) vertex_index: u32, vertex_in: VertexIn) -> 
     if (config.overlay_mode == 2) {
         vertex_color = color_from_id_hash(u32(vertex_in.tileset_id));
     } else if (config.overlay_mode == 3) {
-        vertex_color = color_from_id_hash(u32(vertex_in.tileset_zoomlevel));
+        vertex_color = color_from_id_hash(u32(vertex_in.height_zoomlevel));
+        //vertex_color = color_from_id_hash(u32(vertex_in.ortho_zoomlevel));
     } else if (config.overlay_mode == 4) {
         vertex_color = color_from_id_hash(u32(vertex_index));
     }
     vertex_out.color = vertex_color;
     vertex_out.tile_id = vertex_in.tile_id.xyz;
+    vertex_out.ortho_zoomlevel = vertex_in.ortho_zoomlevel;
     return vertex_out;
 }
 
 @fragment
 fn fragmentMain(vertex_out: VertexOut) -> FragOut {
-    // sample ortho texture if already loaded (ortho_texture_layer -1 means not loaded)
-    var ortho_texture_layer = select(0, vertex_out.ortho_texture_layer, vertex_out.ortho_texture_layer != -1);
-    var albedo = textureSample(ortho_texture, ortho_sampler, vertex_out.uv, ortho_texture_layer).rgb;
-    albedo = select(vec3f(1, 1, 1), albedo, vertex_out.ortho_texture_layer != -1);
+    let tile_id = TileId(vertex_out.tile_id.x, vertex_out.tile_id.y, vertex_out.tile_id.z, 4294967295u);
 
-    var dist = length(vertex_out.pos_cws);
+    // obtain uv coordinates for desired ortho zoom level and sample
+    var ortho_tile_id: TileId;
+    var ortho_uv: vec2f;
+    let found_ortho = decrease_zoom_level_until(tile_id, vertex_out.uv, u32(vertex_out.ortho_zoomlevel), &ortho_tile_id, &ortho_uv);
+    var albedo = textureSample(ortho_texture, ortho_sampler, ortho_uv, vertex_out.ortho_texture_layer).rgb;
 
     var frag_out: FragOut;
-    
 
-    let tile_id = TileId(vertex_out.tile_id.x, vertex_out.tile_id.y, vertex_out.tile_id.z, 4294967295u);
+    var dist = length(vertex_out.pos_cws);
     var normal = vertex_out.normal;
     if (config.normal_mode != 0) {
         if (config.normal_mode == 1) {
