@@ -165,8 +165,8 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 1, m_camera_bind_group->handle(), 0, nullptr);
 
         using namespace nucleus::tile;
-        const auto draw_list
-            = drawing::compute_bounds(drawing::limit(drawing::generate_list(m_camera, m_context->aabb_decorator(), 18), 1024), m_context->aabb_decorator());
+        const auto draw_list = drawing::compute_bounds(
+            drawing::limit(drawing::generate_list(m_camera, m_context->aabb_decorator(), m_max_zoom_level), 1024), m_context->aabb_decorator());
         const auto culled_draw_list = drawing::sort(drawing::cull(draw_list, m_camera), m_camera.position());
 
         m_context->tile_geometry()->draw(render_pass->handle(), m_camera, culled_draw_list);
@@ -1494,6 +1494,8 @@ void Window::compute_mipmaps_for_texture(const webgpu::raii::Texture* texture)
         wgpuCommandBufferRelease(command);
     }
 }
+
+void Window::set_max_zoom_level(uint32_t max_zoom_level) { m_max_zoom_level = max_zoom_level; }
 
 void Window::display_message(const std::string& message)
 {

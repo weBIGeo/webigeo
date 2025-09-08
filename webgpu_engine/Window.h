@@ -84,6 +84,8 @@ public:
 
     void compute_mipmaps_for_texture(const webgpu::raii::Texture* texture);
 
+    void set_max_zoom_level(uint32_t max_zoom_level);
+
 public slots:
     void update_camera(const nucleus::camera::Definition& new_definition) override;
     void update_debug_scheduler_stats(const QString& stats) override;
@@ -157,6 +159,7 @@ private:
     std::unique_ptr<webgpu::raii::BindGroup> m_depth_texture_bind_group;
 
     nucleus::camera::Definition m_camera;
+    uint32_t m_max_zoom_level = 18;
 
     webgpu::FramebufferFormat m_gbuffer_format;
     std::unique_ptr<webgpu::Framebuffer> m_gbuffer;

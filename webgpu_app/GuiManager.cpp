@@ -210,8 +210,7 @@ bool GuiManager::is_timer_selected(uint32_t timer_id) { return m_selected_timer.
 void GuiManager::before_first_frame()
 {
     // Init m_max_zoom level
-    // TODO reimplement
-    // m_terrain_renderer->get_rendering_context()->engine_context()->tile_geometry()->set_max_zoom_lvl(m_max_zoom_level);
+    m_terrain_renderer->get_webgpu_window()->set_max_zoom_level(m_max_zoom_level);
     m_terrain_renderer->get_camera_controller()->update();
 }
 
@@ -316,8 +315,7 @@ void GuiManager::draw()
         const uint32_t min_max_zoom_lvl = 1;
         const uint32_t max_max_zoom_lvl = 18;
         if (ImGui::SliderScalar("Max zoom level", ImGuiDataType_U32, &m_max_zoom_level, &min_max_zoom_lvl, &max_max_zoom_lvl, "%u")) {
-            // TODO reimplement
-            //  m_terrain_renderer->get_rendering_context()->engine_context()->tile_geometry()->set_max_zoom_lvl(m_max_zoom_level);
+            m_terrain_renderer->get_webgpu_window()->set_max_zoom_level(m_max_zoom_level);
             m_terrain_renderer->get_camera_controller()->update();
         }
 
@@ -339,13 +337,10 @@ void GuiManager::draw()
             auto ortho_load_service = m_terrain_renderer->get_rendering_context()->ortho_tile_load_service();
             if (ortho_tile_source_index == 0) {
                 ortho_load_service->set_base_url("https://gataki.cg.tuwien.ac.at/raw/basemap/tiles/");
-
             } else if (ortho_tile_source_index == 1) {
                 ortho_load_service->set_base_url("https://mapsneu.wien.gv.at/basemap/bmaporthofoto30cm/normal/google3857/");
             } else if (ortho_tile_source_index == 2) {
                 ortho_load_service->set_base_url("https://mapsneu.wien.gv.at/basemap/bmapgelaende/grau/google3857/");
-                // TODO reimplement
-                // m_terrain_renderer->get_rendering_context()->engine_context()->tile_geometry()->set_max_zoom_lvl(18);
             } else if (ortho_tile_source_index == 3) {
                 ortho_load_service->set_base_url("https://mapsneu.wien.gv.at/basemap/bmapoberflaeche/grau/google3857/");
             }
