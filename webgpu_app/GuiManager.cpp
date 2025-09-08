@@ -325,21 +325,19 @@ void GuiManager::draw()
 
         static int geometry_tile_source_index = 0; // 0 ... DSM, 1 ... DTM
         if (ImGui::Combo("Geometry Tiles", &geometry_tile_source_index, "AlpineMaps DSM\0AlpineMaps DTM\0")) {
-            auto geometry_scheduler = m_terrain_renderer->get_rendering_context()->geometry_scheduler();
             auto geometry_load_service = m_terrain_renderer->get_rendering_context()->geometry_tile_load_service();
             if (geometry_tile_source_index == 0) {
                 geometry_load_service->set_base_url("https://alpinemaps.cg.tuwien.ac.at/tiles/alpine_png/");
             } else if (geometry_tile_source_index == 1) {
                 geometry_load_service->set_base_url("https://alpinemaps.cg.tuwien.ac.at/tiles/at_dtm_alpinemaps/");
             }
-            // TODO reimplement
-            // geometry_scheduler->clear_full_cache();
+
+            m_terrain_renderer->get_rendering_context()->geometry_scheduler()->clear_full_cache();
             m_terrain_renderer->get_camera_controller()->update();
         }
 
         static int ortho_tile_source_index = 0;
         if (ImGui::Combo("Ortho Tiles", &ortho_tile_source_index, "Gataki Ortho\0Basemap Ortho\0Basemap Gelände\0Basemap Oberfläche\0")) {
-            auto ortho_scheduler = m_terrain_renderer->get_rendering_context()->ortho_scheduler();
             auto ortho_load_service = m_terrain_renderer->get_rendering_context()->ortho_tile_load_service();
             if (ortho_tile_source_index == 0) {
                 ortho_load_service->set_base_url("https://gataki.cg.tuwien.ac.at/raw/basemap/tiles/");
@@ -353,8 +351,7 @@ void GuiManager::draw()
             } else if (ortho_tile_source_index == 3) {
                 ortho_load_service->set_base_url("https://mapsneu.wien.gv.at/basemap/bmapoberflaeche/grau/google3857/");
             }
-            // TODO reimplement
-            // ortho_scheduler->clear_full_cache();
+            m_terrain_renderer->get_rendering_context()->ortho_scheduler()->clear_full_cache();
             m_terrain_renderer->get_camera_controller()->update();
         }
     }
