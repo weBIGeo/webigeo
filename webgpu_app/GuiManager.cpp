@@ -307,10 +307,8 @@ void GuiManager::draw()
         m_terrain_renderer->render_gui();
         static float render_quality = 0.5f;
         if (ImGui::SliderFloat("Level of Detail", &render_quality, 0.1f, 2.0f)) {
-            auto* const tile_geometry = m_terrain_renderer->get_rendering_context()->engine_context()->tile_geometry();
             const auto permissible_error = 1.0f / render_quality;
-            // TODO reimplement
-            //  tile_geometry->set_permissible_screen_space_error(permissible_error);
+            m_terrain_renderer->get_camera_controller()->set_pixel_error_threshold(permissible_error);
             m_terrain_renderer->update_camera();
             qDebug() << "Setting permissible error to " << permissible_error;
         }
