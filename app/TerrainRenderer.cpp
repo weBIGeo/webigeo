@@ -64,8 +64,8 @@ TerrainRenderer::TerrainRenderer()
     connect(m_camera_controller.get(), &CameraController::definition_changed, ctx->ortho_scheduler(),      &Scheduler::update_camera);
     connect(m_camera_controller.get(), &CameraController::definition_changed, m_glWindow.get(),            &gl_engine::Window::update_camera);
 
-    connect(ctx->geometry_scheduler(), &nucleus::tile::GeometryScheduler::gpu_quads_updated, gl_window_ptr, &gl_engine::Window::update_requested);
-    connect(ctx->ortho_scheduler(),    &nucleus::tile::TextureScheduler::gpu_quads_updated,  gl_window_ptr, &gl_engine::Window::update_requested);
+    connect(ctx->geometry_scheduler(), &nucleus::tile::GeometryScheduler::gpu_tiles_updated, gl_window_ptr, &gl_engine::Window::update_requested);
+    connect(ctx->ortho_scheduler(),    &nucleus::tile::TextureScheduler::gpu_tiles_updated,  gl_window_ptr, &gl_engine::Window::update_requested);
     connect(ctx->label_filter().get(), &Filter::filter_finished,                             gl_window_ptr, &gl_engine::Window::update_requested);
 
     connect(ctx->picker_manager().get(),   &PickerManager::pick_requested,     gl_window_ptr,                  &gl_engine::Window::pick_value);
@@ -85,8 +85,7 @@ void TerrainRenderer::synchronize(QQuickFramebufferObject *item)
     // the tile scheduler is in an extra thread, there will be races if you write to it.
     m_window = item->window();
     TerrainRendererItem* i = static_cast<TerrainRendererItem*>(item);
-    //        m_controller->camera_controller()->set_virtual_resolution_factor(i->render_quality());
-    m_glWindow->set_permissible_screen_space_error(1.0 / i->settings()->render_quality());
+    m_camera_controller->set_pixel_error_threshold(1.0 / i->settings()->render_quality());
     m_camera_controller->set_viewport({ i->width(), i->height() });
     m_camera_controller->set_field_of_view(i->field_of_view());
 

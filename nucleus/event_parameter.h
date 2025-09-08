@@ -45,6 +45,7 @@ enum TouchPointState {
 // loosely based on QEventPoint
 struct EventPoint {
     TouchPointState state;
+    int id = -1;
     glm::vec2 position = glm::vec2(0);
     glm::vec2 last_position = glm::vec2(0);
     glm::vec2 press_position = glm::vec2(0);
@@ -80,46 +81,50 @@ Q_DECLARE_METATYPE(nucleus::event_parameter::Wheel)
 
 #ifdef QT_GUI_LIB
 namespace nucleus::event_parameter {
-    inline EventPoint make(const QEventPoint& e) {
-        EventPoint point;
-        point.state = static_cast<TouchPointState>(e.state());
-        point.position = glm::vec2(e.position().x(), e.position().y());
-        point.last_position = glm::vec2(e.lastPosition().x(), e.lastPosition().y());
-        point.press_position = glm::vec2(e.pressPosition().x(), e.pressPosition().y());
-        return point;
-    }
-
-    inline Touch make(QTouchEvent* e) {
-        Touch touch;
-        touch.is_begin_event = e->isBeginEvent();
-        touch.is_end_event = e->isEndEvent();
-        touch.is_update_event = e->isUpdateEvent();
-        for (const auto& point : e->points()) {
-            touch.points.push_back(make(point));
-        }
-        return touch;
-    }
-
-    inline Mouse make(QMouseEvent* e) {
-        Mouse mouse;
-        mouse.is_begin_event = e->isBeginEvent();
-        mouse.is_end_event = e->isEndEvent();
-        mouse.is_update_event = e->isUpdateEvent();
-        mouse.button = e->button();
-        mouse.buttons = e->buttons();
-        mouse.point = make(e->points().front());
-        return mouse;
-    }
-
-    inline Wheel make(QWheelEvent* e) {
-        Wheel wheel;
-        wheel.is_begin_event = e->isBeginEvent();
-        wheel.is_end_event = e->isEndEvent();
-        wheel.is_update_event = e->isUpdateEvent();
-        wheel.angle_delta = e->angleDelta();
-        wheel.point = make(e->points().front());
-        return wheel;
-    }
+inline EventPoint make(const QEventPoint& e)
+{
+    EventPoint point;
+    point.id = e.id();
+    point.state = static_cast<TouchPointState>(e.state());
+    point.position = glm::vec2(e.position().x(), e.position().y());
+    point.last_position = glm::vec2(e.lastPosition().x(), e.lastPosition().y());
+    point.press_position = glm::vec2(e.pressPosition().x(), e.pressPosition().y());
+    return point;
 }
+
+inline Touch make(QTouchEvent* e)
+{
+    Touch touch;
+    touch.is_begin_event = e->isBeginEvent();
+    touch.is_end_event = e->isEndEvent();
+    touch.is_update_event = e->isUpdateEvent();
+    for (const auto& point : e->points()) {
+        touch.points.push_back(make(point));
+    }
+    std::sort(touch.points.begin(), touch.points.end(), [](const auto& a, const auto& b) { return a.id < b.id; });
+    return touch;
+}
+
+inline Mouse make(QMouseEvent* e) {
+    Mouse mouse;
+    mouse.is_begin_event = e->isBeginEvent();
+    mouse.is_end_event = e->isEndEvent();
+    mouse.is_update_event = e->isUpdateEvent();
+    mouse.button = e->button();
+    mouse.buttons = e->buttons();
+    mouse.point = make(e->points().front());
+    return mouse;
+}
+
+inline Wheel make(QWheelEvent* e) {
+    Wheel wheel;
+    wheel.is_begin_event = e->isBeginEvent();
+    wheel.is_end_event = e->isEndEvent();
+    wheel.is_update_event = e->isUpdateEvent();
+    wheel.angle_delta = e->angleDelta();
+    wheel.point = make(e->points().front());
+    return wheel;
+}
+} // namespace nucleus::event_parameter
 #endif
 

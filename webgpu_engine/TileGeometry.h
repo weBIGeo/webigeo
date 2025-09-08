@@ -26,14 +26,13 @@
 #include "PipelineManager.h"
 #include "webgpu_engine/compute/GpuTileId.h"
 #include <QObject>
-#include <nucleus/tile/DrawListGenerator.h>
 #include <nucleus/tile/types.h>
 #include <webgpu/raii/BindGroup.h>
 #include <webgpu/raii/BindGroupLayout.h>
 #include <webgpu/raii/TextureWithSampler.h>
 #include <webgpu/webgpu.h>
 
-namespace camera {
+namespace nucleus::camera {
 class Definition;
 }
 
@@ -105,15 +104,7 @@ class TileGeometry : public QObject {
 public:
     explicit TileGeometry(QObject* parent = nullptr);
     void init(WGPUDevice device); // needs OpenGL context
-    void draw(
-        WGPURenderPassEncoder render_pass, const nucleus::camera::Definition& camera, const nucleus::tile::DrawListGenerator::TileSet& draw_tiles, bool sort_tiles, glm::dvec3 sort_position) const;
-
-    const nucleus::tile::DrawListGenerator::TileSet generate_tilelist(const nucleus::camera::Definition& camera) const;
-    const nucleus::tile::DrawListGenerator::TileSet cull(const nucleus::tile::DrawListGenerator::TileSet& tileset, const nucleus::camera::Frustum& frustum) const;
-
-    void set_permissible_screen_space_error(float new_permissible_screen_space_error);
-
-    void set_max_zoom_lvl(uint32_t max_zoom_level);
+    void draw(WGPURenderPassEncoder render_pass, const nucleus::camera::Definition& camera, const std::vector<nucleus::tile::TileBounds>& draw_tiles) const;
 
     void set_pipeline_manager(const PipelineManager& pipeline_manager);
 
@@ -125,10 +116,9 @@ signals:
     void tiles_changed();
 
 public slots:
-    void update_gpu_quads_height(const std::vector<nucleus::tile::GpuGeometryQuad>& new_quads, const std::vector<nucleus::tile::Id>& deleted_quads);
-    void update_gpu_quads_ortho(const std::vector<nucleus::tile::GpuTextureQuad>& new_quads, const std::vector<nucleus::tile::Id>& deleted_quads);
-    void set_aabb_decorator(const nucleus::tile::utils::AabbDecoratorPtr& new_aabb_decorator);
-    void set_quad_limit(unsigned new_limit);
+    void update_gpu_tiles_height(const std::vector<radix::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuGeometryTile>& new_tiles);
+    void update_gpu_tiles_ortho(const std::vector<nucleus::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuTextureTile>& new_tiles);
+    void set_tile_limit(unsigned new_limit);
 
 private:
     void add_height_tile(const nucleus::tile::Id id, nucleus::tile::SrsAndHeightBounds bounds, const nucleus::Raster<uint16_t>& heights);
@@ -137,16 +127,13 @@ private:
     void remove_ortho_tile(const nucleus::tile::Id id);
 
     static constexpr auto N_EDGE_VERTICES = 65;
-    static constexpr auto ORTHO_RESOLUTION = 256;
+    static constexpr auto ORTHO_RESOLUTION = 512;
     static constexpr auto HEIGHTMAP_RESOLUTION = 65;
 
     size_t m_num_layers;
     TileIdToTextureLayerMap m_loaded_height_textures;
     TileIdToTextureLayerMap m_loaded_ortho_textures;
     std::unordered_map<nucleus::tile::Id, nucleus::tile::SrsBounds, nucleus::tile::Id::Hasher> m_loaded_bounds;
-
-    nucleus::tile::DrawListGenerator m_draw_list_generator;
-    const nucleus::tile::DrawListGenerator::TileSet m_last_draw_list; // buffer last generated draw list
 
     WGPUDevice m_device = 0;
     WGPUQueue m_queue = 0;

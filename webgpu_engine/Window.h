@@ -76,7 +76,6 @@ public:
     void destroy() override;
     [[nodiscard]] nucleus::camera::AbstractDepthTester* depth_tester() override;
     nucleus::utils::ColourTexture::Format ortho_tile_compression_algorithm() const override;
-    void set_permissible_screen_space_error(float new_error) override;
     bool needs_redraw() { return m_needs_redraw; }
 
     void update_required_gpu_limits(WGPULimits& limits, const WGPULimits& supported_limits);

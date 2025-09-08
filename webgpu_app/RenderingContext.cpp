@@ -82,12 +82,18 @@ void RenderingContext::initialize(WGPUDevice webgpu_device)
 {
     m_engine_context = std::make_unique<webgpu_engine::Context>();
     m_engine_context->set_webgpu_device(webgpu_device);
+    m_engine_context->set_aabb_decorator(m_aabb_decorator);
     m_engine_context->set_tile_geometry(std::make_shared<webgpu_engine::TileGeometry>());
-    m_engine_context->tile_geometry()->set_quad_limit(256);
-    m_engine_context->tile_geometry()->set_aabb_decorator(m_aabb_decorator);
+    m_engine_context->tile_geometry()->set_tile_limit(1024);
 
-    connect(m_geometry_scheduler_holder.scheduler.get(), &nucleus::tile::GeometryScheduler::gpu_quads_updated, m_engine_context->tile_geometry(), &webgpu_engine::TileGeometry::update_gpu_quads_height);
-    connect(m_ortho_scheduler_holder.scheduler.get(), &nucleus::tile::TextureScheduler::gpu_quads_updated, m_engine_context->tile_geometry(), &webgpu_engine::TileGeometry::update_gpu_quads_ortho);
+    connect(m_geometry_scheduler_holder.scheduler.get(),
+        &nucleus::tile::GeometryScheduler::gpu_tiles_updated,
+        m_engine_context->tile_geometry(),
+        &webgpu_engine::TileGeometry::update_gpu_tiles_height);
+    connect(m_ortho_scheduler_holder.scheduler.get(),
+        &nucleus::tile::TextureScheduler::gpu_tiles_updated,
+        m_engine_context->tile_geometry(),
+        &webgpu_engine::TileGeometry::update_gpu_tiles_ortho);
     nucleus::utils::thread::async_call(m_geometry_scheduler_holder.scheduler.get(), [this]() { m_geometry_scheduler_holder.scheduler->set_enabled(true); });
 
     // TODO: texture compression

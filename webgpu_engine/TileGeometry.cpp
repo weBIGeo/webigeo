@@ -126,70 +126,50 @@ void TileGeometry::init(WGPUDevice device)
         "tile bind group");
 }
 
-template <typename FirstT, typename SecondT> bool comparePair(std::pair<FirstT, SecondT> t1, std::pair<FirstT, SecondT> t2) { return (t1.first < t2.first); }
-
-const nucleus::tile::DrawListGenerator::TileSet TileGeometry::generate_tilelist(const nucleus::camera::Definition& camera) const { return m_draw_list_generator.generate_for(camera); }
-
-const nucleus::tile::DrawListGenerator::TileSet TileGeometry::cull(const nucleus::tile::DrawListGenerator::TileSet& tileset, const nucleus::camera::Frustum& frustum) const
+void TileGeometry::draw(
+    WGPURenderPassEncoder render_pass, const nucleus::camera::Definition& camera, const std::vector<nucleus::tile::TileBounds>& draw_tiles) const
 {
-    return m_draw_list_generator.cull(tileset, frustum);
-}
-
-void TileGeometry::draw(WGPURenderPassEncoder render_pass,
-    const nucleus::camera::Definition& camera,
-    const nucleus::tile::DrawListGenerator::TileSet& draw_tiles,
-    [[maybe_unused]] bool sort_tiles,
-    [[maybe_unused]] glm::dvec3 sort_position) const
-{
-    using TileIdBoundsPair = std::pair<radix::tile::Id, radix::tile::SrsBounds>;
-
-    // Sort depending on distance to sort_position
-    std::vector<std::pair<float, TileIdBoundsPair>> tile_ids_and_bounds;
-    for (const auto& [tile_id, tile_bounds] : m_loaded_bounds) {
-        float dist = 0.0;
-        if (!draw_tiles.contains(tile_id))
-            continue;
-        if (sort_tiles) {
-            glm::vec2 pos_wrt = glm::vec2(tile_bounds.min.x - sort_position.x, tile_bounds.min.y - sort_position.y);
-            dist = glm::length(pos_wrt);
-        }
-        tile_ids_and_bounds.emplace_back(dist, TileIdBoundsPair { tile_id, tile_bounds });
-    }
-    if (sort_tiles)
-        std::sort(tile_ids_and_bounds.begin(), tile_ids_and_bounds.end(), comparePair<float, TileIdBoundsPair>);
-
     std::vector<glm::vec4> bounds;
-    bounds.reserve(tile_ids_and_bounds.size());
+    bounds.reserve(draw_tiles.size());
 
     std::vector<int32_t> tileset_id;
-    tileset_id.reserve(tile_ids_and_bounds.size());
+    tileset_id.reserve(draw_tiles.size());
 
     std::vector<int32_t> zoom_level;
-    zoom_level.reserve(tile_ids_and_bounds.size());
+    zoom_level.reserve(draw_tiles.size());
 
     std::vector<int32_t> height_texture_layer;
-    height_texture_layer.reserve(tile_ids_and_bounds.size());
+    height_texture_layer.reserve(draw_tiles.size());
 
     std::vector<int32_t> ortho_texture_layers;
-    ortho_texture_layers.reserve(tile_ids_and_bounds.size());
+    ortho_texture_layers.reserve(draw_tiles.size());
 
     std::vector<compute::GpuTileId> tile_ids;
-    tile_ids.reserve(tile_ids_and_bounds.size());
+    tile_ids.reserve(draw_tiles.size());
 
-    for (const auto& [dist, tile_id_bounds_pair] : tile_ids_and_bounds) {
-        const auto& [tile_id, tile_bounds] = tile_id_bounds_pair;
-        bounds.emplace_back(tile_bounds.min.x - camera.position().x, tile_bounds.min.y - camera.position().y, tile_bounds.max.x - camera.position().x, tile_bounds.max.y - camera.position().y);
-        tileset_id.emplace_back(tile_id.coords[0] + tile_id.coords[1]);
-        zoom_level.emplace_back(tile_id.zoom_level);
-        height_texture_layer.emplace_back(m_loaded_height_textures.get_texture_layer(tile_id));
+    for (const auto& id_bounds : draw_tiles) {
+        // const auto& [tile_id, tile_bounds] = tile_id_bounds_pair;
+
+        // TODO for now, just skip not-yet-loaded ones
+        if (!m_loaded_height_textures.contains(id_bounds.id)) {
+            continue;
+        }
+
+        bounds.emplace_back(id_bounds.bounds.min.x - camera.position().x,
+            id_bounds.bounds.min.y - camera.position().y,
+            id_bounds.bounds.max.x - camera.position().x,
+            id_bounds.bounds.max.y - camera.position().y);
+        tileset_id.emplace_back(id_bounds.id.coords[0] + id_bounds.id.coords[1]);
+        zoom_level.emplace_back(id_bounds.id.zoom_level);
+        height_texture_layer.emplace_back(m_loaded_height_textures.get_texture_layer(id_bounds.id));
 
         int ortho_texture_layer = -1;
-        if (m_loaded_ortho_textures.contains(tile_id)) {
-            ortho_texture_layer = int(m_loaded_ortho_textures.get_texture_layer(tile_id));
+        if (m_loaded_ortho_textures.contains(id_bounds.id)) {
+            ortho_texture_layer = int(m_loaded_ortho_textures.get_texture_layer(id_bounds.id));
         }
         ortho_texture_layers.emplace_back(ortho_texture_layer);
 
-        tile_ids.emplace_back(compute::GpuTileId(tile_id));
+        tile_ids.emplace_back(compute::GpuTileId(id_bounds.id));
     }
 
     // write updated vertex buffers
@@ -214,14 +194,11 @@ void TileGeometry::draw(WGPURenderPassEncoder render_pass,
 
     // set pipeline and draw call
     wgpuRenderPassEncoderSetPipeline(render_pass, m_pipeline_manager->render_tiles_pipeline().pipeline().handle());
-    wgpuRenderPassEncoderDrawIndexed(render_pass, uint32_t(m_index_buffer_size), uint32_t(tile_ids_and_bounds.size()), 0, 0, 0);
+    wgpuRenderPassEncoderDrawIndexed(render_pass, uint32_t(m_index_buffer_size), uint32_t(draw_tiles.size()), 0, 0, 0);
 }
 
-void TileGeometry::set_aabb_decorator(const nucleus::tile::utils::AabbDecoratorPtr& new_aabb_decorator) { m_draw_list_generator.set_aabb_decorator(new_aabb_decorator); }
-
-void TileGeometry::set_quad_limit(unsigned int new_limit)
+void TileGeometry::set_tile_limit(unsigned int num_tiles)
 {
-    auto num_tiles = new_limit * 4;
     m_loaded_height_textures.set_capacity(num_tiles);
     m_loaded_ortho_textures.set_capacity(num_tiles);
 }
@@ -231,18 +208,18 @@ void TileGeometry::add_height_tile(const radix::tile::Id id, nucleus::tile::SrsA
     const auto layer_index = m_loaded_height_textures.insert(id);
     m_heightmap_textures->texture().write(m_queue, heights, uint32_t(layer_index));
     m_loaded_bounds.emplace(id, bounds);
-    m_draw_list_generator.add_tile(id);
 
-    // emit tiles_changed();
+    std::cout << "add height tile" << std::endl;
+
+    emit tiles_changed();
 }
 
 void TileGeometry::remove_height_tile(const radix::tile::Id tile_id)
 {
     m_loaded_height_textures.erase(tile_id);
     m_loaded_bounds.erase(tile_id);
-    m_draw_list_generator.remove_tile(tile_id);
 
-    // emit tiles_changed();
+    emit tiles_changed();
 }
 
 void TileGeometry::add_ortho_tile(const radix::tile::Id id, const nucleus::utils::ColourTexture& ortho)
@@ -250,19 +227,17 @@ void TileGeometry::add_ortho_tile(const radix::tile::Id id, const nucleus::utils
     const auto layer_index = m_loaded_ortho_textures.insert(id);
     m_ortho_textures->texture().write(m_queue, ortho, uint32_t(layer_index));
 
-    // emit tiles_changed();
+    std::cout << "add ortho tile" << std::endl;
+
+    emit tiles_changed();
 }
 
 void TileGeometry::remove_ortho_tile(const radix::tile::Id id)
 {
     m_loaded_ortho_textures.erase(id);
 
-    // emit tiles_changed();
+    emit tiles_changed();
 }
-
-void TileGeometry::set_permissible_screen_space_error(float new_permissible_screen_space_error) { m_draw_list_generator.set_permissible_screen_space_error(new_permissible_screen_space_error); }
-
-void TileGeometry::set_max_zoom_lvl(uint32_t max_zoom_level) { m_draw_list_generator.set_max_zoom_level(max_zoom_level); }
 
 void TileGeometry::set_pipeline_manager(const PipelineManager& pipeline_manager) { m_pipeline_manager = &pipeline_manager; }
 
@@ -280,37 +255,35 @@ std::unique_ptr<webgpu::raii::BindGroup> TileGeometry::create_bind_group(const w
         "tile bind group");
 }
 
-void TileGeometry::update_gpu_quads_height(const std::vector<nucleus::tile::GpuGeometryQuad>& new_quads, const std::vector<nucleus::tile::Id>& deleted_quads)
+void TileGeometry::update_gpu_tiles_height(const std::vector<radix::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuGeometryTile>& new_tiles)
 {
-    for (const auto& quad : deleted_quads) {
-        for (const auto& id : quad.children()) {
-            remove_height_tile(id);
-        }
+    for (const auto& id : deleted_tiles) {
+        remove_height_tile(id);
     }
-    for (const auto& quad : new_quads) {
-        for (const auto& tile : quad.tiles) {
-            // test for validity
-            assert(tile.id.zoom_level < 100);
-            add_height_tile(tile.id, tile.bounds, *tile.surface);
-        }
+
+    for (const auto& tile : new_tiles) {
+        // test for validity
+        assert(tile.id.zoom_level < 100);
+        assert(tile.surface);
+
+        add_height_tile(tile.id, tile.bounds, *tile.surface);
     }
     emit tiles_changed();
 }
 
-void TileGeometry::update_gpu_quads_ortho(const std::vector<nucleus::tile::GpuTextureQuad>& new_quads, const std::vector<radix::tile::Id>& deleted_quads)
+void TileGeometry::update_gpu_tiles_ortho(const std::vector<nucleus::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuTextureTile>& new_tiles)
 {
-    for (const auto& quad : deleted_quads) {
-        for (const auto& id : quad.children()) {
-            remove_ortho_tile(id);
-        }
+    for (const auto& id : deleted_tiles) {
+        remove_ortho_tile(id);
     }
-    for (const auto& quad : new_quads) {
-        for (const auto& tile : quad.tiles) {
-            // test for validity
-            assert(tile.id.zoom_level < 100);
-            add_ortho_tile(tile.id, tile.texture->front());
-        }
+    for (const auto& tile : new_tiles) {
+        // test for validity
+        assert(tile.id.zoom_level < 100);
+        assert(tile.texture);
+
+        add_ortho_tile(tile.id, tile.texture->front());
     }
+
     emit tiles_changed();
 }
 

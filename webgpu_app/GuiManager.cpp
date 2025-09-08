@@ -210,7 +210,8 @@ bool GuiManager::is_timer_selected(uint32_t timer_id) { return m_selected_timer.
 void GuiManager::before_first_frame()
 {
     // Init m_max_zoom level
-    m_terrain_renderer->get_rendering_context()->engine_context()->tile_geometry()->set_max_zoom_lvl(m_max_zoom_level);
+    // TODO reimplement
+    // m_terrain_renderer->get_rendering_context()->engine_context()->tile_geometry()->set_max_zoom_lvl(m_max_zoom_level);
     m_terrain_renderer->get_camera_controller()->update();
 }
 
@@ -292,7 +293,7 @@ void GuiManager::draw()
                     auto new_definition = position_storage->get_by_index(m_selected_camera_preset);
                     auto old_vp_size = camera_controller->definition().viewport_size();
                     new_definition.set_viewport_size(old_vp_size);
-                    camera_controller->set_definition(new_definition);
+                    camera_controller->set_model_matrix(new_definition);
                 }
                 if (is_selected) {
                     ImGui::SetItemDefaultFocus();
@@ -308,7 +309,8 @@ void GuiManager::draw()
         if (ImGui::SliderFloat("Level of Detail", &render_quality, 0.1f, 2.0f)) {
             auto* const tile_geometry = m_terrain_renderer->get_rendering_context()->engine_context()->tile_geometry();
             const auto permissible_error = 1.0f / render_quality;
-            tile_geometry->set_permissible_screen_space_error(permissible_error);
+            // TODO reimplement
+            //  tile_geometry->set_permissible_screen_space_error(permissible_error);
             m_terrain_renderer->update_camera();
             qDebug() << "Setting permissible error to " << permissible_error;
         }
@@ -316,7 +318,8 @@ void GuiManager::draw()
         const uint32_t min_max_zoom_lvl = 1;
         const uint32_t max_max_zoom_lvl = 18;
         if (ImGui::SliderScalar("Max zoom level", ImGuiDataType_U32, &m_max_zoom_level, &min_max_zoom_lvl, &max_max_zoom_lvl, "%u")) {
-            m_terrain_renderer->get_rendering_context()->engine_context()->tile_geometry()->set_max_zoom_lvl(m_max_zoom_level);
+            // TODO reimplement
+            //  m_terrain_renderer->get_rendering_context()->engine_context()->tile_geometry()->set_max_zoom_lvl(m_max_zoom_level);
             m_terrain_renderer->get_camera_controller()->update();
         }
 
@@ -329,8 +332,8 @@ void GuiManager::draw()
             } else if (geometry_tile_source_index == 1) {
                 geometry_load_service->set_base_url("https://alpinemaps.cg.tuwien.ac.at/tiles/at_dtm_alpinemaps/");
             }
-
-            geometry_scheduler->clear_full_cache();
+            // TODO reimplement
+            // geometry_scheduler->clear_full_cache();
             m_terrain_renderer->get_camera_controller()->update();
         }
 
@@ -345,12 +348,13 @@ void GuiManager::draw()
                 ortho_load_service->set_base_url("https://mapsneu.wien.gv.at/basemap/bmaporthofoto30cm/normal/google3857/");
             } else if (ortho_tile_source_index == 2) {
                 ortho_load_service->set_base_url("https://mapsneu.wien.gv.at/basemap/bmapgelaende/grau/google3857/");
-                m_terrain_renderer->get_rendering_context()->engine_context()->tile_geometry()->set_max_zoom_lvl(18);
+                // TODO reimplement
+                // m_terrain_renderer->get_rendering_context()->engine_context()->tile_geometry()->set_max_zoom_lvl(18);
             } else if (ortho_tile_source_index == 3) {
                 ortho_load_service->set_base_url("https://mapsneu.wien.gv.at/basemap/bmapoberflaeche/grau/google3857/");
             }
-
-            ortho_scheduler->clear_full_cache();
+            // TODO reimplement
+            // ortho_scheduler->clear_full_cache();
             m_terrain_renderer->get_camera_controller()->update();
         }
     }

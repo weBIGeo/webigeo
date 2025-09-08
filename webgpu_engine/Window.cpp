@@ -29,6 +29,7 @@
 #include "compute/nodes/SelectTilesNode.h"
 #include "compute/nodes/TileExportNode.h"
 #include "compute/nodes/util.h"
+#include "nucleus/tile/drawing.h"
 #include "nucleus/track/GPX.h"
 #include "nucleus/utils/image_loader.h"
 #include "webgpu/raii/RenderPassEncoder.h"
@@ -163,9 +164,12 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 0, m_shared_config_bind_group->handle(), 0, nullptr);
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 1, m_camera_bind_group->handle(), 0, nullptr);
 
-        const auto tile_set = m_context->tile_geometry()->generate_tilelist(m_camera);
-        const auto culled_tile_set = m_context->tile_geometry()->cull(tile_set, m_camera.frustum());
-        m_context->tile_geometry()->draw(render_pass->handle(), m_camera, culled_tile_set, true, m_camera.position());
+        using namespace nucleus::tile;
+        const auto draw_list
+            = drawing::compute_bounds(drawing::limit(drawing::generate_list(m_camera, m_context->aabb_decorator(), 18), 1024), m_context->aabb_decorator());
+        const auto culled_draw_list = drawing::sort(drawing::cull(draw_list, m_camera), m_camera.position());
+
+        m_context->tile_geometry()->draw(render_pass->handle(), m_camera, culled_draw_list);
     }
 
     // render geometry buffers to target framebuffer
@@ -1526,11 +1530,6 @@ nucleus::utils::ColourTexture::Format Window::ortho_tile_compression_algorithm()
 {
     // TODO use compressed textures in the future
     return nucleus::utils::ColourTexture::Format::Uncompressed_RGBA;
-}
-
-void Window::set_permissible_screen_space_error([[maybe_unused]] float new_error)
-{
-    // Logic for setting permissible screen space error, parameter currently unused
 }
 
 void Window::update_camera([[maybe_unused]] const nucleus::camera::Definition& new_definition)

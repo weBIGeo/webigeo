@@ -20,17 +20,12 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
-#include <vector>
-
 #include <glm/glm.hpp>
 #include <glm/gtx/component_wise.hpp>
-
-#ifdef QT_GUI_LIB
-// Qt GUI module is available
-#include <QtGui/QImage>
-#endif
+#include <vector>
 
 namespace nucleus {
 
@@ -93,34 +88,13 @@ public:
 
     void fill(const T& value) { std::fill(begin(), end(), value); }
 
-#ifdef QT_GUI_LIB
-    [[nodiscard]] QImage toQImage() const {
-        static_assert(std::is_same<T, glm::u8vec4>::value, "toQImage is only implemented for u8vec4 (RGBA8) rasters");
-
-        //assert(m_data.size() == m_width * m_height * 4); // Ensure the data is RGBA8
-        QImage image(m_width, m_height, QImage::Format_RGBA8888);
-        memcpy(image.bits(), m_data.data(), m_data.size() * sizeof(T));
-        return image;
-    }
-
-    template<typename U = T>
-    static Raster<U> fromQImage(const QImage& image) {
-        static_assert(std::is_same<U, glm::u8vec4>::value, "fromQImage is only implemented for u8vec4 (RGBA8) rasters");
-
-        assert(image.format() == QImage::Format_RGBA8888); // Ensure the image is in the correct format
-
-        glm::uvec2 size(image.width(), image.height());
-        Raster<U> raster(size);
-
-        std::memcpy(raster.data(), image.bits(), image.sizeInBytes());
-        return raster;
-    }
-#endif
-
-    void combine(const Raster<T>& other)
+    /// cheaper than concatenate_horizontally, works only if other has the same width
+    void append_vertically(const Raster<T>& other)
     {
         // currently only supports combining with other raster of equal width (otherwise we need to fill either the current or the other raster with 0 values)
-        assert(other.width() == m_width);
+        assert(other.width() == width());
+        if (other.width() != width())
+            return;
 
         m_height += other.height();
 
@@ -195,5 +169,20 @@ template <typename T> Raster<T> resize(const Raster<T>& raster, const glm::uvec2
         }
     }
     return n;
+}
+
+/// more expensive than append_vertically, works only if a and b have the same height.
+template <typename T> Raster<T> concatenate_horizontally(const Raster<T>& a, const Raster<T>& b)
+{
+    assert(a.height() == b.height());
+    Raster<T> r({ a.width() + b.width(), a.height() });
+    if (a.height() != b.height())
+        return r; // shouldn't happen
+
+    for (auto l = 0u; l < a.height(); ++l) {
+        auto i = std::copy_n(&a.pixel({ 0, l }), a.width(), &r.pixel({ 0, l }));
+        std::copy_n(&b.pixel({ 0, l }), b.width(), i);
+    }
+    return r;
 }
 }

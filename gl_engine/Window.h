@@ -68,7 +68,6 @@ public:
     void destroy() override;
     [[nodiscard]] nucleus::camera::AbstractDepthTester* depth_tester() override;
     [[nodiscard]] nucleus::utils::ColourTexture::Format ortho_tile_compression_algorithm() const override;
-    void set_permissible_screen_space_error(float new_error) override;
 
 public slots:
     void update_camera(const nucleus::camera::Definition& new_definition) override;
@@ -106,6 +105,7 @@ private:
 
     int m_frame = 0;
     bool m_initialised = false;
+    float m_permissible_screen_space_error = 2.f;
     QString m_debug_text;
     QString m_debug_scheduler_stats;
 

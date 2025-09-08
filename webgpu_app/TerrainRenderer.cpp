@@ -266,8 +266,8 @@ void TerrainRenderer::start() {
     connect(m_camera_controller.get(), &nucleus::camera::Controller::definition_changed, m_context->ortho_scheduler(),    &nucleus::tile::Scheduler::update_camera);
     connect(m_camera_controller.get(), &nucleus::camera::Controller::definition_changed, m_webgpu_window.get(),           &webgpu_engine::Window::update_camera);
     
-    connect(m_context->geometry_scheduler(), &nucleus::tile::GeometryScheduler::gpu_quads_updated, m_webgpu_window.get(), &webgpu_engine::Window::update_requested);
-    connect(m_context->ortho_scheduler(),    &nucleus::tile::TextureScheduler::gpu_quads_updated,  m_webgpu_window.get(), &webgpu_engine::Window::update_requested);
+    connect(m_context->geometry_scheduler(), &nucleus::tile::GeometryScheduler::gpu_tiles_updated, m_webgpu_window.get(), &webgpu_engine::Window::update_requested);
+    connect(m_context->ortho_scheduler(),    &nucleus::tile::TextureScheduler::gpu_tiles_updated,  m_webgpu_window.get(), &webgpu_engine::Window::update_requested);
     // clang-format on
 
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
@@ -278,7 +278,10 @@ void TerrainRenderer::start() {
 
     // TODO connect this (is used from GuiManager to update camera when settings are changed)
     //  connect(this, &TerrainRenderer::update_camera_requested, camera_controller, &nucleus::camera::Controller::update_camera_request);
-    connect(m_webgpu_window.get(), &webgpu_engine::Window::set_camera_definition_requested, m_camera_controller.get(), &nucleus::camera::Controller::set_definition);
+    connect(m_webgpu_window.get(),
+        &webgpu_engine::Window::set_camera_definition_requested,
+        m_camera_controller.get(),
+        &nucleus::camera::Controller::set_model_matrix);
 
     connect(m_webgpu_window.get(), &nucleus::AbstractRenderWindow::update_requested, this, &TerrainRenderer::schedule_update);
 
@@ -298,7 +301,7 @@ void TerrainRenderer::start() {
     { // load first camera definition without changing preset in nucleus
         auto new_definition = nucleus::camera::stored_positions::grossglockner();
         new_definition.set_viewport_size(m_viewport_size);
-        m_camera_controller->set_definition(new_definition);
+        m_camera_controller->set_model_matrix(new_definition);
     }
 
     qDebug() << "Create GUI Pipeline...";
