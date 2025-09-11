@@ -23,8 +23,8 @@
 #include <string>
 #include <unordered_map>
 
-#include "compute/nodes/Node.h"
-#include "compute/nodes/NodeGraph.h"
+#include "webgpu_engine/compute/nodes/Node.h"
+#include "webgpu_engine/compute/nodes/NodeGraph.h"
 
 namespace webgpu_engine::compute {
 
