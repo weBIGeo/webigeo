@@ -44,7 +44,7 @@ void Framebuffer::recreate_depth_texture()
         return;
     }
     WGPUTextureDescriptor texture_desc {};
-    texture_desc.label = "framebuffer depth texture";
+    texture_desc.label = { .data = "framebuffer depth texture", .length = WGPU_STRLEN };
     texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
     texture_desc.format = m_format.depth_format;
     texture_desc.mipLevelCount = 1;
@@ -74,7 +74,7 @@ void Framebuffer::recreate_color_texture(size_t index)
     assert(index < m_format.color_formats.size());
 
     WGPUTextureDescriptor texture_desc {};
-    texture_desc.label = "framebuffer color texture";
+    texture_desc.label = WGPUStringView { .data = "framebuffer color texture", .length = WGPU_STRLEN };
     texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
     texture_desc.format = m_format.color_formats[index];
     texture_desc.mipLevelCount = 1;
@@ -130,12 +130,7 @@ std::unique_ptr<raii::RenderPassEncoder> Framebuffer::begin_render_pass(WGPUComm
         render_pass_color_attachment.loadOp = WGPULoadOp::WGPULoadOp_Clear;
         render_pass_color_attachment.storeOp = WGPUStoreOp::WGPUStoreOp_Store;
         render_pass_color_attachment.clearValue = WGPUColor { 0.0, 0.0, 0.0, 0.0 };
-        // depthSlice field for RenderPassColorAttachment (https://github.com/gpuweb/gpuweb/issues/4251)
-        // this field specifies the slice to render to when rendering to a 3d texture (view)
-        // passing a valid index but referencing a non-3d texture leads to an error
-        // TODO use some constant that represents "undefined" for this value (I couldn't find a constant for this?)
-        //     (I just guessed -1 (max unsigned int value) and it worked)
-        render_pass_color_attachment.depthSlice = -1;
+        render_pass_color_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
         render_pass_color_attachments.emplace_back(render_pass_color_attachment);
     }
 

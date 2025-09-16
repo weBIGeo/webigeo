@@ -33,7 +33,7 @@ TileStorageTexture::TileStorageTexture(WGPUDevice device, WGPUTextureDescriptor 
     m_texture_array = std::make_unique<webgpu::raii::TextureWithSampler>(m_device, texture_desc, sampler_desc);
 }
 
-TileStorageTexture::TileStorageTexture(WGPUDevice device, const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format, WGPUTextureUsageFlags usage)
+TileStorageTexture::TileStorageTexture(WGPUDevice device, const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format, WGPUTextureUsage usage)
     : webgpu_engine::compute::TileStorageTexture(
           device, create_default_texture_descriptor(resolution, capacity, format, usage), create_default_sampler_descriptor())
 {
@@ -132,10 +132,10 @@ void TileStorageTexture::set_layer_used(size_t layer)
 }
 
 WGPUTextureDescriptor TileStorageTexture::create_default_texture_descriptor(
-    const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format, WGPUTextureUsageFlags usage)
+    const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format, WGPUTextureUsage usage)
 {
     WGPUTextureDescriptor texture_desc {};
-    texture_desc.label = "compute storage texture";
+    texture_desc.label = WGPUStringView { .data = "compute storage texture", .length = WGPU_STRLEN };
     texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
     texture_desc.size = { uint32_t(resolution.x), uint32_t(resolution.y), uint32_t(capacity) };
     texture_desc.mipLevelCount = 1;
@@ -148,7 +148,7 @@ WGPUTextureDescriptor TileStorageTexture::create_default_texture_descriptor(
 WGPUSamplerDescriptor TileStorageTexture::create_default_sampler_descriptor()
 {
     WGPUSamplerDescriptor sampler_desc {};
-    sampler_desc.label = "compute storage sampler";
+    sampler_desc.label = WGPUStringView { .data = "compute storage sampler", .length = WGPU_STRLEN };
     sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;

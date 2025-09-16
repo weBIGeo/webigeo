@@ -58,9 +58,9 @@ void BufferExportNode::run_impl()
         return;
     }
 
-    buffer.read_back_async(m_device, [this, dimensions](WGPUBufferMapAsyncStatus status, std::vector<uint32_t> data) {
+    buffer.read_back_async(m_device, [this, dimensions](WGPUMapAsyncStatus status, std::vector<uint32_t> data) {
         // Check if buffer mapping was successful
-        if (status != WGPUBufferMapAsyncStatus_Success) {
+        if (status != WGPUMapAsyncStatus_Success) {
             qWarning() << "Buffer readback failed with status:" << status;
             emit this->run_completed();
             return;

@@ -56,18 +56,20 @@ public:
         assert(static_cast<uint32_t>(data.width()) == m_descriptor.size.width);
         assert(static_cast<uint32_t>(data.height()) == m_descriptor.size.height);
 
-        WGPUImageCopyTexture image_copy_texture {};
-        image_copy_texture.texture = m_handle;
-        image_copy_texture.aspect = WGPUTextureAspect::WGPUTextureAspect_All;
-        image_copy_texture.mipLevel = 0;
-        image_copy_texture.origin = { 0, 0, layer };
+        WGPUTexelCopyTextureInfo texel_copy_texture_info {};
+        texel_copy_texture_info.texture = m_handle;
+        texel_copy_texture_info.mipLevel = 0;
+        texel_copy_texture_info.origin = WGPUOrigin3D { 0, 0, layer };
+        texel_copy_texture_info.aspect = WGPUTextureAspect::WGPUTextureAspect_All;
 
-        WGPUTextureDataLayout texture_data_layout {};
-        texture_data_layout.bytesPerRow = uint32_t(sizeof(RasterElementT) * data.width());
-        texture_data_layout.rowsPerImage = uint32_t(data.height());
-        texture_data_layout.offset = 0;
+        WGPUTexelCopyBufferLayout texture_data_layout_info {};
+        texture_data_layout_info.offset = 0;
+        texture_data_layout_info.bytesPerRow = uint32_t(sizeof(RasterElementT) * data.width());
+        texture_data_layout_info.rowsPerImage = uint32_t(data.height());
+
         WGPUExtent3D copy_extent { m_descriptor.size.width, m_descriptor.size.height, 1 };
-        wgpuQueueWriteTexture(queue, &image_copy_texture, data.bytes(), uint32_t(data.size_in_bytes()), &texture_data_layout, &copy_extent);
+
+        wgpuQueueWriteTexture(queue, &texel_copy_texture_info, data.bytes(), uint32_t(data.size_in_bytes()), &texture_data_layout_info, &copy_extent);
     }
 
     void write(WGPUQueue queue, const nucleus::utils::ColourTexture& data, uint32_t layer = 0);
@@ -77,7 +79,7 @@ public:
     void copy_to_buffer(WGPUDevice device, const RawBuffer<T>& buffer, glm::uvec3 origin = glm::uvec3(0), glm::uvec2 extent = glm::uvec2(0)) const
     {
         WGPUCommandEncoderDescriptor desc {};
-        desc.label = "copy texture to buffer command encoder";
+        desc.label = WGPUStringView { .data = "copy texture to buffer command encoder", .length = WGPU_STRLEN };
         raii::CommandEncoder encoder(device, desc);
         copy_to_buffer<T>(encoder.handle(), buffer, origin, extent);
         WGPUCommandBufferDescriptor cmd_buffer_desc {};
@@ -102,19 +104,20 @@ public:
 
         assert(bytes_per_extent_row * extent.y <= buffer.size_in_byte());
 
-        WGPUImageCopyTexture source {};
+        WGPUTexelCopyTextureInfo source {};
         source.texture = m_handle;
         source.mipLevel = 0;
         source.origin = { .x = origin.x, .y = origin.y, .z = origin.z };
         source.aspect = WGPUTextureAspect_All;
 
-        WGPUImageCopyBuffer destination {};
+        WGPUTexelCopyBufferInfo destination {};
         destination.buffer = buffer.handle();
         destination.layout.offset = 0;
         destination.layout.bytesPerRow = bytes_per_extent_row; // this has to be a multiple of 256
         destination.layout.rowsPerImage = extent.y;
 
         const WGPUExtent3D wgpu_extent { .width = extent.x, .height = extent.y, .depthOrArrayLayers = 1 };
+
         wgpuCommandEncoderCopyTextureToBuffer(encoder, &source, &destination, &wgpu_extent);
     }
 

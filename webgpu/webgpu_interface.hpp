@@ -65,11 +65,6 @@ WGPUSurface SDL_GetWGPUSurface(WGPUInstance instance, SDL_Window* window);
 }
 
 namespace webgpu {
-/**
- * Do platform specific stuff before webgpu is used. This function needs to be
- * called before any other webgpu function.
- */
-void platformInit();
 
 /**
  * A sleep function which works with webassembly by using asyncify and native by utilizing
@@ -100,5 +95,5 @@ void checkForTimingSupport(const WGPUAdapter& adapter, const WGPUDevice& device)
 bool isSleeping();
 
 WGPUAdapter requestAdapterSync(WGPUInstance instance, const WGPURequestAdapterOptions& options);
-WGPUDevice requestDeviceSync(WGPUAdapter adapter, const WGPUDeviceDescriptor& descriptor);
+WGPUDevice requestDeviceSync(WGPUInstance instance, WGPUAdapter adapter, const WGPUDeviceDescriptor& descriptor);
 } // namespace webgpu

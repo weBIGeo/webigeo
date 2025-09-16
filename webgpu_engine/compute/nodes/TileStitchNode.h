@@ -44,7 +44,7 @@ public:
         WGPUTextureFormat texture_format = WGPUTextureFormat::WGPUTextureFormat_RGBA8Unorm;
 
         // The usage flags of the output texture
-        WGPUTextureUsageFlags texture_usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
+        WGPUTextureUsage texture_usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
     };
 
     TileStitchNode(const PipelineManager& manager, WGPUDevice device, StitchSettings settings);

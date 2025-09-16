@@ -46,12 +46,17 @@ WebGpuTimer::WebGpuTimer(WGPUDevice device, uint32_t ring_buffer_size, size_t ca
 {
     m_timestamp_query_desc = {
         .nextInChain = nullptr,
-        .label = "Timing Query",
+        .label = WGPUStringView { .data = "Timing Query", .length = WGPU_STRLEN },
         .type = WGPUQueryType_Timestamp,
         .count = 2, // start and end
     };
     m_timestamp_queries = wgpuDeviceCreateQuerySet(m_device, &m_timestamp_query_desc);
-    m_timestamp_writes = { .querySet = m_timestamp_queries, .beginningOfPassWriteIndex = 0, .endOfPassWriteIndex = 1 };
+    m_timestamp_writes = {
+        .nextInChain = nullptr,
+        .querySet = m_timestamp_queries,
+        .beginningOfPassWriteIndex = 0,
+        .endOfPassWriteIndex = 1,
+    };
     m_timestamp_resolve
         = std::make_unique<webgpu::raii::RawBuffer<uint64_t>>(device, WGPUBufferUsage_QueryResolve | WGPUBufferUsage_CopySrc, 2, "Timestamp GPU Buffer");
 
@@ -95,8 +100,8 @@ void WebGpuTimer::resolve()
 {
     if (m_ringbuffer_index_read < 0)
         return; // Nothing to resolve
-    m_timestamp_readback_buffer[m_ringbuffer_index_read]->read_back_async(m_device, [this](WGPUBufferMapAsyncStatus status, std::vector<uint64_t> data) {
-        if (status == WGPUBufferMapAsyncStatus_Success) {
+    m_timestamp_readback_buffer[m_ringbuffer_index_read]->read_back_async(m_device, [this](WGPUMapAsyncStatus status, std::vector<uint64_t> data) {
+        if (status == WGPUMapAsyncStatus_Success) {
             const float result_in_s = (data[1] - data[0]) / 1e9;
             add_result(result_in_s);
         }

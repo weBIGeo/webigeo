@@ -449,16 +449,16 @@ bool Window::paint_legend_gui(float& min_value, float& max_value, bool& bin_inte
     bool somethingChanged = false;
 
     static bool print_mode = false;
-    if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_J))) {
+    if (ImGui::IsKeyPressed(ImGuiKey_J)) {
         print_mode = !print_mode;
     }
 
     static uint32_t digit_count = 1;
     // Up and down modifies digit count, clamp 0
-    if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_UpArrow))) {
+    if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) {
         digit_count = std::min(digit_count + 1, 6u);
     }
-    if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_DownArrow))) {
+    if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) {
         digit_count = std::max(digit_count - 1, 0u);
     }
     std::string digit_format = "%." + std::to_string(digit_count) + "f";
@@ -1052,8 +1052,8 @@ glm::vec4 Window::synchronous_position_readback(const glm::dvec2& ndc)
         src_texture.copy_to_buffer(m_device, *m_position_readback_buffer.get(), glm::uvec3(device_coordinates.x, device_coordinates.y, 0), glm::uvec2(16, 1));
 
         std::vector<glm::vec4> pos_buffer;
-        WGPUBufferMapAsyncStatus result = m_position_readback_buffer->read_back_sync(m_device, pos_buffer);
-        if (result == WGPUBufferMapAsyncStatus_Success) {
+        WGPUMapAsyncStatus result = m_position_readback_buffer->read_back_sync(m_context->webgpu_instance(), m_device, pos_buffer);
+        if (result == WGPUMapAsyncStatus_Success) {
             m_last_position_readback = pos_buffer[0];
         }
     } // else qDebug() << "Dropped position readback request, buffer still mapping.";
@@ -1399,7 +1399,7 @@ uint32_t getMaxMipLevelCount(const glm::uvec2 textureSize) { return std::max(1u,
 std::unique_ptr<webgpu::raii::TextureWithSampler> Window::create_overlay_texture(unsigned int width, unsigned int height)
 {
     WGPUTextureDescriptor texture_desc {};
-    texture_desc.label = "image overlay texture";
+    texture_desc.label = WGPUStringView { .data = "image overlay texture", .length = WGPU_STRLEN };
     texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
     texture_desc.size = { uint32_t(width), uint32_t(height), uint32_t(1) };
     texture_desc.mipLevelCount = getMaxMipLevelCount(glm::uvec2(width, height));
@@ -1411,7 +1411,7 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> Window::create_overlay_texture
     qDebug() << "for texture size: " << width << "x" << height << "pixels";
 
     WGPUSamplerDescriptor sampler_desc {};
-    sampler_desc.label = "image overlay sampler";
+    sampler_desc.label = WGPUStringView { .data = "image overlay sampler", .length = WGPU_STRLEN };
     sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
@@ -1488,7 +1488,7 @@ void Window::compute_mipmaps_for_texture(const webgpu::raii::Texture* texture)
         }
 
         WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
-        cmd_buffer_descriptor.label = "MipMap command buffer";
+        cmd_buffer_descriptor.label = WGPUStringView { .data = "MipMap command buffer", .length = WGPU_STRLEN };
         WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder.handle(), &cmd_buffer_descriptor);
         wgpuQueueSubmit(m_queue, 1, &command);
         wgpuCommandBufferRelease(command);
@@ -1745,7 +1745,7 @@ void Window::after_first_frame()
 {
 #if defined(QT_DEBUG)
     load_track_and_focus(DEFAULT_GPX_TRACK_PATH);
-    m_compute_graph->run();
+    // m_compute_graph->run();
 #endif
 }
 

@@ -86,7 +86,7 @@ void TileStitchNode::run_impl()
 
     // create output texture
     WGPUTextureDescriptor texture_desc {};
-    texture_desc.label = "compute storage texture";
+    texture_desc.label = WGPUStringView { .data = "compute storage texture", .length = WGPU_STRLEN };
     texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
     texture_desc.size = { size_pixels.x, size_pixels.y, 1 };
     texture_desc.mipLevelCount = 1;
@@ -95,7 +95,7 @@ void TileStitchNode::run_impl()
     texture_desc.usage = m_settings.texture_usage;
 
     WGPUSamplerDescriptor sampler_desc {};
-    sampler_desc.label = "compute storage sampler";
+    sampler_desc.label = WGPUStringView { .data = "compute storage sampler", .length = WGPU_STRLEN };
     sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
@@ -131,13 +131,13 @@ void TileStitchNode::run_impl()
         const auto& image = images[i];
         assert(image.width() == so.x && image.height() == so.y);
 
-        WGPUImageCopyTexture image_copy_texture {};
+        WGPUTexelCopyTextureInfo image_copy_texture {};
         image_copy_texture.texture = tex.handle();
         image_copy_texture.aspect = WGPUTextureAspect::WGPUTextureAspect_All;
         image_copy_texture.mipLevel = 0;
         image_copy_texture.origin = { pos.x, pos.y, 0 };
 
-        WGPUTextureDataLayout texture_data_layout {};
+        WGPUTexelCopyBufferLayout texture_data_layout {};
         texture_data_layout.bytesPerRow = uint32_t(sizeof(glm::u8vec4) * so.x);
         texture_data_layout.rowsPerImage = uint32_t(so.y);
         texture_data_layout.offset = 0;

@@ -65,12 +65,7 @@ void TrackRenderer::render(WGPUCommandEncoder command_encoder, const webgpu::rai
     color_attachment.loadOp = WGPULoadOp::WGPULoadOp_Load;
     color_attachment.storeOp = WGPUStoreOp::WGPUStoreOp_Store;
     color_attachment.clearValue = WGPUColor { 0.0, 0.0, 0.0, 0.0 };
-    // depthSlice field for RenderPassColorAttachment (https://github.com/gpuweb/gpuweb/issues/4251)
-    // this field specifies the slice to render to when rendering to a 3d texture (view)
-    // passing a valid index but referencing a non-3d texture leads to an error
-    // TODO use some constant that represents "undefined" for this value (I couldn't find a constant for this?)
-    //     (I just guessed -1 (max unsigned int value) and it worked)
-    color_attachment.depthSlice = -1;
+    color_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
 
     /*WGPURenderPassDepthStencilAttachment depth_stencil_attachment {};
     depth_stencil_attachment.view = depth_texture_view.handle();
@@ -82,7 +77,7 @@ void TrackRenderer::render(WGPUCommandEncoder command_encoder, const webgpu::rai
     depth_stencil_attachment.stencilReadOnly = true;*/
 
     WGPURenderPassDescriptor render_pass_descriptor {};
-    render_pass_descriptor.label = "line render render pass";
+    render_pass_descriptor.label = WGPUStringView { .data = "line render render pass", .length = WGPU_STRLEN };
     render_pass_descriptor.colorAttachmentCount = 1;
     render_pass_descriptor.colorAttachments = &color_attachment;
     render_pass_descriptor.depthStencilAttachment = nullptr;

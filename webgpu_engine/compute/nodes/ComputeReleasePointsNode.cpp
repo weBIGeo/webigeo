@@ -76,12 +76,12 @@ void ComputeReleasePointsNode::run_impl()
     // the result is a texture with the calculated release points
     {
         WGPUCommandEncoderDescriptor descriptor {};
-        descriptor.label = "release points compute command encoder";
+        descriptor.label = WGPUStringView { .data = "release points compute command encoder", .length = WGPU_STRLEN };
         webgpu::raii::CommandEncoder encoder(m_device, descriptor);
 
         {
             WGPUComputePassDescriptor compute_pass_desc {};
-            compute_pass_desc.label = "release points compute pass";
+            compute_pass_desc.label = WGPUStringView { .data = "release points compute pass", .length = WGPU_STRLEN };
             webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
 
             glm::uvec3 workgroup_counts
@@ -91,18 +91,27 @@ void ComputeReleasePointsNode::run_impl()
         }
 
         WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
-        cmd_buffer_descriptor.label = "release points compute command buffer";
+        cmd_buffer_descriptor.label = WGPUStringView { .data = "release points compute command buffer", .length = WGPU_STRLEN };
         WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder.handle(), &cmd_buffer_descriptor);
         wgpuQueueSubmit(m_queue, 1, &command);
         wgpuCommandBufferRelease(command);
     }
-    wgpuQueueOnSubmittedWorkDone(
-        m_queue,
-        []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
-            ComputeReleasePointsNode* _this = reinterpret_cast<ComputeReleasePointsNode*>(user_data);
-            _this->run_completed(); // emits signal run_finished()
-        },
-        this);
+
+    const auto on_work_done
+        = []([[maybe_unused]] WGPUQueueWorkDoneStatus status, [[maybe_unused]] WGPUStringView message, void* userdata, [[maybe_unused]] void* userdata2) {
+              ComputeReleasePointsNode* _this = reinterpret_cast<ComputeReleasePointsNode*>(userdata);
+              emit _this->run_completed();
+          };
+
+    WGPUQueueWorkDoneCallbackInfo callback_info {
+        .nextInChain = nullptr,
+        .mode = WGPUCallbackMode_AllowProcessEvents,
+        .callback = on_work_done,
+        .userdata1 = this,
+        .userdata2 = nullptr,
+    };
+
+    WGPUFuture future = wgpuQueueOnSubmittedWorkDone(m_queue, callback_info);
 }
 
 std::unique_ptr<webgpu::raii::TextureWithSampler> ComputeReleasePointsNode::create_release_points_texture(
@@ -110,7 +119,7 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> ComputeReleasePointsNode::crea
 {
     // create output texture
     WGPUTextureDescriptor texture_desc {};
-    texture_desc.label = "release points storage texture";
+    texture_desc.label = WGPUStringView { .data = "release points storage texture", .length = WGPU_STRLEN };
     texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
     texture_desc.size = { width, height, 1 };
     texture_desc.mipLevelCount = 1;
@@ -119,7 +128,7 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> ComputeReleasePointsNode::crea
     texture_desc.usage = usage;
 
     WGPUSamplerDescriptor sampler_desc {};
-    sampler_desc.label = "release points sampler";
+    sampler_desc.label = WGPUStringView { .data = "release points sampler", .length = WGPU_STRLEN };
     sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;

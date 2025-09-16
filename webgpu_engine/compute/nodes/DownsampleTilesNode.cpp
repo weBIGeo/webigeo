@@ -113,14 +113,22 @@ void DownsampleTilesNode::run_impl()
         }
     }
 
-    wgpuQueueOnSubmittedWorkDone(
-        m_queue,
-        []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
-            DownsampleTilesNode* _this = reinterpret_cast<DownsampleTilesNode*>(user_data);
-            _this->m_internal_storage_texture.release(); // release texture array when done
-            _this->run_completed(); // emits signal run_finished()
-        },
-        this);
+    const auto on_work_done
+        = []([[maybe_unused]] WGPUQueueWorkDoneStatus status, [[maybe_unused]] WGPUStringView message, void* userdata, [[maybe_unused]] void* userdata2) {
+              DownsampleTilesNode* _this = reinterpret_cast<DownsampleTilesNode*>(userdata);
+              _this->m_internal_storage_texture.release(); // release texture array when done
+              emit _this->run_completed(); // emits signal run_finished()
+          };
+
+    WGPUQueueWorkDoneCallbackInfo callback_info {
+        .nextInChain = nullptr,
+        .mode = WGPUCallbackMode_AllowProcessEvents,
+        .callback = on_work_done,
+        .userdata1 = this,
+        .userdata2 = nullptr,
+    };
+
+    wgpuQueueOnSubmittedWorkDone(m_queue, callback_info);
 }
 
 std::vector<radix::tile::Id> DownsampleTilesNode::get_tile_ids_for_downsampled_tiles(const std::vector<radix::tile::Id>& original_tile_ids)
@@ -164,12 +172,12 @@ std::optional<NodeRunFailureInfo> DownsampleTilesNode::compute_downsampled_tiles
     // bind GPU resources and run pipeline
     {
         WGPUCommandEncoderDescriptor descriptor {};
-        descriptor.label = "compute: downsample command encoder";
+        descriptor.label = WGPUStringView { .data = "compute: downsample command encoder", .length = WGPU_STRLEN };
         webgpu::raii::CommandEncoder encoder(m_device, descriptor);
 
         {
             WGPUComputePassDescriptor compute_pass_desc {};
-            compute_pass_desc.label = "compute: downsample pass";
+            compute_pass_desc.label = WGPUStringView { .data = "compute: downsample pass", .length = WGPU_STRLEN };
             webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
 
             glm::uvec3 workgroup_counts
@@ -186,7 +194,7 @@ std::optional<NodeRunFailureInfo> DownsampleTilesNode::compute_downsampled_tiles
         }
 
         WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
-        cmd_buffer_descriptor.label = "compute: downsampling command buffer";
+        cmd_buffer_descriptor.label = WGPUStringView { .data = "compute: downsampling command buffer", .length = WGPU_STRLEN };
         WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder.handle(), &cmd_buffer_descriptor);
         wgpuQueueSubmit(m_queue, 1, &command);
         wgpuCommandBufferRelease(command);

@@ -51,6 +51,7 @@
 
 #include "webgpu_interface.hpp"
 
+#include "util/string_cast.h"
 #include <QDebug>
 #include <assert.h>
 #include <webgpu/webgpu.h>
@@ -192,38 +193,28 @@ WGPUSurface SDL_GetWGPUSurface(WGPUInstance instance, SDL_Window* window)
         HWND hwnd = windowWMInfo.info.win.window;
         HINSTANCE hinstance = GetModuleHandle(NULL);
 
-#ifdef WEBGPU_BACKEND_DAWN
-        WGPUSurfaceSourceWindowsHWND fromWindowsHWND;
-        fromWindowsHWND.chain.sType = WGPUSType_SurfaceSourceWindowsHWND;
-#else
-        WGPUSurfaceDescriptorFromWindowsHWND fromWindowsHWND;
-        fromWindowsHWND.chain.sType = WGPUSType_SurfaceDescriptorFromWindowsHWND;
-#endif
-        fromWindowsHWND.chain.next = NULL;
-        fromWindowsHWND.hinstance = hinstance;
-        fromWindowsHWND.hwnd = hwnd;
+        WGPUSurfaceSourceWindowsHWND hwndDesc {};
+        hwndDesc.chain.sType = WGPUSType_SurfaceSourceWindowsHWND;
+        hwndDesc.chain.next = NULL;
+        hwndDesc.hinstance = hinstance;
+        hwndDesc.hwnd = hwnd;
 
         WGPUSurfaceDescriptor surfaceDescriptor;
-        surfaceDescriptor.nextInChain = &fromWindowsHWND.chain;
-        surfaceDescriptor.label = NULL;
+        surfaceDescriptor.nextInChain = &hwndDesc.chain;
+        surfaceDescriptor.label = WGPUStringView { .data = "default surface", .length = WGPU_STRLEN };
 
         return wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
     }
 #elif defined(SDL_VIDEO_DRIVER_EMSCRIPTEN)
     {
-#ifdef WEBGPU_BACKEND_DAWN
-        WGPUSurfaceSourceCanvasHTMLSelector_Emscripten fromCanvasHTMLSelector;
-        fromCanvasHTMLSelector.chain.sType = WGPUSType_SurfaceSourceCanvasHTMLSelector_Emscripten;
-#else
-        WGPUSurfaceDescriptorFromCanvasHTMLSelector fromCanvasHTMLSelector;
-        fromCanvasHTMLSelector.chain.sType = WGPUSType_SurfaceDescriptorFromCanvasHTMLSelector;
-#endif
-        fromCanvasHTMLSelector.chain.next = NULL;
-        fromCanvasHTMLSelector.selector = "#canvas";
+        WGPUEmscriptenSurfaceSourceCanvasHTMLSelector fromCanvasHTMLSelector {};
+        fromCanvasHTMLSelector.chain.sType = WGPUSType_EmscriptenSurfaceSourceCanvasHTMLSelector;
+        fromCanvasHTMLSelector.chain.next = nullptr;
+        fromCanvasHTMLSelector.selector = WGPUStringView { .data = "#canvas", .length = WGPU_STRLEN };
 
         WGPUSurfaceDescriptor surfaceDescriptor;
         surfaceDescriptor.nextInChain = &fromCanvasHTMLSelector.chain;
-        surfaceDescriptor.label = NULL;
+        surfaceDescriptor.label = WGPUStringView { .data = "default surface", .length = WGPU_STRLEN };
 
         return wgpuInstanceCreateSurface(instance, &surfaceDescriptor);
     }
@@ -237,17 +228,6 @@ namespace webgpu {
 
 bool timerSupportFlag = false;
 std::atomic_int sleeping_counter = 0;
-
-void platformInit()
-{
-    // Dawn forwards all wgpu* function calls to function pointer members of some struct.
-    // This is stored in some (Dawn internal) variable. In our current setup, all these
-    // function pointers default to nullptr, resulting in access violations when called.
-    // However, we can just set these pointers explicitly to use dawn_native.
-#ifndef __EMSCRIPTEN__
-    dawnProcSetProcs(&(dawn::native::GetProcs()));
-#endif
-}
 
 // NOTE: USE WITH CAUTION!
 void sleep([[maybe_unused]] const WGPUDevice& device, [[maybe_unused]] int milliseconds)
@@ -312,58 +292,68 @@ WGPUAdapter requestAdapterSync(WGPUInstance instance, const WGPURequestAdapterOp
         bool request_ended = false;
     } request_ended_data;
 
-    auto on_adapter_request_ended = [](WGPURequestAdapterStatus status, WGPUAdapter adapter, [[maybe_unused]] char const* message, void* userdata) {
-        AdapterRequestEndedData* request_ended_data = reinterpret_cast<AdapterRequestEndedData*>(userdata);
-        if (status == WGPURequestAdapterStatus::WGPURequestAdapterStatus_Success) {
-            request_ended_data->adapter = adapter;
-        } else {
-            request_ended_data->adapter = nullptr;
-        }
-        request_ended_data->request_ended = true;
+    auto on_adapter_request_ended
+        = [](WGPURequestAdapterStatus status, WGPUAdapter adapter, [[maybe_unused]] WGPUStringView message, void* userdata, [[maybe_unused]] void* userdata2) {
+              AdapterRequestEndedData* request_ended_data = reinterpret_cast<AdapterRequestEndedData*>(userdata);
+              if (status == WGPURequestAdapterStatus::WGPURequestAdapterStatus_Success) {
+                  request_ended_data->adapter = adapter;
+              } else {
+                  request_ended_data->adapter = nullptr;
+              }
+              request_ended_data->request_ended = true;
+          };
+
+    WGPURequestAdapterCallbackInfo callback_info {
+        .nextInChain = nullptr,
+        .mode = WGPUCallbackMode_WaitAnyOnly,
+        .callback = on_adapter_request_ended,
+        .userdata1 = &request_ended_data,
+        .userdata2 = nullptr,
     };
 
-    wgpuInstanceRequestAdapter(instance, &options, on_adapter_request_ended, &request_ended_data);
-
-#if __EMSCRIPTEN__
-    while (!request_ended_data.request_ended) {
-        emscripten_sleep(100);
+    WGPUFuture request_adapter_future = wgpuInstanceRequestAdapter(instance, &options, callback_info);
+    WGPUFutureWaitInfo future_wait_info { request_adapter_future, false };
+    WGPUWaitStatus status = wgpuInstanceWaitAny(instance, 1, &future_wait_info, 10e9); // wait for 10s max
+    if (status != WGPUWaitStatus_Success) {
+        qFatal() << "Failed to obtain instance, WGPUWaitStatus was " << status;
     }
-#endif
 
     assert(request_ended_data.request_ended);
     return request_ended_data.adapter;
 }
 
 // Request webgpu device synchronously. Adapted from webgpu.hpp to vanilla webGPU types.
-WGPUDevice requestDeviceSync(WGPUAdapter adapter, const WGPUDeviceDescriptor& descriptor)
+WGPUDevice requestDeviceSync(WGPUInstance instance, WGPUAdapter adapter, const WGPUDeviceDescriptor& descriptor)
 {
-    struct DeviceRequestEndedData {
-        WGPUDevice device = nullptr;
-        bool request_ended = false;
-    } request_ended_data;
+    WGPUDevice device = nullptr;
 
-    auto on_device_request_ended = [](WGPURequestDeviceStatus status, WGPUDevice device, [[maybe_unused]] char const* message, void* userdata) {
-        DeviceRequestEndedData* request_ended_data = reinterpret_cast<DeviceRequestEndedData*>(userdata);
+    auto on_device_request_ended
+        = [](WGPURequestDeviceStatus status, WGPUDevice device, [[maybe_unused]] WGPUStringView message, void* userdata, [[maybe_unused]] void* userdata2) {
+              WGPUDevice* device_handle = reinterpret_cast<WGPUDevice*>(userdata);
 
-        if (status == WGPURequestDeviceStatus::WGPURequestDeviceStatus_Success) {
-            request_ended_data->device = device;
-        } else {
-            request_ended_data->device = nullptr;
-            qCritical() << "requesting WebGPU device failed, error message: " << message;
-        }
-        request_ended_data->request_ended = true;
+              if (status == WGPURequestDeviceStatus::WGPURequestDeviceStatus_Success) {
+                  *device_handle = device;
+              } else {
+                  qCritical() << "requesting WebGPU device failed, error message: " << message.data;
+              }
+          };
+
+    WGPURequestDeviceCallbackInfo callback_info {
+        .nextInChain = nullptr,
+        .mode = WGPUCallbackMode_WaitAnyOnly,
+        .callback = on_device_request_ended,
+        .userdata1 = &device,
+        .userdata2 = nullptr,
     };
 
-    wgpuAdapterRequestDevice(adapter, &descriptor, on_device_request_ended, &request_ended_data);
-
-#if __EMSCRIPTEN__
-    while (!request_ended_data.request_ended) {
-        emscripten_sleep(100);
+    WGPUFuture device_request_future = wgpuAdapterRequestDevice(adapter, &descriptor, callback_info);
+    WGPUFutureWaitInfo future_wait_info { device_request_future, false };
+    WGPUWaitStatus status = wgpuInstanceWaitAny(instance, 1, &future_wait_info, 10e9); // timeout 10s
+    if (status != WGPUWaitStatus_Success) {
+        qFatal() << "Failed to obtain Webgpu device, WGPUWaitStatus was " << status;
     }
-#endif
 
-    assert(request_ended_data.request_ended);
-    return request_ended_data.device;
+    return device;
 }
 
 } // namespace webgpu

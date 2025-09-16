@@ -179,12 +179,12 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
     for (uint32_t run = 0; run < m_settings.num_runs; run++) {
         update_gpu_settings(run); // change seed each run
         WGPUCommandEncoderDescriptor descriptor {};
-        descriptor.label = "avalanche trajectories compute command encoder";
+        descriptor.label = WGPUStringView { .data = "avalanche trajectories compute command encoder", .length = WGPU_STRLEN };
         webgpu::raii::CommandEncoder encoder(m_device, descriptor);
 
         {
             WGPUComputePassDescriptor compute_pass_desc {};
-            compute_pass_desc.label = "avalanche trajectories compute pass";
+            compute_pass_desc.label = WGPUStringView { .data = "avalanche trajectories compute pass", .length = WGPU_STRLEN };
             webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
 
             glm::uvec3 workgroup_counts
@@ -194,24 +194,33 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
         }
 
         WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
-        cmd_buffer_descriptor.label = "avalanche trajectories compute command buffer";
+        cmd_buffer_descriptor.label = WGPUStringView { .data = "avalanche trajectories compute command buffer", .length = WGPU_STRLEN };
         WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder.handle(), &cmd_buffer_descriptor);
         wgpuQueueSubmit(m_queue, 1, &command);
         wgpuCommandBufferRelease(command);
     }
-    wgpuQueueOnSubmittedWorkDone(
-        m_queue,
-        []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
-            ComputeAvalancheTrajectoriesNode* _this = reinterpret_cast<ComputeAvalancheTrajectoriesNode*>(user_data);
-            _this->run_completed(); // emits signal run_finished()
-        },
-        this);
+
+    const auto on_work_done
+        = []([[maybe_unused]] WGPUQueueWorkDoneStatus status, [[maybe_unused]] WGPUStringView message, void* userdata, [[maybe_unused]] void* userdata2) {
+              ComputeAvalancheTrajectoriesNode* _this = reinterpret_cast<ComputeAvalancheTrajectoriesNode*>(userdata);
+              emit _this->run_completed(); // emits signal run_finished()
+          };
+
+    WGPUQueueWorkDoneCallbackInfo callback_info {
+        .nextInChain = nullptr,
+        .mode = WGPUCallbackMode_AllowProcessEvents,
+        .callback = on_work_done,
+        .userdata1 = this,
+        .userdata2 = nullptr,
+    };
+
+    wgpuQueueOnSubmittedWorkDone(m_queue, callback_info);
 }
 
 std::unique_ptr<webgpu::raii::Sampler> ComputeAvalancheTrajectoriesNode::create_normal_sampler(WGPUDevice device)
 {
     WGPUSamplerDescriptor sampler_desc {};
-    sampler_desc.label = "compute trajectories normal sampler";
+    sampler_desc.label = WGPUStringView { .data = "compute trajectories normal sampler", .length = WGPU_STRLEN };
     sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
@@ -228,7 +237,7 @@ std::unique_ptr<webgpu::raii::Sampler> ComputeAvalancheTrajectoriesNode::create_
 std::unique_ptr<webgpu::raii::Sampler> ComputeAvalancheTrajectoriesNode::create_height_sampler(WGPUDevice device)
 {
     WGPUSamplerDescriptor sampler_desc {};
-    sampler_desc.label = "compute trajectories height sampler";
+    sampler_desc.label = WGPUStringView { .data = "compute trajectories height sampler", .length = WGPU_STRLEN };
     sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;

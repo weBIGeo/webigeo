@@ -94,30 +94,38 @@ void IterativeSimulationNode::run_impl()
 
         // bind GPU resources and run pipeline
         WGPUCommandEncoderDescriptor descriptor {};
-        descriptor.label = "flowpy compute command encoder";
+        descriptor.label = WGPUStringView { .data = "flowpy compute command encoder", .length = WGPU_STRLEN };
         webgpu::raii::CommandEncoder encoder(m_device, descriptor);
         {
             WGPUComputePassDescriptor compute_pass_desc {};
-            compute_pass_desc.label = "flowpy compute pass";
+            compute_pass_desc.label = WGPUStringView { .data = "flowpy compute pass", .length = WGPU_STRLEN };
             webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
             wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, compute_bind_group.handle(), 0, nullptr);
             m_pipeline_manager->iterative_simulation_compute_pipeline().run(compute_pass, workgroup_counts);
         }
 
         WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
-        cmd_buffer_descriptor.label = "flowpy compute command buffer";
+        cmd_buffer_descriptor.label = WGPUStringView { .data = "flowpy compute command buffer", .length = WGPU_STRLEN };
         WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder.handle(), &cmd_buffer_descriptor);
         wgpuQueueSubmit(m_queue, 1, &command);
         wgpuCommandBufferRelease(command);
     }
 
-    wgpuQueueOnSubmittedWorkDone(
-        m_queue,
-        []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
-            IterativeSimulationNode* _this = reinterpret_cast<IterativeSimulationNode*>(user_data);
-            _this->run_completed(); // emits signal run_finished()
-        },
-        this);
+    const auto on_work_done
+        = []([[maybe_unused]] WGPUQueueWorkDoneStatus status, [[maybe_unused]] WGPUStringView message, void* userdata, [[maybe_unused]] void* userdata2) {
+              IterativeSimulationNode* _this = reinterpret_cast<IterativeSimulationNode*>(userdata);
+              emit _this->run_completed();
+          };
+
+    WGPUQueueWorkDoneCallbackInfo callback_info {
+        .nextInChain = nullptr,
+        .mode = WGPUCallbackMode_AllowProcessEvents,
+        .callback = on_work_done,
+        .userdata1 = this,
+        .userdata2 = nullptr,
+    };
+
+    wgpuQueueOnSubmittedWorkDone(m_queue, callback_info);
 }
 
 std::unique_ptr<webgpu::raii::TextureWithSampler> IterativeSimulationNode::create_texture(
@@ -125,7 +133,7 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> IterativeSimulationNode::creat
 {
     // create output texture
     WGPUTextureDescriptor texture_desc {};
-    texture_desc.label = "iterative avalanche node texture";
+    texture_desc.label = WGPUStringView { .data = "iterative avalanche node texture", .length = WGPU_STRLEN };
     texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
     texture_desc.size = { width, height, 1 };
     texture_desc.mipLevelCount = 1;
@@ -134,7 +142,7 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> IterativeSimulationNode::creat
     texture_desc.usage = usage;
 
     WGPUSamplerDescriptor sampler_desc {};
-    sampler_desc.label = "iterative avalanche node sampler";
+    sampler_desc.label = WGPUStringView { .data = "iterative avalanche node sampler", .length = WGPU_STRLEN };
     sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;

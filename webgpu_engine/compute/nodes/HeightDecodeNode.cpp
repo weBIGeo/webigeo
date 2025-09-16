@@ -51,7 +51,7 @@ void HeightDecodeNode::run_impl()
     glm::uvec2 size = glm::uvec2(input_texture.texture().width(), input_texture.texture().height());
 
     WGPUTextureDescriptor texture_desc {};
-    texture_desc.label = "decoded height texture";
+    texture_desc.label = WGPUStringView { .data = "decoded height texture", .length = WGPU_STRLEN };
     texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
     texture_desc.size = { size.x, size.y, 1 };
     texture_desc.mipLevelCount = 1;
@@ -60,7 +60,7 @@ void HeightDecodeNode::run_impl()
     texture_desc.usage = m_settings.texture_usage;
 
     WGPUSamplerDescriptor sampler_desc {};
-    sampler_desc.label = "decoded height sampler";
+    sampler_desc.label = WGPUStringView { .data = "decoded height sampler", .length = WGPU_STRLEN };
     sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
@@ -91,12 +91,12 @@ void HeightDecodeNode::run_impl()
 
     {
         WGPUCommandEncoderDescriptor descriptor {};
-        descriptor.label = "compute controller command encoder";
+        descriptor.label = WGPUStringView { .data = "compute controller command encoder", .length = WGPU_STRLEN };
         webgpu::raii::CommandEncoder encoder(m_device, descriptor);
 
         {
             WGPUComputePassDescriptor compute_pass_desc {};
-            compute_pass_desc.label = "compute controller compute pass";
+            compute_pass_desc.label = WGPUStringView { .data = "compute controller compute pass", .length = WGPU_STRLEN };
             webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
 
             glm::uvec3 workgroup_counts = glm::ceil(glm::vec3(size.x, size.y, 1) / glm::vec3(SHADER_WORKGROUP_SIZE));
@@ -105,21 +105,29 @@ void HeightDecodeNode::run_impl()
         }
 
         WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
-        cmd_buffer_descriptor.label = "HeightDecode command buffer";
+        cmd_buffer_descriptor.label = WGPUStringView { .data = "HeightDecode command buffer", .length = WGPU_STRLEN };
         WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder.handle(), &cmd_buffer_descriptor);
         wgpuQueueSubmit(m_queue, 1, &command);
         wgpuCommandBufferRelease(command);
     }
 
-    /*
-    wgpuQueueOnSubmittedWorkDone(
-        m_queue,
-        []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
-            auto* _this = static_cast<HeightDecodeNode*>(user_data);
-            auto& tex = _this->m_output_texture->texture();
-            tex.save_to_file(_this->m_device, "C:\\tmp\\asd2.png");
-        },
-        this);*/
+    /*const auto on_work_done
+        = []([[maybe_unused]] WGPUQueueWorkDoneStatus status, [[maybe_unused]] WGPUStringView message, void* userdata, [[maybe_unused]] void* userdata2) {
+              //auto* _this = static_cast<HeightDecodeNode*>(userdata);
+              // auto& tex = _this->m_output_texture->texture();
+              // tex.save_to_file(_this->m_device, "C:\\tmp\\asd2.png");
+              //emit _this->run_completed();
+          };
+
+    WGPUQueueWorkDoneCallbackInfo callback_info {
+        .nextInChain = nullptr,
+        .mode = WGPUCallbackMode_AllowProcessEvents,
+        .callback = on_work_done,
+        .userdata1 = this,
+        .userdata2 = nullptr,
+    };
+
+    wgpuQueueOnSubmittedWorkDone(m_queue, callback_info);*/
 
     // NOTE: Maybe this needs to be inside onsubmittedworkdone callback? But technically
     // I don't think we should wait for the queue...

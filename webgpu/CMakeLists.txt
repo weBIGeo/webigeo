@@ -56,15 +56,47 @@ set(SOURCES
 add_library(webgpu STATIC ${SOURCES})
 
 if (EMSCRIPTEN)
-    target_compile_options(webgpu PUBLIC -sUSE_SDL=2)
-    target_link_options(webgpu PUBLIC -sUSE_WEBGPU=1)
-else()
-    # add dawn libraries to webgpu library
-    include(${CMAKE_SOURCE_DIR}/cmake/alp_target_add_dawn.cmake)
-    alp_target_add_dawn(webgpu "${ALP_DAWN_DIR}" PUBLIC)
+    target_compile_options(webgpu PUBLIC
+        "--use-port=sdl2"
+        "--use-port=emdawnwebgpu" # could use this instead of locally compiled emdawnwebgpu
+    )
 
-    # set public IMGUI_IMPL_WEBGPU_BACKEND_DAWN flag
-    target_compile_definitions(webgpu PUBLIC IMGUI_IMPL_WEBGPU_BACKEND_DAWN)
+    # using self-compiled version of emdawnwebgpu_cpp seems to introduce compile errors, stick to --use-port for now
+    #target_link_libraries(webgpu PUBLIC emdawnwebgpu_cpp)
+
+    target_link_options(webgpu PUBLIC
+        "-sASYNCIFY=1"
+        "--use-port=sdl2"
+        "--use-port=emdawnwebgpu" # could use this instead of locally compiled emdawnwebgpu
+    )
+
+else()
+
+    # set configuration variables for Dawn build
+    set(DAWN_BUILD_MONOLITHIC_LIBRARY STATIC)
+    set(DAWN_FETCH_DEPENDENCIES ON)
+    set(DAWN_FORCE_SYSTEM_COMPONENT_LOAD ON) # currently needed, see https://issues.chromium.org/issues/441317244
+    set(TINT_BUILD_SPV_READER OFF)
+    set(TINT_BUILD_TESTS OFF)
+    set(TINT_BUILD_FUZZERS OFF)
+    set(TINT_BUILD_BENCHMARKS OFF)
+    set(TINT_BUILD_AS_OTHER_OS OFF)
+    set(DAWN_BUILD_SAMPLES OFF)
+    set(DAWN_ENABLE_D3D11 OFF)
+    set(DAWN_ENABLE_D3D12 OFF)
+    set(DAWN_ENABLE_METAL OFF)
+    set(DAWN_ENABLE_NULL OFF)
+    set(DAWN_ENABLE_DESKTOP_GL OFF)
+    set(DAWN_ENABLE_OPENGLES OFF)
+    set(DAWN_ENABLE_VULKAN ON)
+    set(DAWN_USE_WINDOWS_UI OFF)
+    #set(DAWN_USE_GLFW OFF) # TODO turning this off leads to a linker error, "cant find glfw.lib" - how/where/why are we trying to link to glfw?
+
+    # manually cloned at ALP_DAWN_DIR
+    add_subdirectory("${ALP_DAWN_DIR}" "${ALP_DAWN_DIR}/build/${CMAKE_CXX_COMPILER_ID}_${CMAKE_CXX_COMPILER_VERSION}_${CMAKE_BUILD_TYPE}" EXCLUDE_FROM_ALL)
+
+    # add dawn libraries to webgpu library
+    target_link_libraries(webgpu PUBLIC webgpu_dawn)
 
     # find and add SDL2 (you may install it to the default install folder or ALP_SDL_INSTALL_DIR)
     # Add ALP_SDL_INSTALL_DIR to CMake's search path for find_package
@@ -85,6 +117,9 @@ else()
         endif()
     endif()
 endif()
+
+# set public IMGUI_IMPL_WEBGPU_BACKEND_DAWN flag
+target_compile_definitions(webgpu PUBLIC IMGUI_IMPL_WEBGPU_BACKEND_DAWN)
 
 target_link_libraries(webgpu PUBLIC Qt::Core nucleus)
 target_include_directories(webgpu PRIVATE .)

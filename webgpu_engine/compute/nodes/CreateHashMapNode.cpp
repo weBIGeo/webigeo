@@ -70,19 +70,27 @@ void CreateHashMapNode::run_impl()
     }
     m_output_tile_id_to_index.update_gpu_data();
 
-    wgpuQueueOnSubmittedWorkDone(
-        m_queue,
-        []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
-            CreateHashMapNode* _this = reinterpret_cast<CreateHashMapNode*>(user_data);
-            // qDebug() << "hash=" << gpu_hash(tile::Id { 11, { 1096, 1328 } }) << Qt::endl;
-            // std::cout << " done, reading back buffer for debugging purposes..." << std::endl;
-            // std::vector<GpuTileId> key_buffer_contents = _this->m_output_tile_id_to_index.key_buffer().read_back_sync(_this->m_device, 10000);
-            // std::vector<uint32_t> value_buffer_contents = _this->m_output_tile_id_to_index.value_buffer().read_back_sync(_this->m_device, 10000);
-            // std::cout << "done" << std::endl;
+    const auto on_work_done
+        = []([[maybe_unused]] WGPUQueueWorkDoneStatus status, [[maybe_unused]] WGPUStringView message, void* userdata, [[maybe_unused]] void* userdata2) {
+              CreateHashMapNode* _this = reinterpret_cast<CreateHashMapNode*>(userdata);
+              // qDebug() << "hash=" << gpu_hash(tile::Id { 11, { 1096, 1328 } }) << Qt::endl;
+              // std::cout << " done, reading back buffer for debugging purposes..." << std::endl;
+              // std::vector<GpuTileId> key_buffer_contents = _this->m_output_tile_id_to_index.key_buffer().read_back_sync(_this->m_device, 10000);
+              // std::vector<uint32_t> value_buffer_contents = _this->m_output_tile_id_to_index.value_buffer().read_back_sync(_this->m_device, 10000);
+              // std::cout << "done" << std::endl;
 
-            emit _this->run_completed();
-        },
-        this);
+              emit _this->run_completed();
+          };
+
+    WGPUQueueWorkDoneCallbackInfo callback_info {
+        .nextInChain = nullptr,
+        .mode = WGPUCallbackMode_AllowProcessEvents,
+        .callback = on_work_done,
+        .userdata1 = this,
+        .userdata2 = nullptr,
+    };
+
+    wgpuQueueOnSubmittedWorkDone(m_queue, callback_info);
 }
 
 } // namespace webgpu_engine::compute::nodes

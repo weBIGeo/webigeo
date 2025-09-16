@@ -68,7 +68,7 @@ void TileGeometry::init(WGPUDevice device)
     m_n_edge_vertices_buffer->update_gpu_data(m_queue);
 
     WGPUTextureDescriptor height_texture_desc {};
-    height_texture_desc.label = "height texture";
+    height_texture_desc.label = WGPUStringView { .data = "height texture", .length = WGPU_STRLEN };
     height_texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
     height_texture_desc.size = { uint32_t(height_resolution.x), uint32_t(height_resolution.y), uint32_t(num_layers) };
     height_texture_desc.mipLevelCount = 1;
@@ -77,7 +77,7 @@ void TileGeometry::init(WGPUDevice device)
     height_texture_desc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
 
     WGPUSamplerDescriptor height_sampler_desc {};
-    height_sampler_desc.label = "height sampler";
+    height_sampler_desc.label = WGPUStringView { .data = "height sampler", .length = WGPU_STRLEN };
     height_sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     height_sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     height_sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
@@ -96,7 +96,7 @@ void TileGeometry::init(WGPUDevice device)
 
     // TODO mipmaps and compression
     WGPUTextureDescriptor ortho_texture_desc {};
-    ortho_texture_desc.label = "ortho texture";
+    ortho_texture_desc.label = WGPUStringView { .data = "ortho texture", .length = WGPU_STRLEN };
     ortho_texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
     // TODO: array layers might become larger than allowed by graphics API
     ortho_texture_desc.size = { uint32_t(ortho_resolution.x), uint32_t(ortho_resolution.y), uint32_t(num_layers) };
@@ -106,7 +106,7 @@ void TileGeometry::init(WGPUDevice device)
     ortho_texture_desc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
 
     WGPUSamplerDescriptor ortho_sampler_desc {};
-    ortho_sampler_desc.label = "ortho sampler";
+    ortho_sampler_desc.label = WGPUStringView { .data = "ortho sampler", .length = WGPU_STRLEN };
     ortho_sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     ortho_sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     ortho_sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;

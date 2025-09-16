@@ -93,32 +93,34 @@ void Texture::write(WGPUQueue queue, const nucleus::utils::ColourTexture& data, 
     assert(static_cast<uint32_t>(data.height()) == m_descriptor.size.height);
     assert(data.format() == nucleus::utils::ColourTexture::Format::Uncompressed_RGBA); // TODO compressed textures
 
-    WGPUImageCopyTexture image_copy_texture {};
+    WGPUTexelCopyTextureInfo image_copy_texture {};
     image_copy_texture.texture = m_handle;
     image_copy_texture.aspect = WGPUTextureAspect::WGPUTextureAspect_All;
     image_copy_texture.mipLevel = 0;
-    image_copy_texture.origin = { 0, 0, layer };
+    image_copy_texture.origin = WGPUOrigin3D { 0, 0, layer };
 
-    WGPUTextureDataLayout texture_data_layout {};
+    WGPUTexelCopyBufferLayout texture_data_layout {};
     texture_data_layout.bytesPerRow = 4 * data.width(); // for uncompressed RGBA
     texture_data_layout.rowsPerImage = data.height();
     texture_data_layout.offset = 0;
+
     WGPUExtent3D copy_extent { m_descriptor.size.width, m_descriptor.size.height, 1 };
+
     wgpuQueueWriteTexture(queue, &image_copy_texture, data.data(), data.n_bytes(), &texture_data_layout, &copy_extent);
 }
 
 void Texture::copy_to_texture(WGPUCommandEncoder encoder, uint32_t source_layer, const Texture& target_texture, uint32_t target_layer) const
 {
-    WGPUImageCopyTexture source {};
+    WGPUTexelCopyTextureInfo source {};
     source.texture = m_handle;
     source.mipLevel = 0;
-    source.origin = { .x = 0, .y = 0, .z = source_layer };
+    source.origin = WGPUOrigin3D { .x = 0, .y = 0, .z = source_layer };
     source.aspect = WGPUTextureAspect_All;
 
-    WGPUImageCopyTexture destination {};
+    WGPUTexelCopyTextureInfo destination {};
     destination.texture = target_texture.handle();
     destination.mipLevel = 0;
-    destination.origin = { .x = 0, .y = 0, .z = target_layer };
+    destination.origin = WGPUOrigin3D { .x = 0, .y = 0, .z = target_layer };
     destination.aspect = WGPUTextureAspect_All;
 
     const WGPUExtent3D extent { .width = m_descriptor.size.width, .height = m_descriptor.size.height, .depthOrArrayLayers = 1 };
@@ -137,11 +139,11 @@ void Texture::read_back_async(WGPUDevice device, size_t layer_index, ReadBackCal
 
     copy_to_buffer(device, *(read_back_state->buffer), glm::uvec3(0, 0, uint32_t(layer_index)));
 
-    auto on_buffer_mapped = [](WGPUBufferMapAsyncStatus status, void* user_data) {
+    auto on_buffer_mapped = [](WGPUMapAsyncStatus status, WGPUStringView message, void* user_data, [[maybe_unused]] void* user_data2) {
         ReadBackState* current_state = reinterpret_cast<ReadBackState*>(user_data);
 
-        if (status != WGPUBufferMapAsyncStatus_Success) {
-            qCritical() << "error: failed mapping buffer for ComputeTileStorage read back";
+        if (status != WGPUMapAsyncStatus_Success) {
+            qCritical() << "error: failed mapping buffer for ComputeTileStorage read back, message: " << message.data;
             delete current_state;
             return;
         }
@@ -159,8 +161,16 @@ void Texture::read_back_async(WGPUDevice device, size_t layer_index, ReadBackCal
         delete current_state;
     };
 
+    WGPUBufferMapCallbackInfo on_buffer_mapped_callback_info {
+        .nextInChain = nullptr,
+        .mode = WGPUCallbackMode_AllowProcessEvents,
+        .callback = on_buffer_mapped,
+        .userdata1 = read_back_state,
+        .userdata2 = nullptr,
+    };
+
     wgpuBufferMapAsync(
-        read_back_state->buffer->handle(), WGPUMapMode_Read, 0, uint32_t(read_back_state->buffer->size_in_byte()), on_buffer_mapped, read_back_state);
+        read_back_state->buffer->handle(), WGPUMapMode_Read, 0, uint32_t(read_back_state->buffer->size_in_byte()), on_buffer_mapped_callback_info);
 }
 
 void Texture::save_to_file(WGPUDevice device, const std::string& filename, size_t layer_index)

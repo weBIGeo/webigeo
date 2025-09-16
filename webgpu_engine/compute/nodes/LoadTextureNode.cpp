@@ -64,7 +64,7 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> LoadTextureNode::create_textur
 {
     // create output texture
     WGPUTextureDescriptor texture_desc {};
-    texture_desc.label = "LoadTextureNode output texture";
+    texture_desc.label = WGPUStringView { .data = "LoadTextureNode output texture", .length = WGPU_STRLEN };
     texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
     texture_desc.size = { width, height, 1 };
     texture_desc.mipLevelCount = 1;
@@ -73,7 +73,7 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> LoadTextureNode::create_textur
     texture_desc.usage = usage;
 
     WGPUSamplerDescriptor sampler_desc {};
-    sampler_desc.label = "LoadTextureNode sampler";
+    sampler_desc.label = WGPUStringView { .data = "LoadTextureNode sampler", .length = WGPU_STRLEN };
     sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;

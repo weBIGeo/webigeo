@@ -4,7 +4,7 @@ weBIGeo's primary target is the web. Additionally we support native builds on Wi
 ## Building the web version
 
 ### Dependencies
-* Qt 6.7.2 with
+* Qt 6.9.2 with
   * MinGW (GCC on linux might work but not tested)
   * Qt Shader Tools (otherwise Qt configure fails)
   * Sources
@@ -12,28 +12,28 @@ weBIGeo's primary target is the web. Additionally we support native builds on Wi
 * To exactly follow along with build instructions you need `ninja`, `cmake` and `emsdk` in your PATH
 
 ### Building Qt with emscripten (singlethreaded)
-For WebGPU to work we need to compile with emscripten version > 3.1.47. The default emscripten version, supported by Qt 6.7.2 is 3.1.50 (https://doc.qt.io/qt-6/wasm.html#installing-emscripten). However, newer emscripten releases include important fixes (e.g. requesting GPU limits from adapter) and API changes (e.g. new surface API) for webGPU. Therefore we need to recompile the Qt sources with the appropriate version by ourselfs. (This step might be unnecessary in the near future with the release of [Qt 6.8](https://wiki.qt.io/Qt_6.8_Release)).
+For WebGPU to work we need to compile with emscripten version > 4.0.10. The default emscripten version, supported by Qt 6.9.2 is 3.1.70 (https://doc.qt.io/qt-6/wasm.html#installing-emscripten). However, newer emscripten releases include important features needed by Dawn and its implementation of webgpu.h. Therefore we need to recompile the Qt sources with the appropriate version by ourselves. (This step might be unnecessary in the near future with the release of [Qt 6.10](https://wiki.qt.io/Qt_6.10_Release)).
 
 1. Open new CMD Terminal
 
 2. Navigate to Qt Path:
    ```
-   cd "C:\Qt\6.7.2"
+   cd "C:\Qt\6.9.2"
    ```
 
 3. Generate build and install path (and make sure they are empty)
    ```
-   mkdir build & mkdir wasm_singlethread_emsdk_3_1_61_custom & cd build
+   mkdir build & mkdir wasm_singlethread_emsdk_4_0_14_custom & cd build
    ```
 
 4. Install and activate specific emsdk version
    ```
-   emsdk install 3.1.61 & emsdk activate 3.1.61
+   emsdk install 4.0.14 & emsdk activate 4.0.14
    ```
 
 5. Configure Qt with a minimal setup (takes ~ 4min)
    ```
-   "../Src/configure" -debug-and-release -qt-host-path C:\Qt\6.7.2\mingw_64 -make libs -no-widgets -optimize-size -no-warnings-are-errors -platform wasm-emscripten -submodules qtdeclarative -no-dbus -no-sql-sqlite -feature-wasm-simd128 -no-feature-cssparser -no-feature-quick-treeview -no-feature-quick-pathview -no-feature-texthtmlparser -no-feature-textodfwriter -no-feature-quickcontrols2-windows -no-feature-quickcontrols2-macos -no-feature-quickcontrols2-ios -no-feature-quickcontrols2-imagine -no-feature-quickcontrols2-universal -no-feature-quickcontrols2-fusion -no-feature-qtwebengine-build -no-feature-qtprotobufgen -no-feature-qtpdf-build -no-feature-pdf -no-feature-printer -no-feature-sqlmodel -no-feature-qtpdf-quick-build -no-feature-quick-pixmap-cache-threaded-download -feature-quick-canvas -no-feature-quick-designer -no-feature-quick-particles -no-feature-quick-sprite -no-feature-raster-64bit -no-feature-raster-fp -prefix ../wasm_singlethread_emsdk_3_1_61_custom
+   "../Src/configure" -debug-and-release -qt-host-path C:\Qt\6.9.2\msvc2022_64 -make libs -no-widgets -optimize-size -no-warnings-are-errors -platform wasm-emscripten -submodules qtdeclarative -no-dbus -no-sql-sqlite -feature-wasm-simd128 -no-feature-cssparser -no-feature-quick-treeview -no-feature-quick-pathview -no-feature-texthtmlparser -no-feature-textodfwriter -no-feature-quickcontrols2-windows -no-feature-quickcontrols2-macos -no-feature-quickcontrols2-ios -no-feature-quickcontrols2-imagine -no-feature-quickcontrols2-universal -no-feature-quickcontrols2-fusion -no-feature-qtprotobufgen -no-feature-pdf -no-feature-printer -no-feature-sqlmodel -no-feature-quick-pixmap-cache-threaded-download -feature-quick-canvas -no-feature-quick-designer -no-feature-quick-particles -no-feature-quick-sprite -no-feature-raster-64bit -no-feature-raster-fp -prefix ../wasm_singlethread_emscripten_4_0_14_custom
    ```
 
 6. Build Qt (takes ~ 8min)
@@ -58,22 +58,22 @@ For multithreading to work Qt and emscripten properly, we have to yet again comp
 
 2. Navigate to Qt Path:
    ```
-   cd "C:\Qt\6.7.2"
+   cd "C:\Qt\6.9.2"
    ```
 
 3. Generate build and install path (and make sure they are empty)
    ```
-   mkdir build & mkdir wasm_multithread_emsdk_3_1_61_custom & cd build
+   mkdir build & mkdir wasm_multithread_emsdk_4_0_14_custom & cd build
    ```
 
 4. Install and activate specific emsdk version
    ```
-   emsdk install 3.1.61 & emsdk activate 3.1.61
+   emsdk install 4.0.14 & emsdk activate 4.0.14
    ```
 
 5. Configure Qt with a minimal setup
    ```
-   "../Src/configure" -debug-and-release -qt-host-path C:\Qt\6.7.2\mingw_64 -make libs -no-widgets -optimize-size -no-warnings-are-errors -platform wasm-emscripten -submodules qtdeclarative -no-dbus -no-sql-sqlite -feature-wasm-simd128 -feature-thread -no-feature-cssparser -no-feature-quick-treeview -no-feature-quick-pathview -no-feature-texthtmlparser -no-feature-textodfwriter -no-feature-quickcontrols2-windows -no-feature-quickcontrols2-macos -no-feature-quickcontrols2-ios -no-feature-quickcontrols2-imagine -no-feature-quickcontrols2-universal -no-feature-quickcontrols2-fusion -no-feature-qtwebengine-build -no-feature-qtprotobufgen -no-feature-qtpdf-build -no-feature-pdf -no-feature-printer -no-feature-sqlmodel -no-feature-qtpdf-quick-build -no-feature-quick-pixmap-cache-threaded-download -feature-quick-canvas -no-feature-quick-designer -no-feature-quick-particles -no-feature-quick-sprite -no-feature-raster-64bit -no-feature-raster-fp -prefix ../wasm_multithread_emsdk_3_1_61_custom
+   "../Src/configure" -debug-and-release -qt-host-path C:\Qt\6.9.2\msvc2022_64 -make libs -no-widgets -optimize-size -feature-thread -no-warnings-are-errors -platform wasm-emscripten -submodules qtdeclarative -no-dbus -no-sql-sqlite -feature-wasm-simd128 -no-feature-cssparser -no-feature-quick-treeview -no-feature-quick-pathview -no-feature-texthtmlparser -no-feature-textodfwriter -no-feature-quickcontrols2-windows -no-feature-quickcontrols2-macos -no-feature-quickcontrols2-ios -no-feature-quickcontrols2-imagine -no-feature-quickcontrols2-universal -no-feature-quickcontrols2-fusion -no-feature-qtprotobufgen -no-feature-pdf -no-feature-printer -no-feature-sqlmodel -no-feature-quick-pixmap-cache-threaded-download -feature-quick-canvas -no-feature-quick-designer -no-feature-quick-particles -no-feature-quick-sprite -no-feature-raster-64bit -no-feature-raster-fp -prefix ../wasm_multithread_emscripten_4_0_14_custom
    ```
 
 6. Build Qt
@@ -109,62 +109,16 @@ Usually, the Qt-IDE (Qt Creator) sets emscripten environment variables right bef
 
 ### Dependencies
 * Windows
-* Qt 6.7.2 with
+* Qt 6.9.2 with
   * Sources
   * Qt Shader Tools (otherwise Qt configure fails)
+  * MSVC2022 pre-built binaries
 * Python
 * Microsoft Visual C++ Compiler 17.6 (aka. MSVC2022) (comes with Visual Studio 2022)
 * To exactly follow along with build instructions you need `ninja` and `cmake` in your PATH
 
 > [!IMPORTANT]
 > Dawn does not compile with MinGW! GCC might be possible, but is not tested (hence the Windows Requirement). If compiling on Linux is necessary it is also required to change the way we link to the precompiled Dawn libraries inside of `cmake/alp_target_add_dawn.cmake`.
-
-### Building Qt for MSVC2022
-There is no precompiled version of Qt for the MSVC2022-compiler. Therefore we again need to compile the Qt sources ourselves:
-
-1. We need the compiler env variables, so choose either
-
-   1. Start the `x64 Native Tools Command Prompt for VS 2022`.
-
-   2. Start a new CMD and run: (you might have to adjust the link depending on your vs version)
-      ```
-      "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat" amd64
-      ```
-
-2. Navigate to Qt Path:
-   ```
-   cd "C:\Qt\6.7.2"
-   ```
-
-3. Generate build and install path (and make sure they are empty)
-   ```
-   mkdir build & mkdir msvc2022_64_custom & cd build
-   ```
-
-4. Configure Qt (takes ~ 5min)
-   ```
-   "../Src/configure.bat" -debug-and-release -prefix ../msvc2022_64_custom -nomake examples -nomake tests
-   ```
-
-5. Build Qt (takes ~ 25min)
-   ```
-   cmake --build . --parallel
-   ```
-
-6. Install Qt (takes ~ 2min)
-   ```
-   ninja install
-   ```
-   
-7. Cleanup
-   ```
-   cd .. & rmdir /s /q build
-   ```
-
-### Create Custom Kit for Qt Creator
-If you work with the Qt-IDE you need to setup the newly created Qt build as a development kit, as it was already done with the emscripten version. Please see the screenshot for a proper configuration.
-
-[![Qt Version MSVC2022 Screenshot](https://github.com/weBIGeo/ressources/blob/main/for_md/custom_qt_version_msvc2022_thumb.jpg?raw=true)](https://github.com/weBIGeo/ressources/blob/main/for_md/custom_qt_version_msvc2022.jpg?raw=true) [![Qt Kit MSVC2022 Screenshot](https://github.com/weBIGeo/ressources/blob/main/for_md/custom_qt_kit_msvc2022_2_thumb.jpg?raw=true)](https://github.com/weBIGeo/ressources/blob/main/for_md/custom_qt_kit_msvc2022_2.jpg?raw=true)
 
 ### Building Dawn
 Dawn is the webgpu-implementation used in chromium, which is the open-source-engine for Google Chrome. Compiling dawn ourselves allows us to deploy weBIGeo natively such that we don't have to work in the browser sandbox during development. Building Dawn will take some time and memory as we need Debug and Release-Builds.

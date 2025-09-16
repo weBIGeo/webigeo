@@ -109,7 +109,7 @@ private:
 
     WGPUQuerySetDescriptor m_timestamp_query_desc;
     WGPUQuerySet m_timestamp_queries;
-    WGPURenderPassTimestampWrites m_timestamp_writes;
+    WGPUPassTimestampWrites m_timestamp_writes;
     std::unique_ptr<webgpu::raii::RawBuffer<uint64_t>> m_timestamp_resolve;
     std::unique_ptr<webgpu::raii::RawBuffer<uint64_t>> m_timestamp_result;
 
@@ -120,7 +120,7 @@ private:
     bool m_force_repaint_once = false;
     uint32_t m_repaint_count = 0;
     uint32_t m_frame_count = 0;
-    WGPUPresentMode m_surface_presentmode = WGPUPresentMode::WGPUPresentMode_Immediate;
+    WGPUPresentMode m_surface_presentmode = WGPUPresentMode_Immediate;
 
     // Flag to exit the rendering loop
     bool m_window_open = true;

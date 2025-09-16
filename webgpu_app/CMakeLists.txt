@@ -63,21 +63,12 @@ if (EMSCRIPTEN)
         _free
     )
 
-    # Conditionally add threading-related functions
-    if (ALP_ENABLE_THREADING)
-        list(APPEND WEBGPU_EXPORTED_FUNCTIONS
-            __emscripten_thread_crashed
-            __embind_initialize_bindings
-        )
-    endif()
-
     string(REPLACE ";" "," WEBGPU_EXPORTED_FUNCTIONS_STRING "${WEBGPU_EXPORTED_FUNCTIONS}")
 
     # because of a bug with emscripten and -pthreads, we have to add __emscripten_thread_crashed,__embind_initialize_bindings
     # to EXPORTED_FUNCTIONS; for details see https://github.com/emscripten-core/emscripten/issues/21844
     target_link_options(webgpu_app PRIVATE
-            -sUSE_SDL=2 # Use emscripten SDL2 implementation
-            -sUSE_WEBGPU # Handle WebGPU symbols
+            --use-port=sdl2 # Use emscripten SDL2 implementation
             -sASYNCIFY # Required by WebGPU-C++
             -sEXPORTED_FUNCTIONS=${WEBGPU_EXPORTED_FUNCTIONS_STRING} # _main needs to be specifically exported if sEXPORTED_FUNCTIONS is set
             #-sEXPORTED_RUNTIME_METHODS=ccall,cwrap,UTF16ToString,stringToUTF16,JSEvents,specialHTMLTargets,FS # will be overwritten by Qt

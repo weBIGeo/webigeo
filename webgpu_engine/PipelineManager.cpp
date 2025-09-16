@@ -271,7 +271,7 @@ void PipelineManager::create_render_lines_pipeline()
 
     WGPUFragmentState fragment_state {};
     fragment_state.module = m_shader_manager->render_lines().handle();
-    fragment_state.entryPoint = "fragmentMain";
+    fragment_state.entryPoint = WGPUStringView { .data = "fragmentMain", .length = WGPU_STRLEN };
     fragment_state.constantCount = 0;
     fragment_state.constants = nullptr;
     fragment_state.targetCount = 1;
@@ -282,9 +282,9 @@ void PipelineManager::create_render_lines_pipeline()
     webgpu::raii::PipelineLayout layout(m_device, bind_group_layout_handles);
 
     WGPURenderPipelineDescriptor pipeline_desc {};
-    pipeline_desc.label = "line render pipeline";
+    pipeline_desc.label = WGPUStringView { .data = "line render pipeline", .length = WGPU_STRLEN };
     pipeline_desc.vertex.module = m_shader_manager->render_lines().handle();
-    pipeline_desc.vertex.entryPoint = "vertexMain";
+    pipeline_desc.vertex.entryPoint = WGPUStringView { .data = "vertexMain", .length = WGPU_STRLEN };
     pipeline_desc.vertex.bufferCount = 0;
     pipeline_desc.vertex.buffers = nullptr;
     pipeline_desc.vertex.constantCount = 0;

@@ -22,8 +22,12 @@ namespace webgpu::raii {
 
 PipelineLayout::PipelineLayout(WGPUDevice device, const std::vector<WGPUBindGroupLayout>& layouts, const std::string& label)
     : GpuResource(device,
-        WGPUPipelineLayoutDescriptor {
-            .nextInChain = nullptr, .label = label.data(), .bindGroupLayoutCount = layouts.size(), .bindGroupLayouts = layouts.data() })
+          WGPUPipelineLayoutDescriptor {
+              .nextInChain = nullptr,
+              .label = WGPUStringView { .data = label.data(), .length = label.length() },
+              .bindGroupLayoutCount = layouts.size(),
+              .bindGroupLayouts = layouts.data(),
+          })
 {
 }
 

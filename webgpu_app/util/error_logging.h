@@ -33,4 +33,6 @@
 
 void qt_logging_callback(QtMsgType type, const QMessageLogContext& context, const QString& msg);
 
-void webgpu_device_error_callback(WGPUErrorType errorType, const char* message, [[maybe_unused]] void* userData);
+void webgpu_device_error_callback(const WGPUDevice* device, WGPUErrorType type, WGPUStringView message, void* userdata1, void* userdata2);
+
+void webgpu_device_lost_callback(const WGPUDevice* device, WGPUDeviceLostReason reason, WGPUStringView message, void* userdata1, void* userdata2);

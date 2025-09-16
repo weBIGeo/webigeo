@@ -63,7 +63,9 @@ void Context::set_tile_geometry(std::shared_ptr<TileGeometry> new_tile_geometry)
     m_tile_geometry = std::move(new_tile_geometry);
 }
 
-WGPUDevice Context::webgpu_device() const { return m_webgpu_device; }
+WGPUInstance Context::webgpu_instance() const { return m_webgpu_instance; }
+
+void Context::set_webgpu_instance(WGPUInstance instance) { m_webgpu_instance = instance; }
 
 void Context::set_webgpu_device(WGPUDevice device) { m_webgpu_device = device; }
 

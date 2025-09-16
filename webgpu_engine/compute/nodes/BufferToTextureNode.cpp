@@ -78,12 +78,12 @@ void BufferToTextureNode::run_impl()
     // bind GPU resources and run pipeline
     {
         WGPUCommandEncoderDescriptor descriptor {};
-        descriptor.label = "buffer to texture compute command encoder";
+        descriptor.label = WGPUStringView { .data = "buffer to texture compute command encoder", .length = WGPU_STRLEN };
         webgpu::raii::CommandEncoder encoder(m_device, descriptor);
 
         {
             WGPUComputePassDescriptor compute_pass_desc {};
-            compute_pass_desc.label = "buffer to texture compute pass";
+            compute_pass_desc.label = WGPUStringView { .data = "buffer to texture compute pass", .length = WGPU_STRLEN };
             webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
 
             glm::uvec3 workgroup_counts = glm::ceil(glm::vec3(input_raster_dimensions.x, input_raster_dimensions.y, 1) / glm::vec3(SHADER_WORKGROUP_SIZE));
@@ -92,18 +92,27 @@ void BufferToTextureNode::run_impl()
         }
 
         WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
-        cmd_buffer_descriptor.label = "buffer to texture compute command buffer";
+        cmd_buffer_descriptor.label = WGPUStringView { .data = "buffer to texture compute command buffer", .length = WGPU_STRLEN };
         WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder.handle(), &cmd_buffer_descriptor);
         wgpuQueueSubmit(m_queue, 1, &command);
         wgpuCommandBufferRelease(command);
     }
-    wgpuQueueOnSubmittedWorkDone(
-        m_queue,
-        []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
-            BufferToTextureNode* _this = reinterpret_cast<BufferToTextureNode*>(user_data);
-            _this->run_completed(); // emits signal run_finished()
-        },
-        this);
+
+    const auto on_work_done
+        = []([[maybe_unused]] WGPUQueueWorkDoneStatus status, [[maybe_unused]] WGPUStringView message, void* userdata, [[maybe_unused]] void* userdata2) {
+              BufferToTextureNode* _this = reinterpret_cast<BufferToTextureNode*>(userdata);
+              emit _this->run_completed();
+          };
+
+    WGPUQueueWorkDoneCallbackInfo callback_info {
+        .nextInChain = nullptr,
+        .mode = WGPUCallbackMode_AllowProcessEvents,
+        .callback = on_work_done,
+        .userdata1 = this,
+        .userdata2 = nullptr,
+    };
+
+    wgpuQueueOnSubmittedWorkDone(m_queue, callback_info);
 }
 
 void BufferToTextureNode::update_gpu_settings()
@@ -133,7 +142,7 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> BufferToTextureNode::create_te
 {
     // create output texture
     WGPUTextureDescriptor texture_desc {};
-    texture_desc.label = "buffer to texture output texture";
+    texture_desc.label = WGPUStringView { .data = "buffer to texture output texture", .length = WGPU_STRLEN };
     texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
     texture_desc.size = { width, height, 1 };
     texture_desc.mipLevelCount = settings.create_mipmaps ? getMaxMipLevelCount(glm::uvec2(width, height)) : 1;
@@ -142,7 +151,7 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> BufferToTextureNode::create_te
     texture_desc.usage = settings.texture_usage;
 
     WGPUSamplerDescriptor sampler_desc {};
-    sampler_desc.label = "buffer to texture sampler";
+    sampler_desc.label = WGPUStringView { .data = "buffer to texture sampler", .length = WGPU_STRLEN };
     sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
@@ -160,7 +169,7 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> BufferToTextureNode::create_te
     desc.mipLevelCount = 1;
     m_output_view = texture_with_sampler->texture().create_view(desc);
 
-    return std::move(texture_with_sampler);
+    return texture_with_sampler;
 }
 
 } // namespace webgpu_engine::compute::nodes

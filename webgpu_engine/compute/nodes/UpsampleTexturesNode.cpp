@@ -68,12 +68,12 @@ void UpsampleTexturesNode::run_impl()
     // bind GPU resources and run pipeline
     {
         WGPUCommandEncoderDescriptor descriptor {};
-        descriptor.label = "compute: upsample texture command encoder";
+        descriptor.label = WGPUStringView { .data = "compute: upsample texture command encoder", .length = WGPU_STRLEN };
         webgpu::raii::CommandEncoder encoder(m_device, descriptor);
 
         {
             WGPUComputePassDescriptor compute_pass_desc {};
-            compute_pass_desc.label = "compute: upsample texture compute pass";
+            compute_pass_desc.label = WGPUStringView { .data = "compute: upsample texture compute pass", .length = WGPU_STRLEN };
             webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
 
             glm::uvec3 workgroup_counts = glm::ceil(
@@ -83,7 +83,7 @@ void UpsampleTexturesNode::run_impl()
         }
 
         WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
-        cmd_buffer_descriptor.label = "compute: upsampling texture command buffer";
+        cmd_buffer_descriptor.label = WGPUStringView { .data = "compute: upsampling texture command buffer", .length = WGPU_STRLEN };
         WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder.handle(), &cmd_buffer_descriptor);
         wgpuQueueSubmit(m_queue, 1, &command);
         wgpuCommandBufferRelease(command);
@@ -94,13 +94,21 @@ void UpsampleTexturesNode::run_impl()
         m_output_storage_texture->reserve(index);
     }
 
-    wgpuQueueOnSubmittedWorkDone(
-        m_queue,
-        []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
-            UpsampleTexturesNode* _this = reinterpret_cast<UpsampleTexturesNode*>(user_data);
-            emit _this->run_completed();
-        },
-        this);
+    const auto on_work_done
+        = []([[maybe_unused]] WGPUQueueWorkDoneStatus status, [[maybe_unused]] WGPUStringView message, void* userdata, [[maybe_unused]] void* userdata2) {
+              UpsampleTexturesNode* _this = reinterpret_cast<UpsampleTexturesNode*>(userdata);
+              emit _this->run_completed();
+          };
+
+    WGPUQueueWorkDoneCallbackInfo callback_info {
+        .nextInChain = nullptr,
+        .mode = WGPUCallbackMode_AllowProcessEvents,
+        .callback = on_work_done,
+        .userdata1 = this,
+        .userdata2 = nullptr,
+    };
+
+    wgpuQueueOnSubmittedWorkDone(m_queue, callback_info);
 }
 
 } // namespace webgpu_engine::compute::nodes

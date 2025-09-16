@@ -35,6 +35,9 @@ public:
     TileGeometry* tile_geometry() const;
     void set_tile_geometry(std::shared_ptr<TileGeometry> new_tile_geometry);
 
+    WGPUInstance webgpu_instance() const;
+    void set_webgpu_instance(WGPUInstance instance);
+
     WGPUDevice webgpu_device() const;
     void set_webgpu_device(WGPUDevice device);
 
@@ -54,6 +57,7 @@ protected:
 
 private:
     WGPUDevice m_webgpu_device = 0;
+    WGPUInstance m_webgpu_instance = 0;
     std::shared_ptr<TileGeometry> m_tile_geometry;
     // std::shared_ptr<TextureLayer> m_ortho_layer;
 

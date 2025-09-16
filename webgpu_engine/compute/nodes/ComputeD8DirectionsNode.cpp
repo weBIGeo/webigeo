@@ -88,12 +88,12 @@ void ComputeD8DirectionsNode::run_impl()
     // the shader will only writes into texture array, the hashmap is written on cpu side
     {
         WGPUCommandEncoderDescriptor descriptor {};
-        descriptor.label = "compute d8 command encoder";
+        descriptor.label = WGPUStringView { .data = "compute d8 command encoder", .length = WGPU_STRLEN };
         webgpu::raii::CommandEncoder encoder(m_device, descriptor);
 
         {
             WGPUComputePassDescriptor compute_pass_desc {};
-            compute_pass_desc.label = "compute d8 compute pass";
+            compute_pass_desc.label = WGPUStringView { .data = "compute d8 compute pass", .length = WGPU_STRLEN };
             webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
 
             glm::uvec3 workgroup_counts
@@ -103,7 +103,7 @@ void ComputeD8DirectionsNode::run_impl()
         }
 
         WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
-        cmd_buffer_descriptor.label = "compute d8 command buffer";
+        cmd_buffer_descriptor.label = WGPUStringView { .data = "compute d8 command buffer", .length = WGPU_STRLEN };
         WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder.handle(), &cmd_buffer_descriptor);
         wgpuQueueSubmit(m_queue, 1, &command);
         wgpuCommandBufferRelease(command);
@@ -119,13 +119,21 @@ void ComputeD8DirectionsNode::run_impl()
     }
     m_output_tile_map.update_gpu_data();
 
-    wgpuQueueOnSubmittedWorkDone(
-        m_queue,
-        []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
-            ComputeD8DirectionsNode* _this = reinterpret_cast<ComputeD8DirectionsNode*>(user_data);
-            _this->run_completed(); // emits signal run_finished()
-        },
-        this);
+    const auto on_work_done
+        = []([[maybe_unused]] WGPUQueueWorkDoneStatus status, [[maybe_unused]] WGPUStringView message, void* userdata, [[maybe_unused]] void* userdata2) {
+              ComputeD8DirectionsNode* _this = reinterpret_cast<ComputeD8DirectionsNode*>(userdata);
+              emit _this->run_completed();
+          };
+
+    WGPUQueueWorkDoneCallbackInfo callback_info {
+        .nextInChain = nullptr,
+        .mode = WGPUCallbackMode_AllowProcessEvents,
+        .callback = on_work_done,
+        .userdata1 = this,
+        .userdata2 = nullptr,
+    };
+
+    wgpuQueueOnSubmittedWorkDone(m_queue, callback_info);
 }
 
 } // namespace webgpu_engine::compute::nodes

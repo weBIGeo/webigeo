@@ -78,12 +78,13 @@ RenderingContext::RenderingContext()
 #endif
 }
 
-void RenderingContext::initialize(WGPUDevice webgpu_device)
+void RenderingContext::initialize(WGPUInstance webgpu_instance, WGPUDevice webgpu_device)
 {
     auto tile_geometry = std::make_shared<webgpu_engine::TileGeometry>(65, 512);
     tile_geometry->set_tile_limit(1024);
 
     m_engine_context = std::make_unique<webgpu_engine::Context>();
+    m_engine_context->set_webgpu_instance(webgpu_instance);
     m_engine_context->set_webgpu_device(webgpu_device);
     m_engine_context->set_aabb_decorator(m_aabb_decorator);
     m_engine_context->set_tile_geometry(tile_geometry);

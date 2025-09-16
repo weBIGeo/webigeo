@@ -51,10 +51,13 @@
 
 namespace webgpu_app {
 
-TerrainRenderer::TerrainRenderer() {
+TerrainRenderer::TerrainRenderer()
+{
 #ifdef __EMSCRIPTEN__
     // execute on window resize when canvas size changes
     QObject::connect(&WebInterop::instance(), &WebInterop::body_size_changed, this, &TerrainRenderer::set_window_size);
+
+    m_surface_presentmode = WGPUPresentMode_Fifo; // chrome does not want other present modes
 #endif
 }
 
@@ -163,6 +166,8 @@ void TerrainRenderer::poll_events()
         }
         m_input_mapper->on_sdl_event(events[i]);
     }
+
+    wgpuInstanceProcessEvents(m_instance);
 }
 
 void TerrainRenderer::render() {
@@ -172,15 +177,16 @@ void TerrainRenderer::render() {
     WGPUSurfaceTexture surface_texture;
     wgpuSurfaceGetCurrentTexture(m_surface, &surface_texture);
 
-    if (surface_texture.status != WGPUSurfaceGetCurrentTextureStatus_Success) {
+    if (surface_texture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal
+        && surface_texture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal) {
         // skip frame (?)
         qDebug() << "Could not get current surface texture: surface_texture.status=" << surface_texture.status;
         return;
     }
 
-    WGPUTextureViewDescriptor viewDescriptor;
+    WGPUTextureViewDescriptor viewDescriptor {};
     viewDescriptor.nextInChain = nullptr;
-    viewDescriptor.label = "Surface texture view";
+    viewDescriptor.label = WGPUStringView { .data = "Surface texture view", .length = WGPU_STRLEN };
     viewDescriptor.format = wgpuTextureGetFormat(surface_texture.texture);
     viewDescriptor.dimension = WGPUTextureViewDimension_2D;
     viewDescriptor.baseMipLevel = 0;
@@ -195,7 +201,7 @@ void TerrainRenderer::render() {
     }
 
     WGPUCommandEncoderDescriptor command_encoder_desc {};
-    command_encoder_desc.label = "Command Encoder";
+    command_encoder_desc.label = WGPUStringView { .data = "Command Encoder", .length = WGPU_STRLEN };
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(m_device, &command_encoder_desc);
 
     if (webgpu::isTimingSupported())
@@ -226,7 +232,7 @@ void TerrainRenderer::render() {
     wgpuTextureViewRelease(surface_texture_view);
 
     WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
-    cmd_buffer_descriptor.label = "Command buffer";
+    cmd_buffer_descriptor.label = WGPUStringView { .data = "Command buffer", .length = WGPU_STRLEN };
     WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder, &cmd_buffer_descriptor);
     wgpuCommandEncoderRelease(encoder);
     wgpuQueueSubmit(m_queue, 1, &command);
@@ -238,7 +244,6 @@ void TerrainRenderer::render() {
 #ifndef __EMSCRIPTEN__
     // Surface present in the WEB is handled by the browser!
     wgpuSurfacePresent(m_surface);
-    wgpuInstanceProcessEvents(m_instance);
     wgpuDeviceTick(m_device);
 #endif
 
@@ -248,12 +253,10 @@ void TerrainRenderer::render() {
 void TerrainRenderer::start() {
     init_window();
 
-    webgpu::platformInit();
-
     webgpu_create_context();
 
     m_context = std::make_unique<RenderingContext>();
-    m_context->initialize(m_device);
+    m_context->initialize(m_instance, m_device);
 
     m_camera_controller = std::make_unique<nucleus::camera::Controller>(nucleus::camera::PositionStorage::instance()->get("grossglockner"), m_webgpu_window.get(), m_context->data_querier());
 
@@ -327,7 +330,7 @@ void TerrainRenderer::start() {
     m_gui_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(
         m_device, std::vector<WGPUBindGroupLayoutEntry> { backbuffer_texture_entry, gui_ubo_entry }, "gui bind group layout");
 
-    const std::string preprocessed_code = R"(
+    const char preprocessed_code[] = R"(
     @group(0) @binding(0) var backbuffer_texture : texture_2d<f32>;
     @group(0) @binding(1) var<uniform> gui_ubo : vec2f;
 
@@ -353,12 +356,15 @@ void TerrainRenderer::start() {
     }
     )";
 
-    WGPUShaderModuleDescriptor shader_module_desc {};
-    WGPUShaderModuleWGSLDescriptor wgsl_desc {};
+    WGPUShaderSourceWGSL wgsl_desc {};
     wgsl_desc.chain.next = nullptr;
-    wgsl_desc.chain.sType = WGPUSType::WGPUSType_ShaderModuleWGSLDescriptor;
-    wgsl_desc.code = preprocessed_code.data();
-    shader_module_desc.label = "Gui Shader Module";
+    wgsl_desc.chain.sType = WGPUSType_ShaderSourceWGSL;
+    wgsl_desc.code = WGPUStringView {
+        .data = preprocessed_code,
+        .length = WGPU_STRLEN,
+    };
+    WGPUShaderModuleDescriptor shader_module_desc {};
+    shader_module_desc.label = WGPUStringView { .data = "Gui Shader Module", .length = WGPU_STRLEN };
     shader_module_desc.nextInChain = &wgsl_desc.chain;
     auto shader_module = std::make_unique<webgpu::raii::ShaderModule>(m_device, shader_module_desc);
 
@@ -480,6 +486,8 @@ void TerrainRenderer::configure_surface(uint32_t width, uint32_t height)
     config.presentMode = m_surface_presentmode;
     config.alphaMode = WGPUCompositeAlphaMode_Auto;
 
+    qInfo() << "trying to configure surface with size " << width << "x" << height << "alpha mode=" << config.alphaMode
+            << ", present mode=" << m_surface_presentmode;
     wgpuSurfaceConfigure(m_surface, &config);
     qInfo() << "configured surface with size " << width << "x" << height << ", present mode=" << m_surface_presentmode;
 }
@@ -499,9 +507,10 @@ void TerrainRenderer::on_window_resize(int width, int height) {
 void TerrainRenderer::webgpu_create_context()
 {
     qDebug() << "Creating WebGPU instance...";
-#ifndef __EMSCRIPTEN__
     m_instance_desc = {};
     m_instance_desc.nextInChain = nullptr;
+
+#ifndef __EMSCRIPTEN__
     WGPUDawnTogglesDescriptor dawnToggles;
     dawnToggles.chain.next = nullptr;
     dawnToggles.chain.sType = WGPUSType_DawnTogglesDescriptor;
@@ -524,10 +533,13 @@ void TerrainRenderer::webgpu_create_context()
     dawnToggles.disabledToggleCount = 0;
 
     m_instance_desc.nextInChain = &dawnToggles.chain;
-    m_instance = wgpuCreateInstance(&m_instance_desc);
-#else
-    m_instance = wgpuCreateInstance(nullptr);
 #endif
+
+    const auto timed_wait_feature = WGPUInstanceFeatureName_TimedWaitAny;
+    m_instance_desc.requiredFeatureCount = 1;
+    m_instance_desc.requiredFeatures = &timed_wait_feature;
+
+    m_instance = wgpuCreateInstance(&m_instance_desc);
 
     if (!m_instance) {
         qFatal("Could not initialize WebGPU Instance!");
@@ -554,37 +566,48 @@ void TerrainRenderer::webgpu_create_context()
     m_webgpu_window = std::make_unique<webgpu_engine::Window>();
 
     qDebug() << "Requesting device...";
-    WGPURequiredLimits required_limits {};
-    WGPUSupportedLimits supported_limits {};
+    WGPULimits required_limits {};
+    WGPULimits supported_limits {};
     wgpuAdapterGetLimits(m_adapter, &supported_limits);
 
     // irrelevant for us, but needs to be set
-    required_limits.limits.minStorageBufferOffsetAlignment = supported_limits.limits.minStorageBufferOffsetAlignment;
-    required_limits.limits.minUniformBufferOffsetAlignment = supported_limits.limits.minUniformBufferOffsetAlignment;
-    required_limits.limits.maxInterStageShaderComponents = WGPU_LIMIT_U32_UNDEFINED; // required for current version of  Chrome Canary (2025-04-03)
+    required_limits.minStorageBufferOffsetAlignment = supported_limits.minStorageBufferOffsetAlignment;
+    required_limits.minUniformBufferOffsetAlignment = supported_limits.minUniformBufferOffsetAlignment;
+    required_limits.maxInterStageShaderVariables = WGPU_LIMIT_U32_UNDEFINED; // required for current version of  Chrome Canary (2025-04-03)
 
     // Let the engine change the required limits
-    m_webgpu_window->update_required_gpu_limits(required_limits.limits, supported_limits.limits);
+    m_webgpu_window->update_required_gpu_limits(required_limits, supported_limits);
 
     std::vector<WGPUFeatureName> requiredFeatures;
     requiredFeatures.push_back(WGPUFeatureName_TimestampQuery);
 
     WGPUDeviceDescriptor device_desc {};
-    device_desc.label = "webigeo device";
+    device_desc.label = WGPUStringView { .data = "webigeo device", .length = WGPU_STRLEN };
     device_desc.requiredFeatures = requiredFeatures.data();
     device_desc.requiredFeatureCount = (uint32_t)requiredFeatures.size();
     device_desc.requiredLimits = &required_limits;
-    device_desc.defaultQueue.label = "webigeo queue";
-    m_device = webgpu::requestDeviceSync(m_adapter, device_desc);
+    device_desc.defaultQueue.label = WGPUStringView { .data = "webigeo queue", .length = WGPU_STRLEN };
+    device_desc.uncapturedErrorCallbackInfo = WGPUUncapturedErrorCallbackInfo {
+        .nextInChain = nullptr,
+        .callback = webgpu_device_error_callback,
+        .userdata1 = nullptr,
+        .userdata2 = nullptr,
+    };
+    device_desc.deviceLostCallbackInfo = WGPUDeviceLostCallbackInfo {
+        .nextInChain = nullptr,
+        .mode = WGPUCallbackMode_AllowProcessEvents,
+        .callback = webgpu_device_lost_callback,
+        .userdata1 = nullptr,
+        .userdata2 = nullptr,
+    };
+
+    m_device = webgpu::requestDeviceSync(m_instance, m_adapter, device_desc);
     if (!m_device) {
         qFatal("Could not get device!");
     }
     qInfo() << "Got device: " << m_device;
 
     webgpu::checkForTimingSupport(m_adapter, m_device);
-
-    // Set error callback
-    wgpuDeviceSetUncapturedErrorCallback(m_device, webgpu_device_error_callback, nullptr /* pUserData */);
 
     qDebug() << "Requesting queue...";
     m_queue = wgpuDeviceGetQueue(m_device);
@@ -597,10 +620,6 @@ void TerrainRenderer::webgpu_create_context()
 void TerrainRenderer::webgpu_release_context()
 {
     qDebug() << "Releasing WebGPU context...";
-    // Set the device lost callback to null otherwise we'll get a warning
-#ifndef __EMSCRIPTEN__
-    wgpuDeviceSetDeviceLostCallback(m_device, nullptr, nullptr);
-#endif
     wgpuSurfaceUnconfigure(m_surface);
     wgpuQueueRelease(m_queue);
     wgpuSurfaceRelease(m_surface);

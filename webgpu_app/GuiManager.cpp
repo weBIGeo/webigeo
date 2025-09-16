@@ -84,7 +84,7 @@ void GuiManager::init(
     m_webigeo_logo_size = ImVec2(logo.width(), logo.height());
 
     WGPUTextureDescriptor texture_desc {};
-    texture_desc.label = "webigeo logo texture";
+    texture_desc.label = WGPUStringView { .data = "webigeo logo texture", .length = WGPU_STRLEN };
     texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
     texture_desc.size = { uint32_t(logo.width()), uint32_t(logo.height()), uint32_t(1) };
     texture_desc.mipLevelCount = 1;

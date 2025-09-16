@@ -85,11 +85,6 @@ template <> struct GpuFuncs<WGPURenderPipeline, WGPURenderPipelineDescriptor, WG
     static void release(auto handle) { wgpuRenderPipelineRelease(handle); }
 };
 
-template <> struct GpuFuncs<WGPUSwapChain, WGPUSwapChainDescriptor, WGPUDevice> {
-    static auto create(auto context, auto descriptor) { return wgpuDeviceCreateSwapChain(context, &descriptor); }
-    static void release(auto handle) { wgpuSwapChainRelease(handle); }
-};
-
 template <> struct GpuFuncs<WGPURenderPassEncoder, WGPURenderPassDescriptor, WGPUCommandEncoder> {
     static auto create(auto context, auto descriptor) { return wgpuCommandEncoderBeginRenderPass(context, &descriptor); }
     static void release(auto handle)

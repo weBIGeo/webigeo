@@ -21,17 +21,15 @@
 
 namespace webgpu::util {
 
-const char* bufferMapAsyncStatusToString(WGPUBufferMapAsyncStatus status)
+const char* bufferMapAsyncStatusToString(WGPUMapAsyncStatus status)
 {
-    static const std::map<WGPUBufferMapAsyncStatus, const char*> statusToStringMap = { { WGPUBufferMapAsyncStatus_Success, "Success" },
-#ifndef __EMSCRIPTEN__
-        { WGPUBufferMapAsyncStatus_InstanceDropped, "InstanceDropped" },
-#endif
-        { WGPUBufferMapAsyncStatus_ValidationError, "ValidationError" }, { WGPUBufferMapAsyncStatus_Unknown, "Unknown" },
-        { WGPUBufferMapAsyncStatus_DeviceLost, "DeviceLost" }, { WGPUBufferMapAsyncStatus_DestroyedBeforeCallback, "DestroyedBeforeCallback" },
-        { WGPUBufferMapAsyncStatus_UnmappedBeforeCallback, "UnmappedBeforeCallback" },
-        { WGPUBufferMapAsyncStatus_MappingAlreadyPending, "MappingAlreadyPending" }, { WGPUBufferMapAsyncStatus_OffsetOutOfRange, "OffsetOutOfRange" },
-        { WGPUBufferMapAsyncStatus_SizeOutOfRange, "SizeOutOfRange" }, { WGPUBufferMapAsyncStatus_Force32, "Force32" } };
+    static const std::map<WGPUMapAsyncStatus, const char*> statusToStringMap = {
+        { WGPUMapAsyncStatus_Success, "Success" },
+        { WGPUMapAsyncStatus_CallbackCancelled, "CallbackCancelled" },
+        { WGPUMapAsyncStatus_Error, "Error" },
+        { WGPUMapAsyncStatus_Aborted, "Aborted" },
+        { WGPUMapAsyncStatus_Force32, "Force32" },
+    };
 
     auto it = statusToStringMap.find(status);
     if (it != statusToStringMap.end()) {

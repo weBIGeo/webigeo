@@ -18,10 +18,11 @@
 
 #pragma once
 
+#include <QString>
 #include <webgpu/webgpu.h>
 
 namespace webgpu::util {
 
-const char* bufferMapAsyncStatusToString(WGPUBufferMapAsyncStatus status);
+const char* bufferMapAsyncStatusToString(WGPUMapAsyncStatus status);
 
 } // namespace webgpu::util

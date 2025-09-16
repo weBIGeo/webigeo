@@ -24,6 +24,7 @@
 #include <regex>
 #include <unordered_set>
 #include <webgpu/raii/base_types.h>
+#include <webgpu/util/string_cast.h>
 
 namespace webgpu_engine {
 
@@ -135,13 +136,15 @@ std::string ShaderModuleManager::load_and_preprocess_without_cache(const std::st
 
 std::unique_ptr<webgpu::raii::ShaderModule> ShaderModuleManager::create_shader_module(WGPUDevice device, const std::string& label, const std::string& code)
 {
-    WGPUShaderModuleDescriptor shader_module_desc {};
-    WGPUShaderModuleWGSLDescriptor wgsl_desc {};
+    WGPUShaderSourceWGSL wgsl_desc {};
+    wgsl_desc.code = WGPUStringView { .data = code.c_str(), .length = WGPU_STRLEN };
     wgsl_desc.chain.next = nullptr;
-    wgsl_desc.chain.sType = WGPUSType::WGPUSType_ShaderModuleWGSLDescriptor;
-    wgsl_desc.code = code.data();
-    shader_module_desc.label = label.data();
+    wgsl_desc.chain.sType = WGPUSType_ShaderSourceWGSL;
+
+    WGPUShaderModuleDescriptor shader_module_desc {};
+    shader_module_desc.label = WGPUStringView { .data = label.c_str(), .length = WGPU_STRLEN };
     shader_module_desc.nextInChain = &wgsl_desc.chain;
+
     return std::make_unique<webgpu::raii::ShaderModule>(device, shader_module_desc);
 }
 

@@ -46,7 +46,7 @@ GenericRenderPipeline::GenericRenderPipeline(WGPUDevice device, const ShaderModu
 
     WGPUFragmentState fragment_state {};
     fragment_state.module = fragment_shader.handle();
-    fragment_state.entryPoint = "fragmentMain";
+    fragment_state.entryPoint = WGPUStringView { .data = "fragmentMain", .length = WGPU_STRLEN };
     fragment_state.constantCount = 0;
     fragment_state.constants = nullptr;
     fragment_state.targetCount = color_target_states.size();
@@ -63,7 +63,7 @@ GenericRenderPipeline::GenericRenderPipeline(WGPUDevice device, const ShaderModu
 
     WGPURenderPipelineDescriptor pipeline_desc {};
     pipeline_desc.vertex.module = vertex_shader.handle();
-    pipeline_desc.vertex.entryPoint = "vertexMain";
+    pipeline_desc.vertex.entryPoint = WGPUStringView { .data = "vertexMain", .length = WGPU_STRLEN };
     pipeline_desc.vertex.bufferCount = layouts.size();
     pipeline_desc.vertex.buffers = layouts.data();
     pipeline_desc.vertex.constantCount = 0;
@@ -84,7 +84,8 @@ GenericRenderPipeline::GenericRenderPipeline(WGPUDevice device, const ShaderModu
         stencil_face_state.passOp = WGPUStencilOperation::WGPUStencilOperation_Keep;
 
         depth_stencil_state.depthCompare = WGPUCompareFunction::WGPUCompareFunction_GreaterEqual;
-        depth_stencil_state.depthWriteEnabled = framebuffer_format.depth_format;
+        depth_stencil_state.depthWriteEnabled
+            = (framebuffer_format.depth_format != WGPUTextureFormat_Undefined) ? WGPUOptionalBool_True : WGPUOptionalBool_False;
         depth_stencil_state.stencilReadMask = 0;
         depth_stencil_state.stencilWriteMask = 0;
         depth_stencil_state.stencilFront = stencil_face_state;

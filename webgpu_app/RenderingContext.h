@@ -51,7 +51,7 @@ class RenderingContext : public QObject {
 public:
     RenderingContext();
 
-    void initialize(WGPUDevice webgpu_device);
+    void initialize(WGPUInstance webgpu_instance, WGPUDevice webgpu_device);
     void destroy();
 
     webgpu_engine::Context* engine_context();

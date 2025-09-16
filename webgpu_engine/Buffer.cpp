@@ -32,7 +32,7 @@
 namespace webgpu_engine {
 
 template <typename T>
-Buffer<T>::Buffer(WGPUDevice device, WGPUBufferUsageFlags flags)
+Buffer<T>::Buffer(WGPUDevice device, WGPUBufferUsage flags)
     : m_raw_buffer(device, flags, 1)
 {
 }

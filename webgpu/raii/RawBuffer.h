@@ -33,7 +33,7 @@ namespace webgpu::raii {
 /// This class does not store the value to be written on CPU side.
 template <typename T> class RawBuffer : public GpuResource<WGPUBuffer, WGPUBufferDescriptor, WGPUDevice> {
 public:
-    using ReadBackCallback = std::function<void(WGPUBufferMapAsyncStatus, std::vector<T>)>;
+    using ReadBackCallback = std::function<void(WGPUMapAsyncStatus, std::vector<T>)>;
 
     struct ReadBackState {
         ReadBackCallback callback;
@@ -41,9 +41,15 @@ public:
     };
 
     // m_size in num objects
-    RawBuffer(WGPUDevice device, WGPUBufferUsageFlags usage, size_t size, const std::string& label = "label not set")
-        : GpuResource(
-            device, WGPUBufferDescriptor { .nextInChain = nullptr, .label = label.data(), .usage = usage, .size = size * sizeof(T), .mappedAtCreation = false })
+    RawBuffer(WGPUDevice device, WGPUBufferUsage usage, size_t size, const std::string& label = "label not set")
+        : GpuResource(device,
+              WGPUBufferDescriptor {
+                  .nextInChain = nullptr,
+                  .label = WGPUStringView { .data = label.c_str(), .length = WGPU_STRLEN },
+                  .usage = usage,
+                  .size = size * sizeof(T),
+                  .mappedAtCreation = false,
+              })
         , m_size(size)
     {
     }
@@ -59,13 +65,13 @@ public:
     {
         // bind GPU resources and run pipeline
         WGPUCommandEncoderDescriptor descriptor {};
-        descriptor.label = "buffer clear command encoder";
+        descriptor.label = WGPUStringView { .data = "buffer clear command encoder", .length = WGPU_STRLEN };
         webgpu::raii::CommandEncoder encoder(device, descriptor);
 
         clear(encoder.handle());
 
         WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
-        cmd_buffer_descriptor.label = "buffer clear command buffer"; // TODO add buffer label here
+        cmd_buffer_descriptor.label = WGPUStringView { .data = "buffer clear command buffer", .length = WGPU_STRLEN }; // TODO add buffer label here
         WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder.handle(), &cmd_buffer_descriptor);
         wgpuQueueSubmit(queue, 1, &command);
         wgpuCommandBufferRelease(command);
@@ -83,7 +89,7 @@ public:
     void copy_to_buffer(WGPUDevice device, size_t src_offset_bytes, const raii::RawBuffer<OtherT>& dst, size_t dst_offset_bytes, size_t size_bytes)
     {
         WGPUCommandEncoderDescriptor desc {};
-        desc.label = "copy texture to buffer command encoder";
+        desc.label = WGPUStringView { .data = "copy texture to buffer command encoder", .length = WGPU_STRLEN };
         raii::CommandEncoder encoder(device, desc);
 
         copy_to_buffer<OtherT>(encoder.handle(), src_offset_bytes, dst, dst_offset_bytes, size_bytes);
@@ -114,16 +120,16 @@ public:
 #endif
 
     /// Read back buffer asynchronously. Callback is called by webGPU when buffer is mapped.
-    void read_back_async(WGPUDevice device, ReadBackCallback callback)
+    WGPUFuture read_back_async(WGPUDevice device, ReadBackCallback callback)
     {
-        auto on_buffer_mapped = [](WGPUBufferMapAsyncStatus status, void* user_data) {
+        auto on_buffer_mapped = [](WGPUMapAsyncStatus status, WGPUStringView message, void* user_data, [[maybe_unused]] void* user_data2) {
             RawBuffer<T>* _this = reinterpret_cast<RawBuffer<T>*>(user_data);
             const auto& callback_state = _this->m_read_back_callbacks.front();
             std::vector<T> buffer_data;
 
-            if (status != WGPUBufferMapAsyncStatus_Success) {
+            if (status != WGPUMapAsyncStatus_Success) {
                 // ToDo eventually caller should be in charge of error report
-                qCritical() << "failed buffer mapping -" << webgpu::util::bufferMapAsyncStatusToString(status);
+                qCritical() << "failed buffer mapping -" << webgpu::util::bufferMapAsyncStatusToString(status) << ", message: " << message.data;
             } else {
                 WGPUBuffer buffer_handle = _this->descriptor().usage & WGPUBufferUsage_MapRead ? _this->handle() : callback_state.staging_buffer->handle();
                 auto raw_buffer_data = static_cast<const T*>(wgpuBufferGetConstMappedRange(buffer_handle, 0, _this->size_in_byte()));
@@ -138,43 +144,52 @@ public:
             _this->m_read_back_callbacks.pop(); // also deletes staging buffer, if one was used
         };
 
+        WGPUBufferMapCallbackInfo on_buffer_mapped_callback_info {
+            .nextInChain = nullptr,
+            .mode = WGPUCallbackMode_AllowProcessEvents,
+            .callback = on_buffer_mapped,
+            .userdata1 = this,
+            .userdata2 = nullptr,
+        };
+
         // if possible, maps buffer directly, otherwise creates staging buffer, copies to staging buffer and maps staging buffer
         if (descriptor().usage & WGPUBufferUsage_MapRead) { // can read directly
             m_read_back_callbacks.emplace(callback);
 #ifdef __EMSCRIPTEN__
             m_buffer_mapping_state = WGPUBufferMapState_Pending;
 #endif
-            wgpuBufferMapAsync(handle(), WGPUMapMode_Read, 0, size_in_byte(), on_buffer_mapped, this);
+            return wgpuBufferMapAsync(handle(), WGPUMapMode_Read, 0, size_in_byte(), on_buffer_mapped_callback_info);
         } else if (descriptor().usage & WGPUBufferUsage_CopySrc) {
             m_read_back_callbacks.emplace(callback,
                 std::make_unique<raii::RawBuffer<T>>(device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead, size(), "buffer readback staging buffer"));
             copy_to_buffer(device, *(m_read_back_callbacks.back().staging_buffer));
-            wgpuBufferMapAsync(m_read_back_callbacks.back().staging_buffer->handle(), WGPUMapMode_Read, 0, size_in_byte(), on_buffer_mapped, this);
+            return wgpuBufferMapAsync(
+                m_read_back_callbacks.back().staging_buffer->handle(), WGPUMapMode_Read, 0, size_in_byte(), on_buffer_mapped_callback_info);
         } else {
             qFatal("Cannot initialise buffer read back. Buffer requires MapRead or CopySrc usage");
         }
     }
 
     /// Read back buffer synchronously. Blocks until buffer is mapped and read back but at most max_timeout_ms.
-    WGPUBufferMapAsyncStatus read_back_sync(WGPUDevice device, std::vector<T>& result, uint32_t max_timeout_ms = 1000)
+    WGPUMapAsyncStatus read_back_sync(WGPUInstance instance, WGPUDevice device, std::vector<T>& result, uint32_t max_timeout_ms = 1000)
     {
-        WGPUBufferMapAsyncStatus return_status;
+        WGPUMapAsyncStatus return_status = WGPUMapAsyncStatus_Error;
         bool work_done = false;
 
-        read_back_async(device, [&return_status, &result, &work_done](WGPUBufferMapAsyncStatus status, std::vector<T> async_buffer) {
+        WGPUFuture read_back_future = read_back_async(device, [&return_status, &result, &work_done](WGPUMapAsyncStatus status, std::vector<T> async_buffer) {
             return_status = status;
-            if (status == WGPUBufferMapAsyncStatus_Success) {
+            if (status == WGPUMapAsyncStatus_Success) {
                 result.swap(async_buffer);
             }
             work_done = true;
         });
 
-        webgpu::waitForFlag(device, &work_done, 1, max_timeout_ms);
-
-        if (!work_done) {
-            return_status = WGPUBufferMapAsyncStatus_Unknown;
-            qCritical() << "sync readback timeout";
+        WGPUFutureWaitInfo wait_info { .future = read_back_future, .completed = false };
+        WGPUWaitStatus wait_status = wgpuInstanceWaitAny(instance, 1, &wait_info, max_timeout_ms * 1000 * 1000);
+        if (wait_status != WGPUWaitStatus_Success) {
+            qCritical() << "Failed to map buffer, WGPUWaitStatus was " << wait_status;
         }
+
         return return_status;
     }
 

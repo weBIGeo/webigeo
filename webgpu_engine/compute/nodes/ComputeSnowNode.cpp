@@ -104,12 +104,12 @@ void ComputeSnowNode::run_impl()
     // the shader will only writes into texture array, the hashmap is written on cpu side
     {
         WGPUCommandEncoderDescriptor descriptor {};
-        descriptor.label = "snow compute controller command encoder";
+        descriptor.label = WGPUStringView { .data = "snow compute controller command encoder", .length = WGPU_STRLEN };
         webgpu::raii::CommandEncoder encoder(m_device, descriptor);
 
         {
             WGPUComputePassDescriptor compute_pass_desc {};
-            compute_pass_desc.label = "snow compute controller compute pass";
+            compute_pass_desc.label = WGPUStringView { .data = "snow compute controller compute pass", .length = WGPU_STRLEN };
             webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
 
             glm::uvec3 workgroup_counts
@@ -119,7 +119,7 @@ void ComputeSnowNode::run_impl()
         }
 
         WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
-        cmd_buffer_descriptor.label = "SnowComputeNode command buffer";
+        cmd_buffer_descriptor.label = WGPUStringView { .data = "SnowComputeNode command buffer", .length = WGPU_STRLEN };
         WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder.handle(), &cmd_buffer_descriptor);
         wgpuQueueSubmit(m_queue, 1, &command);
         wgpuCommandBufferRelease(command);
@@ -135,33 +135,41 @@ void ComputeSnowNode::run_impl()
     }
     m_output_tile_map.update_gpu_data();
 
-    wgpuQueueOnSubmittedWorkDone(
-        m_queue,
-        []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
-            ComputeSnowNode* _this = reinterpret_cast<ComputeSnowNode*>(user_data);
-            _this->run_completed(); // emits signal run_finished()
+    const auto on_work_done
+        = []([[maybe_unused]] WGPUQueueWorkDoneStatus status, [[maybe_unused]] WGPUStringView message, void* userdata, [[maybe_unused]] void* userdata2) {
+              ComputeSnowNode* _this = reinterpret_cast<ComputeSnowNode*>(userdata);
+              emit _this->run_completed();
 
-            const auto& tile_ids = *std::get<data_type<const std::vector<radix::tile::Id>*>()>(_this->input_socket("tile ids").get_connected_data()); // list of tile ids to process
+              const auto& tile_ids = *std::get<data_type<const std::vector<radix::tile::Id>*>()>(
+                  _this->input_socket("tile ids").get_connected_data()); // list of tile ids to process
 
-            // write files for debugging
-            for (size_t i = 0; i < tile_ids.size(); i++) {
-                _this->m_output_texture.texture().texture().read_back_async(
-                    _this->m_device, i, [_this, &tile_ids](size_t layer_index, std::shared_ptr<QByteArray> data) {
-                        QString dir = "tiles";
-                        std::filesystem::create_directory(std::filesystem::path(dir.toStdString()));
-                        const auto& tile_id = tile_ids[layer_index];
+              // write files for debugging
+              for (size_t i = 0; i < tile_ids.size(); i++) {
+                  _this->m_output_texture.texture().texture().read_back_async(
+                      _this->m_device, i, [_this, &tile_ids](size_t layer_index, std::shared_ptr<QByteArray> data) {
+                          QString dir = "tiles";
+                          std::filesystem::create_directory(std::filesystem::path(dir.toStdString()));
+                          const auto& tile_id = tile_ids[layer_index];
 
-                        QString file_name
-                            = QString::number(tile_id.coords.x) + "_" + QString::number(tile_id.coords.y) + "_" + QString::number(tile_id.zoom_level) + ".png";
+                          QString file_name = QString::number(tile_id.coords.x) + "_" + QString::number(tile_id.coords.y) + "_"
+                              + QString::number(tile_id.zoom_level) + ".png";
 
-                        // TODO deprecated, move old nucleus/stb/stb_image_writer.h to nucleus/utils/image_writer.h
-                        // nucleus::stb::write_8bit_rgba_image_to_file_bmp(
-                        //     *data, _this->texture_storage().width(), _this->texture_storage().height(), dir + "/" + file_name);
-                    });
-            }
-            
-        },
-        this);
+                          // TODO deprecated, move old nucleus/stb/stb_image_writer.h to nucleus/utils/image_writer.h
+                          // nucleus::stb::write_8bit_rgba_image_to_file_bmp(
+                          //     *data, _this->texture_storage().width(), _this->texture_storage().height(), dir + "/" + file_name);
+                      });
+              }
+          };
+
+    WGPUQueueWorkDoneCallbackInfo callback_info {
+        .nextInChain = nullptr,
+        .mode = WGPUCallbackMode_AllowProcessEvents,
+        .callback = on_work_done,
+        .userdata1 = this,
+        .userdata2 = nullptr,
+    };
+
+    wgpuQueueOnSubmittedWorkDone(m_queue, callback_info);
 }
 
 } // namespace webgpu_engine::compute::nodes
