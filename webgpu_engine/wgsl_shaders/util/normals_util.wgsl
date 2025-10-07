@@ -93,42 +93,6 @@ fn normal_by_finite_difference_method_texture_f32(
     return normalize(vec3<f32>(hL - hR, hD - hU, height));
 }
 
-fn normal_by_finite_difference_method_with_neighbors(
-    uv: vec2<f32>,
-    quad_width: f32,
-    quad_height: f32,
-    altitude_correction_factor: f32,
-    tile_id: TileId,
-    tiles_map_key_buffer: ptr<storage, array<TileId>>,
-    tiles_map_value_buffer: ptr<storage, array<u32>>,
-    height_tiles_texture: texture_2d_array<u32>,
-    height_tiles_sampler: sampler
-) -> vec3<f32> {
-    // from here: https://stackoverflow.com/questions/6656358/calculating-normals-in-a-triangle-mesh/21660173#21660173
-    let height_texture_size: vec2u = textureDimensions(height_tiles_texture);
-    
-    let height = quad_width + quad_height;
-    let uv_tex = vec2i(floor(uv * vec2f(height_texture_size - 1)));
-
-    let hL_uv = uv_tex - vec2<i32>(1, 0);
-    let hL_sample = load_height_with_neighbors(tile_id, hL_uv, tiles_map_key_buffer, tiles_map_value_buffer, height_tiles_texture);
-    let hL = f32(hL_sample) * altitude_correction_factor;
-
-    let hR_uv = uv_tex + vec2<i32>(1, 0);
-    let hR_sample = load_height_with_neighbors(tile_id, hR_uv, tiles_map_key_buffer, tiles_map_value_buffer, height_tiles_texture);
-    let hR = f32(hR_sample) * altitude_correction_factor;
-
-    let hD_uv = uv_tex + vec2<i32>(0, 1);
-    let hD_sample = load_height_with_neighbors(tile_id, hD_uv, tiles_map_key_buffer, tiles_map_value_buffer, height_tiles_texture);
-    let hD = f32(hD_sample) * altitude_correction_factor;
-
-    let hU_uv = uv_tex - vec2<i32>(0, 1);
-    let hU_sample = load_height_with_neighbors(tile_id, hU_uv, tiles_map_key_buffer, tiles_map_value_buffer, height_tiles_texture);
-    let hU = f32(hU_sample) * altitude_correction_factor;
-
-    return normalize(vec3<f32>(hL - hR, hD - hU, height));
-}
-
 fn get_gradient(normal: vec3f) -> vec3f {
     let up = vec3f(0, 0, 1);
     let right = cross(up, normal);

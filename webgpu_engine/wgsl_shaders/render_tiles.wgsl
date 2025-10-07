@@ -23,7 +23,6 @@
 #include "util/camera_config.wgsl"
 #include "util/encoder.wgsl"
 #include "util/tile_util.wgsl"
-#include "util/tile_hashmap.wgsl"
 #include "util/normals_util.wgsl"
 #include "util/snow.wgsl"
 #include "util/filtering.wgsl"
