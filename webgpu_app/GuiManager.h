@@ -63,7 +63,7 @@ private:
     bool m_first_frame = true;
     std::vector<std::string> m_camera_preset_names;
     int m_selected_camera_preset = 0;
-    uint32_t m_max_zoom_level = 15;
+    uint32_t m_max_zoom_level = 18;
 
     std::set<uint32_t> m_selected_timer = {};
 
