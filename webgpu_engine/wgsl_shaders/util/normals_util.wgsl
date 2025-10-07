@@ -18,7 +18,6 @@
  *****************************************************************************/
 
 #include "util/tile_util.wgsl"
-#include "util/tile_hashmap.wgsl"
 
 fn normal_by_finite_difference_method(
     uv: vec2<f32>,
