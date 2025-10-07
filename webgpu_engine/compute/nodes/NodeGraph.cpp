@@ -233,21 +233,6 @@ static std::unique_ptr<NodeGraph> create_trajectories_compute_graph_unconnected(
     BufferToTextureNode* buffer_to_texture_node
         = static_cast<BufferToTextureNode*>(node_graph->add_node("buffer_to_texture_node", std::make_unique<BufferToTextureNode>(manager, device, buffer_to_texture_settings)));
 
-    BufferExportNode* l1_export_node = static_cast<BufferExportNode*>(
-        node_graph->add_node("l1_export_node", std::make_unique<BufferExportNode>(device, BufferExportNode::ExportSettings { "export/trajectories/texture_layer1_zdelta.png" })));
-
-    BufferExportNode* l2_export_node = static_cast<BufferExportNode*>(
-        node_graph->add_node("l2_export_node", std::make_unique<BufferExportNode>(device, BufferExportNode::ExportSettings { "export/trajectories/texture_layer2_cellCounts.png" })));
-
-    BufferExportNode* l3_export_node = static_cast<BufferExportNode*>(
-        node_graph->add_node("l3_export_node", std::make_unique<BufferExportNode>(device, BufferExportNode::ExportSettings { "export/trajectories/texture_layer3_travelLength.png" })));
-
-    BufferExportNode* l4_export_node = static_cast<BufferExportNode*>(
-        node_graph->add_node("l4_export_node", std::make_unique<BufferExportNode>(device, BufferExportNode::ExportSettings { "export/trajectories/texture_layer4_travelAngle.png" })));
-
-    BufferExportNode* l5_export_node = static_cast<BufferExportNode*>(
-        node_graph->add_node("l5_export_node", std::make_unique<BufferExportNode>(device, BufferExportNode::ExportSettings { "export/trajectories/texture_layer5_heightDifference.png" })));
-
     // connect trajectories node inputs
     trajectories_node->input_socket("region aabb").connect(node_graph->get_node("select_tiles_node").output_socket("region aabb"));
     trajectories_node->input_socket("normal texture").connect(node_graph->get_node("compute_normals_node").output_socket("normal texture"));
@@ -260,26 +245,6 @@ static std::unique_ptr<NodeGraph> create_trajectories_compute_graph_unconnected(
     // buffer_to_texture_node->input_socket("storage buffer").connect(trajectories_node->output_socket("storage buffer"));
     buffer_to_texture_node->input_socket("storage buffer").connect(trajectories_node->output_socket("layer1_zdelta"));
     buffer_to_texture_node->input_socket("transparency buffer").connect(trajectories_node->output_socket("layer2_cellCounts"));
-
-    // connect l1 export node inputs
-    l1_export_node->input_socket("buffer").connect(trajectories_node->output_socket("layer1_zdelta"));
-    l1_export_node->input_socket("dimensions").connect(trajectories_node->output_socket("raster dimensions"));
-
-    // connect l2 export node inputs
-    l2_export_node->input_socket("buffer").connect(trajectories_node->output_socket("layer2_cellCounts"));
-    l2_export_node->input_socket("dimensions").connect(trajectories_node->output_socket("raster dimensions"));
-
-    // connect l3 export node inputs
-    l3_export_node->input_socket("buffer").connect(trajectories_node->output_socket("layer3_travelLength"));
-    l3_export_node->input_socket("dimensions").connect(trajectories_node->output_socket("raster dimensions"));
-
-    // connect l4 export node inputs
-    l4_export_node->input_socket("buffer").connect(trajectories_node->output_socket("layer4_travelAngle"));
-    l4_export_node->input_socket("dimensions").connect(trajectories_node->output_socket("raster dimensions"));
-
-    // connect l5 export node inputs
-    l5_export_node->input_socket("buffer").connect(trajectories_node->output_socket("layer5_altitudeDifference"));
-    l5_export_node->input_socket("dimensions").connect(trajectories_node->output_socket("raster dimensions"));
 
     return node_graph;
 }
@@ -414,29 +379,65 @@ std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_with_export_compute_gr
 {
     auto node_graph = create_trajectories_compute_graph_unconnected(manager, device);
 
-    // === SETUP EXPORT NODES ===
-    {
-        TileExportNode::ExportSettings export_settings_rp = { true, true, true, true, "export/release_points" };
-        TileExportNode* rp_export_node = static_cast<TileExportNode*>(node_graph->add_node("rp_export", std::make_unique<TileExportNode>(device, export_settings_rp)));
+    TileExportNode::ExportSettings export_settings_rp = { true, true, true, true, "export/release_points" };
+    TileExportNode* rp_export_node
+        = static_cast<TileExportNode*>(node_graph->add_node("rp_export", std::make_unique<TileExportNode>(device, export_settings_rp)));
 
-        TileExportNode::ExportSettings export_settings_height = { true, true, true, true, "export/heights" };
-        TileExportNode* height_export_node = static_cast<TileExportNode*>(node_graph->add_node("height_export", std::make_unique<TileExportNode>(device, export_settings_height)));
+    TileExportNode::ExportSettings export_settings_height = { true, true, true, true, "export/heights" };
+    TileExportNode* height_export_node
+        = static_cast<TileExportNode*>(node_graph->add_node("height_export", std::make_unique<TileExportNode>(device, export_settings_height)));
 
-        TileExportNode::ExportSettings export_settings_trajectories = { true, true, true, true, "export/trajectories" };
-        TileExportNode* trajectories_export_node = static_cast<TileExportNode*>(node_graph->add_node("trajectories_export", std::make_unique<TileExportNode>(device, export_settings_trajectories)));
+    TileExportNode::ExportSettings export_settings_trajectories = { true, true, true, true, "export/trajectories" };
+    TileExportNode* trajectories_export_node
+        = static_cast<TileExportNode*>(node_graph->add_node("trajectories_export", std::make_unique<TileExportNode>(device, export_settings_trajectories)));
 
-        // Connect release points export node
-        rp_export_node->input_socket("texture").connect(node_graph->get_node("compute_release_points_node").output_socket("release point texture"));
-        rp_export_node->input_socket("region aabb").connect(node_graph->get_node("select_tiles_node").output_socket("region aabb"));
+    // Connect release points export node
+    rp_export_node->input_socket("texture").connect(node_graph->get_node("compute_release_points_node").output_socket("release point texture"));
+    rp_export_node->input_socket("region aabb").connect(node_graph->get_node("select_tiles_node").output_socket("region aabb"));
 
-        // Connect height tiles export node
-        height_export_node->input_socket("texture").connect(node_graph->get_node("stitch_node").output_socket("texture"));
-        height_export_node->input_socket("region aabb").connect(node_graph->get_node("select_tiles_node").output_socket("region aabb"));
+    // Connect height tiles export node
+    height_export_node->input_socket("texture").connect(node_graph->get_node("stitch_node").output_socket("texture"));
+    height_export_node->input_socket("region aabb").connect(node_graph->get_node("select_tiles_node").output_socket("region aabb"));
 
-        // Connect trajectories export node
-        trajectories_export_node->input_socket("texture").connect(node_graph->get_node("buffer_to_texture_node").output_socket("texture"));
-        trajectories_export_node->input_socket("region aabb").connect(node_graph->get_node("select_tiles_node").output_socket("region aabb"));
-    }
+    // Connect trajectories export node
+    trajectories_export_node->input_socket("texture").connect(node_graph->get_node("buffer_to_texture_node").output_socket("texture"));
+    trajectories_export_node->input_socket("region aabb").connect(node_graph->get_node("select_tiles_node").output_socket("region aabb"));
+
+    BufferExportNode* l1_export_node = static_cast<BufferExportNode*>(node_graph->add_node(
+        "l1_export_node", std::make_unique<BufferExportNode>(device, BufferExportNode::ExportSettings { "export/trajectories/texture_layer1_zdelta.png" })));
+
+    BufferExportNode* l2_export_node = static_cast<BufferExportNode*>(node_graph->add_node("l2_export_node",
+        std::make_unique<BufferExportNode>(device, BufferExportNode::ExportSettings { "export/trajectories/texture_layer2_cellCounts.png" })));
+
+    BufferExportNode* l3_export_node = static_cast<BufferExportNode*>(node_graph->add_node("l3_export_node",
+        std::make_unique<BufferExportNode>(device, BufferExportNode::ExportSettings { "export/trajectories/texture_layer3_travelLength.png" })));
+
+    BufferExportNode* l4_export_node = static_cast<BufferExportNode*>(node_graph->add_node("l4_export_node",
+        std::make_unique<BufferExportNode>(device, BufferExportNode::ExportSettings { "export/trajectories/texture_layer4_travelAngle.png" })));
+
+    BufferExportNode* l5_export_node = static_cast<BufferExportNode*>(node_graph->add_node("l5_export_node",
+        std::make_unique<BufferExportNode>(device, BufferExportNode::ExportSettings { "export/trajectories/texture_layer5_heightDifference.png" })));
+
+    Node& trajectories_node = node_graph->get_node("compute_avalanche_trajectories_node");
+    // connect l1 export node inputs
+    l1_export_node->input_socket("buffer").connect(trajectories_node.output_socket("layer1_zdelta"));
+    l1_export_node->input_socket("dimensions").connect(trajectories_node.output_socket("raster dimensions"));
+
+    // connect l2 export node inputs
+    l2_export_node->input_socket("buffer").connect(trajectories_node.output_socket("layer2_cellCounts"));
+    l2_export_node->input_socket("dimensions").connect(trajectories_node.output_socket("raster dimensions"));
+
+    // connect l3 export node inputs
+    l3_export_node->input_socket("buffer").connect(trajectories_node.output_socket("layer3_travelLength"));
+    l3_export_node->input_socket("dimensions").connect(trajectories_node.output_socket("raster dimensions"));
+
+    // connect l4 export node inputs
+    l4_export_node->input_socket("buffer").connect(trajectories_node.output_socket("layer4_travelAngle"));
+    l4_export_node->input_socket("dimensions").connect(trajectories_node.output_socket("raster dimensions"));
+
+    // connect l5 export node inputs
+    l5_export_node->input_socket("buffer").connect(trajectories_node.output_socket("layer5_altitudeDifference"));
+    l5_export_node->input_socket("dimensions").connect(trajectories_node.output_socket("raster dimensions"));
 
     node_graph->connect_node_signals_and_slots();
 
