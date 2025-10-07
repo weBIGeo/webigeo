@@ -175,8 +175,8 @@ void NodeRenderer::render()
         m_position_set = true;
     }
 
-    const bool disabled = !m_node->is_enabled();
-    if (disabled) {
+    bool initially_disabled = !m_node->is_enabled();
+    if (initially_disabled) {
         ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.3f);
         ImNodes::PushColorStyle(ImNodesCol_TitleBar, IM_COL32(100, 100, 100, 255));
         ImNodes::PushColorStyle(ImNodesCol_TitleBarHovered, IM_COL32(100, 100, 100, 255));
@@ -189,17 +189,23 @@ void NodeRenderer::render()
     ImGui::TextUnformatted(m_name.c_str());
     ImNodes::EndNodeTitleBar();
 
+    // Checkbox to enable/disable node
+    bool enabled = m_node->is_enabled();
+    if (ImGui::Checkbox("Enabled", &enabled)) {
+        m_node->set_enabled(enabled);
+    }
+
     render_settings();
     render_sockets();
 
     // Display the last run duration
-    float duration = m_node->last_run_duration();
+    float duration_ms = m_node->last_run_duration();
     ImGui::Dummy(ImVec2(0.0f, 4.0f)); // spacing
-    ImGui::Text("Last run: %.2f s", duration);
+    ImGui::Text("Last run: %0.0f ms", duration_ms);
 
     ImNodes::EndNode();
 
-    if (disabled) {
+    if (initially_disabled) {
         ImNodes::PopColorStyle();
         ImNodes::PopColorStyle();
         ImNodes::PopColorStyle();

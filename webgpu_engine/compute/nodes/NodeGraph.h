@@ -60,7 +60,7 @@ public:
     template <typename NodeType> [[nodiscard]] const NodeType& get_node_as(const std::string& node_name) const { return static_cast<const NodeType&>(get_node(node_name)); }
 
     // Enables or disables all nodes whose name contains the given substring.
-    void set_enabled_for_nodes_with_name(const std::string& name_substring, bool enable);
+    void set_enabled_for_nodes_with_name(const std::string& name_substring, bool enabled);
 
     // obtain outputs - for now all node graphs always output
     //  - a hashmap for overlay tiles (mapping tile id to texture array layer)

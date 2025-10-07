@@ -205,7 +205,7 @@ Data Node::get_input_data(const std::string& input_socket_name)
 float Node::last_run_duration() const { return std::chrono::duration_cast<std::chrono::milliseconds>(m_last_run_finished - m_last_run_started).count(); }
 
 bool Node::is_enabled() const { return m_enabled; }
-void Node::enable() { m_enabled = true; }
-void Node::disable() { m_enabled = false; }
+
+void Node::set_enabled(bool enabled) { m_enabled = enabled; }
 
 } // namespace webgpu_engine::compute::nodes

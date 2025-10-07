@@ -180,8 +180,7 @@ public:
     [[nodiscard]] float last_run_duration() const;
 
     [[nodiscard]] bool is_enabled() const;
-    void disable();
-    void enable();
+    void set_enabled(bool enabled);
 
 public slots:
     void run();
