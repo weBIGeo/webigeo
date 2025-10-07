@@ -32,8 +32,8 @@ namespace webgpu_engine {
 struct ComputePipelineSettings {
     radix::geometry::Aabb<3, double> target_region = {}; // select tiles node
     uint32_t zoomlevel = 15;
-    uint32_t trajectory_resolution_multiplier = 16;
-    uint32_t num_steps = 4096u;
+    uint32_t trajectory_resolution_multiplier = 8;
+    uint32_t num_steps = 10000u;
     float step_length = 0.1f;
     bool sync_snow_settings_with_render_settings = true; // snow node
     compute::nodes::ComputeSnowNode::SnowSettings snow_settings; // snow node
