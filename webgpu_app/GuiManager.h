@@ -74,6 +74,7 @@ private:
 #endif
 
     void draw();
+    void draw_disclaimer_popup();
 
     void install_fonts();
 

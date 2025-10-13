@@ -224,6 +224,12 @@ void GuiManager::draw()
     if (!m_gui_visible)
         return;
 
+    if (m_first_frame) {
+        ImGui::OpenPopup("WARNING: RESEARCH PREVIEW");
+    }
+
+    draw_disclaimer_popup();
+
     ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - 430, 0)); // Set position to top-left corner
     ImGui::SetNextWindowSize(ImVec2(430, ImGui::GetIO().DisplaySize.y)); // Set height to full screen height, width as desired
 
@@ -460,6 +466,38 @@ void GuiManager::draw()
 
     m_first_frame = false;
 #endif
+}
+
+void GuiManager::draw_disclaimer_popup()
+{
+    // Always center this window when appearing
+    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(365, 200));
+
+    if (ImGui::BeginPopupModal("WARNING: RESEARCH PREVIEW", NULL, ImGuiWindowFlags_NoTitleBar)) {
+        const char* text = "WARNING: RESEARCH PREVIEW";
+        auto windowWidth = ImGui::GetWindowSize().x;
+        auto textWidth = ImGui::CalcTextSize(text).x;
+        ImGui::SetCursorPosX((windowWidth - textWidth) * 0.5f);
+        ImGui::Text("%s", text);
+
+        ImGui::Spacing();
+        ImGui::TextWrapped(
+            "The avalanche simulation and visualization is part of a research project and should not be used as a basis for decision-making during "
+            "actual route planning.");
+        ImGui::Spacing();
+        ImGui::TextWrapped("Simulations always contain uncertainty and their results\n"
+                           "may differ drastically from reality in some cases.");
+        ImGui::Spacing();
+        ImGui::TextWrapped("We exclude liability for any accidents or damages in connection to this service.");
+        ImGui::Spacing();
+        ImGui::SetCursorPosX(205);
+        if (ImGui::Button("OK", ImVec2(150, 0))) {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
 }
 
 } // namespace webgpu_app
