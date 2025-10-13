@@ -172,6 +172,7 @@ private:
 
     bool m_needs_redraw = true;
     bool m_first_paint = true;
+    bool m_is_first_pipeline_run = true;
 
     std::unique_ptr<TrackRenderer> m_track_renderer;
 

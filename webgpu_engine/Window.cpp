@@ -563,7 +563,7 @@ void Window::paint_compute_pipeline_gui()
             bool eval_ready_to_run = (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES_EVAL) && (!m_compute_pipeline_settings.heightmap_texture_path.empty());
             bool normal_pipeline_ready_to_run = (m_active_compute_pipeline_type != ComputePipelineType::AVALANCHE_TRAJECTORIES_EVAL) && m_is_region_selected;
             if (normal_pipeline_ready_to_run || eval_ready_to_run) {
-                m_compute_graph->run();
+                update_settings_and_rerun_pipeline();
             } else {
                 display_message("Cannot run pipeline - No region selected (track for normal pipeline, eval dir for eval pipeline)");
             }
@@ -1126,6 +1126,8 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, 
 
     m_node_graph_renderer = std::make_unique<compute::NodeGraphRenderer>();
     m_node_graph_renderer->init(*m_compute_graph.get());
+
+    m_is_first_pipeline_run = true;
 }
 
 std::string get_current_date_time_string() { return std::format("{:%Y-%m-%d_%H-%M-%S}", std::chrono::system_clock::now()); }
@@ -1338,13 +1340,14 @@ void Window::update_settings_and_rerun_pipeline(const std::string& entry_node)
 {
     update_compute_pipeline_settings();
     if (m_is_region_selected) {
-        if (!entry_node.empty()) {
+        if (!entry_node.empty() && !m_is_first_pipeline_run) {
             if (m_compute_graph->exists_node(entry_node)) {
                 m_compute_graph->get_node_as<compute::nodes::Node>(entry_node).run();
             } else {
                 qCritical() << "Entry node" << entry_node << "does not exist.";
             }
         } else {
+            m_is_first_pipeline_run = false;
             m_compute_graph->run();
         }
     } else {
