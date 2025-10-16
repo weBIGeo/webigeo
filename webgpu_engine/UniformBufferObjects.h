@@ -45,24 +45,24 @@ namespace webgpu_engine {
 struct uboSharedConfig {
 public:
     // rgb...Color, a...intensity
-    glm::vec4 m_sun_light = glm::vec4(1.0, 1.0, 1.0, 0.15);
+    glm::vec4 m_sun_light = glm::vec4(1.0, 1.0, 1.0, 0.2);
     // The direction of the light/sun in WS (northwest lighting at 45 degrees)
     glm::vec4 m_sun_light_dir = glm::normalize(glm::vec4(1.0, -1.0, -1.0, 0.0));
     //glm::vec4 m_sun_pos = glm::vec4(1.0, 1.0, 3000.0, 1.0);
     // rgb...Color, a...intensity
-    glm::vec4 m_amb_light = glm::vec4(1.0, 1.0, 1.0, 0.4);
+    glm::vec4 m_amb_light = glm::vec4(1.0, 1.0, 1.0, 0.5);
     // rgba...Color of the phong-material (if a 0 -> ortho picture)
-    glm::vec4 m_material_color = glm::vec4(0.5, 0.5, 0.5, 0.0);
+    glm::vec4 m_material_color = glm::vec4(1.0, 1.0, 1.0, 0.0);
     // amb, diff, spec, shininess
     glm::vec4 m_material_light_response = glm::vec4(1.5, 3.0, 0.0, 32.0);
     // enabled, min angle, max angle, angle blend space
-    glm::vec4 m_snow_settings_angle = glm::vec4(1.0, 0.0, 30.0, 5.0);
+    glm::vec4 m_snow_settings_angle = glm::vec4(0.0, 0.0, 45.0, 5.0);
     // min altitude (snowline), variating altitude, altitude blend space, spec addition
     glm::vec4 m_snow_settings_alt = glm::vec4(1000.0, 200.0, 200.0, 1.0);
 
     float m_overlay_strength = 1.0f;
     float m_ssao_falloff_to_value = 0.5f;
-    float padf1 = 0.0f;
+    uint32_t m_atmosphere_enabled = true;
     float padf2 = 0.0f;
 
     uint32_t m_phong_enabled = true;
@@ -78,7 +78,9 @@ public:
     uint32_t m_height_lines_enabled = false;
     uint32_t m_csm_enabled = false;
     uint32_t m_overlay_shadowmaps_enabled = false;
-    uint32_t m_render_tracks_enabled = false;
+    uint32_t m_track_render_mode = 0; // 0...none, 1...without depth test, 2...with depth test, 3 semi-transparent if behind terrain
+
+    glm::vec4 m_height_lines_settings = glm::vec4(250.0f, 50.0f, 2.0, 0.3); // primary interval, secondary interval, base size, base darkening
 };
 
 struct uboCameraConfig {
@@ -101,6 +103,20 @@ struct uboCameraConfig {
     // the distance scaling factor of the camera
     float distance_scaling_factor;
     float buffer2;
+};
+
+// contains settings (including world space aabb) for image overlay (used in compose step)
+struct ImageOverlaySettings {
+    glm::vec2 aabb_min = { 0.0f, 0.0f };
+    glm::vec2 aabb_max = { 0.0f, 0.0f };
+
+    float alpha = 1.0f;
+    uint32_t mode = 1;
+    float float_decoding_lower_bound = 0.0f;
+    float float_decoding_upper_bound = 20.0f;
+
+    glm::vec2 texture_size = { 0.0f, 0.0f };
+    glm::vec2 padding;
 };
 
 //TODO

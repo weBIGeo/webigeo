@@ -23,7 +23,13 @@ namespace webgpu_engine::compute::nodes {
 glm::uvec3 UpsampleTexturesNode::SHADER_WORKGROUP_SIZE = { 1, 16, 16 };
 
 UpsampleTexturesNode::UpsampleTexturesNode(const PipelineManager& pipeline_manager, WGPUDevice device, glm::uvec2 target_resolution, size_t capacity)
-    : Node({ data_type<TileStorageTexture*>() }, { data_type<TileStorageTexture*>() })
+    : Node(
+          {
+              InputSocket(*this, "source textures", data_type<TileStorageTexture*>()),
+          },
+          {
+              OutputSocket(*this, "output textures", data_type<TileStorageTexture*>(), [this]() { return m_output_storage_texture.get(); }),
+          })
     , m_pipeline_manager { &pipeline_manager }
     , m_device { device }
     , m_queue { wgpuDeviceGetQueue(m_device) }
@@ -38,7 +44,7 @@ void UpsampleTexturesNode::run_impl()
 {
     qDebug() << "running UpsampleTexturesNode ...";
 
-    const auto& input_textures = *std::get<data_type<TileStorageTexture*>()>(get_input_data(Input::TEXTURE_ARRAY));
+    const auto& input_textures = *std::get<data_type<TileStorageTexture*>()>(input_socket("source textures").get_connected_data());
     const std::vector<uint32_t> input_used_indices = input_textures.used_layer_indices();
 
     qDebug() << "upsampling " << input_used_indices.size() << " textures from (" << input_textures.width() << "," << input_textures.height() << ") to ("
@@ -62,12 +68,12 @@ void UpsampleTexturesNode::run_impl()
     // bind GPU resources and run pipeline
     {
         WGPUCommandEncoderDescriptor descriptor {};
-        descriptor.label = "compute: upsample texture command encoder";
+        descriptor.label = WGPUStringView { .data = "compute: upsample texture command encoder", .length = WGPU_STRLEN };
         webgpu::raii::CommandEncoder encoder(m_device, descriptor);
 
         {
             WGPUComputePassDescriptor compute_pass_desc {};
-            compute_pass_desc.label = "compute: upsample texture compute pass";
+            compute_pass_desc.label = WGPUStringView { .data = "compute: upsample texture compute pass", .length = WGPU_STRLEN };
             webgpu::raii::ComputePassEncoder compute_pass(encoder.handle(), compute_pass_desc);
 
             glm::uvec3 workgroup_counts = glm::ceil(
@@ -77,7 +83,7 @@ void UpsampleTexturesNode::run_impl()
         }
 
         WGPUCommandBufferDescriptor cmd_buffer_descriptor {};
-        cmd_buffer_descriptor.label = "compute: upsampling texture command buffer";
+        cmd_buffer_descriptor.label = WGPUStringView { .data = "compute: upsampling texture command buffer", .length = WGPU_STRLEN };
         WGPUCommandBuffer command = wgpuCommandEncoderFinish(encoder.handle(), &cmd_buffer_descriptor);
         wgpuQueueSubmit(m_queue, 1, &command);
         wgpuCommandBufferRelease(command);
@@ -88,21 +94,21 @@ void UpsampleTexturesNode::run_impl()
         m_output_storage_texture->reserve(index);
     }
 
-    wgpuQueueOnSubmittedWorkDone(
-        m_queue,
-        []([[maybe_unused]] WGPUQueueWorkDoneStatus status, void* user_data) {
-            UpsampleTexturesNode* _this = reinterpret_cast<UpsampleTexturesNode*>(user_data);
-            emit _this->run_finished();
-        },
-        this);
-}
+    const auto on_work_done
+        = []([[maybe_unused]] WGPUQueueWorkDoneStatus status, [[maybe_unused]] WGPUStringView message, void* userdata, [[maybe_unused]] void* userdata2) {
+              UpsampleTexturesNode* _this = reinterpret_cast<UpsampleTexturesNode*>(userdata);
+              emit _this->run_completed();
+          };
 
-webgpu_engine::compute::nodes::Data UpsampleTexturesNode::get_output_data_impl(SocketIndex output_index)
-{
-    if (output_index == Output::OUTPUT_TEXTURE_ARRAY) {
-        return { m_output_storage_texture.get() };
-    }
-    exit(-1); // TODO log
+    WGPUQueueWorkDoneCallbackInfo callback_info {
+        .nextInChain = nullptr,
+        .mode = WGPUCallbackMode_AllowProcessEvents,
+        .callback = on_work_done,
+        .userdata1 = this,
+        .userdata2 = nullptr,
+    };
+
+    wgpuQueueOnSubmittedWorkDone(m_queue, callback_info);
 }
 
 } // namespace webgpu_engine::compute::nodes

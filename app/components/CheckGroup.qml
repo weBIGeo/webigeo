@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Alpine Terrain Renderer
+ * AlpineMaps.org
  * Copyright (C) 2023 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
@@ -25,6 +25,7 @@ Item {
     property alias name: groupname.text;
     property alias checked: checkbox.checked;
     property bool checkBoxEnabled: false;
+    property int nGridColumns: 2;
     id: root
     Layout.fillWidth: true
     Layout.topMargin: 20
@@ -67,7 +68,7 @@ Item {
 
 
         GridLayout {
-            columns: 2
+            columns: nGridColumns
             id: groupchildren
             visible: root.checked || !root.checkBoxEnabled
             Layout.fillWidth: true

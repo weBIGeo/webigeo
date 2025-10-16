@@ -28,48 +28,70 @@ namespace webgpu_engine {
 
 class ShaderModuleManager {
 public:
-    const static inline std::filesystem::path DEFAULT_PREFIX = ":/wgsl_shaders/";
+    const static inline std::filesystem::path QRC_PREFIX = ":/wgsl_shaders/";
+    const static inline std::filesystem::path LOCAL_PREFIX = ALP_RESOURCES_PREFIX;
 
 public:
-    ShaderModuleManager(WGPUDevice device, const std::filesystem::path& prefix = DEFAULT_PREFIX);
+    ShaderModuleManager(WGPUDevice device);
     ~ShaderModuleManager() = default;
 
     void create_shader_modules();
     void release_shader_modules();
 
-    const webgpu::raii::ShaderModule& tile() const;
-    const webgpu::raii::ShaderModule& screen_pass_vert() const;
-    const webgpu::raii::ShaderModule& compose_frag() const;
-    const webgpu::raii::ShaderModule& atmosphere_frag() const;
+    const webgpu::raii::ShaderModule& render_tiles() const;
+    const webgpu::raii::ShaderModule& render_atmosphere() const;
+    const webgpu::raii::ShaderModule& render_lines() const;
+    const webgpu::raii::ShaderModule& compose_pass() const;
+
     const webgpu::raii::ShaderModule& normals_compute() const;
     const webgpu::raii::ShaderModule& snow_compute() const;
     const webgpu::raii::ShaderModule& downsample_compute() const;
     const webgpu::raii::ShaderModule& upsample_textures_compute() const;
-    const webgpu::raii::ShaderModule& line_render() const;
+    const webgpu::raii::ShaderModule& avalanche_trajectories_compute() const;
+    const webgpu::raii::ShaderModule& buffer_to_texture_compute() const;
+    const webgpu::raii::ShaderModule& avalanche_influence_area_compute() const;
+    const webgpu::raii::ShaderModule& d8_compute() const;
+    const webgpu::raii::ShaderModule& release_point_compute() const;
+    const webgpu::raii::ShaderModule& height_decode_compute() const;
+    const webgpu::raii::ShaderModule& fxaa_compute() const;
+    const webgpu::raii::ShaderModule& iterative_simulation_compute() const;
 
-    std::unique_ptr<webgpu::raii::ShaderModule> create_shader_module(const std::string& name, const std::string& code);
+    const webgpu::raii::ShaderModule& mipmap_creation_compute() const;
+
+    static std::string load_and_preprocess_without_cache(const std::string& path);
+    static std::unique_ptr<webgpu::raii::ShaderModule> create_shader_module(WGPUDevice device, const std::string& label, const std::string& code);
+
+    std::unique_ptr<webgpu::raii::ShaderModule> create_shader_module_for_file(const std::string& filename);
 
 private:
-    std::string read_file_contents(const std::string& name) const;
-    std::string get_contents(const std::string& name);
+    static std::string read_file_contents(const std::string& name);
+    std::string get_file_contents_with_cache(const std::string& name);
     std::string preprocess(const std::string& code);
-    std::unique_ptr<webgpu::raii::ShaderModule> create_shader_module(const std::string& filename);
 
 private:
     WGPUDevice m_device;
-    std::filesystem::path m_prefix;
 
     std::map<std::string, std::string> m_shader_name_to_code;
 
-    std::unique_ptr<webgpu::raii::ShaderModule> m_tile_shader_module;
-    std::unique_ptr<webgpu::raii::ShaderModule> m_screen_pass_vert_shader_module;
-    std::unique_ptr<webgpu::raii::ShaderModule> m_compose_frag_shader_module;
-    std::unique_ptr<webgpu::raii::ShaderModule> m_atmosphere_frag_shader_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_render_tiles_shader_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_render_atmosphere_shader_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_render_lines_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_compose_pass_shader_module;
+
     std::unique_ptr<webgpu::raii::ShaderModule> m_normals_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_snow_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_downsample_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_upsample_textures_compute_module;
-    std::unique_ptr<webgpu::raii::ShaderModule> m_line_render_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_avalanche_trajectories_compute_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_buffer_to_texture_compute_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_avalanche_influence_area_compute_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_d8_compute_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_release_point_compute_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_height_decode_compute_module;
+
+    std::unique_ptr<webgpu::raii::ShaderModule> m_mipmap_creation_compute_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_fxaa_compute_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_iterative_simulation_compute_module;
 };
 
 } // namespace webgpu_engine

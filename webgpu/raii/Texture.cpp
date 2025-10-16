@@ -19,6 +19,7 @@
 
 #include "Texture.h"
 #include <QDebug>
+#include <nucleus/utils/image_writer.h>
 
 namespace webgpu::raii {
 
@@ -80,31 +81,11 @@ uint8_t Texture::get_bytes_per_element(WGPUTextureFormat format)
 
     default:
         qFatal("tried to get texture size for unsupoorted format");
+        return 0;
     }
 }
 
 const uint16_t Texture::BYTES_PER_ROW_PADDING = 256u;
-
-// TODO: This should be a template function if possible which takes raster images
-// that fit the current texture format.
-void Texture::write(WGPUQueue queue, const nucleus::Raster<uint16_t>& data, uint32_t layer)
-{
-    assert(static_cast<uint32_t>(data.width()) == m_descriptor.size.width);
-    assert(static_cast<uint32_t>(data.height()) == m_descriptor.size.height);
-
-    WGPUImageCopyTexture image_copy_texture {};
-    image_copy_texture.texture = m_handle;
-    image_copy_texture.aspect = WGPUTextureAspect::WGPUTextureAspect_All;
-    image_copy_texture.mipLevel = 0;
-    image_copy_texture.origin = { 0, 0, layer };
-
-    WGPUTextureDataLayout texture_data_layout {};
-    texture_data_layout.bytesPerRow = uint32_t(sizeof(uint16_t) * data.width());
-    texture_data_layout.rowsPerImage = uint32_t(data.height());
-    texture_data_layout.offset = 0;
-    WGPUExtent3D copy_extent { m_descriptor.size.width, m_descriptor.size.height, 1 };
-    wgpuQueueWriteTexture(queue, &image_copy_texture, data.bytes(), uint32_t(data.size_in_bytes()), &texture_data_layout, &copy_extent);
-}
 
 void Texture::write(WGPUQueue queue, const nucleus::utils::ColourTexture& data, uint32_t layer)
 {
@@ -112,72 +93,138 @@ void Texture::write(WGPUQueue queue, const nucleus::utils::ColourTexture& data, 
     assert(static_cast<uint32_t>(data.height()) == m_descriptor.size.height);
     assert(data.format() == nucleus::utils::ColourTexture::Format::Uncompressed_RGBA); // TODO compressed textures
 
-    WGPUImageCopyTexture image_copy_texture {};
+    WGPUTexelCopyTextureInfo image_copy_texture {};
     image_copy_texture.texture = m_handle;
     image_copy_texture.aspect = WGPUTextureAspect::WGPUTextureAspect_All;
     image_copy_texture.mipLevel = 0;
-    image_copy_texture.origin = { 0, 0, layer };
+    image_copy_texture.origin = WGPUOrigin3D { 0, 0, layer };
 
-    WGPUTextureDataLayout texture_data_layout {};
+    WGPUTexelCopyBufferLayout texture_data_layout {};
     texture_data_layout.bytesPerRow = 4 * data.width(); // for uncompressed RGBA
     texture_data_layout.rowsPerImage = data.height();
     texture_data_layout.offset = 0;
+
     WGPUExtent3D copy_extent { m_descriptor.size.width, m_descriptor.size.height, 1 };
+
     wgpuQueueWriteTexture(queue, &image_copy_texture, data.data(), data.n_bytes(), &texture_data_layout, &copy_extent);
 }
 
 void Texture::copy_to_texture(WGPUCommandEncoder encoder, uint32_t source_layer, const Texture& target_texture, uint32_t target_layer) const
 {
-    WGPUImageCopyTexture source {};
+    WGPUTexelCopyTextureInfo source {};
     source.texture = m_handle;
     source.mipLevel = 0;
-    source.origin = { .x = 0, .y = 0, .z = source_layer };
+    source.origin = WGPUOrigin3D { .x = 0, .y = 0, .z = source_layer };
     source.aspect = WGPUTextureAspect_All;
 
-    WGPUImageCopyTexture destination {};
+    WGPUTexelCopyTextureInfo destination {};
     destination.texture = target_texture.handle();
     destination.mipLevel = 0;
-    destination.origin = { .x = 0, .y = 0, .z = target_layer };
+    destination.origin = WGPUOrigin3D { .x = 0, .y = 0, .z = target_layer };
     destination.aspect = WGPUTextureAspect_All;
 
     const WGPUExtent3D extent { .width = m_descriptor.size.width, .height = m_descriptor.size.height, .depthOrArrayLayers = 1 };
     wgpuCommandEncoderCopyTextureToTexture(encoder, &source, &destination, &extent);
 }
 
-void Texture::read_back_async(WGPUDevice device, size_t layer_index, ReadBackCallback callback)
+void Texture::read_back_async(WGPUDevice device, size_t layer_index, ReadBackCallback callback) const
 {
-    // create buffer and add buffer and callback to back of queue
-    m_read_back_states.emplace(std::make_unique<raii::RawBuffer<char>>(
-                                   device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead, single_layer_size_in_bytes(), "texture read back staging buffer"),
-        callback, layer_index);
+    ReadBackState* read_back_state = new ReadBackState {
+        this,
+        std::make_unique<raii::RawBuffer<char>>(
+            device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead, single_layer_size_in_bytes(), "texture read back staging buffer"),
+        callback,
+        layer_index,
+    };
 
-    copy_to_buffer(device, *m_read_back_states.back().buffer, glm::uvec3(0, 0, uint32_t(layer_index)));
+    copy_to_buffer(device, *(read_back_state->buffer), glm::uvec3(0, 0, uint32_t(layer_index)));
 
-    auto on_buffer_mapped = [](WGPUBufferMapAsyncStatus status, void* user_data) {
-        Texture* _this = reinterpret_cast<Texture*>(user_data);
+    auto on_buffer_mapped = [](WGPUMapAsyncStatus status, WGPUStringView message, void* user_data, [[maybe_unused]] void* user_data2) {
+        ReadBackState* current_state = reinterpret_cast<ReadBackState*>(user_data);
 
-        if (status != WGPUBufferMapAsyncStatus_Success) {
-            qCritical() << "error: failed mapping buffer for ComputeTileStorage read back";
-            _this->m_read_back_states.pop();
+        if (status != WGPUMapAsyncStatus_Success) {
+            qCritical() << "error: failed mapping buffer for ComputeTileStorage read back, message: " << message.data;
+            delete current_state;
             return;
         }
 
-        const ReadBackState& current_state = _this->m_read_back_states.front();
-
-        const char* buffer_data = (const char*)wgpuBufferGetConstMappedRange(current_state.buffer->handle(), 0, current_state.buffer->size_in_byte());
+        const Texture* texture = current_state->texture;
+        const char* buffer_data = (const char*)wgpuBufferGetConstMappedRange(current_state->buffer->handle(), 0, current_state->buffer->size_in_byte());
         auto array = std::make_shared<QByteArray>();
-        for (uint32_t i = 0; i < _this->m_descriptor.size.height; i++) {
-            array->append(&buffer_data[i * _this->bytes_per_row()], _this->m_descriptor.size.width * get_bytes_per_element(_this->m_descriptor.format));
+        for (uint32_t i = 0; i < texture->m_descriptor.size.height; i++) {
+            array->append(&buffer_data[i * texture->bytes_per_row()], texture->m_descriptor.size.width * get_bytes_per_element(texture->m_descriptor.format));
         }
 
-        current_state.callback(current_state.layer_index, array);
-        wgpuBufferUnmap(current_state.buffer->handle());
+        current_state->callback(current_state->layer_index, array);
+        wgpuBufferUnmap(current_state->buffer->handle());
 
-        _this->m_read_back_states.pop();
+        delete current_state;
+    };
+
+    WGPUBufferMapCallbackInfo on_buffer_mapped_callback_info {
+        .nextInChain = nullptr,
+        .mode = WGPUCallbackMode_AllowProcessEvents,
+        .callback = on_buffer_mapped,
+        .userdata1 = read_back_state,
+        .userdata2 = nullptr,
     };
 
     wgpuBufferMapAsync(
-        m_read_back_states.back().buffer->handle(), WGPUMapMode_Read, 0, uint32_t(m_read_back_states.back().buffer->size_in_byte()), on_buffer_mapped, this);
+        read_back_state->buffer->handle(), WGPUMapMode_Read, 0, uint32_t(read_back_state->buffer->size_in_byte()), on_buffer_mapped_callback_info);
+}
+
+void Texture::save_to_file(WGPUDevice device, const std::string& filename, size_t layer_index)
+{
+    read_back_async(device, layer_index, [this, filename]([[maybe_unused]] size_t layer_index, std::shared_ptr<QByteArray> data) {
+        switch (this->m_descriptor.format) {
+        case WGPUTextureFormat::WGPUTextureFormat_RGBA8Unorm:
+        case WGPUTextureFormat::WGPUTextureFormat_RGBA8UnormSrgb:
+        case WGPUTextureFormat::WGPUTextureFormat_RGBA8Uint:
+            nucleus::utils::image_writer::rgba8_as_png(*data, glm::uvec2(width(), height()), QString::fromStdString(filename));
+            break;
+
+        // NOTE: If single float format we output the min/max/avg values (for the possibility of a first check
+        // and then crop the data and normalize it such that we can write it as uint32_t split into the rgb channels.
+        // We do the same with the overlays, and therefore can use the python script to convert
+        // this image back to a tiff for investigation.
+        case WGPUTextureFormat::WGPUTextureFormat_R32Float: {
+            const float* float_data = reinterpret_cast<const float*>(data->data());
+            size_t num_floats = data->size() / sizeof(float);
+
+            float min_value_found = std::numeric_limits<float>::max();
+            float max_value_found = std::numeric_limits<float>::lowest();
+            double sum = 0.0;
+            std::vector<uint32_t> packed_data(num_floats);
+
+            // Constants for normalization
+            constexpr float min_value = -10000.0f;
+            constexpr float max_value = 10000.0f;
+            constexpr float range = max_value - min_value;
+
+            for (size_t i = 0; i < num_floats; ++i) {
+                float value = float_data[i];
+                min_value_found = std::min(min_value_found, value);
+                max_value_found = std::max(max_value_found, value);
+                sum += value;
+                float clamped = std::max(min_value, std::min(max_value, value));
+                float normalized = (clamped - min_value) / range;
+                uint32_t packed = static_cast<uint32_t>(normalized * std::numeric_limits<uint32_t>::max());
+                packed_data[i] = packed;
+            }
+            float average_value = static_cast<float>(sum / num_floats);
+            qDebug() << "Float texture data: " << "min:" << min_value_found << "max:" << max_value_found << "avg:" << average_value;
+
+            QByteArray packed_byte_array(reinterpret_cast<const char*>(packed_data.data()), packed_data.size() * sizeof(uint32_t));
+            nucleus::utils::image_writer::rgba8_as_png(packed_byte_array, glm::uvec2(width(), height()), QString::fromStdString(filename));
+        } break;
+
+        default:
+            qCritical() << "Cannot save texture to file: unsupported format.";
+            return;
+        }
+
+        qDebug() << "Texture saved to file: " << QString::fromStdString(filename);
+    });
 }
 
 WGPUTextureViewDescriptor Texture::default_texture_view_descriptor() const
@@ -201,9 +248,11 @@ WGPUTextureViewDescriptor Texture::default_texture_view_descriptor() const
     view_desc.dimension = determineViewDimension(m_descriptor);
     view_desc.format = m_descriptor.format;
     view_desc.baseArrayLayer = 0;
-    view_desc.arrayLayerCount = m_descriptor.size.depthOrArrayLayers;
+    // arrayLayerCount must be 1 for 3d textures, webGPU does not (yet) support 3d texture arrays
+    view_desc.arrayLayerCount = m_descriptor.dimension == WGPUTextureDimension_3D ? 1u : m_descriptor.size.depthOrArrayLayers;
     view_desc.baseMipLevel = 0;
     view_desc.mipLevelCount = m_descriptor.mipLevelCount;
+    // m_descriptor.mipLevelCount;
     return view_desc;
 }
 
@@ -211,14 +260,22 @@ std::unique_ptr<TextureView> Texture::create_view() const { return create_view(d
 
 std::unique_ptr<TextureView> Texture::create_view(const WGPUTextureViewDescriptor& desc) const { return std::make_unique<TextureView>(m_handle, desc); }
 
-size_t Texture::size_in_bytes() { return single_layer_size_in_bytes() * m_descriptor.size.depthOrArrayLayers; }
+size_t Texture::width() const { return m_descriptor.size.width; }
 
-size_t Texture::bytes_per_row()
+size_t Texture::height() const { return m_descriptor.size.height; }
+
+size_t Texture::depth_or_num_layers() const { return m_descriptor.size.depthOrArrayLayers; }
+
+uint32_t Texture::mip_level_count() const { return m_descriptor.mipLevelCount; }
+
+size_t Texture::size_in_bytes() const { return single_layer_size_in_bytes() * m_descriptor.size.depthOrArrayLayers; }
+
+size_t Texture::bytes_per_row() const
 {
     return size_t(std::ceil(double(m_descriptor.size.width) * double(get_bytes_per_element(m_descriptor.format)) / double(BYTES_PER_ROW_PADDING))
         * BYTES_PER_ROW_PADDING); // rows are padded to 256 bytes
 }
 
-size_t Texture::single_layer_size_in_bytes() { return bytes_per_row() * m_descriptor.size.height; }
+size_t Texture::single_layer_size_in_bytes() const { return bytes_per_row() * m_descriptor.size.height; }
 
 } // namespace webgpu::raii

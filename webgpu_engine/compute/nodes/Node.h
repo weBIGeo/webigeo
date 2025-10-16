@@ -1,5 +1,6 @@
 /*****************************************************************************
  * weBIGeo
+ * Copyright (C) 2024 Gerald Kimmersdorfer
  * Copyright (C) 2024 Patrick Komon
  *
  * This program is free software: you can redistribute it and/or modify
@@ -34,23 +35,116 @@ class Node;
 using DataType = size_t;
 
 /// datatypes that can be used with nodes have to be declared here.
-using Data = std::variant<const std::vector<tile::Id>*, const std::vector<QByteArray>*, TileStorageTexture*, GpuHashMap<tile::Id, uint32_t, GpuTileId>*>;
+using Data = std::variant<const std::vector<radix::tile::Id>*,
+    const std::vector<QByteArray>*,
+    TileStorageTexture*,
+    GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>*,
+    webgpu::raii::RawBuffer<uint32_t>*,
+    const webgpu::raii::TextureWithSampler*,
+    const radix::geometry::Aabb<2, double>*,
+    glm::uvec2>;
 
 using SocketIndex = size_t;
 
 // Get data type (DataType value) for specific C++ type
 // adapted from https://stackoverflow.com/a/52303671
-template <typename T, std::size_t index = 0> static constexpr DataType data_type()
+template <typename T, typename VariantT, std::size_t index = 0> static constexpr DataType data_type()
 {
-    static_assert(std::variant_size_v<Data> > index, "Type not found in variant");
-    if constexpr (index == std::variant_size_v<Data>) {
+    static_assert(std::variant_size_v<VariantT> > index, "Type not found in variant");
+    if constexpr (index == std::variant_size_v<VariantT>) {
         return index;
-    } else if constexpr (std::is_same_v<std::variant_alternative_t<index, Data>, T>) {
+    } else if constexpr (std::is_same_v<std::variant_alternative_t<index, VariantT>, T>) {
         return index;
     } else {
-        return data_type<T, index + 1>();
+        return data_type<T, VariantT, index + 1>();
     }
 }
+
+template <typename T> static constexpr DataType data_type() { return data_type<T, Data>(); }
+
+class Socket {
+public:
+    enum class FlowDirection {
+        INPUT,
+        OUTPUT,
+    };
+
+protected:
+    Socket(Node& node, const std::string& name, DataType type, FlowDirection direction);
+
+public:
+    [[nodiscard]] const Node& node() const;
+    [[nodiscard]] Node& node();
+
+    [[nodiscard]] const std::string& name() const;
+    [[nodiscard]] DataType type() const;
+
+private:
+    Node* m_node;
+    std::string m_name;
+    DataType m_type;
+    FlowDirection m_direction;
+};
+
+class OutputSocket;
+class InputSocket;
+
+class InputSocket : public Socket {
+    friend class OutputSocket;
+
+public:
+    InputSocket(Node& node, const std::string& name, DataType type);
+
+    void connect(OutputSocket& output_socket);
+
+    [[nodiscard]] bool is_socket_connected() const;
+    [[nodiscard]] OutputSocket& connected_socket();
+    [[nodiscard]] const OutputSocket& connected_socket() const;
+
+    [[nodiscard]] Data get_connected_data();
+
+private:
+    OutputSocket* m_connected_socket = nullptr;
+};
+
+class OutputSocket : public Socket {
+    friend class InputSocket;
+
+    using OutputFunc = std::function<Data()>;
+
+public:
+    OutputSocket(Node& node, const std::string& name, DataType type, OutputFunc output_func);
+
+    void connect(InputSocket& input_socket);
+
+    [[nodiscard]] bool is_socket_connected() const;
+    [[nodiscard]] std::vector<InputSocket*>& connected_sockets();
+    [[nodiscard]] const std::vector<InputSocket*>& connected_sockets() const;
+
+    [[nodiscard]] Data get_data();
+
+private:
+    void remove_connected_socket(InputSocket& input_socket);
+
+private:
+    OutputFunc m_output_func;
+    std::vector<InputSocket*> m_connected_sockets = {};
+};
+
+class NodeRunFailureInfo {
+public:
+    NodeRunFailureInfo() = delete;
+    NodeRunFailureInfo(const NodeRunFailureInfo&) = default;
+
+    NodeRunFailureInfo(const Node& node, const std::string& message);
+
+    [[nodiscard]] const Node& node() const;
+    [[nodiscard]] const std::string& message() const;
+
+private:
+    const Node* m_node;
+    std::string m_message;
+};
 
 /// Abstract base class for nodes.
 ///
@@ -65,60 +159,56 @@ class Node : public QObject {
     Q_OBJECT
 
 public:
-    Node(const std::vector<DataType>& input_types, const std::vector<DataType>& output_types);
+    Node(const std::vector<InputSocket>& input_sockets, const std::vector<OutputSocket>& output_sockets);
     virtual ~Node() = default;
 
-    /// Connects an input socket of this node to an output socket of another node
-    /// TODO should set both directions?
-    void connect_input_socket(SocketIndex input_index, Node* connected_node, SocketIndex connected_output_index);
+    [[nodiscard]] bool has_input_socket(const std::string& name) const;
+    [[nodiscard]] InputSocket& input_socket(const std::string& name);
+    [[nodiscard]] const InputSocket& input_socket(const std::string& name) const;
 
-    /// Connects an output socket of this node to an input socket of another node (unidirectional)
-    /// TODO should set both directions?
-    void connect_output_socket(SocketIndex output_index, Node* connected_node, SocketIndex connected_input_index);
+    [[nodiscard]] bool has_output_socket(const std::string& name) const;
+    [[nodiscard]] OutputSocket& output_socket(const std::string& name);
+    [[nodiscard]] const OutputSocket& output_socket(const std::string& name) const;
+
+    [[nodiscard]] std::vector<InputSocket>& input_sockets();
+    [[nodiscard]] const std::vector<InputSocket>& input_sockets() const;
+
+    [[nodiscard]] std::vector<OutputSocket>& output_sockets();
+    [[nodiscard]] const std::vector<OutputSocket>& output_sockets() const;
+
+    /// Returns running time of the last execution of this node in ms.
+    [[nodiscard]] float last_run_duration() const;
+
+    [[nodiscard]] bool is_enabled() const;
+    void set_enabled(bool enabled);
 
 public slots:
     void run();
 
 signals:
     void run_started();
-    void run_finished();
+    void run_completed();
+    void run_failed(NodeRunFailureInfo failed_info);
 
 protected:
     /// Override to implement node behavior.
+    /// Call either signal run_completed() or run_failed(info) to indicate completion or failure of run.
     /// Postcondition:
     ///   - get_output_data(output-index) returns result
     virtual void run_impl() = 0;
 
-    /// Override to return pointer to output data for respective output slot
-    virtual Data get_output_data_impl(SocketIndex output_index) = 0;
-
 protected:
-    struct ConnectedSocket {
-        Node* connected_node = nullptr;
-        SocketIndex connected_socket_index = std::numeric_limits<SocketIndex>::max(); // is input/output index depending on connection
-    };
-
-    std::vector<DataType> input_socket_types;
-    std::vector<DataType> output_socket_types;
-
-    std::vector<ConnectedSocket> connected_input_sockets;
-    std::vector<ConnectedSocket> connected_output_sockets;
-
-    DataType get_input_socket_type(SocketIndex input_socket_index) const;
-    size_t get_num_input_sockets() const;
-
-    DataType get_output_socket_type(SocketIndex output_socket_index) const;
-    size_t get_num_output_sockets() const;
-
-    Data get_output_data(SocketIndex output_index);
-
-    Data get_input_data(SocketIndex input_index);
-
-    float last_run_duration() const;
+    [[nodiscard]] Data get_output_data(const std::string& output_socket_name);
+    [[nodiscard]] Data get_input_data(const std::string& input_socket_name);
 
 private:
+    std::vector<InputSocket> m_input_sockets;
+    std::vector<OutputSocket> m_output_sockets;
+
     std::chrono::high_resolution_clock::time_point m_last_run_started;
     std::chrono::high_resolution_clock::time_point m_last_run_finished;
+
+    bool m_enabled = true;
 };
 
 } // namespace webgpu_engine::compute::nodes

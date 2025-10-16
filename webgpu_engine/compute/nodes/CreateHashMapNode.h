@@ -26,21 +26,15 @@ class CreateHashMapNode : public Node {
     Q_OBJECT
 
 public:
-    enum Input : SocketIndex { TILE_ID_LIST = 0, TILE_TEXTURE_LIST = 1 };
-    enum Output : SocketIndex { TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP = 0, TEXTURE_ARRAY = 1 };
-
     CreateHashMapNode(WGPUDevice device, const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format);
 
 public slots:
     void run_impl() override;
 
-protected:
-    Data get_output_data_impl(SocketIndex output_index) override;
-
 private:
     WGPUDevice m_device;
     WGPUQueue m_queue;
-    GpuHashMap<tile::Id, uint32_t, GpuTileId> m_output_tile_id_to_index; // for looking up index for tile id
+    GpuHashMap<radix::tile::Id, uint32_t, GpuTileId> m_output_tile_id_to_index; // for looking up index for tile id
     TileStorageTexture m_output_tile_textures; // height texture per tile
 };
 

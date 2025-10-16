@@ -121,7 +121,7 @@ TEST_CASE("encoder functions")
 
         // ==== CREATE SHADER MODULE AND PIPELINE ====
         std::unique_ptr<webgpu::raii::ShaderModule> compute_shader_module
-            = context.shader_module_manager->create_shader_module("octahedron test code", wgsl_single_thread_octahedron_test);
+            = context.shader_module_manager->create_shader_module_for_file(wgsl_single_thread_octahedron_test);
 
         auto compute_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(
             context.device, *compute_shader_module, std::vector<const webgpu::raii::BindGroupLayout*> { compute_bind_group_layout.get() });

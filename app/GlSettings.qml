@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Alpine Terrain Renderer
+ * AlpineMaps.org
  * Copyright (C) 2023 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
@@ -19,8 +19,7 @@
 import QtQuick
 import QtQuick.Controls.Material
 import QtQuick.Layouts
-import Alpine
-
+import app
 import "components"
 
 SettingsPanel {
@@ -48,7 +47,6 @@ SettingsPanel {
                 { text: "Shadow Cascades",      value: 103  }
             ]
             onActivated:  map.shared_config.overlay_mode = currentValue;
-            Component.onCompleted: normal_mode.currentIndex = map.shared_config.normal_mode;
         }
 
         Label {
@@ -78,14 +76,6 @@ SettingsPanel {
             Layout.fillWidth: true;
             Layout.columnSpan: 2;
             ModelBinding on checked { target: map; property: "shared_config.overlay_postshading_enabled"; }
-        }
-
-        Label { text: "Normals:" }
-        ComboBox {
-            id: normal_mode;
-            Layout.fillWidth: true;
-            model: ["per Fragment", "Finite-Difference"];
-            ModelBinding on currentIndex { target: map; property: "shared_config.normal_mode"; }
         }
     }
 

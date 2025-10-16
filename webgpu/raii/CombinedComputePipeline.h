@@ -17,7 +17,8 @@ namespace webgpu::raii {
 ///  - run pipeline: calling run binds pipeline, sets bind groups and runs pipeline
 class CombinedComputePipeline {
 public:
-    CombinedComputePipeline(WGPUDevice device, const raii::ShaderModule& shader_module, const std::vector<const raii::BindGroupLayout*>& bind_group_layouts);
+    CombinedComputePipeline(WGPUDevice device, const raii::ShaderModule& shader_module, const std::vector<const raii::BindGroupLayout*>& bind_group_layouts,
+        const std::string& label = "CombinedComputePipeline [no name]");
 
     // creates a new compute pass and only uses that to render
     void run(const raii::CommandEncoder& encoder, const glm::uvec3& workgroup_counts) const;

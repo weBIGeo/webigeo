@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Alpine Terrain Renderer
+ * AlpineMaps.org
  * Copyright (C) 2022 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
@@ -33,6 +33,13 @@ layout (std140) uniform camera_config {
 // normalised device coordinates (range [0,1])
 highp vec3 ws_to_ndc(highp vec3 pos_ws) {
     highp vec4 tmp = camera.view_proj_matrix * vec4(pos_ws, 1.0); // from ws to clip-space
+    tmp.xyz /= tmp.w; // perspective divide
+    return tmp.xyz * 0.5 + 0.5; // transform to range 0.0 - 1.0
+}
+
+highp vec3 ws_to_ndc(highp vec3 pos_ws, out bool in_front) {
+    highp vec4 tmp = camera.view_proj_matrix * vec4(pos_ws, 1.0); // from ws to clip-space
+    in_front = tmp.w > 0.0;
     tmp.xyz /= tmp.w; // perspective divide
     return tmp.xyz * 0.5 + 0.5; // transform to range 0.0 - 1.0
 }

@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Alpine Terrain Renderer
+ * AlpineMaps.org
  * Copyright (C) 2022 Adam Celarek
  * Copyright (C) 2023 Jakob Lindner
  *
@@ -26,8 +26,8 @@
 namespace nucleus::camera {
 
 LinearCameraAnimation::LinearCameraAnimation(Definition start, Definition end)
-    : m_start(start.camera_space_to_world_matrix())
-    , m_end(end.camera_space_to_world_matrix())
+    : m_start(start.model_matrix())
+    , m_end(end.model_matrix())
 {
     m_current_duration = 0;
     m_stopwatch.restart();
@@ -50,21 +50,14 @@ std::optional<Definition> LinearCameraAnimation::update(Definition camera, Abstr
 
     const auto mix_factor = t_eased; //m_current_duration / float(m_total_duration);
     const auto new_matrix = m_start * double(1 - mix_factor) + m_end * double(mix_factor);
-    camera.set_camera_space_to_world_matrix(new_matrix);
+    camera.set_model_matrix(new_matrix);
 
     return camera;
 }
 
 float LinearCameraAnimation::ease_in_out(float t)
 {
-    QEasingCurve c(QEasingCurve::Type::InOutExpo);
+    QEasingCurve c(QEasingCurve::Type::OutExpo);
     return c.valueForProgress(t);
-    // this one is untested, but works for now
-    const float p = 0.3f;
-    if (t < 0.5f) {
-        return 0.5f * pow(2 * t, 1.0f / p);
-    } else {
-        return 1 - 0.5f * pow(2 * (1 - t), 1.0f / p);
-    }
 }
 }

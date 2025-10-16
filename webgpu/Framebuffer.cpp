@@ -44,13 +44,16 @@ void Framebuffer::recreate_depth_texture()
         return;
     }
     WGPUTextureDescriptor texture_desc {};
-    texture_desc.label = "framebuffer depth texture";
+    texture_desc.label = { .data = "framebuffer depth texture", .length = WGPU_STRLEN };
     texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
     texture_desc.format = m_format.depth_format;
     texture_desc.mipLevelCount = 1;
     texture_desc.sampleCount = 1;
     texture_desc.size = { m_format.size.x, m_format.size.y, 1 };
-    texture_desc.usage = WGPUTextureUsage_RenderAttachment;
+    // TODO WGPUTextureUsage_TextureBinding currently only needed for line rendering
+    //  maybe add parameters, so we dont need every depth texture to be able to be used as texture binding
+    //  (to mitigate performance impact)
+    texture_desc.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding;
     texture_desc.viewFormatCount = 1;
     texture_desc.viewFormats = &m_format.depth_format;
     m_depth_texture = std::make_unique<raii::Texture>(m_device, texture_desc);
@@ -71,7 +74,7 @@ void Framebuffer::recreate_color_texture(size_t index)
     assert(index < m_format.color_formats.size());
 
     WGPUTextureDescriptor texture_desc {};
-    texture_desc.label = "framebuffer color texture";
+    texture_desc.label = WGPUStringView { .data = "framebuffer color texture", .length = WGPU_STRLEN };
     texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
     texture_desc.format = m_format.color_formats[index];
     texture_desc.mipLevelCount = 1;
@@ -127,12 +130,7 @@ std::unique_ptr<raii::RenderPassEncoder> Framebuffer::begin_render_pass(WGPUComm
         render_pass_color_attachment.loadOp = WGPULoadOp::WGPULoadOp_Clear;
         render_pass_color_attachment.storeOp = WGPUStoreOp::WGPUStoreOp_Store;
         render_pass_color_attachment.clearValue = WGPUColor { 0.0, 0.0, 0.0, 0.0 };
-        // depthSlice field for RenderPassColorAttachment (https://github.com/gpuweb/gpuweb/issues/4251)
-        // this field specifies the slice to render to when rendering to a 3d texture (view)
-        // passing a valid index but referencing a non-3d texture leads to an error
-        // TODO use some constant that represents "undefined" for this value (I couldn't find a constant for this?)
-        //     (I just guessed -1 (max unsigned int value) and it worked)
-        render_pass_color_attachment.depthSlice = -1;
+        render_pass_color_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
         render_pass_color_attachments.emplace_back(render_pass_color_attachment);
     }
 
@@ -144,7 +142,7 @@ std::unique_ptr<raii::RenderPassEncoder> Framebuffer::begin_render_pass(WGPUComm
     if (m_format.depth_format != WGPUTextureFormat_Undefined)
     {
         depth_stencil_attachment.view = m_depth_texture_view->handle();
-        depth_stencil_attachment.depthClearValue = 1.0f;
+        depth_stencil_attachment.depthClearValue = 0.0f;
         depth_stencil_attachment.depthLoadOp = WGPULoadOp::WGPULoadOp_Clear;
         depth_stencil_attachment.depthStoreOp = WGPUStoreOp::WGPUStoreOp_Store;
         depth_stencil_attachment.depthReadOnly = false;

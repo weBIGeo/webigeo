@@ -36,6 +36,7 @@ public:
     using ReadBackCallback = std::function<void(size_t layer_index, std::shared_ptr<QByteArray>)>;
 
     struct ReadBackState {
+        const Texture* texture;
         std::unique_ptr<RawBuffer<char>> buffer;
         ReadBackCallback callback;
         size_t layer_index;
@@ -48,8 +49,28 @@ public:
 public:
     using GpuResource::GpuResource;
 
-    // TODO could make this a function template and pass type instead of using uint16_t? but not needed rn
-    void write(WGPUQueue queue, const nucleus::Raster<uint16_t>& data, uint32_t layer = 0);
+    template <typename RasterElementT> void write(WGPUQueue queue, const nucleus::Raster<RasterElementT>& data, uint32_t layer = 0)
+    {
+        // TODO maybe assert if RasterElementT and WGPUTextureFormat of this texture are compatible?
+
+        assert(static_cast<uint32_t>(data.width()) == m_descriptor.size.width);
+        assert(static_cast<uint32_t>(data.height()) == m_descriptor.size.height);
+
+        WGPUTexelCopyTextureInfo texel_copy_texture_info {};
+        texel_copy_texture_info.texture = m_handle;
+        texel_copy_texture_info.mipLevel = 0;
+        texel_copy_texture_info.origin = WGPUOrigin3D { 0, 0, layer };
+        texel_copy_texture_info.aspect = WGPUTextureAspect::WGPUTextureAspect_All;
+
+        WGPUTexelCopyBufferLayout texture_data_layout_info {};
+        texture_data_layout_info.offset = 0;
+        texture_data_layout_info.bytesPerRow = uint32_t(sizeof(RasterElementT) * data.width());
+        texture_data_layout_info.rowsPerImage = uint32_t(data.height());
+
+        WGPUExtent3D copy_extent { m_descriptor.size.width, m_descriptor.size.height, 1 };
+
+        wgpuQueueWriteTexture(queue, &texel_copy_texture_info, data.bytes(), uint32_t(data.size_in_bytes()), &texture_data_layout_info, &copy_extent);
+    }
 
     void write(WGPUQueue queue, const nucleus::utils::ColourTexture& data, uint32_t layer = 0);
 
@@ -58,7 +79,7 @@ public:
     void copy_to_buffer(WGPUDevice device, const RawBuffer<T>& buffer, glm::uvec3 origin = glm::uvec3(0), glm::uvec2 extent = glm::uvec2(0)) const
     {
         WGPUCommandEncoderDescriptor desc {};
-        desc.label = "copy texture to buffer command encoder";
+        desc.label = WGPUStringView { .data = "copy texture to buffer command encoder", .length = WGPU_STRLEN };
         raii::CommandEncoder encoder(device, desc);
         copy_to_buffer<T>(encoder.handle(), buffer, origin, extent);
         WGPUCommandBufferDescriptor cmd_buffer_desc {};
@@ -83,38 +104,44 @@ public:
 
         assert(bytes_per_extent_row * extent.y <= buffer.size_in_byte());
 
-        WGPUImageCopyTexture source {};
+        WGPUTexelCopyTextureInfo source {};
         source.texture = m_handle;
         source.mipLevel = 0;
         source.origin = { .x = origin.x, .y = origin.y, .z = origin.z };
         source.aspect = WGPUTextureAspect_All;
 
-        WGPUImageCopyBuffer destination {};
+        WGPUTexelCopyBufferInfo destination {};
         destination.buffer = buffer.handle();
         destination.layout.offset = 0;
         destination.layout.bytesPerRow = bytes_per_extent_row; // this has to be a multiple of 256
         destination.layout.rowsPerImage = extent.y;
 
         const WGPUExtent3D wgpu_extent { .width = extent.x, .height = extent.y, .depthOrArrayLayers = 1 };
+
         wgpuCommandEncoderCopyTextureToBuffer(encoder, &source, &destination, &wgpu_extent);
     }
 
     void copy_to_texture(WGPUCommandEncoder encoder, uint32_t source_layer, const Texture& target_texture, uint32_t target_layer = 0) const;
 
     /// read back single texture layer of this texture
-    void read_back_async(WGPUDevice device, size_t layer_index, ReadBackCallback callback);
+    void read_back_async(WGPUDevice device, size_t layer_index, ReadBackCallback callback) const;
+
+    /// should only be used for debugging purposes
+    void save_to_file(WGPUDevice device, const std::string& filename, size_t layer_index = 0);
 
     WGPUTextureViewDescriptor default_texture_view_descriptor() const;
 
     std::unique_ptr<TextureView> create_view() const;
     std::unique_ptr<TextureView> create_view(const WGPUTextureViewDescriptor& desc) const;
 
-    size_t size_in_bytes();
-    size_t bytes_per_row();
-    size_t single_layer_size_in_bytes();
+    size_t width() const;
+    size_t height() const;
+    size_t depth_or_num_layers() const;
+    uint32_t mip_level_count() const;
+    size_t size_in_bytes() const;
+    size_t bytes_per_row() const;
+    size_t single_layer_size_in_bytes() const;
 
-private:
-    std::queue<ReadBackState> m_read_back_states;
 };
 
 } // namespace webgpu::raii

@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Alpine Terrain Renderer
+ * AlpineMaps.org
  * Copyright (C) 2024 Adam Celarek
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,15 +20,15 @@
 
 using namespace nucleus;
 
-EngineContext* EngineContext::s_self = nullptr;
-
 EngineContext::EngineContext() { }
 
-void EngineContext::set_singleton(EngineContext* context)
+const tile::utils::AabbDecoratorPtr& EngineContext::aabb_decorator() const { return m_aabb_decorator; }
+
+void EngineContext::set_aabb_decorator(const tile::utils::AabbDecoratorPtr& new_aabb_decorator) { m_aabb_decorator = new_aabb_decorator; }
+
+EngineContext::EngineContext(QObject* parent)
+    : QObject(parent)
 {
-    assert(context);
-    assert(s_self == nullptr); // called several times if this fails.
-    s_self = context;
 }
 
 EngineContext::~EngineContext() { assert(m_initialised == m_destroyed); }
@@ -47,12 +47,6 @@ void EngineContext::destroy()
     assert(!m_destroyed);
     internal_destroy();
     m_destroyed = true;
-}
-
-EngineContext& EngineContext::instance()
-{
-    assert(s_self); // EngineContext must be initialised from a subclass using set_singleton once, e.g., from the constructor
-    return *s_self;
 }
 
 bool EngineContext::is_alive() const { return m_initialised && !m_destroyed; }

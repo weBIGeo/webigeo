@@ -19,7 +19,7 @@
 #pragma once
 
 #include "Node.h"
-#include "nucleus/tile_scheduler/TileLoadService.h"
+#include "nucleus/tile/TileLoadService.h"
 
 namespace webgpu_engine::compute::nodes {
 
@@ -27,25 +27,32 @@ class RequestTilesNode : public Node {
     Q_OBJECT
 
 public:
-    enum Input : SocketIndex { TILE_ID_LIST = 0 };
-    enum Output : SocketIndex { TILE_TEXTURE_LIST = 0 };
+    struct RequestTilesNodeSettings {
+        std::string tile_path = "https://alpinemaps.cg.tuwien.ac.at/tiles/at_dtm_alpinemaps/";
+        nucleus::tile::TileLoadService::UrlPattern url_pattern = nucleus::tile::TileLoadService::UrlPattern::ZXY;
+        std::string file_extension = ".png";
+    };
 
     RequestTilesNode();
+    RequestTilesNode(const RequestTilesNodeSettings& settings);
 
-    void on_single_tile_received(const nucleus::tile_scheduler::tile_types::TileLayer& tile);
+    void on_single_tile_received(const nucleus::tile::Data& tile);
+
+    void set_settings(const RequestTilesNodeSettings& settings);
+
+    void check_progress_and_emit_signals();
 
 public slots:
     void run_impl() override;
 
-protected:
-    Data get_output_data_impl(SocketIndex output_index) override;
-
 private:
-    std::unique_ptr<nucleus::tile_scheduler::TileLoadService> m_tile_loader;
-    size_t m_num_tiles_received = 0;
+    RequestTilesNodeSettings m_settings;
+    std::unique_ptr<nucleus::tile::TileLoadService> m_tile_loader;
+    size_t m_num_signals_received = 0;
+    size_t m_num_tiles_unavailable = 0;
     size_t m_num_tiles_requested = 0;
     std::vector<QByteArray> m_received_tile_textures;
-    std::vector<tile::Id> m_requested_tile_ids;
+    std::vector<radix::tile::Id> m_requested_tile_ids;
 };
 
 } // namespace webgpu_engine::compute::nodes

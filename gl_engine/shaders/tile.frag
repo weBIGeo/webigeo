@@ -1,5 +1,5 @@
 /*****************************************************************************
-* Alpine Renderer
+* AlpineMaps.org
 * Copyright (C) 2022 Adam Celarek
 * Copyright (C) 2023 Gerald Kimmersdorfer
 *
@@ -22,9 +22,12 @@
 #include "encoder.glsl"
 #include "tile_id.glsl"
 
-uniform lowp sampler2DArray ortho_sampler;
-uniform highp usampler2D height_texture_layer_map_sampler;
-uniform highp usampler2D tile_id_map_sampler;
+#line 32
+
+
+uniform lowp sampler2DArray texture_sampler;
+uniform highp usampler2D instanced_texture_array_index_sampler;
+uniform highp usampler2D instanced_texture_zoom_sampler;
 
 layout (location = 0) out lowp vec3 texout_albedo;
 layout (location = 1) out highp vec4 texout_position;
@@ -39,6 +42,7 @@ in highp vec3 var_normal;
 in lowp float is_curtain;
 #endif
 flat in lowp vec3 vertex_color;
+flat in highp uint instance_id;
 
 highp float calculate_falloff(highp float dist, highp float from, highp float to) {
     return clamp(1.0 - (dist - from) / (to - from), 0.0, 1.0);
@@ -59,21 +63,14 @@ void main() {
     highp uvec3 tile_id = var_tile_id;
     highp vec2 uv = var_uv;
 
-    // while (tile_id.z > 7u)
-    //     decrease_zoom_level_by_one(tile_id, uv);
-    // decrease_zoom_level_until(tile_id, uv, 7u);
+    decrease_zoom_level_until(tile_id, uv, texelFetch(instanced_texture_zoom_sampler, ivec2(instance_id, 0), 0).x);
+    highp float texture_layer_f = float(texelFetch(instanced_texture_array_index_sampler, ivec2(instance_id, 0), 0).x);
 
-    // Write Albedo (ortho picture) in gbuffer
-    highp uint hash = hash_tile_id(tile_id);
-    highp uvec2 packed_tile_id = pack_tile_id(tile_id);
-    while(texelFetch(tile_id_map_sampler, ivec2(int(hash & 255u), int(hash >> 8u)), 0).xy != packed_tile_id)
-        hash++;
 
-    highp float texture_layer_f = float(texelFetch(height_texture_layer_map_sampler, ivec2(int(hash & 255u), int(hash >> 8u)), 0).x);
-    lowp vec3 fragColor = texture(ortho_sampler, vec3(uv, texture_layer_f)).rgb;
-    // highp vec3 fragColor = vec3(0.0, texture_layer_f, 0.0);
+    lowp vec3 fragColor = texture(texture_sampler, vec3(uv, texture_layer_f)).rgb;
     fragColor = mix(fragColor, conf.material_color.rgb, conf.material_color.a);
     texout_albedo = fragColor;
+
 
     // Write Position (and distance) in gbuffer
     highp float dist = length(var_pos_cws);

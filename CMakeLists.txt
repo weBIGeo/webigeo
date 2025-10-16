@@ -25,6 +25,7 @@ option(ALP_UNITTESTS "include unit test targets in the buildsystem" ON)
 option(ALP_GL_ENGINE "include the gl engine in the buildsystem" OFF)
 option(ALP_WEBGPU_ENGINE "include the webgpu engine in the buildsystem" ON)
 option(ALP_WEBGPU_APP "include the webgpu app in the buildsystem" ON)
+option(ALP_WEBIGEO_EVAL "include the webigeo eval cli in the buildsystem" OFF)
 option(ALP_PLAIN_RENDERER "include the plain renderer in the buildsystem" OFF)
 option(ALP_QML_APP "include the qml app in the buildsystem" OFF)
 
@@ -47,14 +48,14 @@ endif()
 if (EMSCRIPTEN)
     set(ALP_WWW_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}" CACHE PATH "path to the install directory (for webassembly files, i.e., www directory)")
     option(ALP_ENABLE_THREADING "Puts the scheduler into an extra thread." OFF)
-    option(ALP_ENABLE_DEBUG_GUI "Show debug GUI (increases binary size)" OFF)
+    option(ALP_ENABLE_DEV_TOOLS "HotReload, Renderstats, .. (increases binary size)" OFF)
 elseif(ANDROID)
     option(ALP_ENABLE_THREADING "Puts the scheduler into an extra thread." ON)
-    option(ALP_ENABLE_DEBUG_GUI "Show debug GUI (increases binary size)" OFF)
+    option(ALP_ENABLE_DEV_TOOLS "HotReload, Renderstats, .. (increases binary size)" OFF)
     option(ALP_ENABLE_POSITIONING "enable qt positioning (gnss / gps)" ON)
 else()
     option(ALP_ENABLE_THREADING "Puts the scheduler into an extra thread." ON)
-    option(ALP_ENABLE_DEBUG_GUI "Show debug GUI (increases binary size)" ON)
+    option(ALP_ENABLE_DEV_TOOLS "HotReload, Renderstats, .. (increases binary size)" ON)
     option(ALP_ENABLE_POSITIONING "enable qt positioning (gnss / gps)" ON)
 endif()
 
@@ -63,6 +64,10 @@ if (UNIX AND NOT EMSCRIPTEN AND NOT ANDROID)
     option(ALP_USE_LLVM_LINKER "use lld (llvm) for linking. it's parallel and much faster, but not installed by default.
         if it's not installed, you'll get errors, that openmp or other stuff is not installed (hard to track down)" OFF)
 endif()
+
+
+include(cmake/AddRepo.cmake)
+include(cmake/Version.cmake)
 
 ########################################### setup #################################################
 set(CMAKE_CXX_STANDARD 20)
@@ -88,14 +93,11 @@ endif()
 
 ########################################### dependencies #################################################
 find_package(Qt6 REQUIRED COMPONENTS Core Gui OpenGL Network Quick QuickControls2 LinguistTools)
-qt_policy(
-    SET QTP0002 NEW
-)
+qt_standard_project_setup(REQUIRES 6.7)
 
-include(cmake/alp_add_git_repository.cmake)
 alp_add_git_repository(renderer_static_data URL https://github.com/AlpineMapsOrg/renderer_static_data.git COMMITISH v23.11 DO_NOT_ADD_SUBPROJECT)
 alp_add_git_repository(alpineapp_fonts URL https://github.com/AlpineMapsOrg/fonts.git COMMITISH v24.02 DO_NOT_ADD_SUBPROJECT)
-alp_add_git_repository(doc URL https://github.com/AlpineMapsOrg/documentation.git COMMITISH origin/main DO_NOT_ADD_SUBPROJECT DESTINATION_PATH doc)
+alp_add_git_repository(doc URL https://github.com/AlpineMapsOrg/documentation.git COMMITISH origin/main DO_NOT_ADD_SUBPROJECT DESTINATION_PATH extern/doc)
 
 
 if (ANDROID)
@@ -105,7 +107,7 @@ endif()
 
 add_subdirectory(nucleus)
 if (ALP_ENABLE_GL_ENGINE)
-    if (ALP_ENABLE_DEBUG_GUI)
+    if (ALP_ENABLE_DEV_TOOLS)
         find_package(Qt6 REQUIRED COMPONENTS Widgets Charts)
     endif()
     if (ALP_ENABLE_POSITIONING)
@@ -135,5 +137,8 @@ if (ALP_WEBGPU_APP OR ALP_WEBGPU_ENGINE)
     endif()
     if (ALP_WEBGPU_APP)
         add_subdirectory(webgpu_app)
+    endif()
+    if (ALP_WEBIGEO_EVAL)
+        add_subdirectory(webigeo_eval)
     endif()
 endif()

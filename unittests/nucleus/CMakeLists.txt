@@ -20,27 +20,27 @@ project(alpine-renderer-unittests_nucleus LANGUAGES CXX)
 
 alp_add_unittest(unittests_nucleus
     catch2_helpers.h
-    test_Camera.cpp
-    nucleus_utils_stopwatch.cpp
-    test_DrawListGenerator.cpp
+    Camera.cpp
+    utils_stopwatch.cpp
+    DrawListGenerator.cpp
     test_helpers.h test_helpers.cpp
-    test_raster.cpp
-    test_terrain_mesh_index_generator.cpp
-    test_srs.cpp
-    test_track.cpp
-    test_tile_conversion.cpp
-    nucleus_tile_scheduler_util.cpp
-    nucleus_tile_scheduler_tile_load_service.cpp
-    nucleus_tile_scheduler_layer_assembler.cpp
-    nucleus_tile_scheduler_quad_assembler.cpp
-    nucleus_tile_scheduler_cache.cpp
-    nucleus_tile_scheduler_scheduler.cpp
-    nucleus_tile_scheduler_slot_limiter.cpp
-    nucleus_tile_scheduler_rate_limiter.cpp
+    raster.cpp
+    terrain_mesh_index_generator.cpp
+    srs.cpp
+    track.cpp
+    tile_conversion.cpp
+    tile_util.cpp
+    tile_load_service.cpp
+    tile_quad_assembler.cpp
+    tile_cache.cpp
+    tile_scheduler.cpp
+    tile_slot_limiter.cpp
+    tile_rate_limiter.cpp
     RateTester.h RateTester.cpp
-    test_zppbits.cpp
+    zppbits.cpp
     cache_queries.cpp
     bits_and_pieces.cpp
+    tile_drawing.cpp
 )
 
 if (ALP_ENABLE_AVLANCHE_WARNING_LAYER)
@@ -52,7 +52,8 @@ endif()
 
 if (ALP_ENABLE_LABELS)
     target_sources(unittests_nucleus PRIVATE
-        test_vector_tile.cpp
+        vector_tile.cpp
+        map_labels.cpp
     )
 endif()
 
@@ -68,6 +69,11 @@ qt_add_resources(unittests_nucleus "test_data"
     data/eaws_0-0-0.mvt
     data/eaws_2-2-0.mvt
     data/eaws_10-236-299.mvt
+    data/quad/7_68_82.jpg
+    data/quad/7_68_83.jpg
+    data/quad/7_69_82.jpg
+    data/quad/7_69_83.jpg
+    data/quad/merged.jpg
 )
 target_link_libraries(unittests_nucleus PUBLIC nucleus Catch2::Catch2 Qt::Test Qt::Gui)
 target_compile_definitions(unittests_nucleus PUBLIC "ALP_TEST_DATA_DIR=\":/test_data/\"")

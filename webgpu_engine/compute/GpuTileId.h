@@ -32,7 +32,7 @@ struct GpuTileId {
 
     GpuTileId() = default;
     GpuTileId(uint32_t x, uint32_t y, uint32_t zoomlevel);
-    GpuTileId(const tile::Id& tile_id);
+    GpuTileId(const radix::tile::Id& tile_id);
 
     bool operator==(const GpuTileId& other) const { return x == other.x && y == other.y && zoomlevel == other.zoomlevel; }
 };

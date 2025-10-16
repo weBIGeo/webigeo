@@ -18,13 +18,21 @@
  *****************************************************************************/
 
 #include "Buffer.h"
+#include "TrackRenderer.h"
 #include "UniformBufferObjects.h"
+#include "compute/nodes/BufferToTextureNode.h"
+#include "compute/nodes/ComputeAvalancheInfluenceAreaNode.h"
+#include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
+#include "compute/nodes/ComputeNormalsNode.h"
+#include "compute/nodes/ComputeReleasePointsNode.h"
 #include "compute/nodes/ComputeSnowNode.h"
+#include "compute/nodes/HeightDecodeNode.h"
+#include "compute/nodes/IterativeSimulationNode.h"
 
 namespace webgpu_engine {
 
 template <typename T>
-Buffer<T>::Buffer(WGPUDevice device, WGPUBufferUsageFlags flags)
+Buffer<T>::Buffer(WGPUDevice device, WGPUBufferUsage flags)
     : m_raw_buffer(device, flags, 1)
 {
 }
@@ -47,7 +55,16 @@ template <typename T> const webgpu::raii::RawBuffer<T>& Buffer<T>::raw_buffer() 
 // IMPORTANT: All possible Template Classes need to be defined here:
 template class Buffer<uboSharedConfig>;
 template class Buffer<uboCameraConfig>;
+template class Buffer<compute::nodes::ComputeNormalsNode::NormalsSettingsUniform>;
 template class Buffer<compute::nodes::ComputeSnowNode::SnowSettings>;
+template class Buffer<compute::nodes::ComputeAvalancheTrajectoriesNode::AvalancheTrajectoriesSettingsUniform>;
+template class Buffer<compute::nodes::ComputeAvalancheInfluenceAreaNode::AvalancheInfluenceAreaSettings>;
+template class Buffer<compute::nodes::ComputeReleasePointsNode::ReleasePointsSettingsUniform>;
+template class Buffer<compute::nodes::BufferToTextureNode::BufferToTextureSettingsUniform>;
+template class Buffer<compute::nodes::IterativeSimulationNode::IterativeSimulationSettingsUniform>;
+template class Buffer<compute::nodes::HeightDecodeNode::HeightDecodeSettingsUniform>;
+template class Buffer<TrackRenderer::LineConfig>;
+template class Buffer<ImageOverlaySettings>;
 // TODO
 // template class UniformBuffer<uboShadowConfig>;
 

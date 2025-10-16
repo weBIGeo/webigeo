@@ -1,5 +1,5 @@
- /*****************************************************************************
- * Alpine Renderer
+/*****************************************************************************
+ * AlpineMaps.org
  * Copyright (C) 2022 Adam Celarek
  * Copyright (C) 2023 Jakob Lindner
  * Copyright (C) 2023 Gerald Kimmersdorfer
@@ -19,32 +19,29 @@
  *****************************************************************************/
 #include "Controller.h"
 
-#include <QDebug>
-
+#include "AbstractDepthTester.h"
 #include "CadInteraction.h"
 #include "Definition.h"
 #include "FirstPersonInteraction.h"
 #include "LinearCameraAnimation.h"
 #include "OrbitInteraction.h"
+#include "RecordedAnimation.h"
 #include "RotateNorthAnimation.h"
-#include "nucleus/DataQuerier.h"
-#include "nucleus/srs.h"
-
-#include "AbstractDepthTester.h"
+#include <QDebug>
 #include <glm/gtx/string_cast.hpp>
+#include <nucleus/DataQuerier.h>
+#include <nucleus/srs.h>
 
 using namespace nucleus::camera;
 
-Controller::Controller(const Definition& camera,
-                       AbstractDepthTester* depth_tester,
-                       DataQuerier* data_querier)
+Controller::Controller(const Definition& camera, AbstractDepthTester* depth_tester, DataQuerier* data_querier)
     : m_definition(camera)
     , m_depth_tester(depth_tester)
     , m_data_querier(data_querier)
     , m_interaction_style(std::make_unique<OrbitInteraction>())
 {
+    connect(this, &Controller::definition_changed, &m_recorder, &recording::Device::record);
 }
-
 
 void Controller::set_near_plane(float distance)
 {
@@ -67,8 +64,7 @@ void Controller::set_viewport(const glm::uvec2& new_viewport)
 void Controller::fly_to_latitude_longitude(double latitude, double longitude)
 {
     const auto xy_world_space = srs::lat_long_to_world({latitude, longitude});
-    const auto look_at_point = glm::dvec3(xy_world_space,
-                                          m_data_querier->get_altitude({latitude, longitude}));
+    const auto look_at_point = glm::dvec3(xy_world_space, m_data_querier->get_altitude({ latitude, longitude }).value_or(2000));
     const auto camera_position = look_at_point + glm::normalize(glm::dvec3{0, -1, 1}) * 5000.;
 
     auto end_camera = m_definition;
@@ -135,6 +131,8 @@ void Controller::mouse_press(const event_parameter::Mouse& e)
 void Controller::mouse_move(const event_parameter::Mouse& e)
 {
     if (m_animation_style) {
+        if (e.button == Qt::NoButton)
+            return;
         m_animation_style.reset();
         m_interaction_style->reset_interaction(m_definition, m_depth_tester);
     }
@@ -177,6 +175,20 @@ void Controller::key_press(const QKeyCombination& e)
     if (e.key() == Qt::Key_3) {
         m_interaction_style = std::make_unique<CadInteraction>();
     }
+#if defined(ALP_ENABLE_DEV_TOOLS)
+    if (e.key() == Qt::Key_8) {
+        m_recorder.reset();
+        m_recorder.start();
+    }
+    if (e.key() == Qt::Key_9) {
+        m_recorder.stop();
+    }
+    if (e.key() == Qt::Key_0) {
+        m_recorder.stop();
+        m_animation_style = std::make_unique<RecordedAnimation>(m_recorder.recording());
+        update();
+    }
+#endif
 
     const auto new_definition = m_interaction_style->key_press_event(e,
                                                                      m_definition,
@@ -210,7 +222,7 @@ void Controller::touch(const event_parameter::Touch& e)
     update();
 }
 
-void Controller::update_camera_request()
+void Controller::advance_camera()
 {
     if (m_animation_style) {
         const auto new_camera_definition = m_animation_style->update(m_definition, m_depth_tester);
@@ -252,17 +264,25 @@ void Controller::report_global_cursor_position(const QPointF& screen_pos) {
     emit global_cursor_position_changed(coord);
 }
 
+void Controller::set_pixel_error_threshold(float threshold)
+{
+    if (m_definition.pixel_error_threshold() == threshold)
+        return;
+    m_definition.set_pixel_error_threshold(threshold);
+    update();
+}
+
 const Definition& Controller::definition() const
 {
     return m_definition;
 }
 
-void Controller::set_definition(const Definition& new_definition)
+void Controller::set_model_matrix(const Definition& new_definition)
 {
-    if (m_definition.world_view_projection_matrix() == new_definition.world_view_projection_matrix())
+    if (m_definition.model_matrix() == new_definition.model_matrix())
         return;
 
-    m_definition = new_definition;
+    m_definition.set_model_matrix(new_definition.model_matrix());
     update();
 }
 

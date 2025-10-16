@@ -103,16 +103,44 @@ void qt_logging_callback(QtMsgType type, const QMessageLogContext& context, cons
     stream->flush();
 }
 
-std::map<WGPUErrorType, QString> wgpu_error_map = { { WGPUErrorType_NoError, "NoError" }, { WGPUErrorType_Validation, "Validation" },
-    { WGPUErrorType_OutOfMemory, "OutOfMemory" }, { WGPUErrorType_Internal, "Internal" }, { WGPUErrorType_Unknown, "Unknown" },
-    { WGPUErrorType_DeviceLost, "DeviceLost" }, { WGPUErrorType_Force32, "Force32" } };
+std::map<WGPUErrorType, QString> wgpu_error_map = {
+    { WGPUErrorType_NoError, "NoError" },
+    { WGPUErrorType_Validation, "Validation" },
+    { WGPUErrorType_OutOfMemory, "OutOfMemory" },
+    { WGPUErrorType_Internal, "Internal" },
+    { WGPUErrorType_Unknown, "Unknown" },
+    { WGPUErrorType_Force32, "Force32" },
+};
 
-void webgpu_device_error_callback(WGPUErrorType type, const char* message, [[maybe_unused]] void* userData)
+void webgpu_device_error_callback(
+    [[maybe_unused]] const WGPUDevice* device, WGPUErrorType type, WGPUStringView message, [[maybe_unused]] void* userdata1, [[maybe_unused]] void* userdata2)
 {
     const auto& typeStr = wgpu_error_map[type];
 
     QString logMessage = ASCII_COLOR_MAGENTA "%1 | WebGPU   | %2 |" ASCII_COLOR_RESET " %3";
-    logMessage = logMessage.arg(QDateTime::currentDateTime().toString("hh:mm:ss")).arg(typeStr, -25).arg(message);
+    logMessage = logMessage.arg(QDateTime::currentDateTime().toString("hh:mm:ss")).arg(typeStr, -25).arg(message.data);
+
+    std::cout << logMessage.toStdString() << std::endl;
+}
+
+std::map<WGPUDeviceLostReason, QString> wgpu_device_lost_reason_map = {
+    { WGPUDeviceLostReason_Unknown, "Unknown" },
+    { WGPUDeviceLostReason_Destroyed, "Destroyed" },
+    { WGPUDeviceLostReason_CallbackCancelled, "CallbackCancelled" },
+    { WGPUDeviceLostReason_FailedCreation, "FailedCreation" },
+    { WGPUDeviceLostReason_Force32, "Force32" },
+};
+
+void webgpu_device_lost_callback([[maybe_unused]] const WGPUDevice* device,
+    WGPUDeviceLostReason reason,
+    WGPUStringView message,
+    [[maybe_unused]] void* userdata1,
+    [[maybe_unused]] void* userdata2)
+{
+    const auto& typeStr = wgpu_device_lost_reason_map[reason];
+
+    QString logMessage = ASCII_COLOR_MAGENTA "%1 | WebGPU   | %2 |" ASCII_COLOR_RESET " %3";
+    logMessage = logMessage.arg(QDateTime::currentDateTime().toString("hh:mm:ss")).arg(typeStr, -25).arg(message.data);
 
     std::cout << logMessage.toStdString() << std::endl;
 }

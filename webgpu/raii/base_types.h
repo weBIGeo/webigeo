@@ -85,11 +85,6 @@ template <> struct GpuFuncs<WGPURenderPipeline, WGPURenderPipelineDescriptor, WG
     static void release(auto handle) { wgpuRenderPipelineRelease(handle); }
 };
 
-template <> struct GpuFuncs<WGPUSwapChain, WGPUSwapChainDescriptor, WGPUDevice> {
-    static auto create(auto context, auto descriptor) { return wgpuDeviceCreateSwapChain(context, &descriptor); }
-    static void release(auto handle) { wgpuSwapChainRelease(handle); }
-};
-
 template <> struct GpuFuncs<WGPURenderPassEncoder, WGPURenderPassDescriptor, WGPUCommandEncoder> {
     static auto create(auto context, auto descriptor) { return wgpuCommandEncoderBeginRenderPass(context, &descriptor); }
     static void release(auto handle)
@@ -164,7 +159,7 @@ using CommandEncoder = GpuResource<WGPUCommandEncoder, WGPUCommandEncoderDescrip
 // Also SwapChain is different because it needs Device and surface as parameters...
 //using SwapChain = GpuResource<WGPUSwapChain, WGPUSwapChainDescriptor, WGPUDevice>;
 
-// Surface is not as easy, as we get it from glfw
-//using Surface = GpuResource<WGPUSurface, WGPUSurfaceDescriptor, WGPUInstance>;
+// Surface is not as easy, as we get it from sdl
+// using Surface = GpuResource<WGPUSurface, WGPUSurfaceDescriptor, WGPUInstance>;
 
 } // namespace webgpu::raii

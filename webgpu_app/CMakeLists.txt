@@ -23,13 +23,15 @@ project(alpine-renderer-webgpu_app LANGUAGES C CXX)
 # option to enable/disable imgui
 option(ALP_WEBGPU_APP_ENABLE_IMGUI "Enable imgui" ON)
 
-
 set(SOURCES
     main.cpp
     TerrainRenderer.h TerrainRenderer.cpp
+    RenderingContext.h RenderingContext.cpp
     InputMapper.h InputMapper.cpp
 
     util/error_logging.h util/error_logging.cpp
+    util/url_tools.h util/url_tools.cpp
+    util/dark_mode.h util/dark_mode.cpp
 
     GuiManager.h GuiManager.cpp
 )
@@ -49,7 +51,6 @@ set_target_properties(webgpu_app PROPERTIES
     MACOSX_BUNDLE TRUE
 )
 
-
 target_link_libraries(webgpu_app PUBLIC webgpu webgpu_engine Qt::Core)
 target_include_directories(webgpu_app PRIVATE .)
 
@@ -57,27 +58,17 @@ if (EMSCRIPTEN)
     # Define the exported functions
     set(WEBGPU_EXPORTED_FUNCTIONS
         _main
-        _global_canvas_size_changed
-        _global_mouse_button_event
-        _global_mouse_position_event
-        _global_touch_event
+        _global_file_uploaded
+        _malloc
+        _free
     )
-
-    # Conditionally add threading-related functions
-    if (ALP_ENABLE_THREADING)
-        list(APPEND WEBGPU_EXPORTED_FUNCTIONS
-            __emscripten_thread_crashed
-            __embind_initialize_bindings
-        )
-    endif()
 
     string(REPLACE ";" "," WEBGPU_EXPORTED_FUNCTIONS_STRING "${WEBGPU_EXPORTED_FUNCTIONS}")
 
     # because of a bug with emscripten and -pthreads, we have to add __emscripten_thread_crashed,__embind_initialize_bindings
     # to EXPORTED_FUNCTIONS; for details see https://github.com/emscripten-core/emscripten/issues/21844
     target_link_options(webgpu_app PRIVATE
-            -sUSE_GLFW=3 # Use Emscripten-provided GLFW
-            -sUSE_WEBGPU # Handle WebGPU symbols
+            --use-port=sdl2 # Use emscripten SDL2 implementation
             -sASYNCIFY # Required by WebGPU-C++
             -sEXPORTED_FUNCTIONS=${WEBGPU_EXPORTED_FUNCTIONS_STRING} # _main needs to be specifically exported if sEXPORTED_FUNCTIONS is set
             #-sEXPORTED_RUNTIME_METHODS=ccall,cwrap,UTF16ToString,stringToUTF16,JSEvents,specialHTMLTargets,FS # will be overwritten by Qt

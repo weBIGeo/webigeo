@@ -23,42 +23,40 @@
 
 #pragma once
 
-#include <QOpenGLPaintDevice>
-#include <QOpenGLWindow>
-#include <QPainter>
-#include <QVector3D>
-#include <QMap>
-#include <glm/glm.hpp>
-#include <memory>
-
 #include "UniformBuffer.h"
 #include "UniformBufferObjects.h"
 #include "helpers.h"
-#include "nucleus/AbstractRenderWindow.h"
-#include "nucleus/camera/AbstractDepthTester.h"
-#include "nucleus/camera/Definition.h"
-#include "nucleus/track/GPX.h"
-
-#include "nucleus/timing/TimerManager.h"
+#include <QMap>
+#include <QOpenGLWindow>
+#include <QPainter>
+#include <QVariantMap>
+#include <QVector3D>
+#include <glm/glm.hpp>
+#include <memory>
+#include <nucleus/AbstractRenderWindow.h>
+#include <nucleus/camera/AbstractDepthTester.h>
+#include <nucleus/camera/Definition.h>
+#include <nucleus/timing/TimerManager.h>
+#include <nucleus/track/GPX.h>
+#include <string>
 
 class QOpenGLTexture;
 class QOpenGLShaderProgram;
-class QOpenGLBuffer;
 class QOpenGLVertexArrayObject;
 
 namespace gl_engine {
 
-class TileManager;
-class MapLabelManager;
-class ShaderManager;
+class MapLabels;
+class ShaderProgram;
 class Framebuffer;
 class SSAO;
 class ShadowMapping;
+class Context;
 
 class Window : public nucleus::AbstractRenderWindow, public nucleus::camera::AbstractDepthTester {
     Q_OBJECT
 public:
-    Window();
+    Window(std::shared_ptr<Context> context);
     ~Window() override;
 
     void initialise_gpu() override;
@@ -68,32 +66,32 @@ public:
     [[nodiscard]] float depth(const glm::dvec2& normalised_device_coordinates) override;
     [[nodiscard]] glm::dvec3 position(const glm::dvec2& normalised_device_coordinates) override;
     void destroy() override;
-    void set_aabb_decorator(const nucleus::tile_scheduler::utils::AabbDecoratorPtr&) override;
     [[nodiscard]] nucleus::camera::AbstractDepthTester* depth_tester() override;
     [[nodiscard]] nucleus::utils::ColourTexture::Format ortho_tile_compression_algorithm() const override;
-    void updateCameraEvent();
-    void set_permissible_screen_space_error(float new_error) override;
-    void set_quad_limit(unsigned new_limit) override;
 
 public slots:
     void update_camera(const nucleus::camera::Definition& new_definition) override;
     void update_debug_scheduler_stats(const QString& stats) override;
-    void update_gpu_quads(const std::vector<nucleus::tile_scheduler::tile_types::GpuTileQuad>& new_quads, const std::vector<tile::Id>& deleted_quads) override;
     void shared_config_changed(gl_engine::uboSharedConfig ubo);
     void reload_shader();
-
+    void pick_value(const glm::dvec2& screen_space_coordinates) override;
 
 signals:
-    void report_measurements(QList<nucleus::timing::TimerReport> values);
+    void timer_measurements_ready(QList<nucleus::timing::TimerReport> values);
+    void tile_stats_ready(QVariantMap stats);
 
 private:
-    std::unique_ptr<TileManager> m_tile_manager; // needs opengl context
-    std::shared_ptr<MapLabelManager> m_map_label_manager; // needs to be shared_ptr since we are using "connect"
+    std::shared_ptr<Context> m_context;
+    std::unique_ptr<MapLabels> m_map_label_manager;
 
     std::unique_ptr<Framebuffer> m_gbuffer;
     std::unique_ptr<Framebuffer> m_decoration_buffer;
     std::unique_ptr<Framebuffer> m_atmospherebuffer;
+    std::unique_ptr<Framebuffer> m_pickerbuffer;
 
+    std::shared_ptr<ShaderProgram> m_atmosphere_shader;
+    std::shared_ptr<ShaderProgram> m_compose_shader;
+    std::shared_ptr<ShaderProgram> m_screen_copy_shader;
     std::unique_ptr<SSAO> m_ssao;
     std::unique_ptr<ShadowMapping> m_shadowmapping;
 
@@ -107,6 +105,7 @@ private:
 
     int m_frame = 0;
     bool m_initialised = false;
+    float m_permissible_screen_space_error = 2.f;
     QString m_debug_text;
     QString m_debug_scheduler_stats;
 

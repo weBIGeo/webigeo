@@ -28,6 +28,12 @@ namespace webgpu::raii {
 class BindGroup : public GpuResource<WGPUBindGroup, WGPUBindGroupDescriptor, WGPUDevice> {
 public:
     using GpuResource::GpuResource;
+
+    BindGroup(
+        WGPUDevice device, WGPUBindGroupLayout layout, const std::initializer_list<WGPUBindGroupEntry>& entries, const std::string& label = "not assigned");
+
+    BindGroup(WGPUDevice device, WGPUBindGroupLayout layout, const std::vector<WGPUBindGroupEntry>& entries, const std::string& label = "not assigned");
+
     BindGroup(
         WGPUDevice device, const BindGroupLayout& layout, const std::initializer_list<WGPUBindGroupEntry>& entries, const std::string& label = "not assigned");
 

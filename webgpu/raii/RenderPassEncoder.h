@@ -33,8 +33,8 @@ public:
 
     // Creates a default render pass for a given color and depth attachment
     // The render pass will clear the color and depth attachments
-    RenderPassEncoder(WGPUCommandEncoder encoder, WGPUTextureView color_attachment, WGPUTextureView depth_attachment,
-        WGPURenderPassTimestampWrites* timestamp_writes = nullptr)
+    RenderPassEncoder(
+        WGPUCommandEncoder encoder, WGPUTextureView color_attachment, WGPUTextureView depth_attachment, WGPUPassTimestampWrites* timestamp_writes = nullptr)
         : GpuResource(encoder, create_render_pass_descriptor(color_attachment, depth_attachment, timestamp_writes))
     {
     }
@@ -46,7 +46,7 @@ private:
     WGPURenderPassDepthStencilAttachment m_depth_stencil_attachment;
 
     WGPURenderPassDescriptor create_render_pass_descriptor(
-        WGPUTextureView color_attachment, WGPUTextureView depth_attachment, WGPURenderPassTimestampWrites* timestamp_writes = nullptr);
+        WGPUTextureView color_attachment, WGPUTextureView depth_attachment, WGPUPassTimestampWrites* timestamp_writes = nullptr);
 };
 
 } // namespace webgpu::raii

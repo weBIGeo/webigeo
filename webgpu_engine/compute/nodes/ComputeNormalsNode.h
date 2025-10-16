@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include "Buffer.h"
 #include "Node.h"
 #include "webgpu_engine/PipelineManager.h"
 
@@ -28,38 +29,41 @@ class ComputeNormalsNode : public Node {
     Q_OBJECT
 
 public:
-    enum Input : SocketIndex { TILE_ID_LIST_TO_PROCESS = 0, TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP = 1, TEXTURE_ARRAY = 2 };
-    enum Output : SocketIndex { OUTPUT_TILE_ID_TO_TEXTURE_ARRAY_INDEX_MAP = 0, OUTPUT_TEXTURE_ARRAY = 1 };
-
     static glm::uvec3 SHADER_WORKGROUP_SIZE; // TODO currently hardcoded in shader! can we somehow not hardcode it? maybe using overrides
 
-    ComputeNormalsNode(
-        const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity, WGPUTextureFormat output_format);
+    struct NormalSettings {
+        WGPUTextureFormat format = WGPUTextureFormat_RGBA8Unorm;
+        WGPUTextureUsage usage = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst);
+    };
 
-    const GpuHashMap<tile::Id, uint32_t, GpuTileId>& hash_map() const { return m_output_tile_map; }
-    const TileStorageTexture& texture_storage() const { return m_output_texture; }
+    struct NormalsSettingsUniform {
+        glm::vec2 aabb_min;
+        glm::vec2 aabb_max;
+    };
+
+    ComputeNormalsNode(const PipelineManager& pipeline_manager, WGPUDevice device);
+
+    void set_settings(const NormalSettings& settings);
 
 public slots:
     void run_impl() override;
 
-protected:
-    Data get_output_data_impl(SocketIndex output_index) override;
+private:
+    static std::unique_ptr<webgpu::raii::TextureWithSampler> create_normals_texture(
+        WGPUDevice device, uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage);
 
 private:
     const PipelineManager* m_pipeline_manager;
     WGPUDevice m_device;
     WGPUQueue m_queue;
-    size_t m_capacity;
 
-    // calculated on cpu-side before each invocation
-    webgpu::raii::RawBuffer<glm::vec4> m_tile_bounds; // aabb per tile
+    NormalSettings m_settings;
 
     // input
-    webgpu::raii::RawBuffer<GpuTileId> m_input_tile_ids; // tile ids for which to calculate normals
+    webgpu_engine::Buffer<NormalsSettingsUniform> m_normals_settings_uniform_buffer;
 
     // output
-    GpuHashMap<tile::Id, uint32_t, GpuTileId> m_output_tile_map; // hash map
-    TileStorageTexture m_output_texture; // texture per tile
+    std::unique_ptr<webgpu::raii::TextureWithSampler> m_output_texture; // normal texture
 };
 
 } // namespace webgpu_engine::compute::nodes

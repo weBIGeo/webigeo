@@ -22,7 +22,7 @@
 namespace webgpu::raii {
 
 WGPURenderPassDescriptor RenderPassEncoder::create_render_pass_descriptor(
-    WGPUTextureView color_attachment, WGPUTextureView depth_attachment, WGPURenderPassTimestampWrites* timestamp_writes)
+    WGPUTextureView color_attachment, WGPUTextureView depth_attachment, WGPUPassTimestampWrites* timestamp_writes)
 {
     m_color_attachment = {};
     m_color_attachment.view = color_attachment;

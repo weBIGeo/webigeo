@@ -38,7 +38,7 @@ public:
 private:
     WGPUQuerySetDescriptor m_timestamp_query_desc;
     WGPUQuerySet m_timestamp_queries;
-    WGPURenderPassTimestampWrites m_timestamp_writes;
+    WGPUPassTimestampWrites m_timestamp_writes;
     WGPUDevice m_device;
 
     std::unique_ptr<webgpu::raii::RawBuffer<uint64_t>> m_timestamp_resolve;

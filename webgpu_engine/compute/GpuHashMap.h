@@ -1,6 +1,7 @@
 /*****************************************************************************
  * weBIGeo
  * Copyright (C) 2024 Patrick Komon
+ * Copyright (C) 2024 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,8 +30,8 @@ template <typename T, std::unsigned_integral HashType = uint16_t> HashType gpu_h
 {
     static_assert(sizeof(T) != sizeof(T), "default implementation should not be called, add a template specialization for your types");
 }
-/// specialization for generating uint16_t hashes from tile::Id
-template <> uint16_t gpu_hash<tile::Id, uint16_t>(const tile::Id& id);
+/// specialization for generating uint16_t hashes from radix::tile::Id
+template <> uint16_t gpu_hash<radix::tile::Id, uint16_t>(const radix::tile::Id& id);
 
 template <typename T, typename HashType = uint16_t>
 concept GpuHashable = std::unsigned_integral<HashType> && requires(T a) {
@@ -81,6 +82,19 @@ public:
     /// Need to call update_gpu_data for effects to be visible on GPU side.
     void clear() { m_stored_map.clear(); }
 
+    const ValueType& value_at(const KeyType& id) const { return m_stored_map.at(id); }
+
+    const KeyType& key_with_value(const ValueType& value) const
+    {
+        // Iterate through all key value pairs and return the id for the given value
+        for (const auto& key_value_pair : m_stored_map) {
+            if (key_value_pair.second == value) {
+                return key_value_pair.first;
+            }
+        }
+        return KeyType();
+    }
+
     /// Update GPU buffers.
     void update_gpu_data()
     {
@@ -116,7 +130,7 @@ private:
     uint32_t m_capacity;
     KeyType m_empty_gpu_key;
     ValueType m_empty_gpu_value;
-    // TODO for now KeyType::Hasher works for tile::Id only
+    // TODO for now KeyType::Hasher works for radix::tile::Id only
     //  either make this a concept and require it for KeyType or required std::hash<KeyType>
     //  or manage using vector of pairs instead of hashmap (tho that would be slower, probably)
     std::unordered_map<KeyType, ValueType, typename KeyType::Hasher> m_stored_map;

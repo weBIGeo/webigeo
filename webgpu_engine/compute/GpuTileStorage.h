@@ -26,8 +26,14 @@ namespace webgpu_engine::compute {
 class TileStorageTexture {
 
 public:
-    TileStorageTexture(WGPUDevice device, const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format,
-        WGPUTextureUsageFlags usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst);
+    TileStorageTexture(WGPUDevice device, WGPUTextureDescriptor texture_desc, WGPUSamplerDescriptor sampler_desc);
+
+    // convenience wrapper
+    TileStorageTexture(WGPUDevice device,
+        const glm::uvec2& resolution,
+        size_t capacity,
+        WGPUTextureFormat format,
+        WGPUTextureUsage usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst);
 
     void store(size_t layer, const QByteArray& data);
     size_t store(const QByteArray& data); // store at next free spot
@@ -38,6 +44,7 @@ public:
 
     size_t width() const;
     size_t height() const;
+    size_t num_used() const;
     size_t capacity() const;
     std::vector<uint32_t> used_layer_indices() const;
 
@@ -47,6 +54,10 @@ public:
 private:
     size_t find_unused_layer_index() const;
     void set_layer_used(size_t layer);
+
+    static WGPUTextureDescriptor create_default_texture_descriptor(
+        const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format, WGPUTextureUsage usage);
+    static WGPUSamplerDescriptor create_default_sampler_descriptor();
 
 private:
     WGPUDevice m_device;

@@ -1,5 +1,5 @@
- /*****************************************************************************
- * Alpine Renderer
+/*****************************************************************************
+ * AlpineMaps.org
  * Copyright (C) 2022 Adam Celarek
  * Copyright (C) 2023 Jakob Lindner
  * Copyright (C) 2023 Gerald Kimmersdorfer
@@ -20,16 +20,14 @@
 
 #pragma once
 
-#include <memory>
-
-#include <QObject>
-
-#include <glm/glm.hpp>
-
 #include "AnimationStyle.h"
 #include "Definition.h"
 #include "InteractionStyle.h"
-#include "nucleus/event_parameter.h"
+#include "recording.h"
+#include <QObject>
+#include <glm/glm.hpp>
+#include <memory>
+#include <nucleus/event_parameter.h>
 
 namespace nucleus {
 class DataQuerier;
@@ -46,6 +44,7 @@ public:
                         AbstractDepthTester* depth_tester,
                         DataQuerier* data_querier);
 
+    /// warning: not thread safe
     [[nodiscard]] const Definition& definition() const;
     std::optional<glm::vec2> operation_centre();
     std::optional<float> operation_centre_distance();
@@ -53,7 +52,8 @@ public:
 	void report_global_cursor_position(const QPointF& screen_pos);
 
 public slots:
-    void set_definition(const Definition& new_definition);
+    void set_pixel_error_threshold(float threshold);
+    void set_model_matrix(const Definition& new_definition);
     void set_near_plane(float distance);
     void set_viewport(const glm::uvec2& new_viewport);
     void fly_to_latitude_longitude(double latitude, double longitude);
@@ -69,7 +69,7 @@ public slots:
     void key_press(const QKeyCombination&);
     void key_release(const QKeyCombination&);
     void touch(const event_parameter::Touch&);
-    void update_camera_request();
+    void advance_camera();
 
 signals:
     void definition_changed(const Definition& new_definition) const;
@@ -79,6 +79,7 @@ private:
     void set_interaction_style(std::unique_ptr<InteractionStyle> new_style);
     void set_animation_style(std::unique_ptr<InteractionStyle> new_style);
 
+    recording::Device m_recorder;
     Definition m_definition;
     AbstractDepthTester* m_depth_tester;
     DataQuerier* m_data_querier;
