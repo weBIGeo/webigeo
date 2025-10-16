@@ -56,7 +56,7 @@ public:
     // amb, diff, spec, shininess
     glm::vec4 m_material_light_response = glm::vec4(1.5, 3.0, 0.0, 32.0);
     // enabled, min angle, max angle, angle blend space
-    glm::vec4 m_snow_settings_angle = glm::vec4(0.0, 0.0, 30.0, 5.0);
+    glm::vec4 m_snow_settings_angle = glm::vec4(0.0, 0.0, 45.0, 5.0);
     // min altitude (snowline), variating altitude, altitude blend space, spec addition
     glm::vec4 m_snow_settings_alt = glm::vec4(1000.0, 200.0, 200.0, 1.0);
 
