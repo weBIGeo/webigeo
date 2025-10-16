@@ -724,7 +724,7 @@ void Window::paint_compute_pipeline_gui()
                             update_settings_and_rerun_pipeline("compute_avalanche_trajectories_node");
                         }
 
-                        ImGui::DragFloat("Persistence", &m_compute_pipeline_settings.persistence_contribution, 0.01f, 0.0f, 0.9999f, "%.3f");
+                        ImGui::DragFloat("Persistence", &m_compute_pipeline_settings.persistence_contribution, 0.01f, 0.0f, 0.99f, "%.2f");
                         if (ImGui::IsItemDeactivatedAfterEdit()) {
                             update_settings_and_rerun_pipeline("compute_avalanche_trajectories_node");
                         }
