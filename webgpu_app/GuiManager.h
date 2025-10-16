@@ -59,6 +59,7 @@ private:
     WGPUDevice m_device;
     TerrainRenderer* m_terrain_renderer = nullptr;
     bool m_gui_visible = true;
+    bool m_about_visible = false;
 
     bool m_first_frame = true;
     std::vector<std::string> m_camera_preset_names;
@@ -75,6 +76,7 @@ private:
 
     void draw();
     void draw_disclaimer_popup();
+    void draw_about_window();
 
     void install_fonts();
 

@@ -454,14 +454,18 @@ void GuiManager::draw()
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.0f, 0.0f, 1.0f, 0.2f)); // No hover effect
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.0f, 0.0f, 1.0f, 0.1f)); // No active effect
 
-        if (ImGui::Button("© basemap.at")) {
-            util::open_website("https://basemap.at/");
+        if (ImGui::Button("About")) {
+            m_about_visible = !m_about_visible;
         }
 
         ImGui::PopStyleColor(3);
         ImGui::End();
         ImGui::PopStyleColor();
         ImGui::PopStyleVar(); // Restore padding
+    }
+
+    if (m_about_visible) {
+        draw_about_window();
     }
 
     m_first_frame = false;
@@ -475,7 +479,7 @@ void GuiManager::draw_disclaimer_popup()
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2(365, 200));
 
-    if (ImGui::BeginPopupModal("WARNING: RESEARCH PREVIEW", NULL, ImGuiWindowFlags_NoTitleBar)) {
+    if (ImGui::BeginPopupModal("WARNING: RESEARCH PREVIEW", NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize)) {
         const char* text = "WARNING: RESEARCH PREVIEW";
         auto windowWidth = ImGui::GetWindowSize().x;
         auto textWidth = ImGui::CalcTextSize(text).x;
@@ -498,6 +502,53 @@ void GuiManager::draw_disclaimer_popup()
         }
         ImGui::EndPopup();
     }
+}
+
+void GuiManager::draw_about_window()
+{
+    // Always center this window when appearing
+    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(365, 280));
+
+    if (ImGui::Begin("About weBIGeo", &m_about_visible, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse)) {
+        ImGui::TextWrapped(
+            "weBIGeo is a research project to show that processing and visualizing of large datasets is possible in the browser near real-time.");
+        ImGui::Spacing();
+
+        ImGui::Text("This project is based on ");
+        ImGui::SameLine();
+        ImGui::TextLinkOpenURL("AlpineMaps.org", "https://github.com/AlpineMapsOrg/renderer");
+
+        ImGui::Spacing();
+
+        ImGui::Text("It is licensed under the");
+        ImGui::SameLine();
+        ImGui::TextLinkOpenURL("GPLv3", "https://www.gnu.org/licenses/gpl-3.0.html#license-text");
+
+        ImGui::Spacing();
+
+        ImGui::TextLinkOpenURL("GitHub repository", "https://github.com/weBIGeo/webigeo");
+        ImGui::TextLinkOpenURL("netidee project page", "https://www.netidee.at/webigeo");
+
+        ImGui::Spacing();
+        ImGui::Spacing();
+        ImGui::Spacing();
+
+        ImGui::Text("Height and ortho data is provided by");
+        ImGui::SameLine();
+        ImGui::TextLinkOpenURL("basemap.at", "https://basemap.at/");
+
+        ImGui::Spacing();
+        ImGui::Spacing();
+        ImGui::Spacing();
+
+        ImGui::TextWrapped("If you have feedback or ideas for collaboration, contact us!");
+        ImGui::Text("E-Mail:");
+        ImGui::SameLine();
+        ImGui::TextLinkOpenURL("pkomon@cg.tuwien.ac.at", "mailto:pkomon@cg.tuwien.ac.at");
+    }
+    ImGui::End();
 }
 
 } // namespace webgpu_app
