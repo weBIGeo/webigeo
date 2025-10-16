@@ -596,13 +596,13 @@ void Window::paint_compute_pipeline_gui()
             update_settings_and_rerun_pipeline();
         }
 
-        static int overlays_current_item = 2;
+        static int overlays_current_item = 1;
         const std::vector<std::pair<std::string, ComputePipelineType>> overlays = {
             { "Normals", ComputePipelineType::NORMALS },
-            { "Snow + Normals", ComputePipelineType::NORMALS_AND_SNOW },
+            //{ "Snow + Normals", ComputePipelineType::NORMALS_AND_SNOW },
             { "Avalanche trajectories", ComputePipelineType::AVALANCHE_TRAJECTORIES },
-            { "Avalanche trajectories (eval)", ComputePipelineType::AVALANCHE_TRAJECTORIES_EVAL },
-            { "D8 directions", ComputePipelineType::D8_DIRECTIONS },
+            //{ "Avalanche trajectories (eval)", ComputePipelineType::AVALANCHE_TRAJECTORIES_EVAL },
+            //{ "D8 directions", ComputePipelineType::D8_DIRECTIONS },
             { "Release points", ComputePipelineType::RELEASE_POINTS },
             { "Iterative simulation (WIP)", ComputePipelineType::ITERATIVE_SIMULATION },
         };
