@@ -51,7 +51,7 @@ class Window : public nucleus::AbstractRenderWindow, public nucleus::camera::Abs
 public:
     enum class ComputePipelineType {
         NORMALS = 0,
-        NORMALS_AND_SNOW = 1,
+        SNOW = 1,
         AVALANCHE_TRAJECTORIES = 2,
         AVALANCHE_TRAJECTORIES_EVAL = 3,
         D8_DIRECTIONS = 4,

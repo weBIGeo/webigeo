@@ -32,6 +32,19 @@ public:
     static glm::uvec3 SHADER_WORKGROUP_SIZE; // TODO currently hardcoded in shader! can we somehow not hardcode it? maybe using overrides
 
     struct SnowSettings {
+        WGPUTextureFormat format = WGPUTextureFormat_RGBA8Unorm;
+        WGPUTextureUsage usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc;
+
+        float min_angle = 0; // slope angle in degrees
+        float max_angle = 45; // slope angle in degrees
+        float angle_blend = 0; // TODO doc
+
+        float min_altitude = 1000; // minimal altitude in meters
+        float altitude_variation = 200; // TODO doc
+        float altitude_blend = 200; // TODO doc
+    };
+
+    struct SnowSettingsUniform {
         glm::vec4 angle = {
             1, // snow enabled
             0, // angle lower limit// angle lower limit
@@ -47,33 +60,37 @@ public:
         };
     };
 
-    ComputeSnowNode(
-        const PipelineManager& pipeline_manager, WGPUDevice device, const glm::uvec2& output_resolution, size_t capacity, WGPUTextureFormat output_format);
+    struct RegionBoundsUniform {
+        glm::vec2 aabb_min;
+        glm::vec2 aabb_max;
+    };
 
-    const GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>& hash_map() const { return m_output_tile_map; }
-    const TileStorageTexture& texture_storage() const { return m_output_texture; }
-    void set_snow_settings(const SnowSettings& snow_settings) { m_input_snow_settings.data = snow_settings; }
+    ComputeSnowNode(const PipelineManager& pipeline_manager, WGPUDevice device);
+    ComputeSnowNode(const PipelineManager& pipeline_manager, WGPUDevice device, const SnowSettings& settings);
+
+    void set_snow_settings(const SnowSettings& settings) { m_settings = settings; }
 
 public slots:
     void run_impl() override;
 
 private:
+    static std::unique_ptr<webgpu::raii::TextureWithSampler> create_snow_texture(
+        WGPUDevice device, uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage);
+
+private:
     const PipelineManager* m_pipeline_manager;
     WGPUDevice m_device;
     WGPUQueue m_queue;
-    size_t m_capacity;
-    bool m_should_output_files;
 
-    // calculated on cpu-side before each invocation
-    webgpu::raii::RawBuffer<glm::vec4> m_tile_bounds; // aabb per tile
+    SnowSettings m_settings;
+    webgpu_engine::Buffer<SnowSettingsUniform> m_snow_settings_uniform_buffer;
+    webgpu_engine::Buffer<RegionBoundsUniform> m_region_bounds_uniform_buffer;
 
     // input
-    webgpu::raii::RawBuffer<GpuTileId> m_input_tile_ids; // tile ids for which to calculate normals
-    webgpu_engine::Buffer<SnowSettings> m_input_snow_settings; // settings for snow overlay
+    std::unique_ptr<webgpu::raii::TextureWithSampler> m_input_normals_texture; // normal texture
 
     // output
-    GpuHashMap<radix::tile::Id, uint32_t, GpuTileId> m_output_tile_map; // hash map
-    TileStorageTexture m_output_texture; // texture per tile
+    std::unique_ptr<webgpu::raii::TextureWithSampler> m_output_snow_texture; // snow texture
 };
 
 } // namespace webgpu_engine::compute::nodes

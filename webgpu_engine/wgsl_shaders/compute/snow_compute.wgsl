@@ -28,52 +28,49 @@ struct SnowSettings {
     alt: vec4f,
 }
 
+struct RegionBounds {
+    aabb_min: vec2f,
+    aabb_max: vec2f,
+}
+
 // input
-@group(0) @binding(0) var<storage> input_tile_ids: array<TileId>;
-@group(0) @binding(1) var<storage> input_tile_bounds: array<vec4<f32>>;
-@group(0) @binding(2) var<uniform> snow_settings: SnowSettings;
-
-@group(0) @binding(3) var<storage> map_key_buffer: array<TileId>; // hash map key buffer
-@group(0) @binding(4) var<storage> map_value_buffer: array<u32>; // hash map value buffer, contains texture array indices
-@group(0) @binding(5) var input_tiles: texture_2d_array<u32>; // height tiles
-
-@group(0) @binding(6) var input_tiles_sampler: sampler;
+@group(0) @binding(0) var<uniform> snow_settings: SnowSettings;
+@group(0) @binding(1) var<uniform> bounds: RegionBounds;
+@group(0) @binding(2) var normal_texture: texture_2d<f32>;
+@group(0) @binding(3) var height_texture: texture_2d<f32>;
 
 // output
-@group(0) @binding(7) var output_tiles: texture_storage_2d_array<rgba8unorm, write>; // snow tiles (output)
+@group(0) @binding(4) var snow_texture: texture_storage_2d<rgba8unorm, write>; // ASSERT: same dimensions as heights_texture
 
-
-@compute @workgroup_size(1, 16, 16)
+@compute @workgroup_size(16, 16, 1)
 fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
-    // id.x  in [0, num_tiles]
-    // id.yz in [0, ceil(texture_dimensions(output_tiles).xy / workgroup_size.yz) - 1]
+    // id.xy in [0, ceil(texture_dimensions(snow_texture).xy / workgroup_size.xy) - 1]
 
     // exit if thread id is outside image dimensions (i.e. thread is not supposed to be doing any work)
-    let output_texture_size = textureDimensions(output_tiles);
-    if (id.y >= output_texture_size.x || id.z >= output_texture_size.y) {
+    let texture_size = textureDimensions(snow_texture);
+    if (id.x >= texture_size.x || id.y >= texture_size.y) {
         return;
     }
-    // id.yz in [0, texture_dimensions(output_tiles) - 1]
-
-    let tile_id = input_tile_ids[id.x];
-    let bounds = input_tile_bounds[id.x];
-    let input_texture_size = textureDimensions(input_tiles);
-    let tile_width = (bounds.z - bounds.x);
-    let tile_height = (bounds.w - bounds.y);
-    let quad_width: f32 = tile_width / f32(input_texture_size.x - 1);
-    let quad_height: f32 = tile_height / f32(input_texture_size.y - 1);
-
-    let col = id.y; // in [0, texture_dimension(output_tiles).x - 1]
-    let row = id.z; // in [0, texture_dimension(output_tiles).y - 1]
-    let uv = vec2f(f32(col), f32(row)) / vec2f(output_texture_size - 1);
-    let pos_y = (1 - uv.y) * f32(tile_height) + bounds.y;
-    let altitude_correction_factor = calc_altitude_correction_factor(pos_y);
-    let normal = normal_by_finite_difference_method_with_neighbors(uv, quad_width, quad_height,
-        altitude_correction_factor, tile_id, &map_key_buffer, &map_value_buffer, input_tiles, input_tiles_sampler);
+    // get texture pos and uv
+    let col = id.x; // in [0, texture_dimension(output_tiles).x - 1]
+    let row = id.y; // in [0, texture_dimension(output_tiles).y - 1]
+    let texture_pos = vec2u(col, row);
+    let uv = vec2f(f32(col), f32(row)) / vec2f(texture_size - 1);
     
-    let pos_x = uv.x * f32(tile_width) + bounds.x;
-    let pos_z = altitude_correction_factor * f32(load_height_by_position(tile_id, vec2u(col, row), &map_key_buffer, &map_value_buffer, input_tiles));
-    let overlay = overlay_snow(normal, vec3f(pos_x, pos_y, pos_z), snow_settings.angle, snow_settings.alt);
+    // calculate width and height of input height texture in world space 
+    let bounds_width: f32 = bounds.aabb_max.x - bounds.aabb_min.x;
+    let bounds_height: f32 = bounds.aabb_max.y - bounds.aabb_min.y;
 
-    textureStore(output_tiles, vec2(col, row), id.x, overlay); // incorrect
+    // calculate x and y world positions
+    let pos_x = bounds.aabb_min.x + bounds_width * uv.x;
+    let pos_y = bounds.aabb_min.y + bounds_height * uv.y;
+
+    // read normal and height (z world position)
+    let normal: vec3f = textureLoad(normal_texture, texture_pos, 0).xyz;
+    let altitude_correction_factor = 1 / cos(y_to_lat(pos_y)); //TODO currently, height decode node does no altitude correciton, so we need to account for that here 
+    let pos_z: f32 = altitude_correction_factor * textureLoad(height_texture, texture_pos, 0).x;
+    
+    // compute snow and store in texture
+    let snow = overlay_snow(normal, vec3f(pos_x, pos_y, pos_z), snow_settings.angle, snow_settings.alt);
+    textureStore(snow_texture, texture_pos, snow);
 }

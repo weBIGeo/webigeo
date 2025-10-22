@@ -572,57 +572,45 @@ void PipelineManager::create_normals_compute_bind_group_layout()
 
 void PipelineManager::create_snow_compute_bind_group_layout()
 {
-    WGPUBindGroupLayoutEntry input_tile_ids_entry {};
-    input_tile_ids_entry.binding = 0;
-    input_tile_ids_entry.visibility = WGPUShaderStage_Compute;
-    input_tile_ids_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    input_tile_ids_entry.buffer.minBindingSize = 0;
+    WGPUBindGroupLayoutEntry input_settings_entry {};
+    input_settings_entry.binding = 0;
+    input_settings_entry.visibility = WGPUShaderStage_Compute;
+    input_settings_entry.buffer.type = WGPUBufferBindingType_Uniform;
+    input_settings_entry.buffer.minBindingSize = 0;
 
-    WGPUBindGroupLayoutEntry input_bounds_entry {};
-    input_bounds_entry.binding = 1;
-    input_bounds_entry.visibility = WGPUShaderStage_Compute;
-    input_bounds_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    input_bounds_entry.buffer.minBindingSize = 0;
+    WGPUBindGroupLayoutEntry input_region_bounds_entry {};
+    input_region_bounds_entry.binding = 1;
+    input_region_bounds_entry.visibility = WGPUShaderStage_Compute;
+    input_region_bounds_entry.buffer.type = WGPUBufferBindingType_Uniform;
+    input_region_bounds_entry.buffer.minBindingSize = 0;
 
-    WGPUBindGroupLayoutEntry input_snow_settings {};
-    input_snow_settings.binding = 2;
-    input_snow_settings.visibility = WGPUShaderStage_Compute;
-    input_snow_settings.buffer.type = WGPUBufferBindingType_Uniform;
-    input_snow_settings.buffer.minBindingSize = 0;
+    WGPUBindGroupLayoutEntry input_normal_texture_entry {};
+    input_normal_texture_entry.binding = 2;
+    input_normal_texture_entry.visibility = WGPUShaderStage_Compute;
+    input_normal_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
+    input_normal_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
-    WGPUBindGroupLayoutEntry key_buffer_entry {};
-    key_buffer_entry.binding = 3;
-    key_buffer_entry.visibility = WGPUShaderStage_Compute;
-    key_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    key_buffer_entry.buffer.minBindingSize = 0;
+    WGPUBindGroupLayoutEntry input_height_texture_entry {};
+    input_height_texture_entry.binding = 3;
+    input_height_texture_entry.visibility = WGPUShaderStage_Compute;
+    input_height_texture_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
+    input_height_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
-    WGPUBindGroupLayoutEntry value_buffer_entry {};
-    value_buffer_entry.binding = 4;
-    value_buffer_entry.visibility = WGPUShaderStage_Compute;
-    value_buffer_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    value_buffer_entry.buffer.minBindingSize = 0;
-
-    WGPUBindGroupLayoutEntry input_height_textures_entry {};
-    input_height_textures_entry.binding = 5;
-    input_height_textures_entry.visibility = WGPUShaderStage_Compute;
-    input_height_textures_entry.texture.sampleType = WGPUTextureSampleType_Uint;
-    input_height_textures_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
-
-    WGPUBindGroupLayoutEntry input_height_texture_sampler {};
-    input_height_texture_sampler.binding = 6;
-    input_height_texture_sampler.visibility = WGPUShaderStage_Compute;
-    input_height_texture_sampler.sampler.type = WGPUSamplerBindingType_NonFiltering;
-
-    WGPUBindGroupLayoutEntry output_tiles_entry {};
-    output_tiles_entry.binding = 7;
-    output_tiles_entry.visibility = WGPUShaderStage_Compute;
-    output_tiles_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2DArray;
-    output_tiles_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
-    output_tiles_entry.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
+    WGPUBindGroupLayoutEntry output_snow_texture_entry {};
+    output_snow_texture_entry.binding = 4;
+    output_snow_texture_entry.visibility = WGPUShaderStage_Compute;
+    output_snow_texture_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+    output_snow_texture_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
+    output_snow_texture_entry.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
 
     m_snow_compute_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
-        std::vector<WGPUBindGroupLayoutEntry> { input_tile_ids_entry, input_bounds_entry, input_snow_settings, key_buffer_entry, value_buffer_entry,
-            input_height_textures_entry, input_height_texture_sampler, output_tiles_entry },
+        std::vector<WGPUBindGroupLayoutEntry> {
+            input_settings_entry,
+            input_region_bounds_entry,
+            input_height_texture_entry,
+            input_normal_texture_entry,
+            output_snow_texture_entry,
+        },
         "snow compute bind group layout");
 }
 

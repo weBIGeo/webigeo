@@ -265,7 +265,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_release_points_compute_graph(const 
 
 std::unique_ptr<NodeGraph> NodeGraph::create_normal_with_snow_compute_graph(const PipelineManager& manager, WGPUDevice device)
 {
-    size_t capacity = 1024;
+    /*size_t capacity = 1024;
     glm::uvec2 input_resolution = { 65, 65 };
     glm::uvec2 normal_output_resolution = { 65, 65 };
     glm::uvec2 upsample_output_resolution = { 256, 256 };
@@ -324,7 +324,9 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_with_snow_compute_graph(cons
     node_graph->m_output_normals_texture_storage_ptr = &downsample_tiles_node->texture_storage();
 
     node_graph->m_output_overlay_hash_map_ptr = &downsample_snow_tiles_node->hash_map();
-    node_graph->m_output_overlay_texture_storage_ptr = &downsample_snow_tiles_node->texture_storage();
+    node_graph->m_output_overlay_texture_storage_ptr = &downsample_snow_tiles_node->texture_storage();*/
+
+    auto node_graph = std::make_unique<NodeGraph>();
 
     node_graph->connect_node_signals_and_slots();
 
@@ -333,35 +335,13 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_with_snow_compute_graph(cons
 
 std::unique_ptr<NodeGraph> NodeGraph::create_snow_compute_graph(const PipelineManager& manager, WGPUDevice device)
 {
-    size_t capacity = 256;
-    glm::uvec2 input_resolution = { 65, 65 };
-    glm::uvec2 output_resolution = { 65, 65 };
+    auto node_graph = create_normal_compute_graph_unconnected(manager, device);
 
-    auto node_graph = std::make_unique<NodeGraph>();
-    Node* tile_select_node = node_graph->add_node("select_tiles_node", std::make_unique<SelectTilesNode>());
-    Node* height_request_node = node_graph->add_node("request_height_node", std::make_unique<RequestTilesNode>());
-    Node* hash_map_node
-        = node_graph->add_node("hashmap_node", std::make_unique<CreateHashMapNode>(device, input_resolution, capacity, WGPUTextureFormat_R16Uint));
-    Node* snow_compute_node = node_graph->add_node(
-        "compute_snow_node", std::make_unique<ComputeSnowNode>(manager, device, output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm));
-    DownsampleTilesNode* downsample_tiles_node
-        = static_cast<DownsampleTilesNode*>(node_graph->add_node("downsample_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity)));
-
-    tile_select_node->output_socket("tile ids").connect(height_request_node->input_socket("tile ids"));
-
-    tile_select_node->output_socket("tile ids").connect(hash_map_node->input_socket("tile ids"));
-    height_request_node->output_socket("tile data").connect(hash_map_node->input_socket("texture data"));
-
-    tile_select_node->output_socket("tile ids").connect(snow_compute_node->input_socket("tile ids"));
-    hash_map_node->output_socket("hash map").connect(snow_compute_node->input_socket("hash map"));
-    hash_map_node->output_socket("textures").connect(snow_compute_node->input_socket("height textures"));
-
-    tile_select_node->output_socket("tile ids").connect(downsample_tiles_node->input_socket("tile ids"));
-    snow_compute_node->output_socket("hash map").connect(downsample_tiles_node->input_socket("hash map"));
-    snow_compute_node->output_socket("snow textures").connect(downsample_tiles_node->input_socket("textures"));
-
-    node_graph->m_output_normals_hash_map_ptr = &downsample_tiles_node->hash_map();
-    node_graph->m_output_normals_texture_storage_ptr = &downsample_tiles_node->texture_storage();
+    // add and connect snow compute node
+    Node* snow_compute_node = node_graph->add_node("compute_snow_node", std::make_unique<ComputeSnowNode>(manager, device));
+    snow_compute_node->input_socket("bounds").connect(node_graph->get_node("select_tiles_node").output_socket("region aabb"));
+    snow_compute_node->input_socket("height texture").connect(node_graph->get_node("height_decode_node").output_socket("decoded texture"));
+    snow_compute_node->input_socket("normal texture").connect(node_graph->get_node("compute_normals_node").output_socket("normal texture"));
 
     node_graph->connect_node_signals_and_slots();
 
