@@ -66,75 +66,105 @@ struct FragOut {
     @location(3) overlay: u32,
 }
 
-fn camera_world_space_position(
-    vertex_index: u32,
-    bounds: vec4f,
-    height_texture_layer: i32,
-    tile_id: TileId,
-    height_zoomlevel: i32,
-    uv: ptr<function, vec2f>,
-    n_quads_per_direction: ptr<function, f32>,
-    quad_width: ptr<function, f32>,
-    quad_height: ptr<function, f32>,
-    altitude_correction_factor: ptr<function, f32>,
-    height_uv: ptr<function, vec2f>,
-) -> vec3f {
-    let n_quads_per_direction_int = n_edge_vertices - 1;
-    *n_quads_per_direction = f32(n_quads_per_direction_int);
-    *quad_width = (bounds.z - bounds.x) / (*n_quads_per_direction);
-    *quad_height = (bounds.w - bounds.y) / (*n_quads_per_direction);
 
-    var row: i32 = i32(vertex_index) / n_edge_vertices;
-    var col: i32 = i32(vertex_index) - (row * n_edge_vertices);
-    let curtain_vertex_id = i32(vertex_index) - n_edge_vertices * n_edge_vertices;
+fn compute_vertex(
+    vertex_index: i32,
+    render_tile_id: TileId,
+    bounds: vec4f,
+    height_zoomlevel: u32,
+    height_texture_layer: i32,
+    position: ptr<function, vec3f>,
+    uv: ptr<function, vec2f>,
+    tile_id: ptr<function, TileId>,
+    compute_normal: bool,
+    normal: ptr<function, vec3f>
+) {
+    // get tile id of desired height tile
+    var height_tile_id: TileId;
+    {
+        const input_uv = vec2f(0.0);
+        var height_uv: vec2f;
+        decrease_zoom_level_until(render_tile_id, input_uv, height_zoomlevel, &height_tile_id, &height_uv);
+    }
+
+    let n_quads_per_direction_int: i32 = (n_edge_vertices - 1) >> (render_tile_id.zoomlevel - height_tile_id.zoomlevel);
+    let n_quads_per_direction: f32 = f32(n_quads_per_direction_int);
+    let quad_size: f32 = (bounds.z - bounds.x) / n_quads_per_direction;
+
+    // get row and col for specific vertex_index
+    var row: i32 = vertex_index / n_edge_vertices;
+    var col: i32 = vertex_index - (row * n_edge_vertices);
+    var curtain_vertex_id: i32 = vertex_index - n_edge_vertices * n_edge_vertices;
     if (curtain_vertex_id >= 0) {
         if (curtain_vertex_id < n_edge_vertices) {
             row = (n_edge_vertices - 1) - curtain_vertex_id;
             col = (n_edge_vertices - 1);
-        }
-        else if (curtain_vertex_id >= n_edge_vertices && curtain_vertex_id < 2 * n_edge_vertices - 1) {
+        } else if (curtain_vertex_id >= n_edge_vertices && curtain_vertex_id < 2 * n_edge_vertices - 1) {
             row = 0;
             col = (n_edge_vertices - 1) - (curtain_vertex_id - n_edge_vertices) - 1;
-        }
-        else if (curtain_vertex_id >= 2 * n_edge_vertices - 1 && curtain_vertex_id < 3 * n_edge_vertices - 2) {
+        } else if (curtain_vertex_id >= 2 * n_edge_vertices - 1 && curtain_vertex_id < 3 * n_edge_vertices - 2) {
             row = curtain_vertex_id - 2 * n_edge_vertices + 2;
             col = 0;
-        }
-        else {
+        } else {
             row = (n_edge_vertices - 1);
             col = curtain_vertex_id - 3 * n_edge_vertices + 3;
         }
     }
-    // Note: for higher zoom levels it would be enough to calculate the altitude_correction_factor on cpu
-    // for lower zoom levels we could bake it into the texture.
-    // but there was no measurable difference despite the cos and atan, so leaving as is for now.
-    let var_pos_cws_y: f32 = f32(n_quads_per_direction_int - row) * f32(*quad_width) + bounds.y;
-    let pos_y: f32 = var_pos_cws_y + camera.position.y;
-    *altitude_correction_factor = 0.125 / cos(y_to_lat(pos_y)); // https://github.com/AlpineMapsOrg/renderer/issues/5
-
-    *uv = vec2f(f32(col) / (*n_quads_per_direction), f32(row) / (*n_quads_per_direction));
-
-    var output_tile_id: TileId;
-    decrease_zoom_level_until(tile_id, *uv, u32(height_zoomlevel), &output_tile_id, height_uv);
-    let altitude_tex = f32(bilinear_sample_u32(height_texture, height_sampler, *height_uv, u32(height_texture_layer)));
-    let adjusted_altitude: f32 = altitude_tex * (*altitude_correction_factor);
-
-    var var_pos_cws = vec3f(f32(col) * (*quad_width) + bounds.x, var_pos_cws_y, adjusted_altitude - camera.position.z);
-
-    if (curtain_vertex_id >= 0) {
-        // TODO implement preprocessor constants in shader
-        //float curtain_height = CURTAIN_REFERENCE_HEIGHT;
-
-        var curtain_height = f32(1000);
-// TODO implement preprocessor if in shader
-/*#if CURTAIN_HEIGHT_MODE == 1
-        let dist_factor = clamp(length(var_pos_cws) / 100000.0, 0.2, 1.0);
-        curtain_height *= dist_factor;
-#endif*/
-        var_pos_cws.z = var_pos_cws.z - curtain_height;
+    if (row > n_quads_per_direction_int) {
+        row = n_quads_per_direction_int;
+        curtain_vertex_id = 1;
+    }
+    if (col > n_quads_per_direction_int) {
+        col = n_quads_per_direction_int;
+        curtain_vertex_id = 1;
     }
 
-    return var_pos_cws;
+    // compute world space x and y coordinates
+    (*position).y = f32(n_quads_per_direction_int - row) * f32(quad_size) + bounds.y;
+    (*position).x = f32(col) * quad_size + bounds.x;
+    
+    // compute uv coordinates on height tile
+    let render_tile_uv = vec2f(f32(col) / n_quads_per_direction, f32(row) / n_quads_per_direction);
+    var height_tile_uv: vec2f;
+    {
+        var unused: TileId;
+        decrease_zoom_level_until(render_tile_id, render_tile_uv, height_zoomlevel, &unused, &height_tile_uv);
+    }
+    *uv = render_tile_uv;
+
+    // read height texture and compute world space z coordinate
+    let altitude_tex = f32(bilinear_sample_u32(height_texture, height_sampler, height_tile_uv, u32(height_texture_layer)));
+    // Note: for higher zoom levels it would be enough to calculate the altitude_correction_factor on cpu
+    // for lower zoom levels we could bake it into the texture.
+    // there was no measurable difference despite a cos and a atan, so leaving as is for now.
+    let world_space_y: f32 = (*position).y + camera.position.y;
+    let altitude_correction_factor: f32 = 0.125 / cos(y_to_lat(world_space_y)); // https://github.com/AlpineMapsOrg/renderer/issues/5
+    let adjusted_altitude: f32 = altitude_tex * altitude_correction_factor;
+    (*position).z = adjusted_altitude - camera.position.z;
+
+    if (curtain_vertex_id >= 0) {
+        const curtain_height = 1000.0;
+        (*position).z = (*position).z - curtain_height;
+    }
+
+    //TODO port this
+/*    if (curtain_vertex_id >= 0) {
+        float curtain_height = CURTAIN_REFERENCE_HEIGHT;
+#if CURTAIN_HEIGHT_MODE == 1
+        float dist_factor = clamp(length(position) / 100000.0, 0.2, 1.0);
+        curtain_height *= dist_factor;
+#endif
+#if CURTAIN_HEIGHT_MODE == 2
+        float zoom_factor = 1.0 - max(0.1, float(tile_id.z) / 25.f);
+        curtain_height *= zoom_factor;
+#endif
+        position.z = position.z - curtain_height;
+    }
+*/
+
+    if (compute_normal) {
+        *normal = normal_by_finite_difference_method(height_tile_uv, quad_size, quad_size, altitude_correction_factor, height_texture_layer, height_texture);
+    }
 }
 
 fn normal_by_fragment_position_interpolation(pos_cws: vec3<f32>) -> vec3<f32> {
@@ -144,28 +174,23 @@ fn normal_by_fragment_position_interpolation(pos_cws: vec3<f32>) -> vec3<f32> {
 }
 
 @vertex
-fn vertexMain(@builtin(vertex_index) vertex_index: u32, vertex_in: VertexIn) -> VertexOut {
-    var uv: vec2f;
-    var height_uv: vec2f;
-    var n_quads_per_direction: f32;
-    var quad_width: f32;
-    var quad_height: f32;
-    var altitude_correction_factor: f32;
-    let tile_id = TileId(vertex_in.tile_id.x, vertex_in.tile_id.y, vertex_in.tile_id.z, 4294967295u);
-    let var_pos_cws = camera_world_space_position(vertex_index, vertex_in.bounds, vertex_in.height_texture_layer, tile_id, vertex_in.height_zoomlevel, &uv, &n_quads_per_direction, &quad_width, &quad_height, &altitude_correction_factor, &height_uv);
+fn vertexMain(@builtin(vertex_index) vertex_index: u32, vertex_in: VertexIn) -> VertexOut { 
+    let render_tile_id = TileId(vertex_in.tile_id.x, vertex_in.tile_id.y, vertex_in.tile_id.z, 4294967295u);
 
-    let pos = vec4f(var_pos_cws, 1);
-    let clip_pos = camera.view_proj_matrix * pos;
+    var position: vec3f;
+    var uv: vec2f;
+    var height_tile_id: TileId;
+    var normal: vec3f;
+    compute_vertex(i32(vertex_index), render_tile_id, vertex_in.bounds, u32(vertex_in.height_zoomlevel), vertex_in.height_texture_layer,
+        &position, &uv, &height_tile_id, true, &normal);
+
+    let clip_pos: vec4f = camera.view_proj_matrix * vec4f(position, 1.0);
 
     var vertex_out: VertexOut;
     vertex_out.position = clip_pos;
     vertex_out.uv = uv;
-    vertex_out.pos_cws = var_pos_cws;
-
-    vertex_out.normal = vec3f(0.0);
-    if (config.normal_mode == 2) {
-        vertex_out.normal = normal_by_finite_difference_method(height_uv, quad_width, quad_height, altitude_correction_factor, vertex_in.height_texture_layer, height_texture);
-    }
+    vertex_out.pos_cws = position;
+    vertex_out.normal = normal;
     vertex_out.height_texture_layer = vertex_in.height_texture_layer;
     vertex_out.ortho_texture_layer = vertex_in.ortho_texture_layer;
 
