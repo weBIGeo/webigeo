@@ -131,6 +131,9 @@ void TerrainRenderer::render_gui()
 
 void TerrainRenderer::poll_events()
 {
+    // TODO hack, makes animations work
+    m_camera_controller->advance_camera();
+
     // NOTE: The following line is not strictly necessary, we discovered that SDL somehow
     // triggers the processing of qt events. On the web we assume that Qt attaches itself to
     // the emscripten event loop.
