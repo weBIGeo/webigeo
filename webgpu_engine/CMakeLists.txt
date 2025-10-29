@@ -37,6 +37,7 @@ set(SOURCES
     compute/GpuTileId.h compute/GpuTileId.cpp
     compute/RectangularTileRegion.h compute/RectangularTileRegion.cpp
     compute/NodeGraphRenderer.h compute/NodeGraphRenderer.cpp
+    compute/NodeRenderer.h compute/NodeRenderer.cpp
     compute/nodes/Node.h compute/nodes/Node.cpp
     compute/nodes/SelectTilesNode.h compute/nodes/SelectTilesNode.cpp
     compute/nodes/RequestTilesNode.h compute/nodes/RequestTilesNode.cpp

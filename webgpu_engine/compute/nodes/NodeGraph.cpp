@@ -55,6 +55,11 @@ const std::string& GraphRunFailureInfo::node_name() const { return m_node_name; 
 
 const NodeRunFailureInfo& GraphRunFailureInfo::node_run_failure_info() const { return m_node_run_failure_info; }
 
+NodeGraph::NodeGraph(const std::string& name)
+    : m_name(name)
+{
+}
+
 Node* NodeGraph::add_node(const std::string& name, std::unique_ptr<Node> node)
 {
     assert(!m_nodes.contains(name));
@@ -67,6 +72,10 @@ Node& NodeGraph::get_node(const std::string& node_name) { return *m_nodes.at(nod
 const Node& NodeGraph::get_node(const std::string& node_name) const { return *m_nodes.at(node_name); }
 
 bool NodeGraph::exists_node(const std::string& node_name) const { return m_nodes.find(node_name) != m_nodes.end(); }
+
+const std::string& NodeGraph::get_name() const { return m_name; }
+
+void NodeGraph::set_name(const std::string& name) { m_name = name; }
 
 std::unordered_map<std::string, std::unique_ptr<Node>>& NodeGraph::get_nodes() { return m_nodes; }
 
@@ -168,7 +177,7 @@ static std::unique_ptr<NodeGraph> create_normal_compute_graph_unconnected(const 
 {
     const glm::uvec2 input_resolution = { 65, 65 };
 
-    auto node_graph = std::make_unique<NodeGraph>();
+    auto node_graph = std::make_unique<NodeGraph>("normal_compute_graph_unconnected");
     Node* tile_select_node = node_graph->add_node("select_tiles_node", std::make_unique<SelectTilesNode>());
     Node* height_request_node = node_graph->add_node("request_height_node", std::make_unique<RequestTilesNode>());
 
@@ -252,6 +261,7 @@ static std::unique_ptr<NodeGraph> create_trajectories_compute_graph_unconnected(
 std::unique_ptr<NodeGraph> NodeGraph::create_normal_compute_graph(const PipelineManager& manager, WGPUDevice device)
 {
     auto node_graph = create_normal_compute_graph_unconnected(manager, device);
+    node_graph->set_name("normal_compute_graph");
     node_graph->connect_node_signals_and_slots();
     return node_graph;
 }
@@ -259,6 +269,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_compute_graph(const Pipeline
 std::unique_ptr<NodeGraph> NodeGraph::create_release_points_compute_graph(const PipelineManager& manager, WGPUDevice device)
 {
     auto node_graph = create_release_points_compute_graph_unconnected(manager, device);
+    node_graph->set_name("release_points_compute_graph");
     node_graph->connect_node_signals_and_slots();
     return node_graph;
 }
@@ -326,7 +337,8 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_with_snow_compute_graph(cons
     node_graph->m_output_overlay_hash_map_ptr = &downsample_snow_tiles_node->hash_map();
     node_graph->m_output_overlay_texture_storage_ptr = &downsample_snow_tiles_node->texture_storage();*/
 
-    auto node_graph = std::make_unique<NodeGraph>();
+    qFatal("create_normal_with_snow_compute_graph is deprecated");
+    auto node_graph = std::make_unique<NodeGraph>("normal_with_snow_compute_graph");
 
     node_graph->connect_node_signals_and_slots();
 
@@ -336,6 +348,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_normal_with_snow_compute_graph(cons
 std::unique_ptr<NodeGraph> NodeGraph::create_snow_compute_graph(const PipelineManager& manager, WGPUDevice device)
 {
     auto node_graph = create_normal_compute_graph_unconnected(manager, device);
+    node_graph->set_name("snow_compute_graph");
 
     // add and connect snow compute node
     Node* snow_compute_node = node_graph->add_node("compute_snow_node", std::make_unique<ComputeSnowNode>(manager, device));
@@ -351,6 +364,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_snow_compute_graph(const PipelineMa
 std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_trajectories_compute_graph(const PipelineManager& manager, WGPUDevice device)
 {
     auto node_graph = create_trajectories_compute_graph_unconnected(manager, device);
+    node_graph->set_name("avalanche_trajectories_compute_graph");
     node_graph->connect_node_signals_and_slots();
     return node_graph;
 }
@@ -358,6 +372,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_trajectories_compute_grap
 std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_with_export_compute_graph(const PipelineManager& manager, WGPUDevice device)
 {
     auto node_graph = create_trajectories_compute_graph_unconnected(manager, device);
+    node_graph->set_name("trajectories_with_export_compute_graph");
 
     TileExportNode::ExportSettings export_settings_rp = { true, true, true, true, "export/release_points" };
     TileExportNode* rp_export_node
@@ -438,7 +453,7 @@ void NodeGraph::set_enabled_for_nodes_with_name(const std::string& name_substrin
 
 std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_evaluation_compute_graph(const PipelineManager& manager, WGPUDevice device)
 {
-    auto node_graph = std::make_unique<NodeGraph>();
+    auto node_graph = std::make_unique<NodeGraph>("trajectories_evaluation_compute_graph");
 
     Node* load_rp_node = node_graph->add_node("load_rp_node", std::make_unique<LoadTextureNode>(device));
     Node* load_heights_node = node_graph->add_node("load_heights_node", std::make_unique<LoadTextureNode>(device));
@@ -563,6 +578,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_evaluation_compute_gra
 std::unique_ptr<NodeGraph> NodeGraph::create_iterative_simulation_compute_graph(const PipelineManager& manager, WGPUDevice device)
 {
     auto node_graph = create_release_points_compute_graph_unconnected(manager, device);
+    node_graph->set_name("iterative_simulation_compute_graph");
 
     IterativeSimulationNode* flowpy_node
         = static_cast<IterativeSimulationNode*>(node_graph->add_node("flowpy", std::make_unique<IterativeSimulationNode>(manager, device)));
@@ -577,7 +593,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_iterative_simulation_compute_graph(
 std::unique_ptr<NodeGraph> NodeGraph::create_fxaa_trajectories_compute_graph(const PipelineManager& manager, WGPUDevice device)
 {
     auto node_graph = create_trajectories_compute_graph_unconnected(manager, device);
-
+    node_graph->set_name("fxaa_trajectories_compute_graph");
     // fxaa node
     {
         FxaaNode* fxaa_node = static_cast<FxaaNode*>(node_graph->add_node("fxaa_node", std::make_unique<FxaaNode>(manager, device)));
@@ -598,7 +614,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_influence_area_compute_gr
     glm::uvec2 area_of_influence_output_resolution = { 256, 256 };
     glm::uvec2 upsample_output_resolution = { 256, 256 };
 
-    auto node_graph = std::make_unique<NodeGraph>();
+    auto node_graph = std::make_unique<NodeGraph>("avalanche_influence_area_compute_graph");
 
     Node* target_tile_select_node = node_graph->add_node("select_target_tiles_node", std::make_unique<SelectTilesNode>());
     Node* source_tile_select_node = node_graph->add_node("select_source_tiles_node", std::make_unique<SelectTilesNode>());
@@ -666,7 +682,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_d8_compute_graph(const PipelineMana
     glm::uvec2 input_resolution = { 65, 65 };
     glm::uvec2 normal_output_resolution = { 65, 65 };
 
-    auto node_graph = std::make_unique<NodeGraph>();
+    auto node_graph = std::make_unique<NodeGraph>("d8_compute_graph");
     Node* tile_select_node = node_graph->add_node("select_tiles_node", std::make_unique<SelectTilesNode>());
     Node* height_request_node = node_graph->add_node("request_height_node", std::make_unique<RequestTilesNode>());
     Node* hash_map_node
