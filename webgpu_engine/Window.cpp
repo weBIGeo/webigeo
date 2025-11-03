@@ -34,7 +34,9 @@
 #include "nucleus/utils/image_loader.h"
 #include "webgpu/raii/RenderPassEncoder.h"
 #include "webgpu_engine/Context.h"
+#include <IconsFontAwesome5.h>
 #include <QFile>
+#include <imgui_internal.h>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
@@ -620,15 +622,6 @@ void Window::paint_compute_pipeline_gui()
             ImGui::EndCombo();
         }
 
-        if (ImGui::Button(m_should_render_node_graph ? "Hide node graph" : "Show node graph", ImVec2(250, 20))) {
-            m_should_render_node_graph = !m_should_render_node_graph;
-        }
-
-        // render node graph
-        if (m_should_render_node_graph) {
-            m_node_graph_renderer->render();
-        }
-
         if (ImGui::TreeNodeEx("Pipeline-specific settings", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::PushItemWidth(15.0f * ImGui::GetFontSize());
             if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
@@ -1053,6 +1046,36 @@ void Window::paint_compute_pipeline_gui()
             ImGui::TreePop();
         }
     }
+
+    {
+        ImVec2 button_pos(10, ImGui::GetIO().DisplaySize.y - 48 * 2 - 40 - 10);
+        ImGui::SetNextWindowPos(button_pos, ImGuiCond_Always);
+        ImGui::SetNextWindowBgAlpha(0.5f);
+        ImGui::SetNextWindowSize(ImVec2(48, 48));
+
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+
+        ImGui::Begin("ToggleGraphRenderWindow", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
+
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // fully transparent
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.0f, 0.0f, 0.0f, 0.2f)); // black with alpha 0.2
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.0f, 0.0f, 0.0f, 0.2f)); // same for active
+
+        if (ImGui::Button(ICON_FA_NETWORK_WIRED "###ToggleGraphRenderer", ImVec2(48, 48))) {
+            m_should_render_node_graph = !m_should_render_node_graph;
+        }
+
+        ImGui::PopStyleColor(3);
+        ImGui::End();
+        ImGui::PopStyleVar();
+    }
+
+    // render node graph
+    if (m_should_render_node_graph) {
+        m_node_graph_renderer->render();
+    }
+
 #endif
 }
 

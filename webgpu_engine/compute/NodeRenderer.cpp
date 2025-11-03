@@ -49,6 +49,25 @@ std::string NodeRenderer::format_node_name(const std::string& name)
     return n;
 }
 
+std::string NodeRenderer::format_ms(int duration_in_ms)
+{
+    std::ostringstream ss;
+    ss << std::fixed << std::setprecision(2);
+
+    if (duration_in_ms < 100) {
+        ss.str("");
+        ss.clear();
+        ss << duration_in_ms << " ms";
+    } else {
+        double seconds = duration_in_ms / 1000.0;
+        ss.str("");
+        ss.clear();
+        ss << seconds << " s";
+    }
+
+    return ss.str();
+}
+
 NodeRenderer::NodeRenderer(const std::string& name, nodes::Node& node)
     : m_name(name)
     , m_name_formatted(NodeRenderer::format_node_name(m_name))
@@ -85,11 +104,18 @@ void NodeRenderer::render(bool reset_position)
     }
 
     bool is_disabled = !m_node->is_enabled();
+    bool is_running = m_node->is_running();
+
     if (is_disabled) {
         ImGui::PushStyleVar(ImGuiStyleVar_Alpha, 0.3f);
         ImNodes::PushColorStyle(ImNodesCol_TitleBar, IM_COL32(100, 100, 100, 255));
         ImNodes::PushColorStyle(ImNodesCol_TitleBarHovered, IM_COL32(100, 100, 100, 255));
         ImNodes::PushColorStyle(ImNodesCol_TitleBarSelected, IM_COL32(100, 100, 100, 255));
+    } else if (is_running) {
+        // Dark green title bar while running
+        ImNodes::PushColorStyle(ImNodesCol_TitleBar, IM_COL32(30, 100, 30, 255));
+        ImNodes::PushColorStyle(ImNodesCol_TitleBarHovered, IM_COL32(40, 120, 40, 255));
+        ImNodes::PushColorStyle(ImNodesCol_TitleBarSelected, IM_COL32(50, 140, 50, 255));
     }
 
     ImNodes::BeginNode(m_node_id);
@@ -101,30 +127,34 @@ void NodeRenderer::render(bool reset_position)
     if (ImGui::Checkbox("##enabled", &enabled)) {
         m_node->set_enabled(enabled);
     }
-    // ImGui::TextUnformatted(m_name_formatted.c_str());
     ImNodes::EndNodeTitleBar();
 
     render_settings();
     render_sockets();
 
-    // Display the last run duration
-    float duration_ms = m_node->last_run_duration();
     ImGui::Dummy(ImVec2(0.0f, 4.0f)); // spacing
-    ImGui::Text("Last run: %0.0f ms", duration_ms);
+    ImGui::Text("Last run: %s", NodeRenderer::format_ms(m_node->get_last_run_duration_in_ms()).c_str());
 
     ImNodes::EndNode();
 
     // Get size of the node
     ImVec2 min = ImGui::GetItemRectMin();
     ImVec2 max = ImGui::GetItemRectMax();
-    ImVec2 size = ImVec2(max.x - min.x, max.y - min.y);
-    m_size = size;
+    m_size = ImVec2(max.x - min.x, max.y - min.y);
 
+    // Get position of the node
+    m_position = ImNodes::GetNodeEditorSpacePos(m_node_id);
+
+    // Pop color/style stacks
     if (is_disabled) {
-        ImNodes::PopColorStyle();
-        ImNodes::PopColorStyle();
-        ImNodes::PopColorStyle();
+        ImNodes::PopColorStyle(); // selected
+        ImNodes::PopColorStyle(); // hovered
+        ImNodes::PopColorStyle(); // normal
         ImGui::PopStyleVar();
+    } else if (is_running) {
+        ImNodes::PopColorStyle(); // selected
+        ImNodes::PopColorStyle(); // hovered
+        ImNodes::PopColorStyle(); // normal
     }
 }
 

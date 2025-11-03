@@ -20,6 +20,7 @@
 
 #include "GuiManager.h"
 #include "TerrainRenderer.h"
+#include <imgui_internal.h>
 
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
 #include "backends/imgui_impl_sdl2.h"
@@ -374,12 +375,19 @@ void GuiManager::draw()
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0)); // No padding for better icon alignment
         ImGui::Begin("RotateNorthButton", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
+
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // fully transparent
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.0f, 0.0f, 0.0f, 0.2f)); // black with alpha 0.2
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.0f, 0.0f, 0.0f, 0.2f)); // same for active
 
         auto camController = m_terrain_renderer->get_camera_controller();
 
-        if (ImGui::InvisibleButton("RotateNorthBtn", ImVec2(48, 48))) {
+        if (ImGui::Button("###RotateNorthButton", ImVec2(48, 48))) {
             camController->rotate_north();
         }
+
+        ImGui::PopStyleColor(3);
 
         // Drawing the arrow icon manually with rotation
         ImDrawList* draw_list = ImGui::GetWindowDrawList();
@@ -448,6 +456,8 @@ void GuiManager::draw()
         // Set border color to transparent
         ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // Transparent border
         ImGui::Begin("CopyrightBox", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize);
+
+        ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
 
         // Set up a button with no hover effect by temporarily changing colors
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(1.0f, 1.0f, 1.0f, 0.0f)); // Transparent background

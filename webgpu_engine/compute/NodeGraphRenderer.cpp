@@ -198,18 +198,43 @@ void NodeGraphRenderer::calculate_auto_layout()
             y_cursor += sz.y + m_initial_node_spacing.y;
         }
     }
+
+    center_target_layout();
 }
 
 void NodeGraphRenderer::apply_node_layout(float animation_duration)
 {
-    if (animation_duration <= 0.0f) {
+    // Create start_layout with current positions
+    m_start_layout.clear();
+    for (auto& [nodePtr, nr] : m_node_renderers_by_node)
+        m_start_layout[nodePtr] = nr->get_position();
+
+    // Compare start_layout with target_layout and remove nodes that change less than an epsilon
+    const float epsilon = 2.0f; // pixels
+    for (auto it = m_target_layout.begin(); it != m_target_layout.end();) {
+        auto& nodePtr = it->first;
+        ImVec2 startPos = m_start_layout[nodePtr];
+        ImVec2 targetPos = it->second;
+
+        if (fabsf(startPos.x - targetPos.x) < epsilon && fabsf(startPos.y - targetPos.y) < epsilon) {
+            it = m_target_layout.erase(it);
+            m_start_layout.erase(nodePtr);
+        } else {
+            ++it;
+        }
+    }
+
+    // if no nodes need to be moved, skip animation
+    if (m_target_layout.empty()) {
+        return;
+    }
+
+    if (animation_duration <= 0.001f) {
         // apply instantly
         for (auto& [nodePtr, pos] : m_target_layout)
             m_node_renderers_by_node[nodePtr]->set_position(pos);
 
-        m_animation_running = false;
         m_force_node_positions_on_next_frame = true;
-        m_animation_runtime = 0.0f;
         return;
     }
 
@@ -217,10 +242,6 @@ void NodeGraphRenderer::apply_node_layout(float animation_duration)
     m_animation_running = true;
     m_animation_duration = animation_duration;
     m_animation_runtime = 0.0f;
-
-    m_start_layout.clear();
-    for (auto& [nodePtr, nr] : m_node_renderers_by_node)
-        m_start_layout[nodePtr] = nr->get_position();
 }
 
 void NodeGraphRenderer::process_animation(float dt)
@@ -243,38 +264,45 @@ void NodeGraphRenderer::process_animation(float dt)
 
         m_node_renderers_by_node[nodePtr]->set_position(p);
     }
-    recenter_node_graph();
-
+    m_force_node_positions_on_next_frame = true;
     if (t >= 1.0f)
         m_animation_running = false;
 }
 
-ImVec4 NodeGraphRenderer::get_graph_aabb() const
+void NodeGraphRenderer::recenter_graph(float animation_duration)
 {
-    ImVec4 aabb(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
-    for (auto& [name, nr] : m_node_renderers) {
-        ImVec2 p = nr->get_position();
-        ImVec2 s = nr->get_size();
-        aabb.x = std::min(aabb.x, p.x); // minX
-        aabb.y = std::min(aabb.y, p.y); // minY
-        aabb.z = std::max(aabb.z, p.x + s.x); // maxX
-        aabb.w = std::max(aabb.w, p.y + s.y); // maxY
-    }
-    return aabb;
+    m_target_layout.clear();
+    for (auto& [nodePtr, nr] : m_node_renderers_by_node)
+        m_target_layout[nodePtr] = nr->get_position();
+    center_target_layout();
+    apply_node_layout(animation_duration);
 }
 
-void NodeGraphRenderer::recenter_node_graph()
+void NodeGraphRenderer::reset_graph_layout(float animation_duration)
 {
-    ImVec4 aabb = get_graph_aabb();
+    calculate_auto_layout();
+    apply_node_layout(animation_duration);
+}
+
+void NodeGraphRenderer::center_target_layout()
+{
+    // Get AABB of target layout
+    ImVec4 aabb(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
+    for (auto& [nodePtr, pos] : m_target_layout) {
+        ImVec2 s = m_node_renderers_by_node[nodePtr]->get_size();
+        aabb.x = std::min(aabb.x, pos.x); // minX
+        aabb.y = std::min(aabb.y, pos.y); // minY
+        aabb.z = std::max(aabb.z, pos.x + s.x); // maxX
+        aabb.w = std::max(aabb.w, pos.y + s.y); // maxY
+    }
     float graph_width = aabb.z - aabb.x;
     float graph_height = aabb.w - aabb.y;
     float offset_x = (m_window_size.x - graph_width) * 0.5f - aabb.x;
     float offset_y = (m_window_size.y - graph_height) * 0.5f - aabb.y;
-    for (auto& [name, nr] : m_node_renderers) {
-        ImVec2 p = nr->get_position();
-        p.x += offset_x;
-        p.y += offset_y;
-        nr->set_position(p);
+    // Apply offset to target layout
+    for (auto& [nodePtr, pos] : m_target_layout) {
+        pos.x += offset_x;
+        pos.y += offset_y;
     }
 }
 
@@ -311,29 +339,13 @@ void NodeGraphRenderer::pop_style()
 
 void NodeGraphRenderer::render()
 {
-    // --- Check for mode toggle key ---
-    if (ImGui::IsKeyPressed(ImGuiKey_M)) {
-        m_render_mode = static_cast<GraphRenderingMode>((static_cast<int>(m_render_mode) + 1) % 4);
-    }
-    if (ImGui::IsKeyPressed(ImGuiKey_L)) {
-        // reset nodes to center
-        for (auto& [name, nr] : m_node_renderers) {
-            nr->set_position(ImVec2(0.0f, 0.0f));
-        }
-        calculate_auto_layout();
-        apply_node_layout(1.0f);
-    }
-    if (ImGui::IsKeyPressed(ImGuiKey_C)) {
-        recenter_node_graph();
-    }
-
     calculate_window_size();
+
     if (m_first_frame_after_init) {
-        calculate_auto_layout();
-        apply_node_layout(1.0f);
+        recenter_graph(0.0f); // Otherwise the animation would pop from top left
+        reset_graph_layout(1.0f);
     }
 
-    bool force_node_position = m_animation_running || m_force_node_positions_on_next_frame;
     if (m_animation_running) {
         float dt = ImGui::GetIO().DeltaTime;
         process_animation(dt);
@@ -344,13 +356,15 @@ void NodeGraphRenderer::render()
     ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
     ImGui::SetNextWindowSize(m_window_size, ImGuiCond_Always);
 
-    ImGui::Begin(m_window_title.c_str());
+    ImGui::Begin(m_window_title.c_str(), nullptr, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+
+    render_toolbar();
 
     ImNodes::BeginNodeEditor();
 
     // draw nodes
     for (auto& [name, node_renderer] : m_node_renderers) {
-        node_renderer->render(force_node_position);
+        node_renderer->render(m_force_node_positions_on_next_frame);
     }
 
     // draw links
@@ -364,10 +378,57 @@ void NodeGraphRenderer::render()
     ImNodes::EndNodeEditor();
 
     ImGui::End();
+
     pop_style();
+
+    poll_keyboard_shortcuts();
 
     m_force_node_positions_on_next_frame = false;
     m_first_frame_after_init = false;
+}
+
+void NodeGraphRenderer::poll_keyboard_shortcuts()
+{
+    if (ImGui::IsKeyPressed(ImGuiKey_M)) {
+        m_render_mode = static_cast<GraphRenderingMode>((static_cast<int>(m_render_mode) + 1) % 4);
+    }
+    if (ImGui::IsKeyPressed(ImGuiKey_L)) {
+        reset_graph_layout(1.0f);
+    }
+    if (ImGui::IsKeyPressed(ImGuiKey_C)) {
+        recenter_graph(1.0f);
+    }
+}
+
+void NodeGraphRenderer::render_toolbar()
+{
+    if (ImGui::BeginMenuBar()) {
+        if (ImGui::BeginMenu("Layout")) {
+            if (ImGui::MenuItem("Reset Layout", "L")) {
+                reset_graph_layout(1.0f);
+            }
+            if (ImGui::MenuItem("Recenter Graph", "C")) {
+                recenter_graph(1.0f);
+            }
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("View")) {
+            if (ImGui::MenuItem("Toggle Background Mode", "M")) {
+                m_render_mode = static_cast<GraphRenderingMode>((static_cast<int>(m_render_mode) + 1) % 4);
+            }
+            ImGui::Separator();
+            const char* mode_name = m_render_mode == GraphRenderingMode::Default ? "Default"
+                : m_render_mode == GraphRenderingMode::Transparent               ? "Transparent"
+                : m_render_mode == GraphRenderingMode::White                     ? "White"
+                : m_render_mode == GraphRenderingMode::WhiteOpaque               ? "White Opaque"
+                                                                                 : "Unknown";
+            ImGui::Text("Current Mode: %s", mode_name);
+            ImGui::EndMenu();
+        }
+
+        ImGui::EndMenuBar();
+    }
 }
 
 } // namespace webgpu_engine::compute

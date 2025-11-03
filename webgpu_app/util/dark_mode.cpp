@@ -74,8 +74,8 @@ void setup_darkmode_imgui_style()
     ImVec4* colors = style.Colors;
 
     colors[ImGuiCol_Text] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
-    colors[ImGuiCol_TextDisabled] = ImVec4(0.24f, 0.24f, 0.24f, 1.00f);
-    colors[ImGuiCol_WindowBg] = ImVec4(0.14f, 0.14f, 0.14f, 0.80f); // 80% transparency
+    colors[ImGuiCol_TextDisabled] = ImVec4(0.7f, 0.7f, 0.7f, 0.8f);
+    colors[ImGuiCol_WindowBg] = ImVec4(0.14f, 0.14f, 0.14f, 0.80f);
     colors[ImGuiCol_ChildBg] = ImVec4(0.14f, 0.14f, 0.14f, 0.80f);
     colors[ImGuiCol_PopupBg] = ImVec4(0.14f, 0.14f, 0.14f, 0.80f);
 

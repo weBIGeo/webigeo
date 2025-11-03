@@ -49,6 +49,8 @@ public:
     // e.g., "request_height_node" → "Request Height"
     static std::string format_node_name(const std::string& name);
 
+    static std::string format_ms(const int duration_in_ms);
+
 private:
     std::string m_name;
     std::string m_name_formatted;

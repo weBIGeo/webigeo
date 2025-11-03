@@ -177,10 +177,12 @@ public:
     [[nodiscard]] const std::vector<OutputSocket>& output_sockets() const;
 
     /// Returns running time of the last execution of this node in ms.
-    [[nodiscard]] float last_run_duration() const;
+    [[nodiscard]] int get_last_run_duration_in_ms() const;
 
     [[nodiscard]] bool is_enabled() const;
     void set_enabled(bool enabled);
+
+    [[nodiscard]] bool is_running() const;
 
 public slots:
     void run();
@@ -207,8 +209,10 @@ private:
 
     std::chrono::high_resolution_clock::time_point m_last_run_started;
     std::chrono::high_resolution_clock::time_point m_last_run_finished;
+    int m_last_run_duration_in_ms = 0;
 
     bool m_enabled = true;
+    bool m_is_running = false;
 };
 
 } // namespace webgpu_engine::compute::nodes

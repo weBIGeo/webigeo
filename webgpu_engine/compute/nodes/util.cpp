@@ -28,7 +28,7 @@ void write_timings_to_json_file(const NodeGraph& node_graph, const std::filesyst
 {
     QJsonObject object;
     for (const auto& [name, node] : node_graph.get_nodes()) {
-        object[QString::fromStdString(name)] = node.get()->last_run_duration();
+        object[QString::fromStdString(name)] = node.get()->get_last_run_duration_in_ms();
     }
 
     QJsonDocument doc;

@@ -30,15 +30,7 @@
 
 namespace webgpu_engine::compute {
 
-class NodeRenderer; // Forward declaration
-
-/// @brief Controls background and grid rendering style of the node graph.
-enum class GraphRenderingMode {
-    Default = 0, ///< Dark grid background, light gridlines
-    Transparent, ///< Fully transparent ImGui background, visible grid
-    White, ///< White background (same alpha as default), grid visible
-    WhiteOpaque ///< Opaque white background, no gridlines
-};
+class NodeRenderer;
 
 class NodeGraphRenderer {
 public:
@@ -46,6 +38,8 @@ public:
 
     void init(nodes::NodeGraph& node_graph);
     void render();
+
+    enum class GraphRenderingMode { Default, Transparent, White, WhiteOpaque };
 
 private:
     nodes::NodeGraph* m_node_graph = nullptr;
@@ -69,20 +63,24 @@ private:
     std::unordered_map<const nodes::Node*, NodeRenderer*> m_node_renderers_by_node;
     std::vector<std::pair<int, int>> m_links;
 
-    /// @brief Current rendering mode for the graph background and grid.
+    // Current rendering mode for the graph background and grid.
     GraphRenderingMode m_render_mode = GraphRenderingMode::Default;
 
 private:
     void calculate_window_size();
-    ImVec4 get_graph_aabb() const;
-    void recenter_node_graph();
+    void center_target_layout();
     void calculate_auto_layout();
+
     void apply_node_layout(float animation_duration);
     void process_animation(float dt);
+    void recenter_graph(float animation_duration);
+    void reset_graph_layout(float animation_duration);
 
-    // New style management functions
     void push_style();
     void pop_style();
+
+    void render_toolbar();
+    void poll_keyboard_shortcuts();
 };
 
 } // namespace webgpu_engine::compute
