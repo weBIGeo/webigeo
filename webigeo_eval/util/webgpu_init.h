@@ -23,6 +23,9 @@
 
 namespace webigeo_eval::util {
 
-WGPUDevice init_webgpu_device();
+WGPUInstance init_webgpu_instance();
 
+WGPUAdapter init_webgpu_adapter(WGPUInstance instance);
+
+WGPUDevice init_webgpu_device(WGPUInstance instance, WGPUAdapter adapter);
 }

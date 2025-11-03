@@ -50,10 +50,67 @@ void update_required_gpu_limits(WGPULimits& limits, const WGPULimits& supported_
     limits.maxStorageBufferBindingSize = std::max(limits.maxStorageBufferBindingSize, supported_limits.maxStorageBufferBindingSize);
 }
 
-WGPUDevice init_webgpu_device()
+WGPUDevice init_webgpu_device(WGPUInstance instance, WGPUAdapter adapter)
 {
-    webgpu::platformInit();
+    /*
+    qDebug() << "Requesting surface...";
+    WGPUSurface m_surface = SDL_GetWGPUSurface(m_instance, m_sdl_window);
+    if (!m_surface) {
+        qFatal("Could not create surface!");
+    }
+    qInfo() << "Got surface: " << m_surface;
+    */
 
+    qDebug() << "Requesting device...";
+    WGPULimits required_limits {};
+    WGPULimits supported_limits {};
+    wgpuAdapterGetLimits(adapter, &supported_limits);
+
+    // irrelevant for us, but needs to be set
+    required_limits.minStorageBufferOffsetAlignment = supported_limits.minStorageBufferOffsetAlignment;
+    required_limits.minUniformBufferOffsetAlignment = supported_limits.minUniformBufferOffsetAlignment;
+    required_limits.maxInterStageShaderVariables = WGPU_LIMIT_U32_UNDEFINED; // required for current version of  Chrome Canary (2025-04-03)
+
+    // TODO window update limits
+    update_required_gpu_limits(required_limits, supported_limits);
+
+    std::vector<WGPUFeatureName> requiredFeatures;
+    requiredFeatures.push_back(WGPUFeatureName_TimestampQuery);
+
+    WGPUDeviceDescriptor device_desc {};
+    device_desc.label = WGPUStringView { "webigeo device", WGPU_STRLEN };
+    device_desc.requiredFeatures = requiredFeatures.data();
+    device_desc.requiredFeatureCount = (uint32_t)requiredFeatures.size();
+    device_desc.requiredLimits = &required_limits;
+    device_desc.defaultQueue.label = WGPUStringView { "webigeo queue", WGPU_STRLEN };
+
+    device_desc.uncapturedErrorCallbackInfo = WGPUUncapturedErrorCallbackInfo {
+        .nextInChain = nullptr,
+        .callback = webgpu_device_error_callback,
+        .userdata1 = nullptr,
+        .userdata2 = nullptr,
+    };
+    device_desc.deviceLostCallbackInfo = WGPUDeviceLostCallbackInfo {
+        .nextInChain = nullptr,
+        .mode = WGPUCallbackMode_AllowProcessEvents,
+        .callback = webgpu_device_lost_callback,
+        .userdata1 = nullptr,
+        .userdata2 = nullptr,
+    };
+
+    WGPUDevice device = webgpu::requestDeviceSync(instance, adapter, device_desc);
+    if (!device) {
+        qFatal("Could not get device!");
+    }
+    qInfo() << "Got device: " << device;
+
+    webgpu::checkForTimingSupport(adapter, device);
+
+    return device;
+}
+
+WGPUInstance init_webgpu_instance()
+{
     qDebug() << "Creating WebGPU instance...";
     WGPUInstanceDescriptor instance_desc = {};
     instance_desc.nextInChain = nullptr;
@@ -77,26 +134,25 @@ WGPUDevice init_webgpu_device()
     dawn_toggles.enabledToggles = enabled_toggles.data();
     dawn_toggles.enabledToggleCount = enabled_toggles.size();
     dawn_toggles.disabledToggleCount = 0;
-
     instance_desc.nextInChain = &dawn_toggles.chain;
+
+    const auto timed_wait_feature = WGPUInstanceFeatureName_TimedWaitAny;
+    instance_desc.requiredFeatureCount = 1;
+    instance_desc.requiredFeatures = &timed_wait_feature;
+
     WGPUInstance instance = wgpuCreateInstance(&instance_desc);
 
     if (!instance) {
         qFatal("Could not initialize WebGPU Instance!");
     }
     qInfo() << "Got instance: " << instance;
+    return instance;
+}
 
-    /*
-    qDebug() << "Requesting surface...";
-    WGPUSurface m_surface = SDL_GetWGPUSurface(m_instance, m_sdl_window);
-    if (!m_surface) {
-        qFatal("Could not create surface!");
-    }
-    qInfo() << "Got surface: " << m_surface;
-    */
-
+WGPUAdapter init_webgpu_adapter(WGPUInstance instance)
+{
     qDebug() << "Requesting adapter...";
-    WGPURequestAdapterOptions adapter_opts {};
+    WGPURequestAdapterOptions adapter_opts = WGPU_REQUEST_ADAPTER_OPTIONS_INIT;
     adapter_opts.powerPreference = WGPUPowerPreference_HighPerformance;
     WGPUAdapter adapter = webgpu::requestAdapterSync(instance, adapter_opts);
     if (!adapter) {
@@ -104,44 +160,7 @@ WGPUDevice init_webgpu_device()
     }
     qInfo() << "Got adapter: " << adapter;
 
-    wgpuInstanceRelease(instance);
-
-    qDebug() << "Requesting device...";
-    WGPURequiredLimits required_limits {};
-    WGPUSupportedLimits supported_limits {};
-    wgpuAdapterGetLimits(adapter, &supported_limits);
-
-    // irrelevant for us, but needs to be set
-    required_limits.limits.minStorageBufferOffsetAlignment = supported_limits.limits.minStorageBufferOffsetAlignment;
-    required_limits.limits.minUniformBufferOffsetAlignment = supported_limits.limits.minUniformBufferOffsetAlignment;
-    required_limits.limits.maxInterStageShaderComponents = WGPU_LIMIT_U32_UNDEFINED; // required for current version of  Chrome Canary (2025-04-03)
-
-    // TODO window update limits
-    update_required_gpu_limits(required_limits.limits, supported_limits.limits);
-
-    std::vector<WGPUFeatureName> requiredFeatures;
-    requiredFeatures.push_back(WGPUFeatureName_TimestampQuery);
-
-    WGPUDeviceDescriptor device_desc {};
-    device_desc.label = "webigeo device";
-    device_desc.requiredFeatures = requiredFeatures.data();
-    device_desc.requiredFeatureCount = (uint32_t)requiredFeatures.size();
-    device_desc.requiredLimits = &required_limits;
-    device_desc.defaultQueue.label = "webigeo queue";
-    WGPUDevice device = webgpu::requestDeviceSync(adapter, device_desc);
-    if (!device) {
-        qFatal("Could not get device!");
-    }
-    qInfo() << "Got device: " << device;
-
-    webgpu::checkForTimingSupport(adapter, device);
-
-    wgpuAdapterRelease(adapter);
-
-    // Set error callback
-    wgpuDeviceSetUncapturedErrorCallback(device, webgpu_device_error_callback, nullptr /* pUserData */);
-
-    return device;
+    return adapter;
 }
 
 } // namespace webigeo_eval::util

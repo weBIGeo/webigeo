@@ -55,6 +55,8 @@ signals:
     void run_ended();
 
 private:
+    WGPUInstance m_webgpu_instance;
+    WGPUAdapter m_webgpu_adapter;
     WGPUDevice m_device;
     std::unique_ptr<webgpu_engine::Context> m_context;
     std::unique_ptr<webgpu_engine::compute::nodes::NodeGraph> m_node_graph;

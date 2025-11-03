@@ -36,7 +36,9 @@
 namespace webigeo_eval {
 
 WebigeoApp::WebigeoApp()
-    : m_device { util::init_webgpu_device() }
+    : m_webgpu_instance { util::init_webgpu_instance() }
+    , m_webgpu_adapter { util::init_webgpu_adapter(m_webgpu_instance) }
+    , m_device { util::init_webgpu_device(m_webgpu_instance, m_webgpu_adapter) }
     , m_context { std::make_unique<webgpu_engine::Context>() }
 {
     m_context->set_webgpu_device(m_device);
