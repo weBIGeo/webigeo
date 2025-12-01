@@ -19,6 +19,9 @@
 
 #include "NodeRenderer.h"
 
+#include <iomanip>
+#include <sstream>
+
 #include <imgui.h>
 #include <imnodes.h>
 #include <qDebug>

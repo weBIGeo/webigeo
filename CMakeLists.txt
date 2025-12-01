@@ -131,6 +131,9 @@ if (ALP_UNITTESTS)
     add_subdirectory(unittests)
 endif()
 if (ALP_WEBGPU_APP OR ALP_WEBGPU_ENGINE)
+    # Define imgui option before webgpu_engine so it can be used there
+    option(ALP_WEBGPU_APP_ENABLE_IMGUI "Enable imgui" ON)
+
     add_subdirectory(webgpu)
     if (ALP_WEBGPU_ENGINE)
         add_subdirectory(webgpu_engine)

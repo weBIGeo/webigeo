@@ -25,6 +25,9 @@ set(ALP_DAWN_DIR "${CMAKE_SOURCE_DIR}/../dawn" CACHE PATH "path to the dawn repo
 
 set(ALP_SDL_INSTALL_DIR "${CMAKE_SOURCE_DIR}/../SDL" CACHE PATH "Path to the SDL installation directory")
 
+# Path to pre-built emdawnwebgpu package (allows using Emscripten 4.0.7 with newer WebGPU bindings)
+set(ALP_EMDAWNWEBGPU_DIR "${CMAKE_SOURCE_DIR}/../emdawnwebgpu/emdawnwebgpu_pkg" CACHE PATH "Path to emdawnwebgpu package directory")
+
 set(SOURCES
 
     raii/base_types.h
@@ -56,18 +59,26 @@ set(SOURCES
 add_library(webgpu STATIC ${SOURCES})
 
 if (EMSCRIPTEN)
+    # Use pre-built emdawnwebgpu package to allow Emscripten 4.0.7 (matching Qt) with newer WebGPU
+    # The package is downloaded from https://github.com/google/dawn/releases/tag/v20251001.122215
+    set(EMDAWNWEBGPU_PORT "${ALP_EMDAWNWEBGPU_DIR}/emdawnwebgpu.port.py")
+
+    if(EXISTS "${EMDAWNWEBGPU_PORT}")
+        message(STATUS "Using local emdawnwebgpu package: ${EMDAWNWEBGPU_PORT}")
+        set(EMDAWN_PORT_ARG "--use-port=${EMDAWNWEBGPU_PORT}")
+    else()
+        message(FATAL_ERROR "Local emdawnwebgpu not found. Set ALP_EMDAWNWEBGPU_DIR to a valid emdawnwebgpu package directory.")
+    endif()
+
     target_compile_options(webgpu PUBLIC
         "--use-port=sdl2"
-        "--use-port=emdawnwebgpu" # could use this instead of locally compiled emdawnwebgpu
+        "${EMDAWN_PORT_ARG}"
     )
-
-    # using self-compiled version of emdawnwebgpu_cpp seems to introduce compile errors, stick to --use-port for now
-    #target_link_libraries(webgpu PUBLIC emdawnwebgpu_cpp)
 
     target_link_options(webgpu PUBLIC
         "-sASYNCIFY=1"
         "--use-port=sdl2"
-        "--use-port=emdawnwebgpu" # could use this instead of locally compiled emdawnwebgpu
+        "${EMDAWN_PORT_ARG}"
     )
 
 else()

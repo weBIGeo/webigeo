@@ -38,7 +38,11 @@ cmake -B build_web -G Ninja ^
     -DCMAKE_BUILD_TYPE=Release ^
     -DQT_HOST_PATH="%Qt6_HOST_DIR%" ^
     -DALP_ENABLE_POSITIONING=OFF ^
+    -DALP_ENABLE_GL_ENGINE=OFF ^
     -DALP_GL_ENGINE=OFF ^
+    -DALP_PLAIN_RENDERER=OFF ^
+    -DALP_QML_APP=OFF ^
+    -DALP_ENABLE_THREADING=ON ^
     -DALP_UNITTESTS=OFF >> "%LOG_FILE%" 2>&1
 if %ERRORLEVEL% NEQ 0 (
     echo ERROR: weBIGeo Web configure failed >> "%LOG_FILE%"
