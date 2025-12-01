@@ -29,7 +29,7 @@ if not exist "%EMSDK_DIR%" (
 
 cd /d "%EMSDK_DIR%"
 
-set EMSDK_VERSION=4.0.14
+set EMSDK_VERSION=4.0.7
 
 echo === Installing Emscripten %EMSDK_VERSION% === >> "%LOG_FILE%" 2>&1
 echo === Installing Emscripten %EMSDK_VERSION% ===
