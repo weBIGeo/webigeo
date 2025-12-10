@@ -47,6 +47,7 @@ void ShaderModuleManager::create_shader_modules()
 
     m_render_tiles_shader_module = create_shader_module_for_file("render_tiles.wgsl");
     m_render_atmosphere_shader_module = create_shader_module_for_file("render_atmosphere.wgsl");
+    m_render_clouds_shader_module = create_shader_module_for_file("render_clouds.wgsl");
     m_render_lines_module = create_shader_module_for_file("render_lines.wgsl");
     m_compose_pass_shader_module = create_shader_module_for_file("compose_pass.wgsl");
 
@@ -77,6 +78,7 @@ void ShaderModuleManager::release_shader_modules()
     m_render_tiles_shader_module.release();
     m_compose_pass_shader_module.release();
     m_render_atmosphere_shader_module.release();
+    m_render_clouds_shader_module.release();
     m_render_lines_module.release();
 
     m_normals_compute_module.release();
@@ -98,6 +100,8 @@ void ShaderModuleManager::release_shader_modules()
 const webgpu::raii::ShaderModule& ShaderModuleManager::render_tiles() const { return *m_render_tiles_shader_module; }
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::render_atmosphere() const { return *m_render_atmosphere_shader_module; }
+
+const webgpu::raii::ShaderModule& ShaderModuleManager::render_clouds() const { return *m_render_clouds_shader_module; }
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::render_lines() const { return *m_render_lines_module; }
 

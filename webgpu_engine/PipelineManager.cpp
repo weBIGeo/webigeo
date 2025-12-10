@@ -35,6 +35,8 @@ const webgpu::raii::GenericRenderPipeline& PipelineManager::render_tiles_pipelin
 
 const webgpu::raii::GenericRenderPipeline& PipelineManager::render_atmosphere_pipeline() const { return *m_render_atmosphere_pipeline; }
 
+const webgpu::raii::RenderPipeline& PipelineManager::render_clouds_pipeline() const { return *m_render_clouds_pipeline; }
+
 const webgpu::raii::RenderPipeline& PipelineManager::render_lines_pipeline() const { return *m_render_lines_pipeline; }
 
 const webgpu::raii::GenericRenderPipeline& PipelineManager::compose_pipeline() const { return *m_compose_pipeline; }
@@ -129,6 +131,7 @@ void PipelineManager::create_pipelines()
 
     create_render_tiles_pipeline();
     create_render_atmosphere_pipeline();
+    create_render_clouds_pipeline();
     create_render_lines_pipeline();
     create_compose_pipeline();
 
@@ -176,6 +179,7 @@ void PipelineManager::release_pipelines()
 {
     m_render_tiles_pipeline.release();
     m_render_atmosphere_pipeline.release();
+    m_render_clouds_pipeline.release();
     m_render_lines_pipeline.release();
     m_compose_pipeline.release();
 
@@ -252,6 +256,55 @@ void PipelineManager::create_render_atmosphere_pipeline()
     m_render_atmosphere_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(m_device, m_shader_manager->render_atmosphere(),
         m_shader_manager->render_atmosphere(), std::vector<webgpu::util::SingleVertexBufferInfo> {}, format,
         std::vector<const webgpu::raii::BindGroupLayout*> { m_camera_bind_group_layout.get() });
+}
+
+void PipelineManager::create_render_clouds_pipeline()
+{
+    WGPUBlendState blend_state {};
+    blend_state.color.operation = WGPUBlendOperation_Add;
+    blend_state.color.srcFactor = WGPUBlendFactor_SrcAlpha;
+    blend_state.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
+    blend_state.alpha.operation = WGPUBlendOperation_Add;
+    blend_state.alpha.srcFactor = WGPUBlendFactor_Zero;
+    blend_state.alpha.dstFactor = WGPUBlendFactor_One;
+
+    WGPUColorTargetState color_target_state {};
+    color_target_state.blend = &blend_state;
+    color_target_state.writeMask = WGPUColorWriteMask_All;
+    color_target_state.format = WGPUTextureFormat_BGRA8Unorm;
+
+    WGPUFragmentState fragment_state {};
+    fragment_state.module = m_shader_manager->render_clouds().handle();
+    fragment_state.entryPoint = WGPUStringView { .data = "fragmentMain", .length = WGPU_STRLEN };
+    fragment_state.constantCount = 0;
+    fragment_state.constants = nullptr;
+    fragment_state.targetCount = 1;
+    fragment_state.targets = &color_target_state;
+
+    std::vector<WGPUBindGroupLayout> bind_group_layout_handles { m_camera_bind_group_layout->handle() };
+    webgpu::raii::PipelineLayout layout(m_device, bind_group_layout_handles);
+
+    WGPURenderPipelineDescriptor pipeline_desc {};
+    pipeline_desc.label = WGPUStringView { .data = "cloud render pipeline", .length = WGPU_STRLEN };
+    pipeline_desc.vertex.module = m_shader_manager->render_clouds().handle();
+    pipeline_desc.vertex.entryPoint = WGPUStringView { .data = "vertexMain", .length = WGPU_STRLEN };
+    pipeline_desc.vertex.bufferCount = 0;
+    pipeline_desc.vertex.buffers = nullptr;
+    pipeline_desc.vertex.constantCount = 0;
+    pipeline_desc.vertex.constants = nullptr;
+    pipeline_desc.primitive.topology = WGPUPrimitiveTopology::WGPUPrimitiveTopology_TriangleStrip;
+    pipeline_desc.primitive.stripIndexFormat = WGPUIndexFormat::WGPUIndexFormat_Uint16;
+    pipeline_desc.primitive.frontFace = WGPUFrontFace::WGPUFrontFace_CCW;
+    pipeline_desc.primitive.cullMode = WGPUCullMode::WGPUCullMode_None;
+    pipeline_desc.fragment = &fragment_state;
+
+    pipeline_desc.depthStencil = nullptr;
+    pipeline_desc.multisample.count = 1;
+    pipeline_desc.multisample.mask = ~0u;
+    pipeline_desc.multisample.alphaToCoverageEnabled = false;
+    pipeline_desc.layout = layout.handle();
+
+    m_render_clouds_pipeline = std::make_unique<webgpu::raii::RenderPipeline>(m_device, pipeline_desc);
 }
 
 void PipelineManager::create_render_lines_pipeline()

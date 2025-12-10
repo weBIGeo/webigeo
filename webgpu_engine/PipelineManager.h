@@ -33,6 +33,7 @@ public:
 
     const webgpu::raii::GenericRenderPipeline& render_tiles_pipeline() const;
     const webgpu::raii::GenericRenderPipeline& render_atmosphere_pipeline() const;
+    const webgpu::raii::RenderPipeline& render_clouds_pipeline() const;
     const webgpu::raii::RenderPipeline& render_lines_pipeline() const;
     const webgpu::raii::GenericRenderPipeline& compose_pipeline() const;
 
@@ -79,6 +80,7 @@ public:
 private:
     void create_render_tiles_pipeline();
     void create_render_atmosphere_pipeline();
+    void create_render_clouds_pipeline();
     void create_render_lines_pipeline();
     void create_compose_pipeline();
     void create_shadow_pipeline();
@@ -123,6 +125,7 @@ private:
 
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_render_tiles_pipeline;
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_render_atmosphere_pipeline;
+    std::unique_ptr<webgpu::raii::RenderPipeline> m_render_clouds_pipeline;
     std::unique_ptr<webgpu::raii::RenderPipeline> m_render_lines_pipeline;
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_compose_pipeline;
 

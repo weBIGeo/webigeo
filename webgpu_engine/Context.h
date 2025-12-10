@@ -19,8 +19,9 @@
 
 #pragma once
 
-#include "nucleus/EngineContext.h"
+#include "CloudGeometry.h"
 #include "TileGeometry.h"
+#include "nucleus/EngineContext.h"
 #include "nucleus/track/Manager.h"
 
 namespace webgpu_engine {
@@ -34,6 +35,9 @@ public:
 
     TileGeometry* tile_geometry() const;
     void set_tile_geometry(std::shared_ptr<TileGeometry> new_tile_geometry);
+
+    CloudGeometry* cloud_geometry() const;
+    void set_cloud_geometry(std::shared_ptr<CloudGeometry> new_cloud_geometry);
 
     WGPUInstance webgpu_instance() const;
     void set_webgpu_instance(WGPUInstance instance);
@@ -59,6 +63,7 @@ private:
     WGPUDevice m_webgpu_device = 0;
     WGPUInstance m_webgpu_instance = 0;
     std::shared_ptr<TileGeometry> m_tile_geometry;
+    std::shared_ptr<CloudGeometry> m_cloud_geometry;
     // std::shared_ptr<TextureLayer> m_ortho_layer;
 
     std::unique_ptr<webgpu_engine::ShaderModuleManager> m_shader_module_manager;

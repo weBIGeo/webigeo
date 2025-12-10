@@ -271,10 +271,12 @@ void TerrainRenderer::start() {
     // this only works if ALP_ENABLE_THREADING is on, i.e., the tile scheduler is on an extra thread. -> potential issue on webassembly
     connect(m_camera_controller.get(), &nucleus::camera::Controller::definition_changed, m_context->geometry_scheduler(), &nucleus::tile::Scheduler::update_camera);
     connect(m_camera_controller.get(), &nucleus::camera::Controller::definition_changed, m_context->ortho_scheduler(),    &nucleus::tile::Scheduler::update_camera);
+    connect(m_camera_controller.get(), &nucleus::camera::Controller::definition_changed, m_context->cloud_scheduler(),    &nucleus::tile::Scheduler::update_camera);
     connect(m_camera_controller.get(), &nucleus::camera::Controller::definition_changed, m_webgpu_window.get(),           &webgpu_engine::Window::update_camera);
     
     connect(m_context->geometry_scheduler(), &nucleus::tile::GeometryScheduler::gpu_tiles_updated, m_webgpu_window.get(), &webgpu_engine::Window::update_requested);
     connect(m_context->ortho_scheduler(),    &nucleus::tile::TextureScheduler::gpu_tiles_updated,  m_webgpu_window.get(), &webgpu_engine::Window::update_requested);
+    connect(m_context->cloud_scheduler(),    &nucleus::tile::TextureScheduler::gpu_tiles_updated,  m_webgpu_window.get(), &webgpu_engine::Window::update_requested);
     // clang-format on
 
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI

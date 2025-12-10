@@ -60,8 +60,10 @@ public:
     nucleus::tile::GeometryScheduler* geometry_scheduler();
     nucleus::tile::TileLoadService* geometry_tile_load_service();
     nucleus::tile::TextureScheduler* ortho_scheduler();
+    nucleus::tile::TextureScheduler* cloud_scheduler();
     nucleus::tile::SchedulerDirector* scheduler_director();
     nucleus::tile::TileLoadService* ortho_tile_load_service();
+    nucleus::tile::TileLoadService* cloud_tile_load_service();
 
 signals:
     void initialised();
@@ -73,6 +75,7 @@ private:
     std::shared_ptr<nucleus::DataQuerier> m_data_querier;
     nucleus::tile::setup::GeometrySchedulerHolder m_geometry_scheduler_holder;
     nucleus::tile::setup::TextureSchedulerHolder m_ortho_scheduler_holder;
+    nucleus::tile::setup::TextureSchedulerHolder m_cloud_scheduler_holder;
     std::unique_ptr<nucleus::tile::SchedulerDirector> m_scheduler_director;
 
     std::unique_ptr<QThread> m_scheduler_thread;
