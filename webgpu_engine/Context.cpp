@@ -43,6 +43,10 @@ void Context::internal_initialise()
         m_tile_geometry->set_pipeline_manager(*m_pipeline_manager);
         m_tile_geometry->init(m_webgpu_device);
     }
+    if (m_cloud_geometry) {
+        m_cloud_geometry->set_pipeline_manager(*m_pipeline_manager);
+        m_cloud_geometry->init(m_webgpu_device);
+    }
 
     // if (m_ortho_layer)
     //     m_ortho_layer->init();

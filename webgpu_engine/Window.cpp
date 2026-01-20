@@ -195,22 +195,16 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         color_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
 
         WGPURenderPassDescriptor render_pass_descriptor {};
-        render_pass_descriptor.label = WGPUStringView { .data = "cloud render render pass", .length = WGPU_STRLEN };
+        render_pass_descriptor.label = WGPUStringView { .data = "cloud render pass", .length = WGPU_STRLEN };
         render_pass_descriptor.colorAttachmentCount = 1;
         render_pass_descriptor.colorAttachments = &color_attachment;
         render_pass_descriptor.depthStencilAttachment = nullptr;
         render_pass_descriptor.timestampWrites = nullptr;
 
         auto render_pass = webgpu::raii::RenderPassEncoder(command_encoder, render_pass_descriptor);
-        wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 0, m_camera_bind_group->handle(), 0, nullptr);
         wgpuRenderPassEncoderSetPipeline(render_pass.handle(), m_context->pipeline_manager()->render_clouds_pipeline().handle());
-        wgpuRenderPassEncoderDraw(render_pass.handle(), 3, 1, 0, 0);
-
-        // using namespace nucleus::tile;
-        // const auto draw_list = drawing::compute_bounds(
-        //     drawing::limit(drawing::generate_list(m_camera, m_context->aabb_decorator(), m_max_zoom_level), 1024), m_context->aabb_decorator());
-        //
-        // m_context->cloud_geometry()->draw(render_pass->handle(), m_camera, draw_list);
+        wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 0, m_camera_bind_group->handle(), 0, nullptr);
+        m_context->cloud_geometry()->draw(render_pass.handle(), m_camera);
     }
 
     // render lines to color buffer

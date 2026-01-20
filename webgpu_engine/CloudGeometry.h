@@ -42,11 +42,29 @@ namespace webgpu_engine {
 class CloudGeometry : public QObject {
     Q_OBJECT
 public:
+
+    static constexpr uint32_t ZOOM_MIN = 6;
+    static constexpr uint32_t ZOOM_MAX = 10;
+    static constexpr glm::vec2 BOUNDS_MIN = {46.2, 9.4};
+    static constexpr glm::vec2 BOUNDS_MAX = {49.2, 17.4};
+    static constexpr glm::uvec2 TILE_COUNTS = {46/2, 26/2};
+    static constexpr uint32_t TILE_COUNT_TOTAL = TILE_COUNTS.x * TILE_COUNTS.y;
+
+    struct alignas(16) ShaderParams {
+        glm::vec4 bounds_min;
+        glm::vec4 bounds_max;
+    };
+
+    struct TileInfo {
+        glm::uint32 index;
+        glm::uint32 zoom;
+    };
+
     explicit CloudGeometry(uint32_t cloud_resolution_xz);
 
     void init(WGPUDevice device);
 
-    void draw(WGPURenderPassEncoder render_pass, const nucleus::camera::Definition& camera, const std::vector<nucleus::tile::TileBounds>& draw_tiles) const;
+    void draw(WGPURenderPassEncoder render_pass, const nucleus::camera::Definition& camera) const;
 
     void set_pipeline_manager(const PipelineManager& pipeline_manager);
 
@@ -59,22 +77,24 @@ public slots:
     void update_gpu_tiles_cloud(const std::vector<nucleus::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuTextureTile>& new_tiles);
 
 private:
+
+    // tile coordinates of the bounds min corner at max zoom level
+    glm::uvec2 m_tile_coords_offset = {};
+
     uint32_t m_cloud_resolution_xz;
-    size_t m_num_layers;
     nucleus::tile::GpuArrayHelper m_loaded_cloud_textures;
 
     WGPUDevice m_device = 0;
     WGPUQueue m_queue = 0;
     const PipelineManager* m_pipeline_manager = nullptr;
 
-    std::unique_ptr<webgpu::raii::RawBuffer<glm::vec4>> m_bounds_buffer;
-    std::unique_ptr<webgpu::raii::RawBuffer<int32_t>> m_tileset_id_buffer;
-    std::unique_ptr<webgpu::raii::RawBuffer<int32_t>> m_cloud_zoom_level_buffer;
-    std::unique_ptr<webgpu::raii::RawBuffer<int32_t>> m_cloud_texture_layer_buffer;
-    std::unique_ptr<webgpu::raii::RawBuffer<compute::GpuTileId>> m_tile_id_buffer;
+    std::unique_ptr<Buffer<ShaderParams>> m_shader_params_ubo;
+
+    std::unique_ptr<webgpu::raii::RawBuffer<TileInfo>> m_cloud_tile_info_buffer;
+    std::vector<TileInfo> m_tile_infos;
 
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_cloud_textures;
-    std::unique_ptr<webgpu::raii::BindGroup> m_tile_bind_group;
+    std::unique_ptr<webgpu::raii::BindGroup> m_cloud_bind_group;
 };
 
 } // namespace webgpu_engine

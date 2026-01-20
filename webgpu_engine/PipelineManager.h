@@ -53,6 +53,7 @@ public:
     const webgpu::raii::BindGroupLayout& shared_config_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& camera_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& tile_bind_group_layout() const;
+    const webgpu::raii::BindGroupLayout& cloud_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& compose_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& normals_compute_bind_group_layout() const;
     const webgpu::raii::BindGroupLayout& snow_compute_bind_group_layout() const;
@@ -100,6 +101,7 @@ private:
     void create_shared_config_bind_group_layout();
     void create_camera_bind_group_layout();
     void create_tile_bind_group_layout();
+    void create_cloud_bind_group_layout();
     void create_compose_bind_group_layout();
     void create_normals_compute_bind_group_layout();
     void create_snow_compute_bind_group_layout();
@@ -145,6 +147,7 @@ private:
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_shared_config_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_camera_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_tile_bind_group_layout;
+    std::unique_ptr<webgpu::raii::BindGroupLayout> m_cloud_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_compose_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_normals_compute_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_downsample_compute_bind_group_layout;

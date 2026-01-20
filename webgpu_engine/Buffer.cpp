@@ -18,6 +18,8 @@
  *****************************************************************************/
 
 #include "Buffer.h"
+
+#include "CloudGeometry.h"
 #include "TrackRenderer.h"
 #include "UniformBufferObjects.h"
 #include "compute/nodes/BufferToTextureNode.h"
@@ -66,6 +68,7 @@ template class Buffer<compute::nodes::IterativeSimulationNode::IterativeSimulati
 template class Buffer<compute::nodes::HeightDecodeNode::HeightDecodeSettingsUniform>;
 template class Buffer<TrackRenderer::LineConfig>;
 template class Buffer<ImageOverlaySettings>;
+template class Buffer<CloudGeometry::ShaderParams>;
 // TODO
 // template class UniformBuffer<uboShadowConfig>;
 

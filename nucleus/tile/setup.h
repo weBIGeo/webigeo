@@ -89,12 +89,8 @@ struct TextureSchedulerHolder {
     TileLoadServicePtr tile_service;
 };
 
-inline TextureSchedulerHolder texture_scheduler(TileLoadServicePtr tile_service, const tile::utils::AabbDecoratorPtr& aabb_decorator, QThread* thread = nullptr)
+inline TextureSchedulerHolder texture_scheduler(TileLoadServicePtr tile_service, const tile::utils::AabbDecoratorPtr& aabb_decorator, QThread* thread = nullptr, Scheduler::Settings settings = {.tile_resolution = 256, .max_zoom_level = 20, .gpu_quad_limit = 1024 })
 {
-    Scheduler::Settings settings;
-    settings.max_zoom_level = 20;
-    settings.tile_resolution = 256;
-    settings.gpu_quad_limit = 1024;
     auto scheduler = std::make_unique<TextureScheduler>(settings);
     scheduler->set_aabb_decorator(aabb_decorator);
 
