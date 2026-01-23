@@ -544,7 +544,7 @@ void PipelineManager::create_cloud_bind_group_layout()
     ortho_texture_entry.binding = 1;
     ortho_texture_entry.visibility = WGPUShaderStage_Fragment;
     ortho_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
-    ortho_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
+    ortho_texture_entry.texture.viewDimension = WGPUTextureViewDimension_3D;
 
     WGPUBindGroupLayoutEntry ortho_texture_sampler {};
     ortho_texture_sampler.binding = 2;

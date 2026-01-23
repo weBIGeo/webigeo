@@ -26,6 +26,7 @@
 #include "PipelineManager.h"
 #include "webgpu_engine/compute/GpuTileId.h"
 #include <QObject>
+#include <mutex>
 #include <nucleus/tile/GpuArrayHelper.h>
 #include <nucleus/tile/types.h>
 #include <webgpu/raii/BindGroup.h>
@@ -49,6 +50,10 @@ public:
     static constexpr glm::vec2 BOUNDS_MAX = {49.2, 17.4};
     static constexpr glm::uvec2 TILE_COUNTS = {46/2, 26/2};
     static constexpr uint32_t TILE_COUNT_TOTAL = TILE_COUNTS.x * TILE_COUNTS.y;
+    static constexpr uint32_t TILE_RESOLUTION_XY = 256;
+    static constexpr uint32_t TILE_RESOLUTION_Z = 140;
+    static constexpr uint32_t ATLAS_SCALE_XY = 4;
+    static constexpr uint32_t ATLAS_SCALE_Z = 4;
 
     struct alignas(16) ShaderParams {
         glm::vec4 bounds_min;
@@ -60,7 +65,7 @@ public:
         glm::uint32 zoom;
     };
 
-    explicit CloudGeometry(uint32_t cloud_resolution_xz);
+    explicit CloudGeometry();
 
     void init(WGPUDevice device);
 
@@ -74,14 +79,13 @@ signals:
     void tiles_changed();
 
 public slots:
-    void update_gpu_tiles_cloud(const std::vector<nucleus::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuTextureTile>& new_tiles);
+    void update_gpu_tiles_cloud(const std::vector<nucleus::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuTexture3DTile>& new_tiles);
 
 private:
 
     // tile coordinates of the bounds min corner at max zoom level
     glm::uvec2 m_tile_coords_offset = {};
 
-    uint32_t m_cloud_resolution_xz;
     nucleus::tile::GpuArrayHelper m_loaded_cloud_textures;
 
     WGPUDevice m_device = 0;
@@ -95,6 +99,8 @@ private:
 
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_cloud_textures;
     std::unique_ptr<webgpu::raii::BindGroup> m_cloud_bind_group;
+
+    std::mutex m_mutex = {};
 };
 
 } // namespace webgpu_engine

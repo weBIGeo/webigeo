@@ -33,7 +33,7 @@ struct shader_params {
 @group(0) @binding(0) var<uniform> camera : camera_config;
 
 @group(1) @binding(0) var<uniform> params : shader_params;
-@group(1) @binding(1) var cloud_texture: texture_2d_array<f32>;
+@group(1) @binding(1) var cloud_texture: texture_3d<f32>;
 @group(1) @binding(2) var cloud_sampler: sampler;
 @group(1) @binding(3) var<storage, read> tile_infos: array<tile_info>;
 
@@ -82,7 +82,7 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         discard;
     }
 
-    let tile_index = tile_id.y * tile_count_x + tile_id.x;
+    let tile_index = tile_id.x + tile_id.y * tile_count_x;
     let tile_info = tile_infos[tile_index];
 
     let dz = max(u32(zoom_max) - tile_info.zoom, 0);
@@ -94,22 +94,30 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
     let tile_corner = tile_corner_abs - vec2i(tile_coords_offset_x, tile_coords_offset_y);
 
     var tile_uv = (hit_pos_ts - vec2f(tile_corner)) / f32(tile_size);
-    tile_uv.y = 1.0 - tile_uv.y;
 
     var color = vec4f(1.0);
 
-    let rgba = textureSample(cloud_texture, cloud_sampler, tile_uv, tile_info.index);
+    let atlas_x = tile_info.index & 3u;
+    let atlas_y = (tile_info.index >> 2) & 3u;
+    let atlas_z = (tile_info.index >> 4) & 3u;
+
+    let tile_uvz = vec3f(tile_uv.x + f32(atlas_x), tile_uv.y + f32(atlas_y), 0.05f + f32(atlas_z));
+    let atlas_uvz = tile_uvz * 0.25f;
+
+    let rgba = textureSampleLevel(cloud_texture, cloud_sampler, atlas_uvz, 2.0);
     color.a = smoothstep(0.4, 0.6, rgba.r);
 
     color = rgba;
-    color.a = 1.0;
-    color = mix(vec4f(f32(tile_corner.x % 8) / 7.0, f32(tile_corner.y % 8) / 7.0, 0.0, color.a), color, 0.2);
+//    color.a = 1.0;
+//    color = mix(vec4f(f32(tile_corner.x % 8) / 7.0, f32(tile_corner.y % 8) / 7.0, 0.0, color.a), color, 0.0);
 //    color = mix(vec4f(f32(tile_id.x) / f32(tile_count_x), f32(tile_id.y) / f32(tile_count_y), 0.0, color.a), color, 0.2);
 //    color = vec4f(f32(tile_id.x) / f32(tile_count_x), f32(tile_id.y) / f32(tile_count_y), 0.0, 1.0);
 //    color = vec4f(tile_uv.x, tile_uv.y, 0.0, 1.0);
 //    color = vec4f(hit_pos_ts.x, hit_pos_ts.y, 0.0, 1.0);
 //    color = vec4f(hit_pos_bs.x / (params.bounds_max.x - params.bounds_min.x), hit_pos_bs.y / (params.bounds_max.y - params.bounds_min.y), 0.0, 1.0);
 //    color = vec4f(f32(tile_id.x) / f32(tile_count_x), f32(tile_id.y) / f32(tile_count_y), 0.0, 1.0);
+//    color = vec4f(f32(atlas_x) * 0.25, f32(atlas_y) * 0.25 * 0.0, f32(atlas_z) * 0.25 * 0.0, 1.0);
+//    color = vec4f(f32(tile_info.index % 16) / 16.0, 0.0, 0.0, 1.0);
 
     return color;
 }

@@ -276,7 +276,7 @@ void TerrainRenderer::start() {
     
     connect(m_context->geometry_scheduler(), &nucleus::tile::GeometryScheduler::gpu_tiles_updated, m_webgpu_window.get(), &webgpu_engine::Window::update_requested);
     connect(m_context->ortho_scheduler(),    &nucleus::tile::TextureScheduler::gpu_tiles_updated,  m_webgpu_window.get(), &webgpu_engine::Window::update_requested);
-    connect(m_context->cloud_scheduler(),    &nucleus::tile::TextureScheduler::gpu_tiles_updated,  m_webgpu_window.get(), &webgpu_engine::Window::update_requested);
+    connect(m_context->cloud_scheduler(),    &nucleus::tile::Texture3DScheduler::gpu_tiles_updated,  m_webgpu_window.get(), &webgpu_engine::Window::update_requested);
     // clang-format on
 
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
@@ -574,12 +574,15 @@ void TerrainRenderer::webgpu_create_context()
     required_limits.minStorageBufferOffsetAlignment = supported_limits.minStorageBufferOffsetAlignment;
     required_limits.minUniformBufferOffsetAlignment = supported_limits.minUniformBufferOffsetAlignment;
     required_limits.maxInterStageShaderVariables = WGPU_LIMIT_U32_UNDEFINED; // required for current version of  Chrome Canary (2025-04-03)
+    required_limits.maxBufferSize = 2 * 1073741824ull; // 2 GiB
 
     // Let the engine change the required limits
     m_webgpu_window->update_required_gpu_limits(required_limits, supported_limits);
 
     std::vector<WGPUFeatureName> requiredFeatures;
     requiredFeatures.push_back(WGPUFeatureName_TimestampQuery);
+    requiredFeatures.push_back(WGPUFeatureName_TextureCompressionBC);
+    requiredFeatures.push_back(WGPUFeatureName_TextureCompressionBCSliced3D);
 
     WGPUDeviceDescriptor device_desc {};
     device_desc.label = WGPUStringView { .data = "webigeo device", .length = WGPU_STRLEN };

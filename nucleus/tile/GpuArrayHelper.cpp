@@ -24,6 +24,7 @@ GpuArrayHelper::GpuArrayHelper() { }
 
 unsigned GpuArrayHelper::add_tile(const tile::Id& id)
 {
+    // Note (Wendelin): These asserts don't work really, because Qt. Use if + __debugbreak().
     assert(!m_id_to_layer.contains(id));
     const auto t = std::find(m_array.begin(), m_array.end(), tile::Id { unsigned(-1), {} });
     assert(t != m_array.end());
