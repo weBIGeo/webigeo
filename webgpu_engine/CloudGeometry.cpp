@@ -70,7 +70,7 @@ void CloudGeometry::init(WGPUDevice device)
     glm::dvec2 world_bounds_max_aligned = nucleus::srs::tile_id_to_world_xy(m_tile_coords_offset + TILE_COUNTS, ZOOM_MAX);
 
     m_shader_params_ubo = std::make_unique<Buffer<ShaderParams>>(m_device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
-    m_shader_params_ubo->data = { .bounds_min = glm::vec4(world_bounds_min_aligned, 0.0, 0.0), .bounds_max = glm::vec4(world_bounds_max_aligned, 14000.0, 0.0) };
+    m_shader_params_ubo->data = { .bounds_min = glm::vec4(world_bounds_min, 0.0, 0.0), .bounds_max = glm::vec4(world_bounds_max, 14000.0, 0.0) };
     m_shader_params_ubo->update_gpu_data(m_queue);
 
     // this represents a flattened 2d lookup table

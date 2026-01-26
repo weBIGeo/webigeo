@@ -51,7 +51,7 @@ public:
     static constexpr glm::uvec2 TILE_COUNTS = {46/2, 26/2};
     static constexpr uint32_t TILE_COUNT_TOTAL = TILE_COUNTS.x * TILE_COUNTS.y;
     static constexpr uint32_t TILE_RESOLUTION_XY = 256;
-    static constexpr uint32_t TILE_RESOLUTION_Z = 140;
+    static constexpr uint32_t TILE_RESOLUTION_Z = 64;
     static constexpr uint32_t ATLAS_SCALE_XY = 4;
     static constexpr uint32_t ATLAS_SCALE_Z = 4;
 

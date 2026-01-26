@@ -301,7 +301,7 @@ void PipelineManager::create_render_clouds_pipeline()
     fragment_state.targetCount = 1;
     fragment_state.targets = &color_target_state;
 
-    std::vector<WGPUBindGroupLayout> bind_group_layout_handles { m_camera_bind_group_layout->handle(), m_cloud_bind_group_layout->handle() };
+    std::vector<WGPUBindGroupLayout> bind_group_layout_handles { m_camera_bind_group_layout->handle(), m_cloud_bind_group_layout->handle(), m_depth_texture_bind_group_layout->handle() };
     webgpu::raii::PipelineLayout layout(m_device, bind_group_layout_handles);
 
     WGPURenderPipelineDescriptor pipeline_desc {};

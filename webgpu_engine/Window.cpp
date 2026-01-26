@@ -204,6 +204,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         auto render_pass = webgpu::raii::RenderPassEncoder(command_encoder, render_pass_descriptor);
         wgpuRenderPassEncoderSetPipeline(render_pass.handle(), m_context->pipeline_manager()->render_clouds_pipeline().handle());
         wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 0, m_camera_bind_group->handle(), 0, nullptr);
+        wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 2, m_depth_texture_bind_group->handle(), 0, nullptr);
         m_context->cloud_geometry()->draw(render_pass.handle(), m_camera);
     }
 
