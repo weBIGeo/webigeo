@@ -57,6 +57,7 @@ public:
     const webgpu::raii::ShaderModule& height_decode_compute() const;
     const webgpu::raii::ShaderModule& fxaa_compute() const;
     const webgpu::raii::ShaderModule& iterative_simulation_compute() const;
+    const webgpu::raii::ShaderModule& upscale_clouds_compute() const;
 
     const webgpu::raii::ShaderModule& mipmap_creation_compute() const;
 
@@ -88,6 +89,7 @@ private:
     std::unique_ptr<webgpu::raii::ShaderModule> m_d8_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_release_point_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_height_decode_compute_module;
+    std::unique_ptr<webgpu::raii::ShaderModule> m_upscale_clouds_shader_module;
 
     std::unique_ptr<webgpu::raii::ShaderModule> m_mipmap_creation_compute_module;
     std::unique_ptr<webgpu::raii::ShaderModule> m_fxaa_compute_module;

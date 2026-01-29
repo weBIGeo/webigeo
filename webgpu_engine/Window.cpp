@@ -122,13 +122,16 @@ void Window::resize_framebuffer(int w, int h)
     atmosphere_framebuffer_format.size = glm::uvec2(1, h);
     m_atmosphere_framebuffer = std::make_unique<webgpu::Framebuffer>(m_device, atmosphere_framebuffer_format);
 
-    recreate_compose_bind_group();
-
     m_depth_texture_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device,
         m_context->pipeline_manager()->depth_texture_bind_group_layout(),
         std::initializer_list<WGPUBindGroupEntry> {
             m_gbuffer->depth_texture_view().create_bind_group_entry(0), // depth
         });
+
+    m_context->cloud_geometry()->resize(w, h);
+
+    // Do late
+    recreate_compose_bind_group();
 }
 
 std::unique_ptr<webgpu::raii::RenderPassEncoder> begin_render_pass(
@@ -174,6 +177,12 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         m_context->tile_geometry()->draw(render_pass->handle(), m_camera, culled_draw_list);
     }
 
+
+    // render clouds
+    {
+        m_context->cloud_geometry()->draw(command_encoder, m_depth_texture_bind_group->handle(), m_camera);
+    }
+
     // render geometry buffers to target framebuffer
     {
         std::unique_ptr<webgpu::raii::RenderPassEncoder> render_pass = framebuffer->begin_render_pass(command_encoder);
@@ -182,30 +191,6 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 1, m_camera_bind_group->handle(), 0, nullptr);
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 2, m_compose_bind_group->handle(), 0, nullptr);
         wgpuRenderPassEncoderDraw(render_pass->handle(), 3, 1, 0, 0);
-    }
-
-    // render clouds to target framebuffer
-    {
-        WGPURenderPassColorAttachment color_attachment {};
-        color_attachment.view = framebuffer->color_texture_view(0).handle();
-        color_attachment.resolveTarget = nullptr;
-        color_attachment.loadOp = WGPULoadOp::WGPULoadOp_Load;
-        color_attachment.storeOp = WGPUStoreOp::WGPUStoreOp_Store;
-        color_attachment.clearValue = WGPUColor { 0.0, 0.0, 0.0, 0.0 };
-        color_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
-
-        WGPURenderPassDescriptor render_pass_descriptor {};
-        render_pass_descriptor.label = WGPUStringView { .data = "cloud render pass", .length = WGPU_STRLEN };
-        render_pass_descriptor.colorAttachmentCount = 1;
-        render_pass_descriptor.colorAttachments = &color_attachment;
-        render_pass_descriptor.depthStencilAttachment = nullptr;
-        render_pass_descriptor.timestampWrites = nullptr;
-
-        auto render_pass = webgpu::raii::RenderPassEncoder(command_encoder, render_pass_descriptor);
-        wgpuRenderPassEncoderSetPipeline(render_pass.handle(), m_context->pipeline_manager()->render_clouds_pipeline().handle());
-        wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 0, m_camera_bind_group->handle(), 0, nullptr);
-        wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 2, m_depth_texture_bind_group->handle(), 0, nullptr);
-        m_context->cloud_geometry()->draw(render_pass.handle(), m_camera);
     }
 
     // render lines to color buffer
@@ -1909,6 +1894,7 @@ void Window::recreate_compose_bind_group()
             m_compute_overlay_settings_uniform_buffer->raw_buffer().create_bind_group_entry(8), // compute overlay aabb
             compute_overlay_texture_entry, // compute overlay texture (in uv space)
             compute_overlay_sampler_entry, // compute overlay sampler
+            m_context->cloud_geometry()->result_view()->create_bind_group_entry(11)
         });
 }
 

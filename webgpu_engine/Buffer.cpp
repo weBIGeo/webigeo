@@ -68,7 +68,8 @@ template class Buffer<compute::nodes::IterativeSimulationNode::IterativeSimulati
 template class Buffer<compute::nodes::HeightDecodeNode::HeightDecodeSettingsUniform>;
 template class Buffer<TrackRenderer::LineConfig>;
 template class Buffer<ImageOverlaySettings>;
-template class Buffer<CloudGeometry::ShaderParams>;
+template class Buffer<CloudGeometry::ShaderParamsRender>;
+template class Buffer<CloudGeometry::ShaderParamsUpscale>;
 // TODO
 // template class UniformBuffer<uboShadowConfig>;
 

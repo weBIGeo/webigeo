@@ -43,6 +43,8 @@
 @group(2) @binding(9) var compute_overlay_texture: texture_2d<f32>;
 @group(2) @binding(10) var compute_overlay_sampler: sampler;
 
+@group(2) @binding(11) var clouds_texture: texture_2d<f32>;
+
 struct ImageOverlaySettings {
     aabb_min: vec2f,
     aabb_max: vec2f,
@@ -321,6 +323,12 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         apply_height_lines(&out_Color, pos_ws, normal, dist, conf.height_lines_settings.y, conf.height_lines_settings.z * 0.5, conf.height_lines_settings.w * 0.75, &draw_line, 1.0);
     }
 
+    // Clouds
+    {
+        let clouds_color = textureLoad(clouds_texture, tci, 0);
+        let clouds_color_tonemapped = clouds_color.rgb / (clouds_color.rgb + 1.0);
+        out_Color = vec4(mix(out_Color.rgb, clouds_color_tonemapped.rgb, clouds_color.a), 1.0 - (1.0 - out_Color.a) * (1.0 - clouds_color.a));
+    }
 
     return out_Color;
 }
