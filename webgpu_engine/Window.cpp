@@ -180,7 +180,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
 
     // render clouds
     {
-        m_context->cloud_geometry()->draw(command_encoder, m_depth_texture_bind_group->handle(), m_camera);
+        m_context->cloud_geometry()->draw(command_encoder, m_depth_texture_bind_group->handle(), m_camera, m_paint_number);
     }
 
     // render geometry buffers to target framebuffer
@@ -189,7 +189,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         wgpuRenderPassEncoderSetPipeline(render_pass->handle(), m_context->pipeline_manager()->compose_pipeline().pipeline().handle());
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 0, m_shared_config_bind_group->handle(), 0, nullptr);
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 1, m_camera_bind_group->handle(), 0, nullptr);
-        wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 2, m_compose_bind_group->handle(), 0, nullptr);
+        wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 2, m_compose_bind_groups[m_paint_number % 2]->handle(), 0, nullptr);
         wgpuRenderPassEncoderDraw(render_pass->handle(), 3, 1, 0, 0);
     }
 
@@ -204,6 +204,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
     }
     m_needs_redraw = false;
     m_first_paint = false;
+    m_paint_number++;
 }
 
 void Window::paint_gui()
@@ -1880,22 +1881,25 @@ void Window::recreate_compose_bind_group()
     WGPUBindGroupEntry compute_overlay_texture_entry = compute_overlay_texture_view.create_bind_group_entry(9);
     WGPUBindGroupEntry compute_overlay_sampler_entry = compute_overlay_sampler.create_bind_group_entry(10);
 
-    m_compose_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device,
-        m_context->pipeline_manager()->compose_bind_group_layout(),
-        std::initializer_list<WGPUBindGroupEntry> {
-            m_gbuffer->color_texture_view(0).create_bind_group_entry(0), // albedo texture
-            m_gbuffer->color_texture_view(1).create_bind_group_entry(1), // position texture
-            m_gbuffer->color_texture_view(2).create_bind_group_entry(2), // normal texture
-            m_atmosphere_framebuffer->color_texture_view(0).create_bind_group_entry(3), // atmosphere texture
-            m_gbuffer->color_texture_view(3).create_bind_group_entry(4), // overlay texture
-            m_image_overlay_settings_uniform_buffer->raw_buffer().create_bind_group_entry(5), // image overlay aabb
-            m_image_overlay_texture->texture_view().create_bind_group_entry(6), // image overlay texture (in uv space)
-            m_image_overlay_texture->sampler().create_bind_group_entry(7), // image overlay sampler
-            m_compute_overlay_settings_uniform_buffer->raw_buffer().create_bind_group_entry(8), // compute overlay aabb
-            compute_overlay_texture_entry, // compute overlay texture (in uv space)
-            compute_overlay_sampler_entry, // compute overlay sampler
-            m_context->cloud_geometry()->result_view()->create_bind_group_entry(11)
-        });
+    for (int i = 0; i < 2; ++i) {
+        m_compose_bind_groups[i] = std::make_unique<webgpu::raii::BindGroup>(m_device,
+            m_context->pipeline_manager()->compose_bind_group_layout(),
+            std::initializer_list<WGPUBindGroupEntry> {
+                m_gbuffer->color_texture_view(0).create_bind_group_entry(0), // albedo texture
+                m_gbuffer->color_texture_view(1).create_bind_group_entry(1), // position texture
+                m_gbuffer->color_texture_view(2).create_bind_group_entry(2), // normal texture
+                m_atmosphere_framebuffer->color_texture_view(0).create_bind_group_entry(3), // atmosphere texture
+                m_gbuffer->color_texture_view(3).create_bind_group_entry(4), // overlay texture
+                m_image_overlay_settings_uniform_buffer->raw_buffer().create_bind_group_entry(5), // image overlay aabb
+                m_image_overlay_texture->texture_view().create_bind_group_entry(6), // image overlay texture (in uv space)
+                m_image_overlay_texture->sampler().create_bind_group_entry(7), // image overlay sampler
+                m_compute_overlay_settings_uniform_buffer->raw_buffer().create_bind_group_entry(8), // compute overlay aabb
+                compute_overlay_texture_entry, // compute overlay texture (in uv space)
+                compute_overlay_sampler_entry, // compute overlay sampler
+                m_context->cloud_geometry()->result_view(i)->create_bind_group_entry(11)
+            });
+    }
+
 }
 
 void Window::update_required_gpu_limits(WGPULimits& limits, const WGPULimits& supported_limits)

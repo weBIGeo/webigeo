@@ -19,13 +19,13 @@ struct shader_params {
     bounds_max: vec4f,
     frame_index: u32,
     _padding0: array<u32, 3>,
-    start_distance: f32,
-    start_step_size: f32,
-    end_distance: f32,
-    end_step_size: f32,
+    step_size_min: f32,
+    step_size_distance_factor: f32,
+    step_size_horizon_factor: f32,
+    _padding2: f32,
     extinction_multiplier: f32,
     detail_strength: f32,
-    _padding1: array<f32, 2>,
+    jitter: vec2f,
 }
 
 @group(0) @binding(0) var<uniform> params : shader_params;
@@ -50,6 +50,13 @@ override zoom_max = 10;
 
 override tile_coords_offset_x = 538;
 override tile_coords_offset_y = 660;
+
+override atlas_bits_xy = 2u;
+override atlas_bits_z = 3u;
+
+#define ATLAS_MASK_XY u32((1<<atlas_bits_xy)-1)
+#define ATLAS_MASK_Z u32((1<<atlas_bits_z)-1)
+#define ATLAS_INV_SCALE vec3(1.0 / f32(1<<atlas_bits_xy), 1.0 / f32(1<<atlas_bits_xy), 1.0 / f32(1<<atlas_bits_z))
 
 // Volume bounds
 const VOLUME_HEIGHT_MIN = 0.0;
@@ -78,14 +85,7 @@ const SCATTERING_COEFF = 0.7;
 const BASE_EXTINCTION_COEFF = 0.01;
 const SCATTERING_ALBEDO = 0.99;
 
-const LIGHT_STEP_SIZE = 150.0;
 const MAX_LIGHT_STEPS = 8;
-
-// IGN (Interleaved Gradient Noise) function for per-pixel jitter
-fn ign(pixel: vec2f, frame: u32) -> f32 {
-    let f = vec3f(pixel, f32(frame));
-    return fract(52.9829189 * fract(dot(f, vec3f(0.06711056, 0.00583715, 0.01336789))));
-}
 
 fn unproject(normalised_device_coordinates: vec3f) -> vec3f {
     let unprojected = params.camera.inv_proj_matrix * vec4(normalised_device_coordinates, 1.0);
@@ -138,9 +138,9 @@ fn sample_volume(pos_world: vec3f, lod: f32) -> f32 {
     let tile_uv = fract((pos_ts + tile_coords_offset) / tile_size_multiplier);
 
     // Calculate atlas position
-    let atlas_x = tile.index & 3u;
-    let atlas_y = (tile.index >> 2u) & 3u;
-    let atlas_z = (tile.index >> 4u) & 3u;
+    let atlas_x = tile.index & ATLAS_MASK_XY;
+    let atlas_y = (tile.index >> atlas_bits_xy) & ATLAS_MASK_XY;
+    let atlas_z = (tile.index >> (2 * atlas_bits_xy)) & ATLAS_MASK_Z;
 
     let height_adjusted = pos_world.z / cos(y_to_lat(pos_world.y));
     // Height coordinate (normalized to texture space)
@@ -159,7 +159,7 @@ fn sample_volume(pos_world: vec3f, lod: f32) -> f32 {
         tile_uv_safe.y + f32(atlas_y),
         height_safe + f32(atlas_z)
     );
-    let atlas_uvz = tile_uvz * 0.25;
+    let atlas_uvz = tile_uvz * ATLAS_INV_SCALE;
 
     return textureSampleLevel(atlas_texture, atlas_sampler, atlas_uvz, lod).r;
 }
@@ -224,30 +224,40 @@ fn phase_function(cos_angle: f32) -> f32 {
 fn sample_light_energy(pos: vec3f, sun_dir: vec3f, distance: f32, extinction_coeff: f32) -> f32 {
     var optical_depth = 0.0;
 
+    if (sun_dir.z <= 0.0) {
+        return 0.0;
+    }
+
+    if (pos.z >= VOLUME_HEIGHT_MAX) {
+        return 1.0;
+    }
+
+    // TODO: Improve light step distribution
+    let max_ray_length = min((VOLUME_HEIGHT_MAX - pos.z) / sun_dir.z, 10000.0);
+    let base_step_size = max_ray_length / f32(MAX_LIGHT_STEPS);
+    var step_size = base_step_size * 0.1;
+
     // March towards sun to accumulate density
     for (var i = 1; i <= MAX_LIGHT_STEPS; i++) {
-        let step_pos = pos + sun_dir * f32(i) * LIGHT_STEP_SIZE;
-
-        // Quick bounds check
-        if (step_pos.z < VOLUME_HEIGHT_MIN || step_pos.z > VOLUME_HEIGHT_MAX) {
-            break;
-        }
+        let step_pos = pos + sun_dir * f32(i) * step_size;
 
         let tile = get_tile_info_at_pos(step_pos);
-        let light_distance = distance + f32(i) * LIGHT_STEP_SIZE;
-        let lod = calculate_lod(LIGHT_STEP_SIZE, tile.zoom, light_distance, sun_dir);
+        let light_distance = distance + f32(i) * step_size;
+        let lod = calculate_lod(step_size, tile.zoom, light_distance, sun_dir);
 
         let base_density = sample_volume(step_pos, lod);
 
         // TODO: Apply detail noise here
         let density = base_density;
 
-        optical_depth += density * LIGHT_STEP_SIZE * extinction_coeff;
+        optical_depth += density * step_size * extinction_coeff;
 
         // Early exit for deep shadows
         if (optical_depth > 10.0) {
             return 0.0;
         }
+
+        step_size += base_step_size * 0.2;
     }
 
     // Beer's law
@@ -260,16 +270,11 @@ fn sample_light_energy(pos: vec3f, sun_dir: vec3f, distance: f32, extinction_coe
 }
 
 // Dynamic step size based on distance
-fn get_step_size(distance: f32) -> f32 {
-    let start_dist = params.start_distance;
-    let end_dist = params.end_distance;
-    let start_step = params.start_step_size;
-    let end_step = params.end_step_size;
-
-    let t = clamp((distance - start_dist) / (end_dist - start_dist), 0.0, 1.0);
-    // Use smoothstep for smoother transitions between step sizes
-    let smooth_t = t * t * (3.0 - 2.0 * t);
-    return mix(start_step, end_step, smooth_t);
+fn get_step_size(distance: f32, ray_direction: vec3f) -> f32 {
+    // 0.0 - 1.0 toward the horizon
+    let horizon = max((1.0+ray_direction.z), 0.0);
+    let horizon_bonus = max(horizon * 2.0 - 1.0, 0.0) * params.step_size_horizon_factor;
+    return max(distance * params.step_size_distance_factor, params.step_size_min) + horizon_bonus;
 }
 
 // Convert world position to NDC depth for storage
@@ -280,12 +285,21 @@ fn world_to_depth(world_pos: vec3f) -> f32 {
     return ndc.z;
 }
 
-fn get_depth_offset(frame: u32) -> vec2i {
-    let i = frame % 4u;
-    if (i == 0u) { return vec2i(0, 0); }
-    if (i == 1u) { return vec2i(1, 1); }
-    if (i == 2u) { return vec2i(0, 1); }
-    return vec2i(1, 0);
+fn ign(pixel: vec2f) -> f32 {
+    return fract(52.9829189f * fract(dot(pixel, vec2f(0.06711056f, 0.00583715f))));
+}
+
+fn r1_sequence(n: u32) -> f32 {
+    let g = 1.6180339887498948482;
+    let a1 = 1.0 / g;
+    return fract(0.5+a1*f32(n));
+}
+
+// Combined spatial + temporal noise
+fn get_ray_offset(pixel: vec2u, frame: u32) -> f32 {
+    let temporal = r1_sequence(frame);
+    let spatial = ign(vec2f(pixel));
+    return fract(spatial + temporal);
 }
 
 @compute @workgroup_size(8, 8, 1)
@@ -297,23 +311,14 @@ fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
         return;
     }
 
-    // Calculate normalized coordinates
-    // Note: The camera projection matrix is already jittered on the CPU side
-    // We add per-pixel IGN jitter here to break up banding artifacts
     let pixel_center = vec2f(pixel_coord) + 0.5;
-
-    // IGN provides per-pixel sub-sample jitter WITHIN the frame
-    // This is ADDITIONAL to the camera jitter and helps reduce banding
-    let ign_dither = ign(vec2f(pixel_coord), params.frame_index) - 0.5;
-
-    // Apply small per-pixel jitter (much smaller than camera jitter)
-//    let jittered_coord = pixel_center + ign_dither * 0.5;
-//    let texcoords = jittered_coord / vec2f(output_dims);
     let texcoords = pixel_center / vec2f(output_dims);
+
+    let ray_jitter = get_ray_offset(pixel_coord, params.frame_index);
 
     let origin = params.camera.position.xyz;
     let depth_dims = vec2i(textureDimensions(depth_texture, 0).xy);
-    let base_depth_coord = vec2i(texcoords * vec2f(depth_dims));
+    let base_depth_coord = 2 * vec2i(pixel_coord) - vec2i(4.0 * params.jitter * vec2f(output_dims));
     let max_depth_coord = vec2i(depth_dims) - vec2i(1);
     let d00 = textureLoad(depth_texture, clamp(base_depth_coord + vec2i(0, 0), vec2i(0), max_depth_coord), 0).x;
     let d10 = textureLoad(depth_texture, clamp(base_depth_coord + vec2i(1, 0), vec2i(0), max_depth_coord), 0).x;
@@ -351,7 +356,7 @@ fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
     var depth_written = false;
 
     // Use IGN dither for ray start offset to reduce banding
-    var t = t_near; // + ign_dither * get_step_size(t_near) * 0.5;
+    var t = t_near;
     var steps = 0;
 
     // Phase function (view-dependent scattering)
@@ -367,7 +372,7 @@ fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
     var last_step_size = 0.0;
 
     while (transmittance > 0.01 && steps < MAX_STEPS) {
-        let sample_t = min(t - last_step_size * ign_dither, t_far);
+        let sample_t = min(t - last_step_size * ray_jitter, t_far);
         let pos = origin + ray_direction * sample_t;
         let distance_to_sample = sample_t;
 
@@ -376,10 +381,10 @@ fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
         let dz = max(u32(zoom_max) - tile.zoom, 0u);
 
         // Dynamic step size based on distance
-        let base_step_size = get_step_size(t);
+        let base_step_size = get_step_size(t-t_near, ray_direction);
 
         // Adaptive step size based on tile resolution and view angle
-        let resolution_multiplier = f32(max(1u << (dz / 2u), 1u));
+        let resolution_multiplier = 2.0; //f32(max(1u << (dz / 2u), 1u));
         let angle_multiplier = mix(1.0, 1.5, 1.0 - view_angle_factor);
         var step_size = base_step_size * resolution_multiplier * angle_multiplier;
         step_size = min(step_size, t_far - sample_t); // FIXME: This isn't correct / consistent
@@ -411,6 +416,8 @@ fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
 
             // Direct lighting: Sun light scattered towards camera
             let direct_light = SUN_COLOR * SUN_INTENSITY * light_energy * phase;
+
+            // TODO : Powder sugar effect
 
             // Improved ambient model
             let height_factor = (pos.z - VOLUME_HEIGHT_MIN) / (VOLUME_HEIGHT_MAX - VOLUME_HEIGHT_MIN);
@@ -450,11 +457,8 @@ fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
     }
 
     let final_alpha = 1.0 - transmittance;
-
-    // Output HDR result (no tonemapping)
-    // Clamp to reasonable range to prevent fireflies in TAAU
-    let clamped_light = min(accumulated_light, vec3f(100.0));
-    textureStore(output_color, pixel_coord, vec4f(clamped_light, final_alpha));
+    // Note: accumulated_light is already alpha-premultiplied
+    textureStore(output_color, pixel_coord, vec4f(accumulated_light, final_alpha));
 
     // Output apparent depth (linear depth in NDC Z)
     textureStore(output_depth, pixel_coord, vec4f(apparent_depth, 0.0, 0.0, 0.0));

@@ -52,8 +52,13 @@ public:
     static constexpr uint32_t TILE_COUNT_TOTAL = TILE_COUNTS.x * TILE_COUNTS.y;
     static constexpr uint32_t TILE_RESOLUTION_XY = 256;
     static constexpr uint32_t TILE_RESOLUTION_Z = 64;
-    static constexpr uint32_t ATLAS_SCALE_XY = 4;
-    static constexpr uint32_t ATLAS_SCALE_Z = 4;
+    static constexpr uint32_t ATLAS_BITS_XY = 2;
+    static constexpr uint32_t ATLAS_SCALE_XY = 1 << ATLAS_BITS_XY;
+    static constexpr uint32_t ATLAS_MASK_XY = ATLAS_SCALE_XY - 1;
+    static constexpr uint32_t ATLAS_BITS_Z = 3;
+    static constexpr uint32_t ATLAS_SCALE_Z = 1 << ATLAS_BITS_Z;
+    static constexpr uint32_t ATLAS_MASK_Z = ATLAS_SCALE_Z - 1;
+    static constexpr uint32_t LOADED_TILE_LIMIT = ATLAS_SCALE_XY * ATLAS_SCALE_XY * ATLAS_SCALE_Z;
 
     struct alignas(16) CameraConfig {
         glm::mat4 view_matrix;
@@ -69,13 +74,13 @@ public:
         glm::vec4 bounds_max;
         uint32_t frame_index;
         uint32_t _padding0[3] = {};
-        float start_distance;
-        float start_step_size;
-        float end_distance;
-        float end_step_size;
+        float step_size_min;
+        float step_size_distance_factor;
+        float step_size_horizon_factor;
+        float _padding2 = 0;
         float extinction_multiplier;
         float detail_strength;
-        float _padding1[2] = {};
+        glm::vec2 jitter;
     };
 
     struct alignas(16) ShaderParamsUpscale {
@@ -85,6 +90,8 @@ public:
         glm::vec2 prev_jitter;
         glm::vec2 low_res_texel_size;
         glm::vec2 high_res_texel_size;
+        glm::vec2 resolution_scale;
+        glm::vec2 _padding0;
     };
 
     struct TileInfo {
@@ -98,14 +105,15 @@ public:
 
     void resize(int w, int h);
 
-    void draw(const WGPUCommandEncoder& command_encoder, const WGPUBindGroup& depth_texture_bind_group, const nucleus::camera::Definition& camera);
+    void draw(const WGPUCommandEncoder& command_encoder, const WGPUBindGroup& depth_texture_bind_group, const nucleus::camera::Definition& camera, uint32_t frame_number);
 
     void set_pipeline_manager(const PipelineManager& pipeline_manager);
 
     void set_tile_limit(unsigned new_limit);
 
-    [[nodiscard]] webgpu::raii::TextureView* result_view() const {
-        return m_clouds_hi_color_texture_view.get();
+    [[nodiscard]] webgpu::raii::TextureView* result_view(int frame) const {
+        if (frame % 2 == 0) return m_clouds_hi_color_texture_view_b.get();
+        else return m_clouds_hi_color_texture_view_a.get();
     }
 
 signals:
@@ -121,8 +129,8 @@ private:
 
     nucleus::tile::GpuArrayHelper m_loaded_cloud_textures;
 
-    WGPUDevice m_device = 0;
-    WGPUQueue m_queue = 0;
+    WGPUDevice m_device = {};
+    WGPUQueue m_queue = {};
     const PipelineManager* m_pipeline_manager = nullptr;
 
     std::unique_ptr<Buffer<ShaderParamsRender>> m_render_shader_params_ubo;
@@ -135,19 +143,23 @@ private:
 
     glm::uvec2 m_output_lo_resolution = {};
     glm::uvec2 m_output_hi_resolution = {};
-    uint32_t m_frame_index = 0;
     std::unique_ptr<webgpu::raii::Texture> m_clouds_lo_color_texture;
     std::unique_ptr<webgpu::raii::TextureView> m_clouds_lo_color_texture_view;
     std::unique_ptr<webgpu::raii::Texture> m_clouds_lo_depth_texture;
     std::unique_ptr<webgpu::raii::TextureView> m_clouds_lo_depth_texture_view;
-    std::unique_ptr<webgpu::raii::Texture> m_clouds_hi_color_texture;
-    std::unique_ptr<webgpu::raii::TextureView> m_clouds_hi_color_texture_view;
-    std::unique_ptr<webgpu::raii::Texture> m_clouds_hi_depth_texture;
-    std::unique_ptr<webgpu::raii::TextureView> m_clouds_hi_depth_texture_view;
+    std::unique_ptr<webgpu::raii::Texture> m_clouds_hi_color_texture_a;
+    std::unique_ptr<webgpu::raii::TextureView> m_clouds_hi_color_texture_view_a;
+    std::unique_ptr<webgpu::raii::Texture> m_clouds_hi_depth_texture_a;
+    std::unique_ptr<webgpu::raii::TextureView> m_clouds_hi_depth_texture_view_a;
+    std::unique_ptr<webgpu::raii::Texture> m_clouds_hi_color_texture_b;
+    std::unique_ptr<webgpu::raii::TextureView> m_clouds_hi_color_texture_view_b;
+    std::unique_ptr<webgpu::raii::Texture> m_clouds_hi_depth_texture_b;
+    std::unique_ptr<webgpu::raii::TextureView> m_clouds_hi_depth_texture_view_b;
     std::unique_ptr<webgpu::raii::Sampler> m_linear_sampler;
 
     std::unique_ptr<webgpu::raii::BindGroup> m_render_clouds_bind_group;
-    std::unique_ptr<webgpu::raii::BindGroup> m_upscale_clouds_bind_group;
+    std::unique_ptr<webgpu::raii::BindGroup> m_upscale_clouds_bind_group_a;
+    std::unique_ptr<webgpu::raii::BindGroup> m_upscale_clouds_bind_group_b;
     std::unique_ptr<webgpu::raii::BindGroup> m_camera_bind_group;
 
 

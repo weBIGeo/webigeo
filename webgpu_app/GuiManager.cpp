@@ -354,6 +354,35 @@ void GuiManager::draw()
         }
     }
 
+    if (ImGui::CollapsingHeader(ICON_FA_CLOUD "  Cloud Data")) {
+        auto rendering_context = m_terrain_renderer->get_rendering_context();
+        auto cloud_service = rendering_context->cloud_api_service();
+        const auto& times = cloud_service->availableTimes();
+
+        if (times.empty()) {
+            ImGui::Text("Loading cloud data...");
+        } else {
+            int selected_cloud_time = rendering_context->selected_cloud_time_index();
+
+            std::string preview_str = (selected_cloud_time >= 0 && selected_cloud_time < (int)times.size())
+                                          ? times[selected_cloud_time].label.toStdString()
+                                          : "Select time";
+
+            if (ImGui::BeginCombo("Timestamp", preview_str.c_str())) {
+                for (int n = 0; n < (int)times.size(); n++) {
+                    const bool is_selected = (selected_cloud_time == n);
+                    if (ImGui::Selectable(times[n].label.toUtf8().constData(), is_selected)) {
+                        rendering_context->select_cloud_time(n);
+                    }
+
+                    if (is_selected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+        }
+    }
+
     if (ImGui::CollapsingHeader(ICON_FA_COGS "  Engine Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
         auto webgpu_window = m_terrain_renderer->get_webgpu_window();
         if (webgpu_window) {

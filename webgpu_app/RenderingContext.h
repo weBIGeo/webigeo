@@ -25,6 +25,7 @@
 #include "nucleus/tile/SchedulerDirector.h"
 #include "nucleus/tile/setup.h"
 #include "webgpu/webgpu.h"
+#include "CloudAPIService.h"
 
 namespace webgpu_engine {
 class Context;
@@ -65,9 +66,17 @@ public:
     nucleus::tile::SchedulerDirector* scheduler_director();
     nucleus::tile::TileLoadService* ortho_tile_load_service();
     nucleus::tile::TileLoadService* cloud_tile_load_service();
+    CloudAPIService* cloud_api_service();
+
+    void setCloudBaseUrl(const QString& url);
+    void select_cloud_time(int index);
+    int selected_cloud_time_index() const;
 
 signals:
     void initialised();
+
+private slots:
+    void on_available_cloud_times_changed();
 
 private:
     std::unique_ptr<webgpu_engine::Context> m_engine_context;
@@ -78,6 +87,8 @@ private:
     nucleus::tile::setup::TextureSchedulerHolder m_ortho_scheduler_holder;
     nucleus::tile::setup::Texture3DSchedulerHolder m_cloud_scheduler_holder;
     std::unique_ptr<nucleus::tile::SchedulerDirector> m_scheduler_director;
+    std::unique_ptr<CloudAPIService> m_cloud_api_service;
+    int m_selected_cloud_time_index = -1;
 
     std::unique_ptr<QThread> m_scheduler_thread;
 };

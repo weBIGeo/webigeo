@@ -285,6 +285,8 @@ void PipelineManager::create_render_clouds_pipeline()
         WGPUConstantEntry { .key = { .data = "zoom_max", .length = WGPU_STRLEN }, .value = CloudGeometry::ZOOM_MAX },
         WGPUConstantEntry { .key = { .data = "tile_coords_offset_x", .length = WGPU_STRLEN }, .value = static_cast<double>(tile_coords_offset.x) },
         WGPUConstantEntry { .key = { .data = "tile_coords_offset_y", .length = WGPU_STRLEN }, .value = static_cast<double>(tile_coords_offset.y) },
+        WGPUConstantEntry { .key = { .data = "atlas_bits_xy", .length = WGPU_STRLEN }, .value = CloudGeometry::ATLAS_BITS_XY },
+        WGPUConstantEntry { .key = { .data = "atlas_bits_z", .length = WGPU_STRLEN }, .value = CloudGeometry::ATLAS_BITS_Z },
     };
     WGPUComputePipelineDescriptor pipeline_desc {};
 
@@ -450,7 +452,7 @@ void PipelineManager::create_upscale_clouds_pipeline()
 {
     m_upscale_clouds_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(m_device,
         m_shader_manager->upscale_clouds_compute(),
-        std::vector<const webgpu::raii::BindGroupLayout*> { m_upscale_clouds_bind_group_layout.get() }, "upscale clouds compute pipeline");
+        std::vector<const webgpu::raii::BindGroupLayout*> { m_upscale_clouds_bind_group_layout.get(), m_depth_texture_bind_group_layout.get() }, "upscale clouds compute pipeline");
 }
 
 void PipelineManager::create_shared_config_bind_group_layout()
@@ -1276,21 +1278,37 @@ void PipelineManager::create_upscale_clouds_bind_group_layout()
     linear_sampler_entry.visibility = WGPUShaderStage_Compute;
     linear_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
 
-    // Accumulation buffer (high-res, RGBA16Float, read-write)
-    WGPUBindGroupLayoutEntry accumulation_color_texture_entry {};
-    accumulation_color_texture_entry.binding = 4;
-    accumulation_color_texture_entry.visibility = WGPUShaderStage_Compute;
-    accumulation_color_texture_entry.storageTexture.access = WGPUStorageTextureAccess_ReadWrite;
-    accumulation_color_texture_entry.storageTexture.format = WGPUTextureFormat_RGBA16Float;
-    accumulation_color_texture_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+    // Accumulation buffer (high-res, RGBA16Float, read)
+    WGPUBindGroupLayoutEntry accumulation_color_texture_r_entry {};
+    accumulation_color_texture_r_entry.binding = 4;
+    accumulation_color_texture_r_entry.visibility = WGPUShaderStage_Compute;
+    accumulation_color_texture_r_entry.storageTexture.access = WGPUStorageTextureAccess_ReadOnly;
+    accumulation_color_texture_r_entry.storageTexture.format = WGPUTextureFormat_RGBA16Float;
+    accumulation_color_texture_r_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
 
-    // Depth buffer (high-res, D32F, read-write)
-    WGPUBindGroupLayoutEntry accumulation_depth_texture_entry {};
-    accumulation_depth_texture_entry.binding = 5;
-    accumulation_depth_texture_entry.visibility = WGPUShaderStage_Compute;
-    accumulation_depth_texture_entry.storageTexture.access = WGPUStorageTextureAccess_ReadWrite;
-    accumulation_depth_texture_entry.storageTexture.format = WGPUTextureFormat_R32Float;
-    accumulation_depth_texture_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+    // Depth buffer (high-res, D32F, read)
+    WGPUBindGroupLayoutEntry accumulation_depth_texture_r_entry {};
+    accumulation_depth_texture_r_entry.binding = 5;
+    accumulation_depth_texture_r_entry.visibility = WGPUShaderStage_Compute;
+    accumulation_depth_texture_r_entry.storageTexture.access = WGPUStorageTextureAccess_ReadOnly;
+    accumulation_depth_texture_r_entry.storageTexture.format = WGPUTextureFormat_R32Float;
+    accumulation_depth_texture_r_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+
+    // Accumulation buffer (high-res, RGBA16Float, write)
+    WGPUBindGroupLayoutEntry accumulation_color_texture_w_entry {};
+    accumulation_color_texture_w_entry.binding = 6;
+    accumulation_color_texture_w_entry.visibility = WGPUShaderStage_Compute;
+    accumulation_color_texture_w_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
+    accumulation_color_texture_w_entry.storageTexture.format = WGPUTextureFormat_RGBA16Float;
+    accumulation_color_texture_w_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+
+    // Depth buffer (high-res, D32F, write)
+    WGPUBindGroupLayoutEntry accumulation_depth_texture_w_entry {};
+    accumulation_depth_texture_w_entry.binding = 7;
+    accumulation_depth_texture_w_entry.visibility = WGPUShaderStage_Compute;
+    accumulation_depth_texture_w_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
+    accumulation_depth_texture_w_entry.storageTexture.format = WGPUTextureFormat_R32Float;
+    accumulation_depth_texture_w_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
 
     m_upscale_clouds_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
         std::vector<WGPUBindGroupLayoutEntry> {
@@ -1298,8 +1316,10 @@ void PipelineManager::create_upscale_clouds_bind_group_layout()
             current_frame_color_texture_entry,
             current_frame_depth_texture_entry,
             linear_sampler_entry,
-            accumulation_color_texture_entry,
-            accumulation_depth_texture_entry,
+            accumulation_color_texture_r_entry,
+            accumulation_depth_texture_r_entry,
+            accumulation_color_texture_w_entry,
+            accumulation_depth_texture_w_entry,
         },
         "upscale clouds bind group layout");
 }

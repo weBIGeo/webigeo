@@ -326,8 +326,15 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
     // Clouds
     {
         let clouds_color = textureLoad(clouds_texture, tci, 0);
-        let clouds_color_tonemapped = clouds_color.rgb / (clouds_color.rgb + 1.0);
-        out_Color = vec4(mix(out_Color.rgb, clouds_color_tonemapped.rgb, clouds_color.a), 1.0 - (1.0 - out_Color.a) * (1.0 - clouds_color.a));
+        let safe_alpha = max(clouds_color.a, 0.00001);
+        let straight_rgb = clouds_color.rgb / safe_alpha;
+        let tonemapped_rgb = straight_rgb / (straight_rgb + 1.0);
+        let clouds_final_pma = tonemapped_rgb * clouds_color.a;
+
+        out_Color = vec4(
+            out_Color.rgb * (1.0 - clouds_color.a) + clouds_final_pma,
+            1.0 - (1.0 - out_Color.a) * (1.0 - clouds_color.a)
+        );
     }
 
     return out_Color;
