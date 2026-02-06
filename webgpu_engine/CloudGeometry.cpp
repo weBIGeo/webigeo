@@ -69,14 +69,13 @@ void CloudGeometry::init(WGPUDevice device)
     glm::dvec2 world_bounds_max_aligned = nucleus::srs::tile_id_to_world_xy(m_tile_coords_offset + TILE_COUNTS, ZOOM_MAX);
 
     m_render_shader_params_ubo = std::make_unique<Buffer<ShaderParamsRender>>(m_device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
-    // TODO: Use aligned or not?
-    m_render_shader_params_ubo->data.bounds_min = glm::vec4(world_bounds_min, 0.0, 0.0);
-    m_render_shader_params_ubo->data.bounds_max = glm::vec4(world_bounds_max, 14000.0, 0.0);
+    m_render_shader_params_ubo->data.bounds_min = glm::vec4(world_bounds_min_aligned, 0.0, 0.0);
+    m_render_shader_params_ubo->data.bounds_max = glm::vec4(world_bounds_max_aligned, 14000.0, 0.0);
     m_render_shader_params_ubo->data.step_size_min = 20.0;
     m_render_shader_params_ubo->data.step_size_distance_factor = 1.0 / 100.0;
     m_render_shader_params_ubo->data.step_size_horizon_factor = 50.0;
     m_render_shader_params_ubo->data.extinction_multiplier = 1.0;
-    m_render_shader_params_ubo->data.detail_strength = 1.0;;
+    m_render_shader_params_ubo->data.detail_strength = 1.0;
     m_upscale_shader_params_ubo = std::make_unique<Buffer<ShaderParamsUpscale>>(m_device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
 
     // this represents a flattened 2d lookup table
@@ -294,8 +293,8 @@ void CloudGeometry::resize(int w, int h)
 void CloudGeometry::draw(const WGPUCommandEncoder& command_encoder, const WGPUBindGroup& depth_texture_bind_group, const nucleus::camera::Definition& camera, uint32_t frame_number)
 {
     // Both work quite well
-    // auto jitter_offset = generate_jitter_simple_4x(frame_number, m_output_lo_resolution);
-    auto jitter_offset = generate_jitter_halton(frame_number, m_output_lo_resolution);
+    auto jitter_offset = generate_jitter_simple_4x(frame_number, m_output_lo_resolution);
+    // auto jitter_offset = generate_jitter_halton(frame_number, m_output_lo_resolution);
     auto unjittered_projection = camera.projection_matrix();
     auto jittered_projection = jitter_projection_matrix(unjittered_projection, jitter_offset);
 

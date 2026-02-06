@@ -30,7 +30,6 @@
 namespace webgpu_app {
 
 RenderingContext::RenderingContext()
-    : m_cloud_api_service(std::make_unique<CloudAPIService>())
 {
 
     using TilePattern = nucleus::tile::TileLoadService::UrlPattern;
@@ -65,7 +64,7 @@ RenderingContext::RenderingContext()
         m_scheduler_director->check_in("ortho", m_ortho_scheduler_holder.scheduler);
 
         auto cloud_service = std::make_unique<nucleus::tile::TileLoadService>("", TilePattern::ZXY, ".ktx2");
-        m_cloud_scheduler_holder = nucleus::tile::setup::texture_scheduler_3d(std::move(cloud_service), m_aabb_decorator, m_scheduler_thread.get(), {.tile_resolution = 256, .max_zoom_level = 9, .gpu_quad_limit = 1024 });
+        m_cloud_scheduler_holder = nucleus::tile::setup::texture_scheduler_3d(std::move(cloud_service), m_aabb_decorator, m_scheduler_thread.get(), {.tile_resolution = 256, .max_zoom_level = 8, .gpu_quad_limit = 1024 });
         m_cloud_scheduler_holder.scheduler->set_gpu_quad_limit(webgpu_engine::CloudGeometry::LOADED_TILE_LIMIT); // TODO
         m_scheduler_director->check_in("cloud", m_cloud_scheduler_holder.scheduler);
     }
@@ -87,8 +86,17 @@ RenderingContext::RenderingContext()
     m_scheduler_thread->start();
 #endif
 
-    connect(m_cloud_api_service.get(), &CloudAPIService::availableTimesChanged, this, &RenderingContext::on_available_cloud_times_changed);
-    m_cloud_api_service->fetchAvailableTimes();
+    m_clous_manager = std::make_unique<clouds::Manager>();
+    connect(m_clous_manager.get(), &clouds::Manager::slot_ready, this, [this](const clouds::TimeSlot& slot) {
+        QString new_url = "http://127.0.0.1:8000" + slot.path + "tiles/";
+        nucleus::utils::thread::async_call(m_cloud_scheduler_holder.tile_service.get(), [this, new_url]() {
+            m_cloud_scheduler_holder.tile_service->set_base_url(new_url);
+        });
+        nucleus::utils::thread::async_call(m_cloud_scheduler_holder.scheduler.get(), [this]() {
+            m_cloud_scheduler_holder.scheduler->clear_full_cache();
+            m_cloud_scheduler_holder.scheduler->set_enabled(true);
+        });
+    });
 }
 
 void RenderingContext::initialize(WGPUInstance webgpu_instance, WGPUDevice webgpu_device)
@@ -96,6 +104,7 @@ void RenderingContext::initialize(WGPUInstance webgpu_instance, WGPUDevice webgp
     auto tile_geometry = std::make_shared<webgpu_engine::TileGeometry>(65, 512);
     tile_geometry->set_tile_limit(1024);
     auto cloud_geometry = std::make_shared<webgpu_engine::CloudGeometry>();
+    // This doesn't really make any sense if you think about it
     cloud_geometry->set_tile_limit(webgpu_engine::CloudGeometry::LOADED_TILE_LIMIT);
 
     m_engine_context = std::make_unique<webgpu_engine::Context>();
@@ -183,41 +192,7 @@ nucleus::tile::TileLoadService* RenderingContext::ortho_tile_load_service() { re
 
 nucleus::tile::TileLoadService* RenderingContext::cloud_tile_load_service() { return m_cloud_scheduler_holder.tile_service.get(); }
 
-CloudAPIService* RenderingContext::cloud_api_service() { return m_cloud_api_service.get(); }
+clouds::Manager* RenderingContext::clouds_manager() { return m_clous_manager.get(); }
 
-void RenderingContext::setCloudBaseUrl(const QString& url)
-{
-    nucleus::utils::thread::async_call(m_cloud_scheduler_holder.tile_service.get(), [this, url]() {
-        m_cloud_scheduler_holder.tile_service->set_base_url(url);
-    });
-    nucleus::utils::thread::async_call(m_cloud_scheduler_holder.scheduler.get(), [this]() {
-        m_cloud_scheduler_holder.scheduler->clear_full_cache();
-        m_cloud_scheduler_holder.scheduler->set_enabled(true);
-    });
-}
-
-void RenderingContext::select_cloud_time(int index)
-{
-    if (index < 0 || index >= m_cloud_api_service->availableTimes().size())
-        return;
-
-    m_selected_cloud_time_index = index;
-    const auto& time = m_cloud_api_service->availableTimes()[index];
-    QString newUrl = "http://127.0.0.1:8000" + time.path + "tiles/";
-    setCloudBaseUrl(newUrl);
-}
-
-int RenderingContext::selected_cloud_time_index() const
-{
-    return m_selected_cloud_time_index;
-}
-
-void RenderingContext::on_available_cloud_times_changed()
-{
-    const auto& times = m_cloud_api_service->availableTimes();
-    if (!times.empty()) {
-        select_cloud_time(times.size() - 1);
-    }
-}
 
 } // namespace webgpu_app

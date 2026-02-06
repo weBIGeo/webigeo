@@ -60,13 +60,7 @@ void Texture3DScheduler::transform_and_emit(const std::vector<tile::DataQuad>& n
                 result->emplace_back(byte_span, width, height, depth, nucleus::utils::ColourTexture3D::Format::BC4_UNORM);
                 return KTX_SUCCESS;
             }, texture.get());
-
-            // size_t level_0_size = ktxTexture_GetLevelSize(ktx, 0);
-            // size_t level_0_offset = 0;
-            // ktxTexture_GetImageOffset(ktx, 0,0,0, &level_0_offset);
-            // std::span byte_span{ktxTexture_GetData(ktx) + level_0_offset, level_0_size};
-            // texture->emplace_back(byte_span, ktx->baseWidth, ktx->baseHeight, ktx->baseDepth, nucleus::utils::ColourTexture3D::Format::BC4_UNORM);
-
+            
             new_gpu_tiles.push_back(gpu_tile);
         }
     }

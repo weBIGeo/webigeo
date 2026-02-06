@@ -45,6 +45,12 @@
 
 @group(2) @binding(11) var clouds_texture: texture_2d<f32>;
 
+@group(2) @binding(12) var cloud_shadow_texture: texture_2d<f32>;
+@group(2) @binding(13) var cloud_shadow_sampler: sampler;
+
+const CLOUD_SHADOW_AABB_MIN = vec3f(1044435.55448865, 5814106.11948365, 0.0);
+const CLOUD_SHADOW_AABB_MAX = vec3f(1934774.05995438, 6310641.05522415, 14000.0);
+
 struct ImageOverlaySettings {
     aabb_min: vec2f,
     aabb_max: vec2f,
@@ -152,6 +158,34 @@ fn decode_rgba_to_normalized_value(rgba: vec4<f32>) -> f32 {
     return u32_to_range(packed_value, U32_ENCODING_RANGE_VALIDATION);
 }
 
+fn get_cloud_shadow_occlusion(world_pos: vec3f) -> f32 {
+    const SHADOW_BIAS = 0.0;
+    const ESM_CONSTANT = 4.0;
+
+    // TODO: Future improvement: Implement parallax
+
+    let uv = vec2f(
+        (world_pos.x - CLOUD_SHADOW_AABB_MIN.x) / (CLOUD_SHADOW_AABB_MAX.x - CLOUD_SHADOW_AABB_MIN.x),
+        (CLOUD_SHADOW_AABB_MAX.y - world_pos.y) / (CLOUD_SHADOW_AABB_MAX.y - CLOUD_SHADOW_AABB_MIN.y)
+    );
+
+    let shadow_map_val = textureSample(cloud_shadow_texture, cloud_shadow_sampler, uv).r;
+
+    let height_adjusted = world_pos.z / cos(y_to_lat(world_pos.y));
+    let h_receiver_norm = height_adjusted / CLOUD_SHADOW_AABB_MAX.z + SHADOW_BIAS;
+    let receiver_val = exp(ESM_CONSTANT * h_receiver_norm);
+
+    // factor from 0.0 (in shadow) to 1.0 (lit)
+    let shadow_factor = clamp(receiver_val / shadow_map_val, 0.0, 1.0);
+
+    if (world_pos.x < CLOUD_SHADOW_AABB_MIN.x || world_pos.x > CLOUD_SHADOW_AABB_MAX.x ||
+        world_pos.y < CLOUD_SHADOW_AABB_MIN.y || world_pos.y > CLOUD_SHADOW_AABB_MAX.y) {
+        return 0.0;
+    }
+
+    return 1.0 - shadow_factor;
+}
+
 @fragment
 fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
     let tci : vec2<u32> = vec2u(vertex_out.texcoords * camera.viewport_size);
@@ -209,6 +243,9 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         compute_overlay_color = textureSampleLevel(compute_overlay_texture, compute_overlay_sampler, vec2f(compute_overlay_uv.x, 1.0 - compute_overlay_uv.y), mip_level);
     }
 
+    // must be called from uniform control flow :(
+    let cloud_shadow = get_cloud_shadow_occlusion(pos_ws);
+
     // Don't do shading if not visible anyway and also don't for pixels where there is no geometry (depth==0.0)
     if (dist > 0.0) {
         let ray_direction = pos_cws / dist;
@@ -217,7 +254,9 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         // Apply material color by blending with albedo
         albedo = mix(albedo, conf.material_color.rgb, conf.material_color.a);
 
-        var shadow_term = 0.0;
+        var shadow_term = cloud_shadow;
+        amb_occlusion *= 1.0 - cloud_shadow * 0.3;
+
         /*TODO: implement shadow
         if (bool(conf.csm_enabled)) {
             shadow_term = csm_shadow_term(vec4(pos_cws, 1.0), normal, sampled_shadow_layer);

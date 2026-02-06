@@ -82,7 +82,7 @@ const AMBIENT_INTENSITY = 0.8;
 
 // Scattering parameters
 const SCATTERING_COEFF = 0.7;
-const BASE_EXTINCTION_COEFF = 0.01;
+const BASE_EXTINCTION_COEFF = 0.001;
 const SCATTERING_ALBEDO = 0.99;
 
 const MAX_LIGHT_STEPS = 8;
@@ -142,7 +142,7 @@ fn sample_volume(pos_world: vec3f, lod: f32) -> f32 {
     let atlas_y = (tile.index >> atlas_bits_xy) & ATLAS_MASK_XY;
     let atlas_z = (tile.index >> (2 * atlas_bits_xy)) & ATLAS_MASK_Z;
 
-    let height_adjusted = pos_world.z / cos(y_to_lat(pos_world.y));
+    let height_adjusted = pos_world.z * cos(y_to_lat(pos_world.y));
     // Height coordinate (normalized to texture space)
     let height_normalized = height_adjusted * INV_HEIGHT_PER_TEXEL / TILE_DEPTH;
 

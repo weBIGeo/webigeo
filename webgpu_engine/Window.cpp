@@ -35,6 +35,7 @@
 #include "webgpu/raii/RenderPassEncoder.h"
 #include "webgpu_engine/Context.h"
 #include <QFile>
+#include <ktx.h>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
@@ -104,10 +105,74 @@ void Window::initialise_gpu()
     m_compute_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
     m_compute_overlay_dummy_texture = create_overlay_texture(1, 1);
 
+    m_shadow_texture = create_shadow_texture(1, 1, 1);
+
     create_and_set_compute_pipeline(ComputePipelineType::AVALANCHE_TRAJECTORIES, false);
 
     qInfo() << "gpu_ready_changed";
     // emit gpu_ready_changed(true); //TODO remove/find replacement
+}
+
+
+std::unique_ptr<webgpu::raii::TextureWithSampler> Window::create_shadow_texture(uint32_t width, uint32_t height, uint32_t mip_levels)
+{
+    WGPUTextureDescriptor texture_desc {};
+    texture_desc.label = WGPUStringView { .data = "shadow texture", .length = WGPU_STRLEN };
+    texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
+    texture_desc.size = { width, height, 1 };
+    texture_desc.mipLevelCount = mip_levels;
+    texture_desc.sampleCount = 1;
+    texture_desc.format = WGPUTextureFormat::WGPUTextureFormat_R16Float;
+    texture_desc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
+
+    WGPUSamplerDescriptor sampler_desc {};
+    sampler_desc.label = WGPUStringView { .data = "shadow sampler", .length = WGPU_STRLEN };
+    sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
+    sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
+    sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
+    sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Linear;
+    sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Linear;
+    sampler_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Nearest;
+    sampler_desc.maxAnisotropy = 1.0;
+
+    return std::make_unique<webgpu::raii::TextureWithSampler>(m_device, texture_desc, sampler_desc);
+}
+
+void Window::on_shadow_texture_updated(const QByteArray& data)
+{
+    ktxTexture* ktx_texture;
+    KTX_error_code result = ktxTexture_CreateFromMemory(
+        reinterpret_cast<const ktx_uint8_t*>(data.constData()), data.size(), KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &ktx_texture);
+
+    if (result != KTX_SUCCESS) {
+        qWarning() << "Failed to create ktx texture from memory";
+        return;
+    }
+
+    m_shadow_texture = create_shadow_texture(ktx_texture->baseWidth, ktx_texture->baseHeight, ktx_texture->numLevels);
+
+    size_t level_0_size = ktxTexture_GetLevelSize(ktx_texture, 0);
+    size_t level_0_offset = 0;
+    ktxTexture_GetImageOffset(ktx_texture, 0,0,0, &level_0_offset);
+    std::span byte_span{ktxTexture_GetData(ktx_texture) + level_0_offset, level_0_size};
+
+    WGPUTexelCopyTextureInfo image_copy_texture {};
+    image_copy_texture.texture = m_shadow_texture->texture().handle();
+    image_copy_texture.aspect = WGPUTextureAspect::WGPUTextureAspect_All;
+    image_copy_texture.mipLevel = 0;
+    image_copy_texture.origin = WGPUOrigin3D { 0, 0, 0 };
+
+    WGPUTexelCopyBufferLayout texture_data_layout {};
+    texture_data_layout.bytesPerRow = 2 * ktx_texture->baseWidth;
+    texture_data_layout.rowsPerImage = ktx_texture->baseHeight;
+    texture_data_layout.offset = 0;
+
+    WGPUExtent3D copy_extent { ktx_texture->baseWidth, ktx_texture->baseHeight, 1 };
+    wgpuQueueWriteTexture(m_queue, &image_copy_texture, byte_span.data(), byte_span.size_bytes(), &texture_data_layout, &copy_extent);
+
+    ktxTexture_Destroy(ktx_texture);
+
+    recreate_compose_bind_group();
 }
 
 void Window::resize_framebuffer(int w, int h)
@@ -1896,7 +1961,9 @@ void Window::recreate_compose_bind_group()
                 m_compute_overlay_settings_uniform_buffer->raw_buffer().create_bind_group_entry(8), // compute overlay aabb
                 compute_overlay_texture_entry, // compute overlay texture (in uv space)
                 compute_overlay_sampler_entry, // compute overlay sampler
-                m_context->cloud_geometry()->result_view(i)->create_bind_group_entry(11)
+                m_context->cloud_geometry()->result_view(i)->create_bind_group_entry(11),
+                m_shadow_texture->texture_view().create_bind_group_entry(12),
+                m_shadow_texture->sampler().create_bind_group_entry(13),
             });
     }
 

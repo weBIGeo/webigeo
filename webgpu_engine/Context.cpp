@@ -79,6 +79,8 @@ WGPUInstance Context::webgpu_instance() const { return m_webgpu_instance; }
 
 void Context::set_webgpu_instance(WGPUInstance instance) { m_webgpu_instance = instance; }
 
+WGPUDevice Context::webgpu_device() const { return m_webgpu_device; }
+
 void Context::set_webgpu_device(WGPUDevice device) { m_webgpu_device = device; }
 
 ShaderModuleManager* Context::shader_module_manager() { return m_shader_module_manager.get(); }

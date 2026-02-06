@@ -99,6 +99,7 @@ public slots:
     void focus_region_2d(const radix::geometry::Aabb<2, double>& aabb);
     void reload_shaders();
     void on_pipeline_run_completed();
+    void on_shadow_texture_updated(const QByteArray& data);
 
 private slots:
     void file_upload_handler(const std::string& filename, const std::string& tag);
@@ -141,6 +142,8 @@ private:
     void after_first_frame();
 
     void display_message(const std::string& message);
+
+    std::unique_ptr<webgpu::raii::TextureWithSampler> create_shadow_texture(uint32_t width, uint32_t height, uint32_t mip_levels);
 
 private:
     WGPUInstance m_instance = nullptr;
@@ -200,6 +203,8 @@ private:
 
     const webgpu::raii::TextureView* m_compute_overlay_texture_view = nullptr; // will be set to correct texture view after pipeline run completion
     const webgpu::raii::Sampler* m_compute_overlay_sampler = nullptr; // will be set to correct sampler after pipeline run completion
+
+    std::unique_ptr<webgpu::raii::TextureWithSampler> m_shadow_texture;
 
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     std::unique_ptr<compute::NodeGraphRenderer> m_node_graph_renderer;

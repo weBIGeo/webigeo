@@ -354,31 +354,39 @@ void GuiManager::draw()
         }
     }
 
-    if (ImGui::CollapsingHeader(ICON_FA_CLOUD "  Cloud Data")) {
+    {
         auto rendering_context = m_terrain_renderer->get_rendering_context();
-        auto cloud_service = rendering_context->cloud_api_service();
-        const auto& times = cloud_service->availableTimes();
+        auto clouds_manger = rendering_context->clouds_manager();
+        const auto& times = clouds_manger->get_slots();
 
-        if (times.empty()) {
-            ImGui::Text("Loading cloud data...");
-        } else {
-            int selected_cloud_time = rendering_context->selected_cloud_time_index();
+        auto selected_slot = clouds_manger->selected_time_slot();
 
-            std::string preview_str = (selected_cloud_time >= 0 && selected_cloud_time < (int)times.size())
-                                          ? times[selected_cloud_time].label.toStdString()
-                                          : "Select time";
+        if (ImGui::CollapsingHeader(ICON_FA_CLOUD "  Cloud Data")) {
 
-            if (ImGui::BeginCombo("Timestamp", preview_str.c_str())) {
-                for (int n = 0; n < (int)times.size(); n++) {
-                    const bool is_selected = (selected_cloud_time == n);
-                    if (ImGui::Selectable(times[n].label.toUtf8().constData(), is_selected)) {
-                        rendering_context->select_cloud_time(n);
-                    }
-
-                    if (is_selected)
-                        ImGui::SetItemDefaultFocus();
+            if (times.empty()) {
+                ImGui::Text("Loading cloud data...");
+            } else {
+                std::string preview_str = "Select time";
+                if (!selected_slot.id.isEmpty()) {
+                    preview_str = selected_slot.format_string() + " (" + clouds::to_string(selected_slot.status) + ")";;
                 }
-                ImGui::EndCombo();
+                if (ImGui::BeginCombo("Timestamp (UTC)", preview_str.c_str())) {
+                    for (int n = 0; n < (int)times.size(); n++) {
+                        auto slot = times[n];
+                        ImGui::PushID(slot.id.toStdString().c_str());
+                        const bool is_selected = slot.id == selected_slot.id;
+                        std::string label = slot.format_string() + " (" + clouds::to_string(slot.status) + ")";
+                        ImGuiSelectableFlags flags = slot.status == clouds::SlotStatus::Error ? ImGuiSelectableFlags_Disabled : 0;
+                        if (ImGui::Selectable(label.c_str(), is_selected, flags)) {
+                            clouds_manger->select_time_slot(times[n]);
+                        }
+
+                        if (is_selected)
+                            ImGui::SetItemDefaultFocus();
+                        ImGui::PopID();
+                    }
+                    ImGui::EndCombo();
+                }
             }
         }
     }

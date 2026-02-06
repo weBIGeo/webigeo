@@ -274,9 +274,10 @@ void TerrainRenderer::start() {
     connect(m_camera_controller.get(), &nucleus::camera::Controller::definition_changed, m_context->cloud_scheduler(),    &nucleus::tile::Scheduler::update_camera);
     connect(m_camera_controller.get(), &nucleus::camera::Controller::definition_changed, m_webgpu_window.get(),           &webgpu_engine::Window::update_camera);
     
-    connect(m_context->geometry_scheduler(), &nucleus::tile::GeometryScheduler::gpu_tiles_updated, m_webgpu_window.get(), &webgpu_engine::Window::update_requested);
-    connect(m_context->ortho_scheduler(),    &nucleus::tile::TextureScheduler::gpu_tiles_updated,  m_webgpu_window.get(), &webgpu_engine::Window::update_requested);
-    connect(m_context->cloud_scheduler(),    &nucleus::tile::Texture3DScheduler::gpu_tiles_updated,  m_webgpu_window.get(), &webgpu_engine::Window::update_requested);
+    connect(m_context->geometry_scheduler(), &nucleus::tile::GeometryScheduler::gpu_tiles_updated,  m_webgpu_window.get(), &webgpu_engine::Window::update_requested);
+    connect(m_context->ortho_scheduler(),    &nucleus::tile::TextureScheduler::gpu_tiles_updated,   m_webgpu_window.get(), &webgpu_engine::Window::update_requested);
+    connect(m_context->cloud_scheduler(),    &nucleus::tile::Texture3DScheduler::gpu_tiles_updated, m_webgpu_window.get(), &webgpu_engine::Window::update_requested);
+    connect(m_context->clouds_manager(),     &clouds::Manager::shadow_texture_ready,                m_webgpu_window.get(), &webgpu_engine::Window::on_shadow_texture_updated);
     // clang-format on
 
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI

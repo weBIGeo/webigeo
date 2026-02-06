@@ -635,6 +635,17 @@ void PipelineManager::create_compose_bind_group_layout()
     clouds_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
     clouds_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
+    WGPUBindGroupLayoutEntry shadow_texture_entry {};
+    shadow_texture_entry.binding = 12;
+    shadow_texture_entry.visibility = WGPUShaderStage_Fragment;
+    shadow_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
+    shadow_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+    WGPUBindGroupLayoutEntry shadow_sampler_entry {};
+    shadow_sampler_entry.binding = 13;
+    shadow_sampler_entry.visibility = WGPUShaderStage_Fragment;
+    shadow_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
+
     m_compose_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
         std::vector<WGPUBindGroupLayoutEntry> {
             albedo_texture_entry,
@@ -649,6 +660,8 @@ void PipelineManager::create_compose_bind_group_layout()
             compute_overlay_texture_entry,
             compute_overlay_texture_sampler_entry,
             clouds_texture_entry,
+            shadow_texture_entry,
+            shadow_sampler_entry,
         },
         "compose bind group layout");
 }

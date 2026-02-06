@@ -26,7 +26,7 @@ set(SOURCES
     TerrainRenderer.h TerrainRenderer.cpp
     RenderingContext.h RenderingContext.cpp
     InputMapper.h InputMapper.cpp
-    CloudAPIService.h CloudAPIService.cpp
+    CloudsManager.h CloudsManager.cpp
 
     util/error_logging.h util/error_logging.cpp
 
