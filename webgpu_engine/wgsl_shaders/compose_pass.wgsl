@@ -259,7 +259,7 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         albedo = mix(albedo, conf.material_color.rgb, conf.material_color.a);
 
         var shadow_term = cloud_shadow;
-        amb_occlusion *= 1.0 - cloud_shadow * 0.4;
+        amb_occlusion *= 1.0 - cloud_shadow * 0.3;
 
         /*TODO: implement shadow
         if (bool(conf.csm_enabled)) {
@@ -327,7 +327,7 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         let clouds_depth = clouds_depth_stats.x;
         let clouds_depth_sq = clouds_depth_stats.y;
 
-        if (clouds_depth > 0.0) {
+//        if (clouds_depth > 0.0) {
             // convert transmittance to alpha
             let raw_alpha = 1.0 - clouds_color.a;
             let safe_alpha = max(raw_alpha, 0.00001);
@@ -352,7 +352,7 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
                 out_Color.rgb * (1.0 - blend_alpha) + tonemapped_rgb * blend_alpha,
                 1.0 - (1.0 - out_Color.a) * (1.0 - blend_alpha)
             );
-        }
+//        }
     }
 
     if (dist > 0.0 && all(pos_ws.xy >= image_overlay_settings.aabb_min) && all(pos_ws.xy <= image_overlay_settings.aabb_max)) {

@@ -43,7 +43,8 @@ void CloudGeometry::init(WGPUDevice device)
     cloud_texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_3D;
     // TODO: array layers might become larger than allowed by graphics API
     cloud_texture_desc.size = { TILE_RESOLUTION_XY * ATLAS_SCALE_XY, TILE_RESOLUTION_XY * ATLAS_SCALE_XY, TILE_RESOLUTION_Z * ATLAS_SCALE_Z };
-    cloud_texture_desc.mipLevelCount = static_cast<uint32_t>(std::ceil(std::log2(TILE_RESOLUTION_XY)) - std::log2(16) + 1);
+    constexpr int SMALLEST_MIP_DIM = 4; // 4x4x4 is the smallest mip size
+    cloud_texture_desc.mipLevelCount = static_cast<uint32_t>(std::ceil(std::log2(TILE_RESOLUTION_XY)) - std::log2(SMALLEST_MIP_DIM) + 1);
     cloud_texture_desc.sampleCount = 1;
     cloud_texture_desc.format = WGPUTextureFormat::WGPUTextureFormat_BC4RUnorm;
     cloud_texture_desc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
@@ -61,7 +62,9 @@ void CloudGeometry::init(WGPUDevice device)
     cloud_sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
     cloud_sampler_desc.maxAnisotropy = 1;
 
-    m_cloud_texture_atlas = std::make_unique<webgpu::raii::TextureWithSampler>(m_device, cloud_texture_desc, cloud_sampler_desc);
+    m_cloud_atlas_texture = std::make_unique<webgpu::raii::Texture>(m_device, cloud_texture_desc);
+    m_cloud_atlas_view = m_cloud_atlas_texture->create_view();
+    m_cloud_linear_sampler = std::make_unique<webgpu::raii::Sampler>(m_device, cloud_sampler_desc);
 
     glm::dvec2 world_bounds_min = nucleus::srs::lat_long_to_world(BOUNDS_MIN);
     glm::dvec2 world_bounds_max = nucleus::srs::lat_long_to_world(BOUNDS_MAX);
@@ -221,8 +224,8 @@ void CloudGeometry::resize(int w, int h)
         m_pipeline_manager->render_clouds_bind_group_layout(),
         std::initializer_list<WGPUBindGroupEntry> {
             m_render_shader_params_ubo->raw_buffer().create_bind_group_entry(0),
-            m_cloud_texture_atlas->texture_view().create_bind_group_entry(1),
-            m_cloud_texture_atlas->sampler().create_bind_group_entry(2),
+            m_cloud_atlas_view->create_bind_group_entry(1),
+            m_cloud_linear_sampler->create_bind_group_entry(2),
             m_cloud_tile_info_buffer->create_bind_group_entry(3),
             m_clouds_lo_color_texture_view->create_bind_group_entry(4),
             m_clouds_lo_depth_texture_view->create_bind_group_entry(5),
@@ -363,7 +366,7 @@ void CloudGeometry::update_gpu_tiles_cloud(const std::vector<nucleus::tile::Id>&
         for (int i = 0; i < tile.texture->size(); ++i) {
             const auto& level = tile.texture->at(i);
             glm::uvec3 atlas_offset = { atlas_x * level.width(), atlas_y * level.height(), atlas_z * level.depth() };
-            m_cloud_texture_atlas->texture().write(m_queue, level, atlas_offset, i);
+            m_cloud_atlas_texture->write(m_queue, level, atlas_offset, i);
         }
 
         // convert to coords at max zoom level

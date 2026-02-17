@@ -35,9 +35,23 @@ struct shader_params {
     jitter: vec2f,
 }
 
+struct ray_accumulator {
+    t: f32,
+    radiance: vec3f,
+    transmittance: f32,
+    depth: f32,
+    depth_weight: f32,
+
+    // State machine flags
+    searching_for_cloud: bool,
+    consecutive_empty_steps: i32,
+    mandatory_fine_dist: f32,
+    step_count: i32,
+}
+
 @group(0) @binding(0) var<uniform> params : shader_params;
 @group(0) @binding(1) var atlas_texture: texture_3d<f32>;
-@group(0) @binding(2) var atlas_sampler: sampler;
+@group(0) @binding(2) var atlas_sampler_l: sampler;
 @group(0) @binding(3) var<storage, read> tile_infos: array<tile_info>;
 @group(0) @binding(4) var output_color: texture_storage_2d<rgba16float, write>;
 @group(0) @binding(5) var output_depth: texture_storage_2d<r32float, write>;
@@ -77,7 +91,6 @@ const TEXTURE_VALUE_SCALE = 64.0; // Has to match generation script
 
 // Ray marching parameters
 const MAX_STEPS = 128;
-const DENSITY_THRESHOLD = 0.00001;
 
 const MAX_LIGHT_STEPS = 8;
 
@@ -118,7 +131,7 @@ fn get_tile_info(tile_id: vec2i) -> tile_info {
     return tile_infos[tile_index];
 }
 
-fn sample_volume(pos_world: vec3f, lod: f32, tile_id: vec2i, tile: tile_info) -> f32 {
+fn sample_volume(pos_world: vec3f, lod: f32, tile_id: vec2i, tile: tile_info, atlas_sampler: sampler) -> f32 {
     if (pos_world.z < 0.0 || pos_world.z > params.bounds_max.z || tile.zoom == 0u) {
         return 0.0;
     }
@@ -152,50 +165,23 @@ fn calculate_lod(step_size: f32, tile_zoom: u32, distance: f32, view_dir: vec3f)
     let dz = max(u32(zoom_max) - tile_zoom, 0u);
     let tile_size_multiplier = f32(1u << dz);
 
-    // Texel sizes in world space
     let texel_size_xy = (tile_size_xy * tile_size_multiplier) / TILE_RESOLUTION_XY;
     let texel_size_z = HEIGHT_PER_TEXEL;
 
-    // View direction analysis
     let view_xy = length(view_dir.xy);
     let view_z = abs(view_dir.z);
 
-    // Project texels to screen space
-    // Account for perspective: texel_size / distance ≈ pixel_angular_size
-    let distance_clamped = max(distance, 1.0);
+    // Texels traversed per step along each axis
+    // Small value = undersampling that axis = need fine LOD
+    let texels_per_step_xy = (step_size * view_xy) / texel_size_xy;
+    let texels_per_step_z  = (step_size * view_z)  / texel_size_z;
 
-    // Angular size of texels from viewer's perspective
-    let angular_size_xy = texel_size_xy / distance_clamped;
-    let angular_size_z = texel_size_z / distance_clamped;
+    let lod_xy = log2(max(texels_per_step_xy / 2.0, 1.0));
+    let lod_z  = log2(max(texels_per_step_z  / 2.0, 1.0));
 
-    // Weight by view direction to find dominant texel size
-    // When looking horizontally, vertical resolution matters most
-    // When looking down, horizontal resolution matters most
-    let weighted_texel_size = (angular_size_xy * view_xy + angular_size_z * view_z);
-
-    // Step coverage in angular space
-    let step_angular_size = step_size / distance_clamped;
-
-    // How many texels does each step cover?
-    let texels_per_step = step_angular_size / max(weighted_texel_size, 1e-8);
-
-    // LOD selection:
-    // - texels_per_step > 2: we're oversampling, can use coarser mip
-    // - texels_per_step < 1: we're undersampling, use finest detail
-    //
-    // Critical: With only 64 vertical slices, losing detail is very visible
-    // Conservative multiplier keeps us at finer LODs
-    let lod_raw = log2(max(texels_per_step / 2.0, 1.0));
-
-    // Apply conservative bias - only go coarse when really justified
-    // Vertical resolution is precious, so we stay fine
-    let conservative_bias = -0.5;  // Bias toward finer detail
-    let lod = lod_raw + conservative_bias;
-
-    // Clamp to valid range (0 = finest, 5 = coarsest)
-    return clamp(lod, 0.0, 5.0);
+    // Use the finest LOD required by either axis
+    return clamp(min(lod_xy, lod_z) - 0.5, 0.0, 5.0);
 }
-
 
 // Saturate helper
 fn saturate(x: f32) -> f32 {
@@ -219,7 +205,7 @@ fn cloud_phase_function(cos_angle: f32) -> f32 {
 
 // Calculate how much light reaches a point from the sun (light transmittance)
 // Uses cone-based sampling with decreasing LOD as per Nubis/Guerrilla Games approach
-fn sample_light_energy(pos: vec3f, sun_dir: vec3f, distance: f32, extinction_coeff: f32, base_lod: f32) -> f32 {
+fn sample_light_energy(pos: vec3f, sun_dir: vec3f, extinction_coeff: f32, base_lod: f32, start_t: f32) -> f32 {
     if (sun_dir.z <= 0.0) {
         return 0.0;
     }
@@ -233,18 +219,16 @@ fn sample_light_energy(pos: vec3f, sun_dir: vec3f, distance: f32, extinction_coe
     var step_size = 0.5 * max_ray_length / f32(MAX_LIGHT_STEPS);
 
     var optical_depth = 0.0;
-    var current_distance = step_size * 1.0;
+    var t = start_t;
 
     // March towards sun with decreasing LOD per Nubis approach
     // The decreasing LOD smooths out artifacts from sparse sampling
     for (var i = 0; i < MAX_LIGHT_STEPS; i++) {
-        let t = current_distance;
         let sample_pos = pos + sun_dir * t;
 
         // Get tile info for this sample
         let tile_id = get_tile_id_at_pos(sample_pos);
         let tile = get_tile_info(tile_id);
-        let sample_distance = distance + t;
 
         // Calculate base LOD, then add increasing bias per step
         // This decreasing detail level smooths transitions between samples
@@ -252,17 +236,17 @@ fn sample_light_energy(pos: vec3f, sun_dir: vec3f, distance: f32, extinction_coe
         let lod = base_lod + lod_bias;
 
         // Sample density with calculated LOD
-        let density = sample_volume(sample_pos, lod, tile_id, tile);
+        let density = sample_volume(sample_pos, lod, tile_id, tile, atlas_sampler_l);
 
         // Accumulate optical depth
         optical_depth += density * step_size * extinction_coeff;
 
-        // Early exit for deep shadows (GPU optimization - avoids unnecessary samples)
+        // Early exit for deep shadows
         if (optical_depth > 10.0) {
             return 0.0;
         }
 
-        current_distance += step_size;
+        t += step_size;
         step_size *= 1.5;
     }
 
@@ -277,15 +261,13 @@ fn sample_light_energy(pos: vec3f, sun_dir: vec3f, distance: f32, extinction_coe
 }
 
 // Dynamic step size based on distance
-fn get_step_size(distance: f32, ray_direction: vec3f) -> f32 {
-    // 0.0 - 1.0 toward the horizon
-    let horizon = max((1.0+ray_direction.z), 0.0);
-    // Alternative
-//    var h = max(asin(horizon) / 1.5708, 0.0);
-//    h *= h;
-//    let horizon_bonus = h * params.step_size_horizon_factor;
-    let horizon_bonus = max(horizon * 2.0 - 1.0, 0.0) * params.step_size_horizon_factor;
-    return max(distance * params.step_size_distance_factor, params.step_size_min) + horizon_bonus;
+fn get_step_size(distance: f32, ray_direction: vec3f, ray_length: f32) -> f32 {
+    let horizon = 1.0 - abs(ray_direction.z); // 1.0 at horizontal, 0.0 at vertical
+    let horizon_bonus = horizon * horizon * params.step_size_horizon_factor;
+    let distance_based = max(distance * params.step_size_distance_factor, params.step_size_min);
+    let length_based = ray_length / 64.0;
+    return min(distance_based, length_based) + horizon_bonus;
+
 }
 
 // Convert world position to NDC depth for storage
@@ -313,6 +295,155 @@ fn get_ray_offset(pixel: vec2u, frame: u32) -> f32 {
     return fract(spatial + temporal);
 }
 
+fn calculate_point_radiance(
+    pos: vec3f,
+    density: f32,
+    sun_dir: vec3f,
+    lod: f32,
+    step_size: f32,
+    jitter: f32,
+    cloud_phase: f32
+) -> vec3f {
+    // Cloud optical properties
+    let cloud_extinction = density * params.extinction_coeff;
+    let cloud_scattering = cloud_extinction * params.albedo;
+
+    // Sunlight transmittance through clouds
+    let cloud_sun_transmittance = sample_light_energy(pos, sun_dir, params.extinction_coeff, lod, step_size*0.5);
+
+    // Cloud direct sun in-scattering
+    let sun_radiance = sconf.sun_light.rgb * sconf.sun_light.a * params.sun_light_scale;
+    let cloud_sun_inscatter = sun_radiance * cloud_sun_transmittance * cloud_phase;
+
+    // Cloud ambient in-scattering
+    let height_factor = pos.z / params.bounds_max.z;
+    let density_factor = 1.0 - saturate(density * 2.0);
+    let ambient_boost = mix(0.5, 1.5, density_factor);
+    let ambient_occlusion = mix(0.4, 1.0, height_factor) * ambient_boost;
+    let ambient_radiance = sconf.amb_light.rgb * sconf.amb_light.a * params.ambient_light_scale;
+    let cloud_ambient_inscatter = ambient_radiance * ambient_occlusion;
+
+    // Atmospheric light (acts as additional ambient source for clouds)
+    var atm_ambient_light = vec3f(0.0);
+    if (bool(sconf.atmosphere_enabled)) {
+        let pos_km = pos / 1000.0;
+
+        let air_density = density_at_height(pos_km.z);
+        let rayleigh_coeff = scattering_coefficients();
+        let atm_scattering = air_density * rayleigh_coeff;
+        let atm_inscatter_density = atmospheric_inscatter_at_point(pos_km, sun_dir);
+
+        // This is light scattered by atmosphere that can illuminate the cloud
+        // NOT direct atmospheric scattering toward camera
+        atm_ambient_light = sun_radiance * atm_inscatter_density * atm_scattering;
+    }
+
+    // Total incoming light at cloud particle (sun + ambient + atmospheric ambient)
+    let cloud_total_inscatter = cloud_sun_inscatter + cloud_ambient_inscatter + atm_ambient_light;
+    return cloud_total_inscatter * cloud_scattering * step_size;
+}
+
+fn step_coarse(
+    ray_origin: vec3f,
+    ray_dir: vec3f,
+    fine_step_size: f32,
+    t_far: f32,
+    ray_jitter: f32,
+    acc: ptr<function, ray_accumulator>
+) -> bool {
+    let big_step = fine_step_size * 4.0;
+
+    // Jitter within the big step
+    let sample_t = (*acc).t + big_step * ray_jitter;
+
+    // Boundary check
+    if (sample_t >= t_far) {
+        (*acc).t += big_step;
+        return false; // Did not find cloud, but safe to continue
+    }
+
+    let pos = ray_origin + ray_dir * sample_t;
+    let tile_id = get_tile_id_at_pos(pos);
+    let tile = get_tile_info(tile_id);
+
+    // Calculate Coarse LOD
+    let base_lod = calculate_lod(fine_step_size, tile.zoom, sample_t, ray_dir);
+    let coarse_lod = min(base_lod + 3.0, 5.0);
+
+    let coarse_density = sample_volume(pos, coarse_lod, tile_id, tile, atlas_sampler_l);
+
+    if (coarse_density > 0.0) {
+        // HIT: Switch state to Fine
+        (*acc).searching_for_cloud = false;
+        (*acc).mandatory_fine_dist = big_step;
+        (*acc).consecutive_empty_steps = 0;
+        // Do NOT advance t. We return true to tell the caller "Loop again immediately"
+        return true;
+    }
+
+    (*acc).t += big_step;
+    return false;
+}
+
+fn step_fine(
+    ray_origin: vec3f,
+    ray_dir: vec3f,
+    sun_dir: vec3f,
+    fine_step_size: f32,
+    t_far: f32,
+    fade_params: vec2f, // x: near, y: far
+    cloud_phase: f32,
+    ray_jitter: f32,
+    acc: ptr<function, ray_accumulator>
+)  {
+      let sample_t = min((*acc).t + fine_step_size * ray_jitter, t_far);
+
+      let pos = ray_origin + ray_dir * sample_t;
+      let tile_id = get_tile_id_at_pos(pos);
+      let tile = get_tile_info(tile_id);
+
+      let lod = calculate_lod(fine_step_size, tile.zoom, sample_t, ray_dir);
+
+      // Volume camera fade
+      let dist_cylinder = max(length(pos.xy - ray_origin.xy), (ray_origin.z - pos.z) * 0.5);
+      let fade_t = saturate((dist_cylinder - fade_params.x) / (fade_params.y - fade_params.x));
+      let fade = fade_t * fade_t * fade_t;
+
+      let base_density = sample_volume(pos, lod, tile_id, tile, atlas_sampler_l);
+      let density = base_density * fade;
+
+      if (density > 0.0) {
+          (*acc).consecutive_empty_steps = 0;
+
+          let radiance_contribution = calculate_point_radiance(
+              pos, density, sun_dir, lod, fine_step_size, ray_jitter, cloud_phase
+          );
+
+          // Accumulate Light
+          (*acc).radiance += radiance_contribution * (*acc).transmittance;
+
+          // Accumulate Depth
+          (*acc).depth += sample_t * (*acc).transmittance;
+          (*acc).depth_weight += (*acc).transmittance;
+
+          // Apply Extinction
+          let extinction = density * params.extinction_coeff * fine_step_size;
+          (*acc).transmittance *= exp(-extinction);
+      } else {
+          (*acc).consecutive_empty_steps++;
+      }
+
+      // Update Space Skipping State
+      (*acc).mandatory_fine_dist -= fine_step_size;
+
+      // Switch back to coarse if we are in empty space and have cleared the mandatory zone
+      if ((*acc).mandatory_fine_dist <= 0.0 && (*acc).consecutive_empty_steps >= 8) {
+          (*acc).searching_for_cloud = true;
+      }
+
+      (*acc).t += fine_step_size;
+  }
+
 @compute @workgroup_size(8, 8, 1)
 fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
     let output_dims = textureDimensions(output_color);
@@ -334,8 +465,8 @@ fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
     let frag_pos = unproject(vec3f(texcoords * vec2f(2.0, -2.0) + vec2f(-1.0, 1.0), frag_depth));
     let ray_direction = normalize(frag_pos);
 
-    let fade_near =  1000.0 * params.fade_factor;
-    let fade_far = 100000.0 * params.fade_factor;
+    let fade_near = 1000.0 * params.fade_factor;
+    let fade_far = 50000.0 * params.fade_factor;
 
     // Intersect ray with volume
     let intersection = intersect_aabb(origin, ray_direction, params.bounds_min.xyz, params.bounds_max.xyz);
@@ -348,126 +479,52 @@ fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
         return;
     }
 
-    // Ray marching
+    var acc: ray_accumulator;
+    acc.t = t_near;
+    acc.radiance = vec3f(0.0);
+    acc.transmittance = 1.0;
+    acc.depth = 0.0;
+    acc.depth_weight = 0.0;
+    acc.searching_for_cloud = true;
+    acc.consecutive_empty_steps = 0;
+    acc.mandatory_fine_dist = 0.0;
+    acc.step_count = 0;
+
     let sun_dir = normalize(-sconf.sun_light_dir.xyz);
-    var accu_light = vec3f(0.0);
-    var accu_transmittance = 1.0;
-
-    var accu_depth = 0.0;
-    var accu_depth_weight = 0.0;
-
-    var t = t_near;
-    var steps = 0;
 
     // Phase function (view-dependent scattering)
     let cos_angle = dot(ray_direction, sun_dir);
     let cloud_phase = cloud_phase_function(cos_angle);
 
-    // Adaptive LOD bias based on view angle
-    let view_angle_factor = abs(ray_direction.z);
+    while (acc.transmittance > 0.01 && acc.t < t_far && acc.step_count < MAX_STEPS) {
+        // Calculate Step Size
+        var fine_step_size = get_step_size(acc.t, ray_direction, t_far - t_near);
+        fine_step_size = min(fine_step_size, t_far - acc.t);
 
-    var last_step_size = 0.0;
-    while (accu_transmittance > 0.01 && steps < MAX_STEPS) {
-        let sample_t = min(t - last_step_size * ray_jitter, t_far);
-        let pos = origin + ray_direction * sample_t;
-        let distance_to_sample = sample_t;
+        if (fine_step_size < 0.01) { break; }
 
-        let tile_id = get_tile_id_at_pos(pos);
-        let tile = get_tile_info(tile_id);
-        let dz = max(u32(zoom_max) - tile.zoom, 0u);
-
-        let base_step_size = get_step_size(t-t_near, ray_direction);
-
-        let resolution_multiplier = 2.0;
-        let angle_multiplier = mix(1.0, 1.5, 1.0 - view_angle_factor);
-        var step_size = base_step_size * 2.0;
-        step_size = min(step_size, t_far - sample_t);
-
-        if (step_size < 0.01) {
-            break;
-        }
-
-        let lod = calculate_lod(step_size, tile.zoom, distance_to_sample, ray_direction);
-        let base_density = sample_volume(pos, lod, tile_id, tile);
-
-        let dist_cylinder = max(length(pos.xy - origin.xy), (origin.z-pos.z)*0.5);
-        let fade_t = saturate((dist_cylinder-fade_near)/(fade_far-fade_near));
-        let fade = fade_t * fade_t;
-
-        let density = base_density * fade;
-
-        if (density > DENSITY_THRESHOLD) {
-            // Cloud optical properties
-            let cloud_extinction = density * params.extinction_coeff;
-            let cloud_scattering = cloud_extinction * params.albedo;
-
-            // Sunlight transmittance through clouds
-            let cloud_sun_transmittance = sample_light_energy(pos, sun_dir, distance_to_sample,
-                                                               params.extinction_coeff, lod);
-
-            // Cloud direct sun in-scattering
-            let sun_radiance = sconf.sun_light.rgb * sconf.sun_light.a * params.sun_light_scale;
-            let cloud_sun_inscatter = sun_radiance * cloud_sun_transmittance * cloud_phase;
-
-            // Cloud ambient in-scattering
-            let height_factor = pos.z / params.bounds_max.z;
-            let density_factor = 1.0 - saturate(density * 2.0);
-            let ambient_boost = mix(0.5, 1.5, density_factor);
-            let ambient_occlusion = mix(0.4, 1.0, height_factor) * ambient_boost;
-            let ambient_radiance = sconf.amb_light.rgb * sconf.amb_light.a * params.ambient_light_scale;
-            let cloud_ambient_inscatter = ambient_radiance * ambient_occlusion;
-
-            // Atmospheric light (acts as additional ambient source for clouds)
-            var atm_ambient_light = vec3f(0.0);
-            if (bool(sconf.atmosphere_enabled)) {
-                let pos_km = pos / 1000.0;
-
-                let air_density = density_at_height(pos_km.z);
-                let rayleigh_coeff = scattering_coefficients();
-                let atm_scattering = air_density * rayleigh_coeff;
-                let atm_inscatter_density = atmospheric_inscatter_at_point(pos_km, sun_dir);
-
-                // This is light scattered by atmosphere that can illuminate the cloud
-                // NOT direct atmospheric scattering toward camera
-                atm_ambient_light = sun_radiance * atm_inscatter_density * atm_scattering;
-            }
-
-            // Total incoming light at cloud particle (sun + ambient + atmospheric ambient)
-            let cloud_total_inscatter = cloud_sun_inscatter + cloud_ambient_inscatter + atm_ambient_light;
-            let cloud_contribution = cloud_total_inscatter * cloud_scattering * step_size;
-
-            // Accumulate (atmospheric light is re-scattered by cloud, not directly accumulated)
-            accu_light += cloud_contribution * accu_transmittance;
-
-            // Depth accumulation
-            accu_depth += t * accu_transmittance;
-            accu_depth_weight += accu_transmittance;
-
-            // Cloud extinction only
-            let cloud_optical_depth = cloud_extinction * step_size;
-            accu_transmittance *= exp(-cloud_optical_depth);
-
-            t += step_size;
-            last_step_size = step_size;
+        if (acc.searching_for_cloud) {
+            // Returns true if hit, meaning we should loop again without advancing
+            let hit = step_coarse(origin, ray_direction, fine_step_size, t_far, ray_jitter, &acc);
+            if (hit) { continue; }
         } else {
-            t += step_size * 1.5;
-            last_step_size = step_size * 1.5;
+             step_fine(
+                origin, ray_direction, sun_dir,
+                fine_step_size, t_far, vec2f(fade_near, fade_far),
+                cloud_phase, ray_jitter, &acc
+            );
         }
 
-        if (t >= t_far) {
-            break;
-        }
-
-        steps += 1;
+        acc.step_count++;
     }
 
-    // Note: accumulated_light is already "alpha-premultiplied" in a sense
-    textureStore(output_color, pixel_coord, vec4f(accu_light, accu_transmittance));
+    // Note: accumulated radiance is already "alpha-premultiplied" in a sense
+    textureStore(output_color, pixel_coord, vec4f(acc.radiance, acc.transmittance));
 
     // Output apparent depth (linear depth in NDC Z)
-    var apparent_depth = min(accu_depth / accu_depth_weight, t_far);
-    if(accu_depth_weight == 0.0) {
-        apparent_depth = 0.0;
+    var apparent_depth = min(acc.depth / acc.depth_weight, t_far);
+    if(acc.depth_weight == 0.0) {
+        apparent_depth = t_far;
     }
     textureStore(output_depth, pixel_coord, vec4f(apparent_depth, 0.0, 0.0, 0.0));
 }

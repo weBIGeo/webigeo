@@ -62,8 +62,8 @@ public:
     // Public shader parameters
     struct ShaderParameters {
         float step_size_min = 150.0f;
-        float step_size_distance_factor = 1.0f / 120.0f;
-        float step_size_horizon_factor = 120.0f;
+        float step_size_distance_factor = 1.0f / 500.0f;
+        float step_size_horizon_factor = 1200.0f;
         float scattering_coeff = 0.7f;
         float extinction_coeff = 1.0f;
         float albedo = 0.99f;
@@ -170,7 +170,9 @@ private:
     std::unique_ptr<webgpu::raii::RawBuffer<TileInfo>> m_cloud_tile_info_buffer;
     std::vector<TileInfo> m_tile_infos;
 
-    std::unique_ptr<webgpu::raii::TextureWithSampler> m_cloud_texture_atlas;
+    std::unique_ptr<webgpu::raii::Texture> m_cloud_atlas_texture;
+    std::unique_ptr<webgpu::raii::TextureView> m_cloud_atlas_view;
+    std::unique_ptr<webgpu::raii::Sampler> m_cloud_linear_sampler;
 
     glm::uvec2 m_output_lo_resolution = {};
     glm::uvec2 m_output_hi_resolution = {};
