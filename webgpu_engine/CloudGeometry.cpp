@@ -23,6 +23,7 @@
 #include "nucleus/camera/Definition.h"
 #include "nucleus/srs.h"
 #include "nucleus/utils/terrain_mesh_index_generator.h"
+#include "glm/ext/matrix_relational.hpp"
 
 using webgpu_engine::CloudGeometry;
 namespace webgpu_engine {
@@ -67,15 +68,11 @@ void CloudGeometry::init(WGPUDevice device)
     m_tile_coords_offset = nucleus::srs::world_xy_to_tile_id(world_bounds_min, ZOOM_MAX).coords;
     glm::dvec2 world_bounds_min_aligned = nucleus::srs::tile_id_to_world_xy(m_tile_coords_offset, ZOOM_MAX);
     glm::dvec2 world_bounds_max_aligned = nucleus::srs::tile_id_to_world_xy(m_tile_coords_offset + TILE_COUNTS, ZOOM_MAX);
+    float world_bounds_max_z = 22500.0f / std::cos(glm::radians(BOUNDS_MAX.x));
 
     m_render_shader_params_ubo = std::make_unique<Buffer<ShaderParamsRender>>(m_device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
     m_render_shader_params_ubo->data.bounds_min = glm::vec4(world_bounds_min_aligned, 0.0, 0.0);
-    m_render_shader_params_ubo->data.bounds_max = glm::vec4(world_bounds_max_aligned, 14000.0, 0.0);
-    m_render_shader_params_ubo->data.step_size_min = 20.0;
-    m_render_shader_params_ubo->data.step_size_distance_factor = 1.0 / 100.0;
-    m_render_shader_params_ubo->data.step_size_horizon_factor = 50.0;
-    m_render_shader_params_ubo->data.extinction_multiplier = 1.0;
-    m_render_shader_params_ubo->data.detail_strength = 1.0;
+    m_render_shader_params_ubo->data.bounds_max = glm::vec4(world_bounds_max_aligned, world_bounds_max_z, 0.0);
     m_upscale_shader_params_ubo = std::make_unique<Buffer<ShaderParamsUpscale>>(m_device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
 
     // this represents a flattened 2d lookup table
@@ -105,52 +102,23 @@ struct FrameJitterData {
     uint32_t frame_index;
 };
 
-glm::vec2 generate_jitter_simple_4x(uint32_t frame_index, glm::uvec2 output_resolution)
+glm::dvec2 generate_jitter_simple_4x(uint32_t frame_index, glm::uvec2 output_resolution)
 {
-    const glm::vec2 pattern[4] = {
-        glm::vec2(-0.25f, -0.25f),
-        glm::vec2(+0.25f, -0.25f),
-        glm::vec2(-0.25f, +0.25f),
-        glm::vec2(+0.25f, +0.25f),
+    constexpr glm::dvec2 pattern[4] = {
+        glm::dvec2(-0.25, -0.25),
+        glm::dvec2(+0.25, -0.25),
+        glm::dvec2(-0.25, +0.25),
+        glm::dvec2(+0.25, +0.25),
     };
 
     uint32_t pattern_index = frame_index % 4;
-    glm::vec2 jitter = pattern[pattern_index];
+    glm::dvec2 jitter = pattern[pattern_index];
 
     // Convert to NDC space
-    jitter.x /= static_cast<float>(output_resolution.x);
-    jitter.y /= static_cast<float>(output_resolution.y);
+    jitter.x /= static_cast<double>(output_resolution.x);
+    jitter.y /= static_cast<double>(output_resolution.y);
 
     return jitter;
-}
-
-float halton(uint32_t index, uint32_t base) {
-    float result = 0.0f;
-    float f = 1.0f;
-    uint32_t i = index;
-
-    while (i > 0) {
-        f = f / static_cast<float>(base);
-        result = result + f * static_cast<float>(i % base);
-        i = i / base;
-    }
-
-    return result;
-}
-
-glm::vec2 generate_jitter_halton(uint32_t frame_index, glm::uvec2 output_resolution) {
-    // Halton(2,3) sequence is optimal for 2D sampling
-    // Use frame_index + 1 because Halton(0) = 0
-    uint32_t sample_index = (frame_index % 4) + 1;
-
-    float jitter_x = halton(sample_index, 2) - 0.5f;  // [-0.5, 0.5]
-    float jitter_y = halton(sample_index, 3) - 0.5f;  // [-0.5, 0.5]
-
-    // Convert to NDC space (normalized to render resolution)
-    jitter_x /= static_cast<float>(output_resolution.x);
-    jitter_y /= static_cast<float>(output_resolution.y);
-
-    return glm::vec2(jitter_x, jitter_y);
 }
 
 glm::mat4 jitter_projection_matrix(const glm::mat4& projection, glm::vec2 jitter)
@@ -219,8 +187,8 @@ void CloudGeometry::resize(int w, int h)
             .label = WGPUStringView { .data = "clouds_hi_depth_a", .length = WGPU_STRLEN },
             .usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding,
             .dimension = WGPUTextureDimension_2D,
-            .size = { .width = static_cast<uint32_t>(w), .height = static_cast<uint32_t>(h), .depthOrArrayLayers = 1 },
-            .format = WGPUTextureFormat_R32Float,
+            .size = { .width = m_output_lo_resolution.x, .height = m_output_lo_resolution.y, .depthOrArrayLayers = 1 },
+            .format = WGPUTextureFormat_RG32Float,
             .mipLevelCount = 1,
             .sampleCount = 1,
         });
@@ -242,8 +210,8 @@ void CloudGeometry::resize(int w, int h)
             .label = WGPUStringView { .data = "clouds_hi_depth_b", .length = WGPU_STRLEN },
             .usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding,
             .dimension = WGPUTextureDimension_2D,
-            .size = { .width = static_cast<uint32_t>(w), .height = static_cast<uint32_t>(h), .depthOrArrayLayers = 1 },
-            .format = WGPUTextureFormat_R32Float,
+            .size = { .width = m_output_lo_resolution.x, .height = m_output_lo_resolution.y, .depthOrArrayLayers = 1 },
+            .format = WGPUTextureFormat_RG32Float,
             .mipLevelCount = 1,
             .sampleCount = 1,
         });
@@ -290,13 +258,22 @@ void CloudGeometry::resize(int w, int h)
        "upscale clouds bind group b");
 }
 
-void CloudGeometry::draw(const WGPUCommandEncoder& command_encoder, const WGPUBindGroup& depth_texture_bind_group, const nucleus::camera::Definition& camera, uint32_t frame_number)
+void CloudGeometry::draw(const WGPUCommandEncoder& command_encoder, const WGPUBindGroup& depth_texture_bind_group, const WGPUBindGroup& shared_config_bind_group, const nucleus::camera::Definition& camera, uint32_t frame_number)
 {
-    // Both work quite well
     auto jitter_offset = generate_jitter_simple_4x(frame_number, m_output_lo_resolution);
-    // auto jitter_offset = generate_jitter_halton(frame_number, m_output_lo_resolution);
-    auto unjittered_projection = camera.projection_matrix();
-    auto jittered_projection = jitter_projection_matrix(unjittered_projection, jitter_offset);
+    glm::mat4 unjittered_projection = camera.projection_matrix();
+    glm::mat4 jittered_projection = jitter_projection_matrix(unjittered_projection, jitter_offset);
+    glm::mat4 view_matrix = camera.local_view_matrix();
+    glm::mat4 inverse_view_matrix = glm::inverse(view_matrix);
+
+    bool stable = glm::all(glm::equal(m_upscale_shader_params_ubo->data.previous_camera.view_matrix, view_matrix))
+        && glm::all(glm::equal(m_upscale_shader_params_ubo->data.previous_camera.proj_matrix, unjittered_projection));
+
+    if (stable) {
+        m_stable_frames++;
+    } else {
+        m_stable_frames = 0;
+    }
 
     {
         WGPUComputePassDescriptor compute_pass_desc {};
@@ -304,14 +281,23 @@ void CloudGeometry::draw(const WGPUCommandEncoder& command_encoder, const WGPUBi
         webgpu::raii::ComputePassEncoder compute_pass(command_encoder, compute_pass_desc);
 
         m_render_shader_params_ubo->data.camera = {
-            .view_matrix = camera.local_view_matrix(),
+            .view_matrix = view_matrix,
             .proj_matrix = jittered_projection,
-            .inv_view_matrix = glm::inverse(camera.local_view_matrix()),
+            .inv_view_matrix = inverse_view_matrix,
             .inv_proj_matrix = glm::inverse(jittered_projection),
             .position = glm::vec4(camera.position(), 0.0f),
         };
         m_render_shader_params_ubo->data.frame_index = frame_number;
-        m_render_shader_params_ubo->data.jitter = jitter_offset;
+        m_render_shader_params_ubo->data.jitter = jitter_offset * glm::dvec2(m_output_hi_resolution);
+        m_render_shader_params_ubo->data.step_size_min = shader_params.step_size_min;
+        m_render_shader_params_ubo->data.step_size_distance_factor = shader_params.step_size_distance_factor;
+        m_render_shader_params_ubo->data.step_size_horizon_factor = shader_params.step_size_horizon_factor;
+        m_render_shader_params_ubo->data.extinction_coeff = shader_params.extinction_coeff;
+        m_render_shader_params_ubo->data.scattering_coeff = shader_params.scattering_coeff;
+        m_render_shader_params_ubo->data.albedo = shader_params.albedo;
+        m_render_shader_params_ubo->data.sun_light_scale = shader_params.sun_light_scale;
+        m_render_shader_params_ubo->data.ambient_light_scale = shader_params.ambient_light_scale;
+        m_render_shader_params_ubo->data.fade_factor = shader_params.fade_factor;
         m_render_shader_params_ubo->update_gpu_data(m_queue);
 
         m_cloud_tile_info_buffer->write(m_queue, m_tile_infos.data(), m_tile_infos.size());
@@ -319,6 +305,7 @@ void CloudGeometry::draw(const WGPUCommandEncoder& command_encoder, const WGPUBi
         wgpuComputePassEncoderSetPipeline(compute_pass.handle(), m_pipeline_manager->render_clouds_pipeline().handle());
         wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, m_render_clouds_bind_group->handle(), 0, nullptr);
         wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 1, depth_texture_bind_group, 0, nullptr);
+        wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 2, shared_config_bind_group, 0, nullptr);
 
         wgpuComputePassEncoderDispatchWorkgroups(compute_pass.handle(), ceil_div(m_output_lo_resolution.x, 8u), ceil_div(m_output_lo_resolution.y, 8u), 1);
     }
@@ -330,9 +317,9 @@ void CloudGeometry::draw(const WGPUCommandEncoder& command_encoder, const WGPUBi
 
         m_upscale_shader_params_ubo->data.previous_camera = m_upscale_shader_params_ubo->data.current_camera;
         m_upscale_shader_params_ubo->data.current_camera = {
-            .view_matrix = camera.local_view_matrix(),
+            .view_matrix = view_matrix,
             .proj_matrix = unjittered_projection,
-            .inv_view_matrix = glm::inverse(camera.local_view_matrix()),
+            .inv_view_matrix = inverse_view_matrix,
             .inv_proj_matrix = glm::inverse(unjittered_projection),
             .position = glm::vec4(camera.position(), 0.0f),
         };
@@ -343,7 +330,6 @@ void CloudGeometry::draw(const WGPUCommandEncoder& command_encoder, const WGPUBi
         wgpuComputePassEncoderSetPipeline(compute_pass.handle(), m_pipeline_manager->upscale_clouds_pipeline().handle());
         auto bind_group = frame_number % 2 == 0 ? m_upscale_clouds_bind_group_a->handle() : m_upscale_clouds_bind_group_b->handle();
         wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, bind_group, 0, nullptr);
-        wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 1, depth_texture_bind_group, 0, nullptr);
 
         wgpuComputePassEncoderDispatchWorkgroups(compute_pass.handle(), ceil_div(m_output_hi_resolution.x, 8u), ceil_div(m_output_hi_resolution.y, 8u), 1);
     }

@@ -207,6 +207,8 @@ std::unique_ptr<webgpu::raii::RenderPassEncoder> begin_render_pass(
 
 void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_encoder)
 {
+    m_needs_redraw = false;
+
     // Painting logic here, using the optional framebuffer parameter which is currently unused
 
     // ONLY ON CAMERA CHANGE!
@@ -244,8 +246,9 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
 
 
     // render clouds
-    {
-        m_context->cloud_geometry()->draw(command_encoder, m_depth_texture_bind_group->handle(), m_camera, m_paint_number);
+    if (m_shared_config_ubo->data.m_clouds_enabled) {
+        m_context->cloud_geometry()->draw(command_encoder, m_depth_texture_bind_group->handle(), m_shared_config_bind_group->handle(), m_camera, m_paint_number);
+        m_needs_redraw |= m_context->cloud_geometry()->needs_redraw(); // Repaint for TAAU
     }
 
     // render geometry buffers to target framebuffer
@@ -267,7 +270,6 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
     if (m_first_paint) {
         after_first_frame();
     }
-    m_needs_redraw = false;
     m_first_paint = false;
     m_paint_number++;
 }
@@ -275,6 +277,8 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
 void Window::paint_gui()
 {
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
+
+    ImGui::Text("%.2f, %.2f, %.2f", m_camera.position().x, m_camera.position().y, m_camera.position().z);
 
     if (ImGui::Combo("Normal Mode", (int*)&m_shared_config_ubo->data.m_normal_mode, "None\0Flat\0Smooth\0\0")) {
         m_needs_redraw = true;
@@ -308,6 +312,7 @@ void Window::paint_gui()
 
         m_needs_redraw |= ImGui::Checkbox("Phong Shading", (bool*)&m_shared_config_ubo->data.m_phong_enabled);
         m_needs_redraw |= ImGui::Checkbox("Atmosphere", (bool*)&m_shared_config_ubo->data.m_atmosphere_enabled);
+        m_needs_redraw |= ImGui::Checkbox("Clouds", (bool*)&m_shared_config_ubo->data.m_clouds_enabled);
 
         bool snow_on = (m_shared_config_ubo->data.m_snow_settings_angle.x == 1.0f);
         if (ImGui::Checkbox("Snow", &snow_on)) {
@@ -1961,9 +1966,11 @@ void Window::recreate_compose_bind_group()
                 m_compute_overlay_settings_uniform_buffer->raw_buffer().create_bind_group_entry(8), // compute overlay aabb
                 compute_overlay_texture_entry, // compute overlay texture (in uv space)
                 compute_overlay_sampler_entry, // compute overlay sampler
-                m_context->cloud_geometry()->result_view(i)->create_bind_group_entry(11),
-                m_shadow_texture->texture_view().create_bind_group_entry(12),
-                m_shadow_texture->sampler().create_bind_group_entry(13),
+                m_context->cloud_geometry()->result_color_view(i)->create_bind_group_entry(11),
+                m_context->cloud_geometry()->result_depth_view(i)->create_bind_group_entry(12),
+                m_shadow_texture->texture_view().create_bind_group_entry(13),
+                m_shadow_texture->sampler().create_bind_group_entry(14),
+                m_gbuffer->depth_texture_view().create_bind_group_entry(15),
             });
     }
 

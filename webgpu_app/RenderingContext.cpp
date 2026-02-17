@@ -64,8 +64,8 @@ RenderingContext::RenderingContext()
         m_scheduler_director->check_in("ortho", m_ortho_scheduler_holder.scheduler);
 
         auto cloud_service = std::make_unique<nucleus::tile::TileLoadService>("", TilePattern::ZXY, ".ktx2");
-        m_cloud_scheduler_holder = nucleus::tile::setup::texture_scheduler_3d(std::move(cloud_service), m_aabb_decorator, m_scheduler_thread.get(), {.tile_resolution = 256, .max_zoom_level = 8, .gpu_quad_limit = 1024 });
-        m_cloud_scheduler_holder.scheduler->set_gpu_quad_limit(webgpu_engine::CloudGeometry::LOADED_TILE_LIMIT); // TODO
+        m_cloud_scheduler_holder = nucleus::tile::setup::texture_scheduler_3d(std::move(cloud_service), m_aabb_decorator, m_scheduler_thread.get(), {.tile_resolution = webgpu_engine::CloudGeometry::TILE_RESOLUTION_XY, .max_zoom_level = 9, .gpu_quad_limit = 1024 });
+        m_cloud_scheduler_holder.scheduler->set_gpu_quad_limit(webgpu_engine::CloudGeometry::LOADED_TILE_LIMIT);
         m_scheduler_director->check_in("cloud", m_cloud_scheduler_holder.scheduler);
     }
     m_geometry_scheduler_holder.scheduler->set_dataquerier(m_data_querier);

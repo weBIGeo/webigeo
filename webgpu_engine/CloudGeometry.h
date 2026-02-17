@@ -44,21 +44,71 @@ class CloudGeometry : public QObject {
     Q_OBJECT
 public:
 
-    static constexpr uint32_t ZOOM_MIN = 6;
     static constexpr uint32_t ZOOM_MAX = 10;
     static constexpr glm::vec2 BOUNDS_MIN = {46.2, 9.4};
     static constexpr glm::vec2 BOUNDS_MAX = {49.2, 17.4};
-    static constexpr glm::uvec2 TILE_COUNTS = {46/2, 26/2};
+    static constexpr glm::uvec2 TILE_COUNTS = {24, 14};
     static constexpr uint32_t TILE_COUNT_TOTAL = TILE_COUNTS.x * TILE_COUNTS.y;
     static constexpr uint32_t TILE_RESOLUTION_XY = 256;
-    static constexpr uint32_t TILE_RESOLUTION_Z = 64;
+    static constexpr uint32_t TILE_RESOLUTION_Z = 128;
     static constexpr uint32_t ATLAS_BITS_XY = 2;
     static constexpr uint32_t ATLAS_SCALE_XY = 1 << ATLAS_BITS_XY;
     static constexpr uint32_t ATLAS_MASK_XY = ATLAS_SCALE_XY - 1;
-    static constexpr uint32_t ATLAS_BITS_Z = 3;
+    static constexpr uint32_t ATLAS_BITS_Z = 4;
     static constexpr uint32_t ATLAS_SCALE_Z = 1 << ATLAS_BITS_Z;
     static constexpr uint32_t ATLAS_MASK_Z = ATLAS_SCALE_Z - 1;
     static constexpr uint32_t LOADED_TILE_LIMIT = ATLAS_SCALE_XY * ATLAS_SCALE_XY * ATLAS_SCALE_Z;
+
+    // Public shader parameters
+    struct ShaderParameters {
+        float step_size_min = 150.0f;
+        float step_size_distance_factor = 1.0f / 120.0f;
+        float step_size_horizon_factor = 120.0f;
+        float scattering_coeff = 0.7f;
+        float extinction_coeff = 1.0f;
+        float albedo = 0.99f;
+        float sun_light_scale = 800.0;
+        float ambient_light_scale = 1.0;
+        float fade_factor = 1.0;
+    };
+
+    ShaderParameters shader_params = {};
+
+    explicit CloudGeometry();
+
+    void init(WGPUDevice device);
+
+    void resize(int w, int h);
+
+    void draw(const WGPUCommandEncoder& command_encoder, const WGPUBindGroup& depth_texture_bind_group, const WGPUBindGroup& shared_config_bind_group, const nucleus::camera::Definition& camera, uint32_t frame_number);
+
+    [[nodiscard]] bool needs_redraw() const
+    {
+        return m_stable_frames <= 64;
+    }
+
+    void set_pipeline_manager(const PipelineManager& pipeline_manager);
+
+    void set_tile_limit(unsigned new_limit);
+
+    [[nodiscard]] webgpu::raii::TextureView* result_color_view(int frame) const {
+        if (frame % 2 == 0) return m_clouds_hi_color_texture_view_b.get();
+        return m_clouds_hi_color_texture_view_a.get();
+    }
+
+    [[nodiscard]] webgpu::raii::TextureView* result_depth_view(int frame) const {
+        if (frame % 2 == 0) return m_clouds_hi_depth_texture_view_b.get();
+        return m_clouds_hi_depth_texture_view_a.get();
+    }
+
+signals:
+    void tiles_changed();
+
+public slots:
+    void update_gpu_tiles_cloud(const std::vector<nucleus::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuTexture3DTile>& new_tiles);
+
+private:
+
 
     struct alignas(16) CameraConfig {
         glm::mat4 view_matrix;
@@ -72,14 +122,19 @@ public:
         CameraConfig camera;
         glm::vec4 bounds_min;
         glm::vec4 bounds_max;
+
         uint32_t frame_index;
-        uint32_t _padding0[3] = {};
+        float scattering_coeff;
+        float extinction_coeff;
+        float albedo;
+
         float step_size_min;
         float step_size_distance_factor;
         float step_size_horizon_factor;
-        float _padding2 = 0;
-        float extinction_multiplier;
-        float detail_strength;
+        float fade_factor;
+
+        float sun_light_scale;
+        float ambient_light_scale;
         glm::vec2 jitter;
     };
 
@@ -99,30 +154,6 @@ public:
         glm::uint32 zoom;
     };
 
-    explicit CloudGeometry();
-
-    void init(WGPUDevice device);
-
-    void resize(int w, int h);
-
-    void draw(const WGPUCommandEncoder& command_encoder, const WGPUBindGroup& depth_texture_bind_group, const nucleus::camera::Definition& camera, uint32_t frame_number);
-
-    void set_pipeline_manager(const PipelineManager& pipeline_manager);
-
-    void set_tile_limit(unsigned new_limit);
-
-    [[nodiscard]] webgpu::raii::TextureView* result_view(int frame) const {
-        if (frame % 2 == 0) return m_clouds_hi_color_texture_view_b.get();
-        else return m_clouds_hi_color_texture_view_a.get();
-    }
-
-signals:
-    void tiles_changed();
-
-public slots:
-    void update_gpu_tiles_cloud(const std::vector<nucleus::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuTexture3DTile>& new_tiles);
-
-private:
 
     // tile coordinates of the bounds min corner at max zoom level
     glm::uvec2 m_tile_coords_offset = {};
@@ -162,6 +193,7 @@ private:
     std::unique_ptr<webgpu::raii::BindGroup> m_upscale_clouds_bind_group_b;
     std::unique_ptr<webgpu::raii::BindGroup> m_camera_bind_group;
 
+    uint32_t m_stable_frames = 0;
 
     std::mutex m_mutex = {};
 };

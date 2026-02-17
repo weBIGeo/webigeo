@@ -41,7 +41,7 @@ TimeSlot APIService::get_slot(const QString& id) const
     return m_slots[m_id_to_index[id]];
 }
 
-DateComponents APIService::parse_timestamp_id(const QString& id) const
+DateComponents APIService::parse_timestamp_id(const QString& id)
 {
     // ID Format: YYYYMMDDHH (10 chars)
     if (id.length() != 10) return {0, 0, 0, 0};
@@ -55,6 +55,7 @@ DateComponents APIService::parse_timestamp_id(const QString& id) const
 
 void APIService::refresh_manifest()
 {
+    qDebug() << "[CloudAPI] Refreshing manifest...";
     QNetworkRequest request(QUrl(m_server_url + "/available"));
     QNetworkReply* reply = m_network_manager->get(request);
 
@@ -62,6 +63,7 @@ void APIService::refresh_manifest()
         reply->deleteLater();
         if (reply->error() != QNetworkReply::NoError) {
             qWarning() << "[CloudAPI] Failed to fetch manifest:" << reply->errorString();
+            emit manifest_loaded(false);
             return;
         }
 
@@ -73,7 +75,6 @@ void APIService::refresh_manifest()
         m_pending_ids.clear();
         m_poll_timer->stop();
 
-        // CHANGED: Parse the "items" array of objects
         QJsonArray items = doc.object()["items"].toArray();
 
         for (const auto& val : items) {
@@ -91,7 +92,7 @@ void APIService::refresh_manifest()
             if (status_str == "ready") slot.status = SlotStatus::Ready;
             else if (status_str == "stale") slot.status = SlotStatus::Stale;
             else if (status_str == "pending") slot.status = SlotStatus::Pending;
-            else slot.status = SlotStatus::Unknown;
+            else slot.status = SlotStatus::Empty;
 
             // Populate Metadata
             slot.run_id = item["run"].toString();
@@ -115,29 +116,41 @@ void APIService::refresh_manifest()
             m_poll_timer->start();
         }
 
-        emit manifest_loaded();
+        emit manifest_loaded(true);
     });
 }
 
-void APIService::select_or_refresh_slot(const QString& timestamp_id)
+void APIService::request_generate_slot(const QString& timestamp_id)
 {
     if (!m_id_to_index.contains(timestamp_id)) {
         qWarning() << "[CloudAPI] Invalid ID selected:" << timestamp_id;
         return;
     }
 
-    QUrl url(m_server_url + "/request");
+    auto& slot = m_slots[m_id_to_index[timestamp_id]];
+    if (!slot.is_generation_requestable()) {
+        qDebug() << "[CloudAPI] Slot generation requested but status" << to_string(slot.status) << "does not allow it:" << timestamp_id;
+        return;
+    }
+
+    slot.status = SlotStatus::Pending;
+    slot.progress = {};
+    emit slot_updated(slot);
+
+    QUrl url(m_server_url + "/generate");
     QUrlQuery query;
     query.addQueryItem("time", timestamp_id);
     url.setQuery(query);
 
     QNetworkRequest request(url);
-    QNetworkReply* reply = m_network_manager->get(request);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
+    QNetworkReply* reply = m_network_manager->post(request, QByteArray());
 
     connect(reply, &QNetworkReply::finished, this, [this, reply, timestamp_id]() {
         reply->deleteLater();
         if (reply->error() != QNetworkReply::NoError) {
-            qWarning() << "[CloudAPI] Network error for" << timestamp_id << ":" << reply->errorString();
+            qWarning() << "[CloudAPI] Generation request error for" << timestamp_id << ":" << reply->errorString();
+            qDebug() << reply->readAll().toStdString();
 
             // Update UI to Error state
             if (m_id_to_index.contains(timestamp_id)) {
@@ -153,54 +166,88 @@ void APIService::select_or_refresh_slot(const QString& timestamp_id)
 
 void APIService::handle_status_response(const QString& timestamp_id, const QByteArray& data)
 {
-    if (!m_id_to_index.contains(timestamp_id)) return;
-
-    TimeSlot& slot = m_slots[m_id_to_index[timestamp_id]];
-    QJsonDocument doc = QJsonDocument::fromJson(data);
-    QJsonObject obj = doc.object();
-
-    QString status_str = obj["status"].toString();
-    SlotStatus new_status = SlotStatus::Error;
-
-    if (status_str == "ready") {
-        new_status = SlotStatus::Ready;
-    } else if (status_str == "stale") {
-        new_status = SlotStatus::Stale;
-    } else if (status_str == "pending") {
-        new_status = SlotStatus::Pending;
-    } else {
-        // Handle explicit server errors or unknown states
-        QString msg = obj["message"].toString();
-        qWarning() << "[CloudAPI] Server returned error for" << timestamp_id << ":" << msg;
-        new_status = SlotStatus::Error;
+    if (!m_id_to_index.contains(timestamp_id)) {
+        qWarning() << "[CloudAPI] handle_status_response received data for an unknown ID:" << timestamp_id;
+        return;
     }
 
-    // Update Metadata if data is available
+    QJsonParseError parse_error;
+    QJsonDocument doc = QJsonDocument::fromJson(data, &parse_error);
+    if (parse_error.error != QJsonParseError::NoError || !doc.isObject()) {
+        qWarning() << "[CloudAPI] JSON parse error for" << timestamp_id << ":" << parse_error.errorString();
+        // Set to error state and notify UI
+        TimeSlot& slot = m_slots[m_id_to_index[timestamp_id]];
+        if (slot.status != SlotStatus::Error) {
+            slot.status = SlotStatus::Error;
+            emit slot_updated(slot);
+        }
+        return;
+    }
+    QJsonObject obj = doc.object();
+
+    // Extract data
+    TimeSlot& slot = m_slots[m_id_to_index[timestamp_id]];
+    const TimeSlot original_slot = slot; // Keep a copy for change detection
+
+    QString status_str = obj["status"].toString();
+    SlotStatus new_status;
+
+    // Map server string to client enum
+    if (status_str == "ready") new_status = SlotStatus::Ready;
+    else if (status_str == "stale") new_status = SlotStatus::Stale;
+    else if (status_str == "pending") new_status = SlotStatus::Pending;
+    else new_status = SlotStatus::Error; // Treat "unknown" or other errors as Error
+
+    // Update slot metadata based on status
+    slot.status = new_status;
+
     if (new_status == SlotStatus::Ready || new_status == SlotStatus::Stale) {
         slot.path = obj["path"].toString();
         slot.run_id = obj["run"].toString();
         slot.step = obj["step"].toInt();
-
-        // Data is ready, stop polling this ID
-        m_pending_ids.remove(timestamp_id);
+        slot.run_hour = slot.run_id.mid(8,2).toInt();
     }
     else if (new_status == SlotStatus::Pending) {
-        // Start polling this ID
-        m_pending_ids.insert(timestamp_id);
+        if (obj.contains("progress") && obj["progress"].isObject()) {
+            QJsonObject progress_obj = obj["progress"].toObject();
+            slot.progress.stage = progress_obj["stage"].toString();
+            slot.progress.detail = progress_obj["detail"].toString();
+            slot.progress.percent = progress_obj["percent"].toInt();
+        }
+        // Also update the expected run/step, which is available even in pending state
+        slot.run_id = obj["run"].toString();
+        slot.step = obj["step"].toInt();
+        slot.run_hour = slot.run_id.mid(8,2).toInt();
+
+    } else {
+        // For Error or Unknown status, clear potentially stale data
+        slot.path.clear();
+        slot.run_id.clear();
+        slot.step = 0;
     }
-    else if (new_status == SlotStatus::Error) {
-        // Stop polling on error
+
+    // Manage polling state
+    if (new_status == SlotStatus::Pending) {
+        m_pending_ids.insert(timestamp_id);
+    } else {
         m_pending_ids.remove(timestamp_id);
     }
 
-    slot.status = new_status;
-    emit slot_updated(slot);
-
-    // Manage Timer State
+    // Manage the global timer's state
     if (m_pending_ids.isEmpty()) {
         m_poll_timer->stop();
     } else if (!m_poll_timer->isActive()) {
         m_poll_timer->start();
+    }
+
+    // Emit update signal
+    bool has_changed = (original_slot.status != slot.status) ||
+                       (original_slot.path != slot.path) ||
+                       (original_slot.run_id != slot.run_id) ||
+                       !(original_slot.progress == slot.progress);
+
+    if (has_changed) {
+        emit slot_updated(slot);
     }
 }
 
@@ -216,7 +263,23 @@ void APIService::check_pending_items()
     QSet<QString> current_pending = m_pending_ids;
 
     for (const QString& id : current_pending) {
-        select_or_refresh_slot(id);
+        QUrl url(m_server_url + "/status");
+        QUrlQuery query;
+        query.addQueryItem("time", id);
+        url.setQuery(query);
+
+        QNetworkRequest request(url);
+        QNetworkReply* reply = m_network_manager->get(request);
+
+        // The handler remains the same, as the JSON format is identical.
+        connect(reply, &QNetworkReply::finished, this, [this, reply, id]() {
+            reply->deleteLater();
+            if (reply->error() == QNetworkReply::NoError) {
+                handle_status_response(id, reply->readAll());
+            } else {
+                 qWarning() << "[CloudAPI] Polling status failed for" << id << ":" << reply->errorString();
+            }
+        });
     }
 }
 
@@ -262,7 +325,13 @@ Manager::Manager(QObject* parent) : QObject(parent), m_api_service(std::make_uni
         }
     });
 
-    connect(m_api_service.get(), &APIService::manifest_loaded, this, [this]() {
+    connect(m_api_service.get(), &APIService::manifest_loaded, this, [this](bool ok) {
+        if (!ok) {
+            m_manifest_status = ManifestStatus::Error;
+            return;
+        }
+        m_manifest_status = ManifestStatus::Ready;
+
         const auto& time_slots = m_api_service->get_slots();
         auto current_date = QDateTime::currentDateTimeUtc();
         auto ymd = QCalendar().partsFromDate(current_date.date());
@@ -277,14 +346,13 @@ Manager::Manager(QObject* parent) : QObject(parent), m_api_service(std::make_uni
     });
 
     connect(m_api_service.get(), &APIService::slot_updated, this, [this](const TimeSlot& slot) {
-        if (m_selected_cloud_slot_id == slot.id && slot.status == clouds::SlotStatus::Ready) {
+        if (m_selected_cloud_slot_id == slot.id && slot.is_complete()) {
             m_api_service->fetch_shadow_texture(slot.id);
             emit slot_ready(slot);
         }
     });
 
     m_api_service->refresh_manifest();
-
 }
 
 void Manager::select_time_slot(const TimeSlot& slot)
@@ -293,11 +361,30 @@ void Manager::select_time_slot(const TimeSlot& slot)
         return;
     }
     m_selected_cloud_slot_id = slot.id;
-    m_api_service->select_or_refresh_slot(slot.id);
+
+    if (slot.is_complete()) {
+        m_api_service->fetch_shadow_texture(slot.id);
+        emit slot_ready(slot);
+    }
+}
+
+void Manager::generate_selected_slot() const
+{
+    if (m_selected_cloud_slot_id.isEmpty()) {
+        return;
+    }
+    m_api_service->request_generate_slot(m_selected_cloud_slot_id);
+}
+
+void Manager::refresh_manifest()
+{
+    m_manifest_status = ManifestStatus::Pending;
+    m_api_service->refresh_manifest();
 }
 
 TimeSlot Manager::selected_time_slot() const { return m_api_service->get_slot(m_selected_cloud_slot_id); }
 
 const QVector<TimeSlot>& Manager::get_slots() const { return m_api_service->get_slots(); }
+ManifestStatus Manager::get_manifest_status() const { return m_manifest_status; }
 
 } // namespace webgpu_app

@@ -44,12 +44,13 @@
 @group(2) @binding(10) var compute_overlay_sampler: sampler;
 
 @group(2) @binding(11) var clouds_texture: texture_2d<f32>;
+@group(2) @binding(12) var clouds_depth_texture: texture_storage_2d<rg32float, read>;
+@group(2) @binding(13) var cloud_shadow_texture: texture_2d<f32>;
+@group(2) @binding(14) var cloud_shadow_sampler: sampler;
+@group(2) @binding(15) var depth_texture: texture_2d<f32>;
 
-@group(2) @binding(12) var cloud_shadow_texture: texture_2d<f32>;
-@group(2) @binding(13) var cloud_shadow_sampler: sampler;
-
-const CLOUD_SHADOW_AABB_MIN = vec3f(1044435.55448865, 5814106.11948365, 0.0);
-const CLOUD_SHADOW_AABB_MAX = vec3f(1934774.05995438, 6310641.05522415, 14000.0);
+const CLOUD_SHADOW_AABB_MIN = vec3f(1045658.54694121, 5811660.13457852, 0.0);
+const CLOUD_SHADOW_AABB_MAX = vec3f(1937220.04485951, 6309418.06277159, 22500.0);
 
 struct ImageOverlaySettings {
     aabb_min: vec2f,
@@ -159,7 +160,7 @@ fn decode_rgba_to_normalized_value(rgba: vec4<f32>) -> f32 {
 }
 
 fn get_cloud_shadow_occlusion(world_pos: vec3f) -> f32 {
-    const SHADOW_BIAS = 0.0;
+    const SHADOW_BIAS = 0.05;
     const ESM_CONSTANT = 4.0;
 
     // TODO: Future improvement: Implement parallax
@@ -197,14 +198,8 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
     let pos_cws = pos_dist.xyz;
     let dist = length(pos_cws); // pos_dist.w
     let tile_dist = pos_dist.w;
-    var alpha = 0.0;
-    if (dist > 0) {
-        alpha = calculate_falloff(dist, 300000.0, 600000.0);
-    }
 
     let normal = octNormalDecode2u16(encoded_normal);
-
-    var shaded_color = vec3f(0.0);
     
     var amb_occlusion = 1.0;
     /* TODO: Implement ambient occlusion
@@ -216,6 +211,9 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
     
     let origin = camera.position.xyz;
     let pos_ws = pos_cws + origin;
+
+    var out_Color = vec4f(0.0);
+    let atmospheric_color = textureLoad(atmosphere_texture, vec2u(0,tci.y), 0).rgb;
 
     // sampling from texture needs to happen in uniform control flow, therefore this is outside the if
     // later, the sampled value is only used if we are in the overlay region (specified in image overlay settings uniform)
@@ -243,8 +241,14 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         compute_overlay_color = textureSampleLevel(compute_overlay_texture, compute_overlay_sampler, vec2f(compute_overlay_uv.x, 1.0 - compute_overlay_uv.y), mip_level);
     }
 
-    // must be called from uniform control flow :(
-    let cloud_shadow = get_cloud_shadow_occlusion(pos_ws);
+    var cloud_shadow = 0.0;
+    {
+        // must be called from uniform control flow :(
+        let cloud_shadow_raw = get_cloud_shadow_occlusion(pos_ws);
+
+        // Make it softer
+        cloud_shadow = cloud_shadow_raw * cloud_shadow_raw * cloud_shadow_raw * cloud_shadow_raw;
+    }
 
     // Don't do shading if not visible anyway and also don't for pixels where there is no geometry (depth==0.0)
     if (dist > 0.0) {
@@ -255,7 +259,7 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         albedo = mix(albedo, conf.material_color.rgb, conf.material_color.a);
 
         var shadow_term = cloud_shadow;
-        amb_occlusion *= 1.0 - cloud_shadow * 0.3;
+        amb_occlusion *= 1.0 - cloud_shadow * 0.4;
 
         /*TODO: implement shadow
         if (bool(conf.csm_enabled)) {
@@ -299,25 +303,58 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
             }
         }
 
-
-
-        shaded_color = albedo;
+        var shaded_color = albedo;
         if (bool(conf.phong_enabled)) {
             shaded_color = calculate_illumination(shaded_color, origin, pos_ws, normal, conf.sun_light, conf.amb_light, conf.sun_light_dir.xyz, material_light_response, amb_occlusion, shadow_term);
         }
         if (bool(conf.atmosphere_enabled)) {
             shaded_color = calculate_atmospheric_light(origin / 1000.0, ray_direction, dist / 1000.0, shaded_color, 10);
         }
-        shaded_color = max(vec3(0.0), shaded_color);    
+        shaded_color = max(vec3(0.0), shaded_color);
+        if (dist > 0 && bool(conf.atmosphere_enabled)) {
+            let atmosphere_blend = calculate_falloff(dist, 300000.0, 600000.0);
+            shaded_color = mix(atmospheric_color, shaded_color, atmosphere_blend);
+        }
+        out_Color = vec4(shaded_color, 1.0);
+    } else {
+        out_Color = vec4(atmospheric_color, 1.0);
     }
 
-    var out_Color = vec4f(shaded_color, 1.0);
-    if (bool(conf.atmosphere_enabled)) {
-        // Blend with atmospheric background:
-        let atmospheric_color = textureLoad(atmosphere_texture, vec2u(0,tci.y), 0).rgb;
-        //let atmospheric_color = textureSample(atmosphere_texture, compose_sampler_filtering, vertex_out.texcoords.xy).rgb;
-        out_Color = vec4f(mix(atmospheric_color, shaded_color, alpha), 1.0);
+    // Clouds
+    if (bool(conf.clouds_enabled)) {
+        let clouds_color = textureLoad(clouds_texture, tci, 0);
+        let clouds_depth_stats = textureLoad(clouds_depth_texture, tci/2).xy;
+        let clouds_depth = clouds_depth_stats.x;
+        let clouds_depth_sq = clouds_depth_stats.y;
+
+        if (clouds_depth > 0.0) {
+            // convert transmittance to alpha
+            let raw_alpha = 1.0 - clouds_color.a;
+            let safe_alpha = max(raw_alpha, 0.00001);
+            let straight_rgb = clouds_color.rgb / safe_alpha;
+            var tonemapped_rgb = straight_rgb / (straight_rgb + 1.0);
+
+            // atmosphere
+            if (clouds_depth > 0.0 && bool(conf.atmosphere_enabled)) {
+                let atmosphere_blend = calculate_falloff(clouds_depth, 300000.0, 600000.0);
+                tonemapped_rgb = mix(atmospheric_color, tonemapped_rgb, atmosphere_blend);
+            }
+
+            var blend_alpha = raw_alpha;
+
+            // Almost works great but would require more work
+//            let depth_variance = max(0.0, clouds_depth_sq - (clouds_depth * clouds_depth));;
+//            if(clouds_depth > dist - 1000.0 && dist > 0.0) {
+//                blend_alpha *= 1.0 - smoothstep(100.0, 600.0, sqrt(depth_variance));
+//            }
+
+            out_Color = vec4(
+                out_Color.rgb * (1.0 - blend_alpha) + tonemapped_rgb * blend_alpha,
+                1.0 - (1.0 - out_Color.a) * (1.0 - blend_alpha)
+            );
+        }
     }
+
     if (dist > 0.0 && all(pos_ws.xy >= image_overlay_settings.aabb_min) && all(pos_ws.xy <= image_overlay_settings.aabb_max)) {
         if (image_overlay_settings.mode == 0u) {
             out_Color = vec4f(mix(out_Color.rgb, image_overlay_color.rgb, image_overlay_color.a * image_overlay_settings.alpha), out_Color.a);
@@ -360,20 +397,6 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         var draw_line = true; // ensures that we only darken the pixel once
         apply_height_lines(&out_Color, pos_ws, normal, dist, conf.height_lines_settings.x, conf.height_lines_settings.z, conf.height_lines_settings.w, &draw_line, 1.0);
         apply_height_lines(&out_Color, pos_ws, normal, dist, conf.height_lines_settings.y, conf.height_lines_settings.z * 0.5, conf.height_lines_settings.w * 0.75, &draw_line, 1.0);
-    }
-
-    // Clouds
-    {
-        let clouds_color = textureLoad(clouds_texture, tci, 0);
-        let safe_alpha = max(clouds_color.a, 0.00001);
-        let straight_rgb = clouds_color.rgb / safe_alpha;
-        let tonemapped_rgb = straight_rgb / (straight_rgb + 1.0);
-        let clouds_final_pma = tonemapped_rgb * clouds_color.a;
-
-        out_Color = vec4(
-            out_Color.rgb * (1.0 - clouds_color.a) + clouds_final_pma,
-            1.0 - (1.0 - out_Color.a) * (1.0 - clouds_color.a)
-        );
     }
 
     return out_Color;

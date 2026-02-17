@@ -21,241 +21,219 @@ struct accumulation_params {
 @group(0) @binding(1) var current_color: texture_2d<f32>;
 @group(0) @binding(2) var current_depth: texture_2d<f32>;
 @group(0) @binding(3) var linear_sampler: sampler;
-@group(0) @binding(4) var accumulation_color_r: texture_storage_2d<rgba16float, read>;
-@group(0) @binding(5) var accumulation_depth_r: texture_storage_2d<r32float, read>;
+@group(0) @binding(4) var accumulation_color_r: texture_2d<f32>;
+@group(0) @binding(5) var accumulation_depth_r: texture_storage_2d<rg32float, read>;
 @group(0) @binding(6) var accumulation_color_w: texture_storage_2d<rgba16float, write>;
-@group(0) @binding(7) var accumulation_depth_w: texture_storage_2d<r32float, write>;
+@group(0) @binding(7) var accumulation_depth_w: texture_storage_2d<rg32float, write>;
 
-@group(1) @binding(0) var depth_texture: texture_2d<f32>;
+fn world_position_from_linear_depth(uv: vec2f, linear_depth: f32, inv_proj: mat4x4f, inv_view: mat4x4f) -> vec3f {
+    // Convert UV to NDC
+    let ndc_xy = uv * 2.0 - 1.0;
 
-// Tuned for volumetric clouds
-const HISTORY_BLEND_FACTOR = 0.95;
-const DEPTH_THRESHOLD = 0.01;  // Relaxed for volumetrics
-const MIN_BLEND_FACTOR = 0.5;   // Never fully reject history
+    let focal_x = 1.0 / inv_proj[0][0];
+    let focal_y = 1.0 / inv_proj[1][1];
 
-// YCoCg color space
-fn rgb_to_ycocg(rgb: vec3f) -> vec3f {
-    let Y  = dot(rgb, vec3f(0.25, 0.5, 0.25));
-    let Co = dot(rgb, vec3f(0.5, 0.0, -0.5));
-    let Cg = dot(rgb, vec3f(-0.25, 0.5, -0.25));
-    return vec3f(Y, Co, Cg);
+    let view_pos = vec4f(
+        ndc_xy.x * linear_depth / focal_x,
+        ndc_xy.y * linear_depth / focal_y,
+        -linear_depth,
+        1.0
+    );
+
+    // View to world space
+    let world_pos = (inv_view * view_pos).xyz;
+    return world_pos;
 }
 
-fn ycocg_to_rgb(ycocg: vec3f) -> vec3f {
-    let Y  = ycocg.x;
-    let Co = ycocg.y;
-    let Cg = ycocg.z;
-    return vec3f(Y + Co - Cg, Y + Cg, Y - Co - Cg);
+fn blend_transmittance(current_transmittance: f32, history_transmittance: f32, blend_factor: f32) -> f32 {
+    let current_optical_depth = -log(max(current_transmittance, 0.00001));
+    let history_optical_depth = -log(max(history_transmittance, 0.00001));
+    let blended_optical_depth = mix(current_optical_depth, history_optical_depth, blend_factor);
+    let blended_transmittance = exp(-blended_optical_depth);
+    return blended_transmittance;
 }
 
-// Variance-based clipping (the main defense against ghosting)
-fn clip_aabb(aabb_min: vec3f, aabb_max: vec3f, prev_sample: vec3f, current_sample: vec3f) -> vec3f {
+fn reproject_position(world_pos: vec3f, prev_view: mat4x4f, prev_proj: mat4x4f) -> vec3f {
+    // World to previous view space
+    let prev_view_pos = prev_view * vec4f(world_pos, 1.0);
+
+    // View to clip space (unjittered projection)
+    var prev_clip_pos = prev_proj * prev_view_pos;
+    prev_clip_pos /= prev_clip_pos.w;
+
+    // Convert to UV (unjittered)
+    let prev_uv = prev_clip_pos.xy * 0.5 + 0.5;
+
+    // Return unjittered UV and ndc z (unused here)
+    return vec3f(prev_uv, prev_clip_pos.z);
+}
+
+fn clip_aabb(history_color: vec3f, aabb_min: vec3f, aabb_max: vec3f) -> vec3f {
     let p_clip = 0.5 * (aabb_max + aabb_min);
-    let e_clip = 0.5 * (aabb_max - aabb_min) + vec3f(0.001);
+    let e_clip = 0.5 * (aabb_max - aabb_min) + 0.00001;
 
-    let v_clip = prev_sample - p_clip;
+    let v_clip = history_color - p_clip;
     let v_unit = v_clip / e_clip;
     let a_unit = abs(v_unit);
     let ma_unit = max(a_unit.x, max(a_unit.y, a_unit.z));
 
     if (ma_unit > 1.0) {
         return p_clip + v_clip / ma_unit;
-    } else {
-        return prev_sample;
     }
+    return history_color;
 }
 
-// Catmull-Rom bicubic filter
-fn bicubic_catmull_rom(tex: texture_2d<f32>, uv: vec2f, texel_size: vec2f) -> vec4f {
-    let size = vec2f(textureDimensions(tex));
-    let sample_pos = uv * size;
-    let texel_center = floor(sample_pos - 0.5) + 0.5;
-    let f = sample_pos - texel_center;
-
-    let w0 = f * (-0.5 + f * (1.0 - 0.5 * f));
-    let w1 = 1.0 + f * f * (-2.5 + 1.5 * f);
-    let w2 = f * (0.5 + f * (2.0 - 1.5 * f));
-    let w3 = f * f * (-0.5 + 0.5 * f);
-
-    let w12 = w1 + w2;
-    let tc0 = (texel_center - 1.0) * texel_size;
-    let tc12 = (texel_center + w2 / w12) * texel_size;
-    let tc3 = (texel_center + 2.0) * texel_size;
-
-    let col0 = textureSampleLevel(tex, linear_sampler, vec2f(tc12.x, tc0.y), 0.0) * w12.x
-             + textureSampleLevel(tex, linear_sampler, vec2f(tc0.x, tc0.y), 0.0) * w0.x
-             + textureSampleLevel(tex, linear_sampler, vec2f(tc3.x, tc0.y), 0.0) * w3.x;
-
-    let col1 = textureSampleLevel(tex, linear_sampler, vec2f(tc12.x, tc12.y), 0.0) * w12.x
-             + textureSampleLevel(tex, linear_sampler, vec2f(tc0.x, tc12.y), 0.0) * w0.x
-             + textureSampleLevel(tex, linear_sampler, vec2f(tc3.x, tc12.y), 0.0) * w3.x;
-
-    let col2 = textureSampleLevel(tex, linear_sampler, vec2f(tc12.x, tc3.y), 0.0) * w12.x
-             + textureSampleLevel(tex, linear_sampler, vec2f(tc0.x, tc3.y), 0.0) * w0.x
-             + textureSampleLevel(tex, linear_sampler, vec2f(tc3.x, tc3.y), 0.0) * w3.x;
-
-    return col0 * w0.y + col1 * w12.y + col2 * w3.y;
+fn clip_scalar(history_value: f32, aabb_min: f32, aabb_max: f32) -> f32 {
+    return clamp(history_value, aabb_min, aabb_max);
 }
 
-fn world_position_from_depth(uv: vec2f, depth: f32, inv_view_proj: mat4x4f) -> vec3f {
-    let ndc = vec3f(uv * 2.0 - 1.0, depth);
-    let world_pos = inv_view_proj * vec4f(ndc, 1.0);
-    return world_pos.xyz / world_pos.w;
+fn update_depth_stats(prev_data: vec2f, current_depth: f32, alpha: f32) -> vec2f {
+    let next_mean = mix(prev_data.r, current_depth, alpha);
+    let next_mean_sq = mix(prev_data.g, current_depth * current_depth, alpha);
+    return vec2f(next_mean, next_mean_sq);
 }
-
-// Calculate luminance for better temporal stability
-fn luminance(rgb: vec3f) -> f32 {
-    return dot(rgb, vec3f(0.299, 0.587, 0.114));
-}
-
 
 @compute @workgroup_size(8, 8, 1)
 fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
-    let output_dims = textureDimensions(accumulation_color_r);
-    let pixel_coord = global_id.xy;
+    let high_res_dims = textureDimensions(accumulation_color_w);
 
-    if (pixel_coord.x >= output_dims.x || pixel_coord.y >= output_dims.y) {
+    if (global_id.x >= high_res_dims.x || global_id.y >= high_res_dims.y) {
         return;
     }
 
-    let high_res_uv = (vec2f(pixel_coord) + 0.5) / vec2f(output_dims);
-    let jitter_high_res = params.jitter * params.resolution_scale;
-    let sample_uv = high_res_uv + jitter_high_res;
+    let high_res_coord = vec2i(global_id.xy);
+    let high_res_uv = (vec2f(global_id.xy) + 0.5) / vec2f(high_res_dims);
 
-    // Bounds check
-    if (any(sample_uv < vec2f(0.0)) || any(sample_uv > vec2f(1.0))) {
-        let fallback = bicubic_catmull_rom(current_color, high_res_uv, params.low_res_texel_size);
-        textureStore(accumulation_color_w, pixel_coord, fallback);
-        let fallback_depth_coord = vec2i(high_res_uv * vec2f(textureDimensions(current_depth)));
-        let fallback_depth = textureLoad(current_depth, fallback_depth_coord, 0).r;
-        textureStore(accumulation_depth_w, pixel_coord, vec4f(fallback_depth, 0.0, 0.0, 0.0));
+    // Account for jitter in current sampling (assuming content shifted by -jitter, so sample at +jitter)
+    let jittered_uv = high_res_uv - params.jitter * vec2f(1.0, -1.0);
+    let jittered_coord = vec2i(jittered_uv * vec2f(textureDimensions(current_depth)));
+
+    let current_sample = textureSampleLevel(current_color, linear_sampler, jittered_uv, 0.0);
+    let current_depth = textureLoad(current_depth, jittered_coord, 0).r;
+
+    // Early exit for background/sky
+    if (current_depth <= 0.0) {
+        textureStore(accumulation_color_w, high_res_coord, current_sample);
+        textureStore(accumulation_depth_w, high_res_coord/2, vec4f(current_depth, 0.0, 0.0, 0.0));
         return;
     }
 
-    // Sample current frame
-    let current_sample = bicubic_catmull_rom(current_color, sample_uv, params.low_res_texel_size);
-    let current_depth_coord = vec2i(sample_uv * vec2f(textureDimensions(current_depth)));
-    let current_depth = textureLoad(current_depth, current_depth_coord, 0).r;
+    // Reconstruct world position from UNJITTERED position
+    let world_pos = world_position_from_linear_depth(
+        high_res_uv,  // Use unjittered UV for reconstruction
+        current_depth,
+        params.curr_camera.inv_proj_matrix,
+        params.curr_camera.inv_view_matrix
+    );
 
-    // Compute 3x3 neighborhood statistics in YCoCg space
-    // This is the MAIN protection against ghosting - it constrains history to the local neighborhood
-    var m1 = vec3f(0.0);
-    var m2 = vec3f(0.0);
-    var alpha_min = 1.0;
-    var alpha_max = 0.0;
-    var count = 0.0;
+    // Reproject to previous frame (unjittered)
+    let prev_position = reproject_position(
+        world_pos,
+        params.prev_camera.view_matrix,
+        params.prev_camera.proj_matrix
+    );
 
-    for (var y = -1; y <= 1; y++) {
-        for (var x = -1; x <= 1; x++) {
-            let offset = vec2f(f32(x), f32(y)) * params.low_res_texel_size;
-            let neighbor_uv = sample_uv + offset;
+    // Apply previous frame's jitter to get actual texture coordinates for history
+    let prev_uv = prev_position.xy;
 
-            if (all(neighbor_uv >= vec2f(0.0)) && all(neighbor_uv <= vec2f(1.0))) {
-                let neighbor = textureSampleLevel(current_color, linear_sampler, neighbor_uv, 0.0);
-                let neighbor_ycocg = rgb_to_ycocg(neighbor.rgb);
+    // Validate reprojection
+    let is_valid = all(prev_uv >= vec2f(0.0)) && all(prev_uv <= vec2f(1.0));
 
-                m1 += neighbor_ycocg;
-                m2 += neighbor_ycocg * neighbor_ycocg;
+    if (!is_valid) {
+        textureStore(accumulation_color_w, high_res_coord, current_sample);
+        textureStore(accumulation_depth_w, high_res_coord/2, vec4f(current_depth, 0.0, 0.0, 0.0));
+        return;
+    }
 
-                alpha_min = min(alpha_min, neighbor.a);
-                alpha_max = max(alpha_max, neighbor.a);
+    // Sample history (bilinear would require regular texture, but storage is point-sampled)
+    let history_sample = textureSampleLevel(accumulation_color_r, linear_sampler, prev_uv, 0.0);
+//    let prev_depth_coord = vec2i(prev_uv * vec2f(textureDimensions(accumulation_depth_r)));
+//    let history_depth = textureLoad(accumulation_depth_r, prev_depth_coord).rg;
 
-                count += 1.0;
-            }
+    // Variance clipping - sample 3x3 neighborhood for scattered and transmittance
+    var scattered_sum = vec3f(0.0);
+    var scattered_squared_sum = vec3f(0.0);
+    var trans_sum = 0.0;
+    var trans_squared_sum = 0.0;
+    var sample_count = 0.0;
+
+    for (var dy = -2; dy <= 2; dy++) {
+        for (var dx = -2; dx <= 2; dx++) {
+            let offset = vec2f(f32(dx), f32(dy)) * params.low_res_texel_size;
+            let neighbor_uv = jittered_uv + offset;
+            let neighbor = textureSampleLevel(current_color, linear_sampler, neighbor_uv, 0.0);
+
+            let opacity = max(1.0 - neighbor.a, 0.001);
+            let neighbor_scattered = neighbor.rgb / opacity;
+
+            scattered_sum += neighbor_scattered;
+            scattered_squared_sum += neighbor_scattered * neighbor_scattered;
+            trans_sum += neighbor.a;
+            trans_squared_sum += neighbor.a * neighbor.a;
+            sample_count += 1.0;
         }
     }
 
-    let mu = m1 / count;
-    let sigma = sqrt(max(m2 / count - mu * mu, vec3f(0.0)));
+    let scattered_mean = scattered_sum / sample_count;
+    let scattered_variance = max((scattered_squared_sum / sample_count) - (scattered_mean * scattered_mean), vec3f(0.0));
+    let scattered_stddev = sqrt(scattered_variance);
 
-    // Very conservative variance clipping for noisy volumetrics
-    // The variance naturally captures the noise, so we expand the box significantly
-    let variance_gamma = 1.5;  // Allow more variation
-    let box_min = mu - variance_gamma * sigma;
-    let box_max = mu + variance_gamma * sigma;
+    let trans_mean = trans_sum / sample_count;
+    let trans_variance = max((trans_squared_sum / sample_count) - (trans_mean * trans_mean), 0.0);
+    let trans_stddev = sqrt(trans_variance);
 
-    // Reproject to find history sample
-    let inv_view_proj = params.curr_camera.inv_view_matrix * params.curr_camera.inv_proj_matrix;
-    let world_pos = world_position_from_depth(sample_uv, current_depth, inv_view_proj);
+    // AABB for variance clipping (1.5 sigma)
+    let scattered_aabb_min = scattered_mean - 1.5 * scattered_stddev;
+    let scattered_aabb_max = scattered_mean + 1.5 * scattered_stddev;
+    let trans_aabb_min = trans_mean - 1.5 * trans_stddev;
+    let trans_aabb_max = trans_mean + 1.5 * trans_stddev;
 
-    let prev_view_proj = params.prev_camera.proj_matrix * params.prev_camera.view_matrix;
-    let prev_clip = prev_view_proj * vec4f(world_pos, 1.0);
-    let prev_ndc = prev_clip.xyz / prev_clip.w;
-    let prev_uv = prev_ndc.xy * 0.5 + 0.5;
+    // Undo pre-multiply
+    let current_opacity = max(1.0 - current_sample.a, 0.001);
+    let history_opacity = max(1.0 - history_sample.a, 0.001);
+    let current_scattered = current_sample.rgb / current_opacity;
+    var history_scattered = history_sample.rgb / history_opacity;
 
-    // Check if reprojection is valid (CRITICAL disocclusion check)
-    let outside = any(prev_uv < vec2f(0.0)) || any(prev_uv > vec2f(1.0)) || prev_clip.w <= 0.0;
+    // Clip history scattered and transmittance
+    history_scattered = clip_aabb(history_scattered, scattered_aabb_min, scattered_aabb_max);
+    var history_transmittance = clip_scalar(history_sample.a, trans_aabb_min, trans_aabb_max);
 
-    if (outside) {
-        textureStore(accumulation_color_w, pixel_coord, current_sample);
-        textureStore(accumulation_depth_w, pixel_coord, vec4f(current_depth, 0.0, 0.0, 0.0));
-        return;
-    }
+    let scattered_diff = length(history_scattered - current_scattered);
+    let scattered_stddev_length = length(scattered_stddev) + 0.001;
+    let scattered_clip_factor = 1.0 - smoothstep(scattered_stddev_length * 2.5, scattered_stddev_length * 3.5, scattered_diff);
 
-    // Read history
-    let prev_pixel = vec2i(prev_uv * vec2f(output_dims));
-    let history_sample = textureLoad(accumulation_color_r, prev_pixel);
-    let history_depth = textureLoad(accumulation_depth_r, prev_pixel).r;
+    let trans_diff = length(history_transmittance - current_sample.a);
+    let trans_stddev_length = length(trans_stddev) + 0.001;
+    let trans_clip_factor = 1.0 - smoothstep(trans_stddev_length * 2.5, trans_stddev_length * 3.5, trans_diff);
 
-    // Depth consistency check (CRITICAL disocclusion check)
-    let depth_diff = abs(current_depth - history_depth);
-    var depth_weight = 1.0 - smoothstep(0.0, DEPTH_THRESHOLD, depth_diff);
-
-    // Terrain depth masking
-    let base_depth_coord = vec2i(pixel_coord / 2) * 2;
-    let pixel_depth = textureLoad(depth_texture, pixel_coord, 0).x;
-    let d00 = textureLoad(depth_texture, base_depth_coord + vec2i(0, 0), 0).x;
-    let d10 = textureLoad(depth_texture, base_depth_coord + vec2i(1, 0), 0).x;
-    let d01 = textureLoad(depth_texture, base_depth_coord + vec2i(0, 1), 0).x;
-    let d11 = textureLoad(depth_texture, base_depth_coord + vec2i(1, 1), 0).x;
-    let farthest_terrain_depth = min(min(d00, d10), min(d01, d11));
-    let terrain_depth_diff = max(pixel_depth - farthest_terrain_depth, 0.0);
-
-    depth_weight *= 1.0 - saturate(terrain_depth_diff / 0.000001);
-
-    // Camera motion detection
     let camera_motion = length(params.curr_camera.position.xyz - params.prev_camera.position.xyz);
     let motion_weight = 1.0 - smoothstep(0.0, 1.0, camera_motion);
 
-    // Clip history to neighborhood AABB (MAIN ghosting protection)
-    let history_ycocg = rgb_to_ycocg(history_sample.rgb);
-    let current_ycocg = rgb_to_ycocg(current_sample.rgb);
-    let clipped_history_ycocg = clip_aabb(box_min, box_max, history_ycocg, current_ycocg);
-    let clipped_history_rgb = ycocg_to_rgb(clipped_history_ycocg);
-    let clipped_history_alpha = clamp(history_sample.a, alpha_min, alpha_max);
-
-    // Calculate clipping amount - indicates possible disocclusion/scene change
-    let clip_amount = length(history_ycocg - clipped_history_ycocg);
-    let sigma_length = length(sigma) + 0.001;
-    // Only reduce blend if clipping was VERY significant (outside 2 sigma)
-    let clip_factor = 1.0 - smoothstep(sigma_length * 1.0, sigma_length * 2.0, clip_amount);
-
-    // Combine ONLY the reliable factors for volumetrics:
-    // 1. Depth consistency (real disocclusion)
-    // 2. Camera motion (potential disocclusion)
-    // 3. Severe AABB clipping (scene change)
-    //
-    // We do NOT use luminance or alpha differences because volumetric noise
-    // causes these to vary wildly frame-to-frame even with no actual change
-
-    var adaptive_blend = HISTORY_BLEND_FACTOR;
-    adaptive_blend *= depth_weight;    // Reject if depth changed
-    adaptive_blend *= motion_weight;   // Reduce during camera motion
-    adaptive_blend *= clip_factor;     // Reduce only for severe clipping
-//    adaptive_blend = max(adaptive_blend, MIN_BLEND_FACTOR);
+    var history_weight = 0.98;
+    history_weight *= max(min(trans_clip_factor, scattered_clip_factor), 0.5);
+    history_weight *= motion_weight;
 
     // Special case: completely empty history
-    if (history_sample.a < 0.001 && current_sample.a > 0.05) {
-        adaptive_blend = 0.0;
+    if (history_sample.a > 0.999 && current_sample.a < 0.95) {
+        history_weight = 0.0;
     }
 
-    // Blend current and history
-    let result_rgb = mix(current_sample.rgb, clipped_history_rgb, adaptive_blend);
-    let result_alpha = mix(current_sample.a, clipped_history_alpha, adaptive_blend);
+    // Blend scattered
+    let blended_scattered = mix(current_scattered, history_scattered, history_weight);
 
-    // Ensure no negative values
-    let final_color = vec4f(max(result_rgb, vec3f(0.0)), max(result_alpha, 0.0));
+    // Blend transmittance
+    let blended_transmittance = blend_transmittance(
+        current_sample.a,
+        history_transmittance,
+        history_weight
+    );
 
-    textureStore(accumulation_color_w, pixel_coord, final_color);
-    textureStore(accumulation_depth_w, pixel_coord, vec4f(current_depth, 0.0, 0.0, 0.0));
+    let blended_color = blended_scattered * (1.0 - blended_transmittance);
+
+    // Currently not in use
+//    let updated_depth = update_depth_stats(history_depth, current_depth, 0.5);
+
+    // Write output
+    textureStore(accumulation_color_w, high_res_coord, vec4f(blended_color, blended_transmittance));
+    textureStore(accumulation_depth_w, high_res_coord/2, vec4f(current_depth, 0.0, 0.0, 0.0));
 }
