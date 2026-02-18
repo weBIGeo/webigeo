@@ -116,6 +116,8 @@ qt_add_resources(webgpu_engine "shaders"
         "${SHADER_BASE_DIR}/render_lines.wgsl"
         "${SHADER_BASE_DIR}/compose_pass.wgsl"
         "${SHADER_BASE_DIR}/screen_pass_vert.wgsl"
+        "${SHADER_BASE_DIR}/render_clouds.wgsl"
+        "${SHADER_BASE_DIR}/upscale_clouds.wgsl"
 
         "${SHADER_BASE_DIR}/compute/downsample_compute.wgsl"
         "${SHADER_BASE_DIR}/compute/normals_compute.wgsl"

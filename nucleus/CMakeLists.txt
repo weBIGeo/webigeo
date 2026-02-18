@@ -32,7 +32,12 @@ alp_add_git_repository(goofy_tc URL https://github.com/AlpineMapsOrgDependencies
 set(KTX_FEATURE_TESTS OFF CACHE BOOL "" FORCE)
 set(KTX_FEATURE_TOOLS OFF CACHE BOOL "" FORCE)
 set(KTX_FEATURE_DOC OFF CACHE BOOL "" FORCE)
-alp_add_git_repository(libktx URL https://github.com/KhronosGroup/KTX-Software.git COMMITISH 4d6fc70eaf62ad0558e63e8d97eb9766118327a6)
+set(KTX_FEATURE_JS OFF CACHE BOOL "" FORCE)
+alp_add_git_repository(libktx URL https://github.com/KhronosGroup/KTX-Software.git COMMITISH 952d74f1d53452e4e976a2b7698ff7af6c13a9ed)
+if (EMSCRIPTEN)
+    target_compile_options(ktx PUBLIC -pthread)
+    target_link_options(ktx PUBLIC -pthread)
+endif()
 
 add_library(zppbits INTERFACE)
 target_include_directories(zppbits SYSTEM INTERFACE ${zppbits_SOURCE_DIR})

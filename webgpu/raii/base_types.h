@@ -113,11 +113,6 @@ template <> struct GpuFuncs<WGPUCommandEncoder, WGPUCommandEncoderDescriptor, WG
     static void release(auto handle) { wgpuCommandEncoderRelease(handle); }
 };
 
-template <> struct GpuFuncs<WGPUResourceTable, WGPUResourceTableDescriptor, WGPUDevice> {
-    static auto create(auto context, auto descriptor) { return wgpuDeviceCreateResourceTable(context, &descriptor); }
-    static void release(auto handle) { wgpuDeviceCreateResourceTable(handle); }
-};
-
 /// TODO document
 /// Represents a (web)GPU render pipeline object.
 /// Provides RAII semantics without ref-counting (free memory on deletion, disallow copy).

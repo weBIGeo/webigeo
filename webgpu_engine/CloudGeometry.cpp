@@ -37,11 +37,9 @@ void CloudGeometry::init(WGPUDevice device)
 {
     m_device = device;
     m_queue = wgpuDeviceGetQueue(device);
-    // TODO mipmaps and compression
     WGPUTextureDescriptor cloud_texture_desc {};
     cloud_texture_desc.label = WGPUStringView { .data = "cloud texture", .length = WGPU_STRLEN };
     cloud_texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_3D;
-    // TODO: array layers might become larger than allowed by graphics API
     cloud_texture_desc.size = { TILE_RESOLUTION_XY * ATLAS_SCALE_XY, TILE_RESOLUTION_XY * ATLAS_SCALE_XY, TILE_RESOLUTION_Z * ATLAS_SCALE_Z };
     constexpr int SMALLEST_MIP_DIM = 4; // 4x4x4 is the smallest mip size
     cloud_texture_desc.mipLevelCount = static_cast<uint32_t>(std::ceil(std::log2(TILE_RESOLUTION_XY)) - std::log2(SMALLEST_MIP_DIM) + 1);

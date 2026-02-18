@@ -532,8 +532,6 @@ void TerrainRenderer::webgpu_create_context()
     dawnToggles.enabledToggles = enabledToggles.data();
     dawnToggles.enabledToggleCount = enabledToggles.size();
     dawnToggles.disabledToggleCount = 0;
-
-    // m_instance_desc.nextInChain = &dawnToggles.chain;
 #endif
 
     const auto timed_wait_feature = WGPUInstanceFeatureName_TimedWaitAny;
@@ -584,7 +582,6 @@ void TerrainRenderer::webgpu_create_context()
     requiredFeatures.push_back(WGPUFeatureName_TimestampQuery);
     requiredFeatures.push_back(WGPUFeatureName_TextureCompressionBC);
     requiredFeatures.push_back(WGPUFeatureName_TextureCompressionBCSliced3D);
-    requiredFeatures.push_back(WGPUFeatureName_TextureFormatsTier2);
 
     WGPUDeviceDescriptor device_desc {};
     device_desc.label = WGPUStringView { .data = "webigeo device", .length = WGPU_STRLEN };
@@ -605,7 +602,10 @@ void TerrainRenderer::webgpu_create_context()
         .userdata1 = nullptr,
         .userdata2 = nullptr,
     };
+
+#ifndef __EMSCRIPTEN__
     device_desc.nextInChain = &dawnToggles.chain;
+#endif
 
     m_device = webgpu::requestDeviceSync(m_instance, m_adapter, device_desc);
     if (!m_device) {

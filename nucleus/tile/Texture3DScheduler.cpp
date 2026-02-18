@@ -19,7 +19,7 @@
 #include "Texture3DScheduler.h"
 #include "conversion.h"
 #include <QDebug>
-#include <extern/libktx/include/ktx.h>
+#include <extern/libktx/lib/include/ktx.h>
 
 
 namespace nucleus::tile {
@@ -54,9 +54,9 @@ void Texture3DScheduler::transform_and_emit(const std::vector<tile::DataQuad>& n
             ktxTexture_CreateFromMemory(reinterpret_cast<const ktx_uint8_t*>(tile.data.get()->data()), tile.data->size(), KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &ktx);
 
             texture->reserve(ktx->numLevels);
-            ktxTexture_IterateLevelFaces(ktx, [](int miplevel, int face, int width, int height, int depth, ktx_uint64_t faceLodSize, void *pixels, void *userdata) {
+            ktxTexture_IterateLevelFaces(ktx, [](int /*miplevel*/, int /*face*/, int width, int height, int depth, ktx_uint64_t faceLodSize, void *pixels, void *userdata) {
                 auto* result = static_cast<std::vector<nucleus::utils::ColourTexture3D>*>(userdata);
-                std::span byte_span{static_cast<uint8_t*>(pixels), faceLodSize};
+                std::span byte_span{static_cast<uint8_t*>(pixels), static_cast<size_t>(faceLodSize)};
                 result->emplace_back(byte_span, width, height, depth, nucleus::utils::ColourTexture3D::Format::BC4_UNORM);
                 return KTX_SUCCESS;
             }, texture.get());
