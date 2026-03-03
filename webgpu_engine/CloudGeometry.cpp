@@ -41,7 +41,7 @@ void CloudGeometry::init(WGPUDevice device)
     cloud_texture_desc.label = WGPUStringView { .data = "cloud texture", .length = WGPU_STRLEN };
     cloud_texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_3D;
     cloud_texture_desc.size = { TILE_RESOLUTION_XY * ATLAS_SCALE_XY, TILE_RESOLUTION_XY * ATLAS_SCALE_XY, TILE_RESOLUTION_Z * ATLAS_SCALE_Z };
-    constexpr int SMALLEST_MIP_DIM = 4; // 4x4x4 is the smallest mip size
+    constexpr int SMALLEST_MIP_DIM = 4; // 4x4x2 is the smallest mip size
     cloud_texture_desc.mipLevelCount = static_cast<uint32_t>(std::ceil(std::log2(TILE_RESOLUTION_XY)) - std::log2(SMALLEST_MIP_DIM) + 1);
     cloud_texture_desc.sampleCount = 1;
     cloud_texture_desc.format = WGPUTextureFormat::WGPUTextureFormat_BC4RUnorm;
@@ -298,6 +298,8 @@ void CloudGeometry::draw(const WGPUCommandEncoder& command_encoder, const WGPUBi
         m_render_shader_params_ubo->data.albedo = shader_params.albedo;
         m_render_shader_params_ubo->data.sun_light_scale = shader_params.sun_light_scale;
         m_render_shader_params_ubo->data.ambient_light_scale = shader_params.ambient_light_scale;
+        m_render_shader_params_ubo->data.atm_light_scale = shader_params.atmospheric_light_scale;
+        m_render_shader_params_ubo->data.shadow_extinction_scale = shader_params.shadow_extinction_scale;
         m_render_shader_params_ubo->data.fade_factor = shader_params.fade_factor;
         m_render_shader_params_ubo->update_gpu_data(m_queue);
 

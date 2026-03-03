@@ -32,7 +32,11 @@ struct shader_params {
 
     sun_light_scale: f32,
     ambient_light_scale: f32,
+    atm_light_scale: f32,
+    shadow_extinction_scale: f32,
+
     jitter: vec2f,
+    padding: vec2f,
 }
 
 struct ray_accumulator {
@@ -219,7 +223,7 @@ fn sample_light_energy(pos: vec3f, sun_dir: vec3f, extinction_coeff: f32, base_l
     var step_size = 0.5 * max_ray_length / f32(MAX_LIGHT_STEPS);
 
     var optical_depth = 0.0;
-    var t = start_t;
+    var t = start_t + step_size;
 
     // March towards sun with decreasing LOD per Nubis approach
     // The decreasing LOD smooths out artifacts from sparse sampling
@@ -239,7 +243,7 @@ fn sample_light_energy(pos: vec3f, sun_dir: vec3f, extinction_coeff: f32, base_l
         let density = sample_volume(sample_pos, lod, tile_id, tile, atlas_sampler_l);
 
         // Accumulate optical depth
-        optical_depth += density * step_size * extinction_coeff;
+        optical_depth += density * step_size * extinction_coeff * params.shadow_extinction_scale;
 
         // Early exit for deep shadows
         if (optical_depth > 10.0) {
@@ -335,7 +339,7 @@ fn calculate_point_radiance(
 
         // This is light scattered by atmosphere that can illuminate the cloud
         // NOT direct atmospheric scattering toward camera
-        atm_ambient_light = sun_radiance * atm_inscatter_density * atm_scattering;
+        atm_ambient_light = sun_radiance * atm_inscatter_density * atm_scattering * params.atm_light_scale;
     }
 
     // Total incoming light at cloud particle (sun + ambient + atmospheric ambient)

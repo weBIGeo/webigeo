@@ -69,6 +69,8 @@ public:
         float albedo = 0.99f;
         float sun_light_scale = 800.0;
         float ambient_light_scale = 1.0;
+        float atmospheric_light_scale = 0.5;
+        float shadow_extinction_scale = 2.0;
         float fade_factor = 1.0;
     };
 
@@ -135,7 +137,11 @@ private:
 
         float sun_light_scale;
         float ambient_light_scale;
+        float atm_light_scale;
+        float shadow_extinction_scale;
+
         glm::vec2 jitter;
+        glm::vec2 padding = {};
     };
 
     struct alignas(16) ShaderParamsUpscale {

@@ -442,6 +442,8 @@ void GuiManager::draw()
             ImGui::Indent();
             ImGui::DragFloat("Sun Light Scale", &shader_params.sun_light_scale, 1.0, 0.0, 10000.0);
             ImGui::DragFloat("Ambient Light Scale", &shader_params.ambient_light_scale, 0.01, 0.0, 10000.0);
+            ImGui::DragFloat("Atmospheric Light Scale", &shader_params.atmospheric_light_scale, 0.01, 0.0, 10000.0);
+            ImGui::DragFloat("Shadow Extinction Scale", &shader_params.shadow_extinction_scale, 0.01, 0.0, 10000.0);
             ImGui::Unindent();
             ImGui::Text("Visibility");
             ImGui::Indent();
