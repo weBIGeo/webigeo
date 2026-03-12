@@ -29,6 +29,7 @@
 #include "compute/nodes/SelectTilesNode.h"
 #include "compute/nodes/TileExportNode.h"
 #include "compute/nodes/util.h"
+#include "glm/gtc/type_ptr.hpp"
 #include "nucleus/tile/drawing.h"
 #include "nucleus/track/GPX.h"
 #include "nucleus/utils/image_loader.h"
@@ -277,8 +278,6 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
 void Window::paint_gui()
 {
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-
-    ImGui::Text("%.2f, %.2f, %.2f", m_camera.position().x, m_camera.position().y, m_camera.position().z);
 
     if (ImGui::Combo("Normal Mode", (int*)&m_shared_config_ubo->data.m_normal_mode, "None\0Flat\0Smooth\0\0")) {
         m_needs_redraw = true;

@@ -35,6 +35,7 @@
 #include <QFile>
 #include <nucleus/camera/PositionStorage.h>
 #include <nucleus/tile/Scheduler.h>
+#include <glm/gtc/type_ptr.hpp>
 
 namespace webgpu_app {
 
@@ -305,6 +306,22 @@ void GuiManager::draw()
             }
             ImGui::EndCombo();
         }
+
+        {
+            auto& camera = m_terrain_renderer->get_camera_controller()->definition();
+            auto pos = camera.position();
+            ImGui::Text("Position: %.2f, %.2f, %.2f", pos.x, pos.y, pos.z);
+            glm::vec3 coords = nucleus::srs::world_to_lat_long_alt(pos);
+            if (ImGui::InputFloat3("Coords", glm::value_ptr(coords), "%.6f")) {
+                const auto new_coords = nucleus::srs::lat_long_alt_to_world(coords);
+                nucleus::camera::Definition new_def = { { new_coords.x - 300, new_coords.y - 400, new_coords.z + 100 }, { new_coords.x, new_coords.y, new_coords.z - 100 } };
+                m_terrain_renderer->get_camera_controller()->set_model_matrix(new_def);
+            }
+            float fov = camera.field_of_view();
+            if (ImGui::SliderFloat("FoV", &fov, 1.0, 179.0)) {
+                m_terrain_renderer->get_camera_controller()->set_field_of_view(fov);
+            }
+        }
     }
 
     if (ImGui::CollapsingHeader(ICON_FA_COG "  App Settings")) {
@@ -444,6 +461,7 @@ void GuiManager::draw()
             ImGui::DragFloat("Ambient Light Scale", &shader_params.ambient_light_scale, 0.01, 0.0, 10000.0);
             ImGui::DragFloat("Atmospheric Light Scale", &shader_params.atmospheric_light_scale, 0.01, 0.0, 10000.0);
             ImGui::DragFloat("Shadow Extinction Scale", &shader_params.shadow_extinction_scale, 0.01, 0.0, 10000.0);
+            ImGui::SliderFloat("Powder Effect Scale", &shader_params.powder_scale, 0, 1);
             ImGui::Unindent();
             ImGui::Text("Visibility");
             ImGui::Indent();

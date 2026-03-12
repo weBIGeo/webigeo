@@ -69,7 +69,7 @@ void CloudGeometry::init(WGPUDevice device)
     m_tile_coords_offset = nucleus::srs::world_xy_to_tile_id(world_bounds_min, ZOOM_MAX).coords;
     glm::dvec2 world_bounds_min_aligned = nucleus::srs::tile_id_to_world_xy(m_tile_coords_offset, ZOOM_MAX);
     glm::dvec2 world_bounds_max_aligned = nucleus::srs::tile_id_to_world_xy(m_tile_coords_offset + TILE_COUNTS, ZOOM_MAX);
-    float world_bounds_max_z = 22500.0f / std::cos(glm::radians(BOUNDS_MAX.x));
+    float world_bounds_max_z = MAX_ALTITUDE / std::cos(glm::radians(BOUNDS_MAX.x));
 
     m_render_shader_params_ubo = std::make_unique<Buffer<ShaderParamsRender>>(m_device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
     m_render_shader_params_ubo->data.bounds_min = glm::vec4(world_bounds_min_aligned, 0.0, 0.0);
@@ -301,6 +301,7 @@ void CloudGeometry::draw(const WGPUCommandEncoder& command_encoder, const WGPUBi
         m_render_shader_params_ubo->data.atm_light_scale = shader_params.atmospheric_light_scale;
         m_render_shader_params_ubo->data.shadow_extinction_scale = shader_params.shadow_extinction_scale;
         m_render_shader_params_ubo->data.fade_factor = shader_params.fade_factor;
+        m_render_shader_params_ubo->data.powder_scale = shader_params.powder_scale;
         m_render_shader_params_ubo->update_gpu_data(m_queue);
 
         m_cloud_tile_info_buffer->write(m_queue, m_tile_infos.data(), m_tile_infos.size());
@@ -352,6 +353,11 @@ void CloudGeometry::update_gpu_tiles_cloud(const std::vector<nucleus::tile::Id>&
         // test for validity
         assert(tile.id.zoom_level < 100);
         assert(tile.texture);
+
+        // Atlas is full
+        if (m_loaded_cloud_textures.n_occupied() >= m_loaded_cloud_textures.size()) {
+            break;
+        }
 
         // find empty spot and upload texture
         const auto layer_index = m_loaded_cloud_textures.add_tile(tile.id);

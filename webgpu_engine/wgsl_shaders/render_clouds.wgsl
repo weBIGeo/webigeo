@@ -36,7 +36,8 @@ struct shader_params {
     shadow_extinction_scale: f32,
 
     jitter: vec2f,
-    padding: vec2f,
+    powder_scale: f32,
+    padding: f32,
 }
 
 struct ray_accumulator {
@@ -77,7 +78,7 @@ override tile_coords_offset_x = 538;
 override tile_coords_offset_y = 660;
 
 override atlas_bits_xy = 2u;
-override atlas_bits_z = 4u;
+override atlas_bits_z = 5u;
 
 #define ATLAS_MASK_XY u32((1<<atlas_bits_xy)-1)
 #define ATLAS_MASK_Z u32((1<<atlas_bits_z)-1)
@@ -86,12 +87,12 @@ override atlas_bits_z = 4u;
 // Texture dimensions
 const TILE_RESOLUTION_XY = 256.0;
 const INV_TILE_RESOLUTION_XY = 1.0 / TILE_RESOLUTION_XY;
-const TILE_RESOLUTION_Z = 128.0;
+const TILE_RESOLUTION_Z = 64.0;
 const INV_TILE_RESOLUTION_Z = 1.0 / TILE_RESOLUTION_Z;
-// Note: Using a constant 22000 here is correct
-const HEIGHT_PER_TEXEL = 22500.0 / TILE_RESOLUTION_Z;
+// Note: Using a non-cos-corrected constant here is correct
+const HEIGHT_PER_TEXEL = 14000.0 / TILE_RESOLUTION_Z;
 const INV_HEIGHT_PER_TEXEL = 1.0 / HEIGHT_PER_TEXEL;
-const TEXTURE_VALUE_SCALE = 64.0; // Has to match generation script
+const TEXTURE_VALUE_SCALE = 32.0; // Has to match generation script
 
 // Ray marching parameters
 const MAX_STEPS = 128;
@@ -209,7 +210,7 @@ fn cloud_phase_function(cos_angle: f32) -> f32 {
 
 // Calculate how much light reaches a point from the sun (light transmittance)
 // Uses cone-based sampling with decreasing LOD as per Nubis/Guerrilla Games approach
-fn sample_light_energy(pos: vec3f, sun_dir: vec3f, extinction_coeff: f32, base_lod: f32, start_t: f32) -> f32 {
+fn sample_light_energy(pos: vec3f, sun_dir: vec3f, extinction_coeff: f32, base_lod: f32, start_t: f32, cos_angle: f32) -> f32 {
     if (sun_dir.z <= 0.0) {
         return 0.0;
     }
@@ -220,10 +221,13 @@ fn sample_light_energy(pos: vec3f, sun_dir: vec3f, extinction_coeff: f32, base_l
 
     // Calculate maximum ray length to volume boundary
     let max_ray_length = min((params.bounds_max.z - pos.z) / sun_dir.z, 10000.0);
-    var step_size = 0.5 * max_ray_length / f32(MAX_LIGHT_STEPS);
+    // Initial step size derived from geometric series sum to exactly span max_ray_length
+    const GROWTH_FACTOR = 1.5;
+    const STEP_SIZE_CONSTANT = (GROWTH_FACTOR - 1.0) / (pow(GROWTH_FACTOR, f32(MAX_LIGHT_STEPS)) - 1.0);
+    var step_size = max_ray_length * STEP_SIZE_CONSTANT;
 
     var optical_depth = 0.0;
-    var t = start_t + step_size;
+    var t = (start_t + step_size) * 0.5;
 
     // March towards sun with decreasing LOD per Nubis approach
     // The decreasing LOD smooths out artifacts from sparse sampling
@@ -236,7 +240,7 @@ fn sample_light_energy(pos: vec3f, sun_dir: vec3f, extinction_coeff: f32, base_l
 
         // Calculate base LOD, then add increasing bias per step
         // This decreasing detail level smooths transitions between samples
-        let lod_bias = max(f32(i) * 0.5, 0.0);  // Increase LOD by 0.5 per step
+        let lod_bias = max(f32(i) * 0.5 - 0.5, 0.0);  // Increase LOD by 0.5 per step
         let lod = base_lod + lod_bias;
 
         // Sample density with calculated LOD
@@ -246,22 +250,26 @@ fn sample_light_energy(pos: vec3f, sun_dir: vec3f, extinction_coeff: f32, base_l
         optical_depth += density * step_size * extinction_coeff * params.shadow_extinction_scale;
 
         // Early exit for deep shadows
-        if (optical_depth > 10.0) {
+        if (optical_depth > 20.0) {
             return 0.0;
         }
 
         t += step_size;
-        step_size *= 1.5;
+        step_size *= GROWTH_FACTOR;
     }
 
-    // Beer's law for transmittance
-    let transmittance = exp(-optical_depth);
+    let beer = exp(-optical_depth);
+    let powder = 1.0 - exp(-optical_depth * 2.0);
+    let powder_weight = smoothstep(0.5, -0.5, cos_angle) * params.powder_scale;
+    let primary = mix(beer, beer * powder * 2.0, powder_weight);
 
-    // Multi-scattering approximation for energy conservation
-    // Even in shadow, some light gets through via multiple scattering events
-    let multi_scatter = 0.3 * exp(-optical_depth * 0.25);
+    // Secondary/MS: softer attenuation curve, but directional,
+    // suppress when looking toward sun, matching Horizon's approach
+    let secondary = exp(-optical_depth * 0.25) * 0.7;
+    let secondary_directional = secondary * smoothstep(-0.5, 0.7, cos_angle);
 
-    return transmittance + multi_scatter;
+    // secondary can only brighten relative to primary, never push total above 1
+    return max(primary, secondary_directional);
 }
 
 // Dynamic step size based on distance
@@ -301,49 +309,44 @@ fn get_ray_offset(pixel: vec2u, frame: u32) -> f32 {
 
 fn calculate_point_radiance(
     pos: vec3f,
-    density: f32,
+    beta: f32,
     sun_dir: vec3f,
     lod: f32,
     step_size: f32,
     jitter: f32,
-    cloud_phase: f32
+    cloud_phase: f32,
+    cos_angle: f32
 ) -> vec3f {
-    // Cloud optical properties
-    let cloud_extinction = density * params.extinction_coeff;
+    let cloud_extinction = beta * params.extinction_coeff;
     let cloud_scattering = cloud_extinction * params.albedo;
 
-    // Sunlight transmittance through clouds
-    let cloud_sun_transmittance = sample_light_energy(pos, sun_dir, params.extinction_coeff, lod, step_size*0.5);
+    let cloud_sun_transmittance = sample_light_energy(pos, sun_dir, params.extinction_coeff, lod, step_size, cos_angle);
 
-    // Cloud direct sun in-scattering
     let sun_radiance = sconf.sun_light.rgb * sconf.sun_light.a * params.sun_light_scale;
     let cloud_sun_inscatter = sun_radiance * cloud_sun_transmittance * cloud_phase;
 
-    // Cloud ambient in-scattering
-    let height_factor = pos.z / params.bounds_max.z;
-    let density_factor = 1.0 - saturate(density * 2.0);
-    let ambient_boost = mix(0.5, 1.5, density_factor);
-    let ambient_occlusion = mix(0.4, 1.0, height_factor) * ambient_boost;
-    let ambient_radiance = sconf.amb_light.rgb * sconf.amb_light.a * params.ambient_light_scale;
-    let cloud_ambient_inscatter = ambient_radiance * ambient_occlusion;
+    // --- Ambient ---
+    // Ambient: only modulate by height, since we have no way to estimate
+    // depth-into-cloud from density alone. Cloud tops receive more sky light.
+    let height_factor = saturate(pos.z / params.bounds_max.z);
+    let ambient_occlusion = mix(0.3, 1.0, height_factor);
 
-    // Atmospheric light (acts as additional ambient source for clouds)
-    var atm_ambient_light = vec3f(0.0);
+    let ambient_radiance = sconf.amb_light.rgb * sconf.amb_light.a * params.ambient_light_scale;
+    var ambient_color = ambient_radiance;
     if (bool(sconf.atmosphere_enabled)) {
         let pos_km = pos / 1000.0;
-
         let air_density = density_at_height(pos_km.z);
         let rayleigh_coeff = scattering_coefficients();
         let atm_scattering = air_density * rayleigh_coeff;
         let atm_inscatter_density = atmospheric_inscatter_at_point(pos_km, sun_dir);
-
-        // This is light scattered by atmosphere that can illuminate the cloud
-        // NOT direct atmospheric scattering toward camera
-        atm_ambient_light = sun_radiance * atm_inscatter_density * atm_scattering * params.atm_light_scale;
+        let atm_tint = sun_radiance * atm_inscatter_density * atm_scattering * params.atm_light_scale;
+        // Lerp toward tint rather than adding — controls saturation
+        ambient_color = mix(ambient_radiance, atm_tint, 0.2);
     }
 
-    // Total incoming light at cloud particle (sun + ambient + atmospheric ambient)
-    let cloud_total_inscatter = cloud_sun_inscatter + cloud_ambient_inscatter + atm_ambient_light;
+    let cloud_ambient_inscatter = ambient_color * ambient_occlusion;
+
+    let cloud_total_inscatter = cloud_sun_inscatter + cloud_ambient_inscatter;
     return cloud_total_inscatter * cloud_scattering * step_size;
 }
 
@@ -397,6 +400,7 @@ fn step_fine(
     t_far: f32,
     fade_params: vec2f, // x: near, y: far
     cloud_phase: f32,
+    cos_angle: f32,
     ray_jitter: f32,
     acc: ptr<function, ray_accumulator>
 )  {
@@ -413,14 +417,14 @@ fn step_fine(
       let fade_t = saturate((dist_cylinder - fade_params.x) / (fade_params.y - fade_params.x));
       let fade = fade_t * fade_t * fade_t;
 
-      let base_density = sample_volume(pos, lod, tile_id, tile, atlas_sampler_l);
-      let density = base_density * fade;
+      let base_beta = sample_volume(pos, lod, tile_id, tile, atlas_sampler_l);
+      let beta = base_beta * fade;
 
-      if (density > 0.0) {
+      if (beta > 0.0) {
           (*acc).consecutive_empty_steps = 0;
 
           let radiance_contribution = calculate_point_radiance(
-              pos, density, sun_dir, lod, fine_step_size, ray_jitter, cloud_phase
+              pos, beta, sun_dir, lod, fine_step_size, ray_jitter, cloud_phase, cos_angle
           );
 
           // Accumulate Light
@@ -431,7 +435,7 @@ fn step_fine(
           (*acc).depth_weight += (*acc).transmittance;
 
           // Apply Extinction
-          let extinction = density * params.extinction_coeff * fine_step_size;
+          let extinction = beta * params.extinction_coeff * fine_step_size;
           (*acc).transmittance *= exp(-extinction);
       } else {
           (*acc).consecutive_empty_steps++;
@@ -515,7 +519,7 @@ fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
              step_fine(
                 origin, ray_direction, sun_dir,
                 fine_step_size, t_far, vec2f(fade_near, fade_far),
-                cloud_phase, ray_jitter, &acc
+                cloud_phase, cos_angle, ray_jitter, &acc
             );
         }
 

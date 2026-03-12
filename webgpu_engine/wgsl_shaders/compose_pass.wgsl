@@ -50,7 +50,7 @@
 @group(2) @binding(15) var depth_texture: texture_2d<f32>;
 
 const CLOUD_SHADOW_AABB_MIN = vec3f(1045658.54694121, 5811660.13457852, 0.0);
-const CLOUD_SHADOW_AABB_MAX = vec3f(1937220.04485951, 6309418.06277159, 22500.0);
+const CLOUD_SHADOW_AABB_MAX = vec3f(1937220.04485951, 6309418.06277159, 14000.0);
 
 struct ImageOverlaySettings {
     aabb_min: vec2f,
@@ -242,7 +242,7 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
     }
 
     var cloud_shadow = 0.0;
-    {
+    if (bool(conf.clouds_enabled)) {
         // must be called from uniform control flow :(
         let cloud_shadow_raw = get_cloud_shadow_occlusion(pos_ws);
 

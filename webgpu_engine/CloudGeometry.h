@@ -24,7 +24,6 @@
 
 #include "Buffer.h"
 #include "PipelineManager.h"
-#include "webgpu_engine/compute/GpuTileId.h"
 #include <QObject>
 #include <mutex>
 #include <nucleus/tile/GpuArrayHelper.h>
@@ -50,27 +49,29 @@ public:
     static constexpr glm::uvec2 TILE_COUNTS = {24, 14};
     static constexpr uint32_t TILE_COUNT_TOTAL = TILE_COUNTS.x * TILE_COUNTS.y;
     static constexpr uint32_t TILE_RESOLUTION_XY = 256;
-    static constexpr uint32_t TILE_RESOLUTION_Z = 128;
+    static constexpr uint32_t TILE_RESOLUTION_Z = 64;
+    static constexpr float MAX_ALTITUDE = 14000.0;
     static constexpr uint32_t ATLAS_BITS_XY = 2;
     static constexpr uint32_t ATLAS_SCALE_XY = 1 << ATLAS_BITS_XY;
     static constexpr uint32_t ATLAS_MASK_XY = ATLAS_SCALE_XY - 1;
-    static constexpr uint32_t ATLAS_BITS_Z = 4;
+    static constexpr uint32_t ATLAS_BITS_Z = 5;
     static constexpr uint32_t ATLAS_SCALE_Z = 1 << ATLAS_BITS_Z;
     static constexpr uint32_t ATLAS_MASK_Z = ATLAS_SCALE_Z - 1;
     static constexpr uint32_t LOADED_TILE_LIMIT = ATLAS_SCALE_XY * ATLAS_SCALE_XY * ATLAS_SCALE_Z;
 
     // Public shader parameters
     struct ShaderParameters {
-        float step_size_min = 150.0f;
-        float step_size_distance_factor = 1.0f / 500.0f;
-        float step_size_horizon_factor = 1200.0f;
+        float step_size_min = 100.0f;
+        float step_size_distance_factor = 1.0f / 50.0f;
+        float step_size_horizon_factor = 400.0f;
         float scattering_coeff = 0.7f;
         float extinction_coeff = 1.0f;
         float albedo = 0.99f;
         float sun_light_scale = 800.0;
         float ambient_light_scale = 1.0;
-        float atmospheric_light_scale = 0.5;
-        float shadow_extinction_scale = 2.0;
+        float atmospheric_light_scale = 1.0;
+        float shadow_extinction_scale = 0.5;
+        float powder_scale = 0.9;
         float fade_factor = 1.0;
     };
 
@@ -141,7 +142,8 @@ private:
         float shadow_extinction_scale;
 
         glm::vec2 jitter;
-        glm::vec2 padding = {};
+        float powder_scale;
+        float _padding0;
     };
 
     struct alignas(16) ShaderParamsUpscale {
