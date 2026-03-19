@@ -137,7 +137,8 @@ fn get_tile_info(tile_id: vec2i) -> tile_info {
 }
 
 fn sample_volume(pos_world: vec3f, lod: f32, tile_id: vec2i, tile: tile_info, atlas_sampler: sampler) -> f32 {
-    if (pos_world.z < 0.0 || pos_world.z > params.bounds_max.z || tile.zoom == 0u) {
+    let height_adjusted = pos_world.z * cos(y_to_lat(pos_world.y));
+    if (height_adjusted < 0.0 || height_adjusted > 14000.0 || tile.zoom == 0u) {
         return 0.0;
     }
 
@@ -154,7 +155,6 @@ fn sample_volume(pos_world: vec3f, lod: f32, tile_id: vec2i, tile: tile_info, at
     );
 
     // This projects into texture space height which is 0-14000.
-    let height_adjusted = pos_world.z * cos(y_to_lat(pos_world.y));
     let height_normalized = height_adjusted * INV_HEIGHT_PER_TEXEL * INV_TILE_RESOLUTION_Z;
 
     let mip_scale = exp2(lod);
@@ -277,9 +277,8 @@ fn get_step_size(distance: f32, ray_direction: vec3f, ray_length: f32) -> f32 {
     let horizon = 1.0 - abs(ray_direction.z); // 1.0 at horizontal, 0.0 at vertical
     let horizon_bonus = horizon * horizon * params.step_size_horizon_factor;
     let distance_based = max(distance * params.step_size_distance_factor, params.step_size_min);
-    let length_based = ray_length / 64.0;
-    return min(distance_based, length_based) + horizon_bonus;
-
+    let length_based = ray_length / 32.0;
+    return min(distance_based + horizon_bonus, length_based);
 }
 
 // Convert world position to NDC depth for storage

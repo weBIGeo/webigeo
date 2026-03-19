@@ -155,10 +155,10 @@ fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
     var scattered_squared_sum = vec3f(0.0);
     var trans_sum = 0.0;
     var trans_squared_sum = 0.0;
-    var sample_count = 0.0;
+    var weight_sum = 0.0;
 
-    for (var dy = -2; dy <= 2; dy++) {
-        for (var dx = -2; dx <= 2; dx++) {
+    for (var dy = -1; dy <= 1; dy++) {
+        for (var dx = -1; dx <= 1; dx++) {
             let offset = vec2f(f32(dx), f32(dy)) * params.low_res_texel_size;
             let neighbor_uv = jittered_uv + offset;
             let neighbor = textureSampleLevel(current_color, linear_sampler, neighbor_uv, 0.0);
@@ -166,52 +166,54 @@ fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
             let opacity = max(1.0 - neighbor.a, 0.001);
             let neighbor_scattered = neighbor.rgb / opacity;
 
-            scattered_sum += neighbor_scattered;
-            scattered_squared_sum += neighbor_scattered * neighbor_scattered;
-            trans_sum += neighbor.a;
-            trans_squared_sum += neighbor.a * neighbor.a;
-            sample_count += 1.0;
+            // Gaussian weight (center = 1.0, edges = ~0.6, corners = ~0.36)
+            let w = exp(-f32(dx * dx + dy * dy) * 0.5);
+
+            scattered_sum += neighbor_scattered * w;
+            scattered_squared_sum += neighbor_scattered * neighbor_scattered * w;
+            trans_sum += neighbor.a * w;
+            trans_squared_sum += neighbor.a * neighbor.a * w;
+            weight_sum += w;
         }
     }
 
-    let scattered_mean = scattered_sum / sample_count;
-    let scattered_variance = max((scattered_squared_sum / sample_count) - (scattered_mean * scattered_mean), vec3f(0.0));
+    let scattered_mean = scattered_sum / weight_sum;
+    let scattered_variance = max((scattered_squared_sum / weight_sum) - (scattered_mean * scattered_mean), vec3f(0.0));
     let scattered_stddev = sqrt(scattered_variance);
 
-    let trans_mean = trans_sum / sample_count;
-    let trans_variance = max((trans_squared_sum / sample_count) - (trans_mean * trans_mean), 0.0);
+    let trans_mean = trans_sum / weight_sum;
+    let trans_variance = max((trans_squared_sum / weight_sum) - (trans_mean * trans_mean), 0.0);
     let trans_stddev = sqrt(trans_variance);
 
-    // AABB for variance clipping (1.5 sigma)
-    let scattered_aabb_min = scattered_mean - 1.5 * scattered_stddev;
-    let scattered_aabb_max = scattered_mean + 1.5 * scattered_stddev;
-    let trans_aabb_min = trans_mean - 1.5 * trans_stddev;
-    let trans_aabb_max = trans_mean + 1.5 * trans_stddev;
+    // AABB for variance clipping (1.0 sigma)
+    let gamma = 1.0;
+    let scattered_aabb_min = scattered_mean - gamma * scattered_stddev;
+    let scattered_aabb_max = scattered_mean + gamma * scattered_stddev;
+    let trans_aabb_min = trans_mean - gamma * trans_stddev;
+    let trans_aabb_max = trans_mean + gamma * trans_stddev;
 
     // Undo pre-multiply
     let current_opacity = max(1.0 - current_sample.a, 0.001);
     let history_opacity = max(1.0 - history_sample.a, 0.001);
     let current_scattered = current_sample.rgb / current_opacity;
     var history_scattered = history_sample.rgb / history_opacity;
+    var history_transmittance = history_sample.a;
 
-    // Clip history scattered and transmittance
-    history_scattered = clip_aabb(history_scattered, scattered_aabb_min, scattered_aabb_max);
-    var history_transmittance = clip_scalar(history_sample.a, trans_aabb_min, trans_aabb_max);
-
+    // Calculate clip penalty using unclipped history
     let scattered_diff = length(history_scattered - current_scattered);
     let scattered_stddev_length = length(scattered_stddev) + 0.001;
     let scattered_clip_factor = 1.0 - smoothstep(scattered_stddev_length * 2.5, scattered_stddev_length * 3.5, scattered_diff);
 
-    let trans_diff = length(history_transmittance - current_sample.a);
-    let trans_stddev_length = length(trans_stddev) + 0.001;
+    let trans_diff = abs(history_transmittance - current_sample.a);
+    let trans_stddev_length = trans_stddev + 0.001;
     let trans_clip_factor = 1.0 - smoothstep(trans_stddev_length * 2.5, trans_stddev_length * 3.5, trans_diff);
 
-    let camera_motion = length(params.curr_camera.position.xyz - params.prev_camera.position.xyz);
-    let motion_weight = 1.0 - smoothstep(0.0, 1.0, camera_motion);
+    // Clip the history scattered and transmittance
+    history_scattered = clip_aabb(history_scattered, scattered_aabb_min, scattered_aabb_max);
+    history_transmittance = clip_scalar(history_transmittance, trans_aabb_min, trans_aabb_max);
 
-    var history_weight = 0.98;
+    var history_weight = 0.95;
     history_weight *= max(min(trans_clip_factor, scattered_clip_factor), 0.5);
-    history_weight *= motion_weight;
 
     // Special case: completely empty history
     if (history_sample.a > 0.999 && current_sample.a < 0.95) {

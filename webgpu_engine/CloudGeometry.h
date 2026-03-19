@@ -61,9 +61,9 @@ public:
 
     // Public shader parameters
     struct ShaderParameters {
-        float step_size_min = 100.0f;
+        float step_size_min = 125.0f;
         float step_size_distance_factor = 1.0f / 50.0f;
-        float step_size_horizon_factor = 400.0f;
+        float step_size_horizon_factor = 1000.0f;
         float scattering_coeff = 0.7f;
         float extinction_coeff = 1.0f;
         float albedo = 0.99f;
