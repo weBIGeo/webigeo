@@ -103,7 +103,7 @@ qt_standard_project_setup(REQUIRES 6.7)
 alp_add_git_repository(renderer_static_data URL https://github.com/AlpineMapsOrg/renderer_static_data.git COMMITISH v23.11 DO_NOT_ADD_SUBPROJECT)
 alp_add_git_repository(alpineapp_fonts URL https://github.com/AlpineMapsOrg/fonts.git COMMITISH v24.02 DO_NOT_ADD_SUBPROJECT)
 alp_add_git_repository(doc URL https://github.com/AlpineMapsOrg/documentation.git COMMITISH origin/main DO_NOT_ADD_SUBPROJECT DESTINATION_PATH extern/doc)
-
+alp_add_git_repository(clouds_server URL https://github.com/Qendolin/webigeo-clouds-server.git COMMITISH 022fd3d413b155d2744f62976e820c9a5efe7b80 DO_NOT_ADD_SUBPROJECT DESTINATION_PATH extern/clouds_server)
 
 if (ANDROID)
     alp_add_git_repository(android_openssl URL https://github.com/KDAB/android_openssl.git COMMITISH origin/master DO_NOT_ADD_SUBPROJECT)
