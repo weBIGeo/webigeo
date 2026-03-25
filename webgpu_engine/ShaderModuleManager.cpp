@@ -47,6 +47,7 @@ void ShaderModuleManager::create_shader_modules()
 
     m_render_tiles_shader_module = create_shader_module_for_file("render_tiles.wgsl");
     m_render_atmosphere_shader_module = create_shader_module_for_file("render_atmosphere.wgsl");
+    m_render_clouds_shader_module = create_shader_module_for_file("render_clouds.wgsl");
     m_render_lines_module = create_shader_module_for_file("render_lines.wgsl");
     m_compose_pass_shader_module = create_shader_module_for_file("compose_pass.wgsl");
 
@@ -64,6 +65,7 @@ void ShaderModuleManager::create_shader_modules()
     m_mipmap_creation_compute_module = create_shader_module_for_file("compute/mipmap_creation_compute.wgsl");
     m_fxaa_compute_module = create_shader_module_for_file("compute/fxaa_compute.wgsl");
     m_iterative_simulation_compute_module = create_shader_module_for_file("compute/iterative_simulation_compute.wgsl");
+    m_upscale_clouds_shader_module = create_shader_module_for_file("upscale_clouds.wgsl");
 
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -77,6 +79,7 @@ void ShaderModuleManager::release_shader_modules()
     m_render_tiles_shader_module.release();
     m_compose_pass_shader_module.release();
     m_render_atmosphere_shader_module.release();
+    m_render_clouds_shader_module.release();
     m_render_lines_module.release();
 
     m_normals_compute_module.release();
@@ -93,11 +96,14 @@ void ShaderModuleManager::release_shader_modules()
     m_mipmap_creation_compute_module.release();
     m_fxaa_compute_module.release();
     m_iterative_simulation_compute_module.release();
+    m_upscale_clouds_shader_module.release();
 }
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::render_tiles() const { return *m_render_tiles_shader_module; }
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::render_atmosphere() const { return *m_render_atmosphere_shader_module; }
+
+const webgpu::raii::ShaderModule& ShaderModuleManager::render_clouds() const { return *m_render_clouds_shader_module; }
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::render_lines() const { return *m_render_lines_module; }
 
@@ -127,6 +133,8 @@ const webgpu::raii::ShaderModule& ShaderModuleManager::mipmap_creation_compute()
 const webgpu::raii::ShaderModule& ShaderModuleManager::fxaa_compute() const { return *m_fxaa_compute_module; }
 
 const webgpu::raii::ShaderModule& ShaderModuleManager::iterative_simulation_compute() const { return *m_iterative_simulation_compute_module; }
+
+const webgpu::raii::ShaderModule& ShaderModuleManager::upscale_clouds_compute() const { return *m_upscale_clouds_shader_module; }
 
 std::unique_ptr<webgpu::raii::ShaderModule> ShaderModuleManager::create_shader_module(WGPUDevice device, const std::string& label, const std::string& code)
 {

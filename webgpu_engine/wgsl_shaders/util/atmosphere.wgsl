@@ -48,6 +48,22 @@ fn an_optical_depth(origin_height: f32, h_delta: f32, distance: f32) -> f32 {
 //    return (1.0 / (w * h_delta)) * (exp(-origin_height * w) - exp(-end_height * w));
 }
 
+fn atmospheric_inscatter_at_point(pos_km: vec3f, sun_dir: vec3f) -> vec3f {
+    let height = pos_km.z;
+
+    // Optical depth from this point to top of atmosphere (sunlight path)
+    let sun_optical_depth = an_optical_depth(height, 1.0, atmosphere_height - height);
+
+    // Sunlight transmittance through atmosphere above this point
+    let sun_transmittance = exp(-sun_optical_depth * scattering_coefficients());
+
+    // Local air density
+    let air_density = density_at_height(height);
+
+    // Scattered light (before phase function)
+    return air_density * sun_transmittance;
+}
+
 fn evaluate_atmopshperic_light(h: f32, h_delta: f32, dist_from_start: f32) -> vec3f {
     let sun_ray_optical_depth = an_optical_depth(h, 1.0, atmosphere_height - h);
     let view_ray_optical_depth = an_optical_depth(h, -h_delta, dist_from_start);
