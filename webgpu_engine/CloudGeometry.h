@@ -99,9 +99,8 @@ public:
         return m_clouds_hi_color_texture_view_a.get();
     }
 
-    [[nodiscard]] webgpu::raii::TextureView* result_depth_view(int frame) const {
-        if (frame % 2 == 0) return m_clouds_hi_depth_texture_view_b.get();
-        return m_clouds_hi_depth_texture_view_a.get();
+    [[nodiscard]] webgpu::raii::TextureView* result_depth_view() const {
+        return m_clouds_lo_depth_texture_view.get();
     }
 
 signals:
@@ -190,12 +189,8 @@ private:
     std::unique_ptr<webgpu::raii::TextureView> m_clouds_lo_depth_texture_view;
     std::unique_ptr<webgpu::raii::Texture> m_clouds_hi_color_texture_a;
     std::unique_ptr<webgpu::raii::TextureView> m_clouds_hi_color_texture_view_a;
-    std::unique_ptr<webgpu::raii::Texture> m_clouds_hi_depth_texture_a;
-    std::unique_ptr<webgpu::raii::TextureView> m_clouds_hi_depth_texture_view_a;
     std::unique_ptr<webgpu::raii::Texture> m_clouds_hi_color_texture_b;
     std::unique_ptr<webgpu::raii::TextureView> m_clouds_hi_color_texture_view_b;
-    std::unique_ptr<webgpu::raii::Texture> m_clouds_hi_depth_texture_b;
-    std::unique_ptr<webgpu::raii::TextureView> m_clouds_hi_depth_texture_view_b;
     std::unique_ptr<webgpu::raii::Sampler> m_linear_sampler;
 
     std::unique_ptr<webgpu::raii::BindGroup> m_render_clouds_bind_group;

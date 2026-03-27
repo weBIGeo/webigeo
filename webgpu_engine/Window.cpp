@@ -1966,7 +1966,7 @@ void Window::recreate_compose_bind_group()
                 compute_overlay_texture_entry, // compute overlay texture (in uv space)
                 compute_overlay_sampler_entry, // compute overlay sampler
                 m_context->cloud_geometry()->result_color_view(i)->create_bind_group_entry(11),
-                m_context->cloud_geometry()->result_depth_view(i)->create_bind_group_entry(12),
+                m_context->cloud_geometry()->result_depth_view()->create_bind_group_entry(12),
                 m_shadow_texture->texture_view().create_bind_group_entry(13),
                 m_shadow_texture->sampler().create_bind_group_entry(14),
                 m_gbuffer->depth_texture_view().create_bind_group_entry(15),

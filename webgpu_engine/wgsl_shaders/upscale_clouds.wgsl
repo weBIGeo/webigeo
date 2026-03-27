@@ -22,9 +22,7 @@ struct accumulation_params {
 @group(0) @binding(2) var current_depth: texture_2d<f32>;
 @group(0) @binding(3) var linear_sampler: sampler;
 @group(0) @binding(4) var accumulation_color_r: texture_2d<f32>;
-@group(0) @binding(5) var accumulation_depth_r: texture_storage_2d<rg32float, read>;
-@group(0) @binding(6) var accumulation_color_w: texture_storage_2d<rgba16float, write>;
-@group(0) @binding(7) var accumulation_depth_w: texture_storage_2d<rg32float, write>;
+@group(0) @binding(5) var accumulation_color_w: texture_storage_2d<rgba16float, write>;
 
 fn world_position_from_linear_depth(uv: vec2f, linear_depth: f32, inv_proj: mat4x4f, inv_view: mat4x4f) -> vec3f {
     // Convert UV to NDC
@@ -114,7 +112,6 @@ fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
     // Early exit for background/sky
     if (current_depth <= 0.0) {
         textureStore(accumulation_color_w, high_res_coord, current_sample);
-        textureStore(accumulation_depth_w, high_res_coord/2, vec4f(current_depth, 0.0, 0.0, 0.0));
         return;
     }
 
@@ -141,14 +138,11 @@ fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
 
     if (!is_valid) {
         textureStore(accumulation_color_w, high_res_coord, current_sample);
-        textureStore(accumulation_depth_w, high_res_coord/2, vec4f(current_depth, 0.0, 0.0, 0.0));
         return;
     }
 
     // Sample history (bilinear would require regular texture, but storage is point-sampled)
     let history_sample = textureSampleLevel(accumulation_color_r, linear_sampler, prev_uv, 0.0);
-//    let prev_depth_coord = vec2i(prev_uv * vec2f(textureDimensions(accumulation_depth_r)));
-//    let history_depth = textureLoad(accumulation_depth_r, prev_depth_coord).rg;
 
     // Variance clipping - sample 3x3 neighborhood for scattered and transmittance
     var scattered_sum = vec3f(0.0);
@@ -232,10 +226,6 @@ fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
 
     let blended_color = blended_scattered * (1.0 - blended_transmittance);
 
-    // Currently not in use
-//    let updated_depth = update_depth_stats(history_depth, current_depth, 0.5);
-
     // Write output
     textureStore(accumulation_color_w, high_res_coord, vec4f(blended_color, blended_transmittance));
-    textureStore(accumulation_depth_w, high_res_coord/2, vec4f(current_depth, 0.0, 0.0, 0.0));
 }

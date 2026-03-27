@@ -640,7 +640,7 @@ void PipelineManager::create_compose_bind_group_layout()
     clouds_depth_texture_entry.binding = 12;
     clouds_depth_texture_entry.visibility = WGPUShaderStage_Fragment;
     clouds_depth_texture_entry.storageTexture.access = WGPUStorageTextureAccess_ReadOnly;
-    clouds_depth_texture_entry.storageTexture.format = WGPUTextureFormat_RG32Float;
+    clouds_depth_texture_entry.storageTexture.format = WGPUTextureFormat_R32Float;
     clouds_depth_texture_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
 
     WGPUBindGroupLayoutEntry shadow_texture_entry {};
@@ -1314,29 +1314,13 @@ void PipelineManager::create_upscale_clouds_bind_group_layout()
     accumulation_color_texture_r_entry.texture.sampleType = WGPUTextureSampleType_Float;
     accumulation_color_texture_r_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
-    // Depth buffer (high-res, D32F, read)
-    WGPUBindGroupLayoutEntry accumulation_depth_texture_r_entry {};
-    accumulation_depth_texture_r_entry.binding = 5;
-    accumulation_depth_texture_r_entry.visibility = WGPUShaderStage_Compute;
-    accumulation_depth_texture_r_entry.storageTexture.access = WGPUStorageTextureAccess_ReadOnly;
-    accumulation_depth_texture_r_entry.storageTexture.format = WGPUTextureFormat_RG32Float;
-    accumulation_depth_texture_r_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
-
     // Accumulation buffer (high-res, RGBA16Float, write)
     WGPUBindGroupLayoutEntry accumulation_color_texture_w_entry {};
-    accumulation_color_texture_w_entry.binding = 6;
+    accumulation_color_texture_w_entry.binding = 5;
     accumulation_color_texture_w_entry.visibility = WGPUShaderStage_Compute;
     accumulation_color_texture_w_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
     accumulation_color_texture_w_entry.storageTexture.format = WGPUTextureFormat_RGBA16Float;
     accumulation_color_texture_w_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
-
-    // Depth buffer (high-res, D32F, write)
-    WGPUBindGroupLayoutEntry accumulation_depth_texture_w_entry {};
-    accumulation_depth_texture_w_entry.binding = 7;
-    accumulation_depth_texture_w_entry.visibility = WGPUShaderStage_Compute;
-    accumulation_depth_texture_w_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
-    accumulation_depth_texture_w_entry.storageTexture.format = WGPUTextureFormat_RG32Float;
-    accumulation_depth_texture_w_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
 
     m_upscale_clouds_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
         std::vector<WGPUBindGroupLayoutEntry> {
@@ -1345,9 +1329,7 @@ void PipelineManager::create_upscale_clouds_bind_group_layout()
             current_frame_depth_texture_entry,
             linear_sampler_entry,
             accumulation_color_texture_r_entry,
-            accumulation_depth_texture_r_entry,
             accumulation_color_texture_w_entry,
-            accumulation_depth_texture_w_entry,
         },
         "upscale clouds bind group layout");
 }

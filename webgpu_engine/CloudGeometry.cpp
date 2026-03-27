@@ -183,17 +183,6 @@ void CloudGeometry::resize(int w, int h)
             .sampleCount = 1,
         });
     m_clouds_hi_color_texture_view_a = m_clouds_hi_color_texture_a->create_view();
-    m_clouds_hi_depth_texture_a = std::make_unique<webgpu::raii::Texture>(m_device,
-        WGPUTextureDescriptor {
-            .label = WGPUStringView { .data = "clouds_hi_depth_a", .length = WGPU_STRLEN },
-            .usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding,
-            .dimension = WGPUTextureDimension_2D,
-            .size = { .width = m_output_lo_resolution.x, .height = m_output_lo_resolution.y, .depthOrArrayLayers = 1 },
-            .format = WGPUTextureFormat_RG32Float,
-            .mipLevelCount = 1,
-            .sampleCount = 1,
-        });
-    m_clouds_hi_depth_texture_view_a = m_clouds_hi_depth_texture_a->create_view();
 
     m_clouds_hi_color_texture_b = std::make_unique<webgpu::raii::Texture>(m_device,
     WGPUTextureDescriptor {
@@ -206,17 +195,6 @@ void CloudGeometry::resize(int w, int h)
         .sampleCount = 1,
     });
     m_clouds_hi_color_texture_view_b = m_clouds_hi_color_texture_b->create_view();
-    m_clouds_hi_depth_texture_b = std::make_unique<webgpu::raii::Texture>(m_device,
-        WGPUTextureDescriptor {
-            .label = WGPUStringView { .data = "clouds_hi_depth_b", .length = WGPU_STRLEN },
-            .usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding,
-            .dimension = WGPUTextureDimension_2D,
-            .size = { .width = m_output_lo_resolution.x, .height = m_output_lo_resolution.y, .depthOrArrayLayers = 1 },
-            .format = WGPUTextureFormat_RG32Float,
-            .mipLevelCount = 1,
-            .sampleCount = 1,
-        });
-    m_clouds_hi_depth_texture_view_b = m_clouds_hi_depth_texture_b->create_view();
 
     m_render_clouds_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device,
         m_pipeline_manager->render_clouds_bind_group_layout(),
@@ -238,9 +216,7 @@ void CloudGeometry::resize(int w, int h)
             m_clouds_lo_depth_texture_view->create_bind_group_entry(2),
             m_linear_sampler->create_bind_group_entry(3),
             m_clouds_hi_color_texture_view_a->create_bind_group_entry(4),
-            m_clouds_hi_depth_texture_view_a->create_bind_group_entry(5),
-            m_clouds_hi_color_texture_view_b->create_bind_group_entry(6),
-            m_clouds_hi_depth_texture_view_b->create_bind_group_entry(7),
+            m_clouds_hi_color_texture_view_b->create_bind_group_entry(5),
         },
         "upscale clouds bind group a");
 
@@ -252,9 +228,7 @@ void CloudGeometry::resize(int w, int h)
            m_clouds_lo_depth_texture_view->create_bind_group_entry(2),
            m_linear_sampler->create_bind_group_entry(3),
            m_clouds_hi_color_texture_view_b->create_bind_group_entry(4),
-           m_clouds_hi_depth_texture_view_b->create_bind_group_entry(5),
-           m_clouds_hi_color_texture_view_a->create_bind_group_entry(6),
-           m_clouds_hi_depth_texture_view_a->create_bind_group_entry(7),
+           m_clouds_hi_color_texture_view_a->create_bind_group_entry(5),
        },
        "upscale clouds bind group b");
 }
