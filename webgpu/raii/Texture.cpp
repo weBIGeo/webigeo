@@ -2,6 +2,7 @@
  * weBIGeo
  * Copyright (C) 2024 Gerald Kimmersdorfer
  * Copyright (C) 2024 Patrick Komon
+ * Copyright (C) 2026 Wendelin Muth
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -125,8 +126,18 @@ void Texture::write(WGPUQueue queue, const nucleus::utils::ColourTexture3D& data
     image_copy_texture.origin = WGPUOrigin3D { offset.x, offset.y, offset.z };
 
     WGPUTexelCopyBufferLayout texture_data_layout {};
-    texture_data_layout.bytesPerRow = ((data.width() + 3) / 4) * 8; // for BC4 its ceil(width/4) * 8
-    texture_data_layout.rowsPerImage = (data.height() + 3) / 4; // Also different for BC4
+    switch (data.format()) {
+    case nucleus::utils::ColourTexture3D::Format::R8_UNORM:
+        texture_data_layout.bytesPerRow = data.width();
+        texture_data_layout.rowsPerImage = data.height();
+        break;
+    case nucleus::utils::ColourTexture3D::Format::BC4_UNORM:
+        texture_data_layout.bytesPerRow = ((data.width() + 3) / 4) * 8; // for BC4 its ceil(width/4) * 8
+        texture_data_layout.rowsPerImage = (data.height() + 3) / 4; // Also different for BC4
+        break;
+    default:
+        assert(false && "Texture format not Implemented");
+    }
     texture_data_layout.offset = 0;
 
     WGPUExtent3D copy_extent { data.width(), data.height(), data.depth() };

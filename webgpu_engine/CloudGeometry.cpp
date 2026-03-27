@@ -1,8 +1,6 @@
 /*****************************************************************************
  * weBIGeo
- * Copyright (C) 2023 Adam Celarek
- * Copyright (C) 2023 Gerald Kimmersdorfer
- * Copyright (C) 2024 Patrick Komon
+ * Copyright (C) 2026 Wendelin Muth
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,12 +18,13 @@
 
 #include "CloudGeometry.h"
 
+#include "CloudGeometryConstants.h"
+#include "glm/ext/matrix_relational.hpp"
 #include "nucleus/camera/Definition.h"
 #include "nucleus/srs.h"
 #include "nucleus/utils/terrain_mesh_index_generator.h"
-#include "glm/ext/matrix_relational.hpp"
 
-using webgpu_engine::CloudGeometry;
+using namespace webgpu_engine::clouds;
 namespace webgpu_engine {
 
 CloudGeometry::CloudGeometry()
@@ -65,7 +64,6 @@ void CloudGeometry::init(WGPUDevice device)
     m_cloud_linear_sampler = std::make_unique<webgpu::raii::Sampler>(m_device, cloud_sampler_desc);
 
     glm::dvec2 world_bounds_min = nucleus::srs::lat_long_to_world(BOUNDS_MIN);
-    glm::dvec2 world_bounds_max = nucleus::srs::lat_long_to_world(BOUNDS_MAX);
     m_tile_coords_offset = nucleus::srs::world_xy_to_tile_id(world_bounds_min, ZOOM_MAX).coords;
     glm::dvec2 world_bounds_min_aligned = nucleus::srs::tile_id_to_world_xy(m_tile_coords_offset, ZOOM_MAX);
     glm::dvec2 world_bounds_max_aligned = nucleus::srs::tile_id_to_world_xy(m_tile_coords_offset + TILE_COUNTS, ZOOM_MAX);
@@ -321,7 +319,9 @@ void CloudGeometry::update_gpu_tiles_cloud(const std::vector<nucleus::tile::Id>&
 {
     std::lock_guard lock(m_mutex);
     for (const auto& id : deleted_tiles) {
-        m_loaded_cloud_textures.remove_tile(id);
+        if (m_loaded_cloud_textures.contains(id)) {
+            m_loaded_cloud_textures.remove_tile(id);
+        }
     }
     for (const auto& tile : new_tiles) {
         // test for validity
@@ -351,8 +351,8 @@ void CloudGeometry::update_gpu_tiles_cloud(const std::vector<nucleus::tile::Id>&
 
         // convert to coords at max zoom level
         uint32_t d_z = ZOOM_MAX - tile.id.zoom_level;
-        int32_t x_start = (tile.id.coords.x << d_z) - m_tile_coords_offset.x;
-        int32_t y_start = (tile.id.coords.y << d_z) - m_tile_coords_offset.y;
+        int32_t x_start = static_cast<int32_t>(tile.id.coords.x << d_z) - static_cast<int32_t>(m_tile_coords_offset.x);
+        int32_t y_start = static_cast<int32_t>(tile.id.coords.y << d_z) - static_cast<int32_t>(m_tile_coords_offset.y);
         int32_t size = 1 << d_z;
 
         for (int32_t dy = 0; dy < size; dy++) {

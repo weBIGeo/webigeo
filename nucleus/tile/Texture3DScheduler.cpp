@@ -1,6 +1,7 @@
 /*****************************************************************************
  * AlpineMaps.org
  * Copyright (C) 2024 Adam Celarek
+ * Copyright (C) 2026 Wendelin Muth
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,9 +45,10 @@ void Texture3DScheduler::transform_and_emit(const std::vector<tile::DataQuad>& n
             if (tile.data->size() == 0)
                 continue;
 
+            // NOTE: This implementation is quite specific to the cloud texture loading. Not intended for general purpose use.
+
             GpuTexture3DTile gpu_tile;
             gpu_tile.id = tile.id;
-            // gpu_tile.id.coords.x += tile.id.coords.x % 2 == 0 ? 1 : -1;
             auto&& texture = std::make_shared<nucleus::utils::MipmappedColourTexture3D>();
             gpu_tile.texture = texture;
 
