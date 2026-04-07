@@ -662,7 +662,7 @@ void GuiManager::draw_about_popup()
 
         ImGui::Spacing(); ImGui::Spacing();
         ImGui::Text("Authors: "); ImGui::SameLine();
-        ImGui::TextWrapped("Patrick Komon, Gerald Kimmersdorfer, Adam Celarek, "
+        ImGui::TextWrapped("Patrick Komon, Gerald Kimmersdorfer, Adam Celarek, Wendelin Muth, "
                            "Jakob Lindner, Jakob Maier, Markus Rampp");
 
         ImGui::Spacing(); ImGui::Spacing();
