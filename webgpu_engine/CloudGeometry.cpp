@@ -1,8 +1,6 @@
 /*****************************************************************************
  * weBIGeo
- * Copyright (C) 2023 Adam Celarek
- * Copyright (C) 2023 Gerald Kimmersdorfer
- * Copyright (C) 2024 Patrick Komon
+ * Copyright (C) 2026 Wendelin Muth
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,12 +18,13 @@
 
 #include "CloudGeometry.h"
 
+#include "CloudGeometryConstants.h"
+#include "glm/ext/matrix_relational.hpp"
 #include "nucleus/camera/Definition.h"
 #include "nucleus/srs.h"
 #include "nucleus/utils/terrain_mesh_index_generator.h"
-#include "glm/ext/matrix_relational.hpp"
 
-using webgpu_engine::CloudGeometry;
+using namespace webgpu_engine::clouds;
 namespace webgpu_engine {
 
 CloudGeometry::CloudGeometry()
@@ -65,7 +64,6 @@ void CloudGeometry::init(WGPUDevice device)
     m_cloud_linear_sampler = std::make_unique<webgpu::raii::Sampler>(m_device, cloud_sampler_desc);
 
     glm::dvec2 world_bounds_min = nucleus::srs::lat_long_to_world(BOUNDS_MIN);
-    glm::dvec2 world_bounds_max = nucleus::srs::lat_long_to_world(BOUNDS_MAX);
     m_tile_coords_offset = nucleus::srs::world_xy_to_tile_id(world_bounds_min, ZOOM_MAX).coords;
     glm::dvec2 world_bounds_min_aligned = nucleus::srs::tile_id_to_world_xy(m_tile_coords_offset, ZOOM_MAX);
     glm::dvec2 world_bounds_max_aligned = nucleus::srs::tile_id_to_world_xy(m_tile_coords_offset + TILE_COUNTS, ZOOM_MAX);
@@ -183,17 +181,6 @@ void CloudGeometry::resize(int w, int h)
             .sampleCount = 1,
         });
     m_clouds_hi_color_texture_view_a = m_clouds_hi_color_texture_a->create_view();
-    m_clouds_hi_depth_texture_a = std::make_unique<webgpu::raii::Texture>(m_device,
-        WGPUTextureDescriptor {
-            .label = WGPUStringView { .data = "clouds_hi_depth_a", .length = WGPU_STRLEN },
-            .usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding,
-            .dimension = WGPUTextureDimension_2D,
-            .size = { .width = m_output_lo_resolution.x, .height = m_output_lo_resolution.y, .depthOrArrayLayers = 1 },
-            .format = WGPUTextureFormat_RG32Float,
-            .mipLevelCount = 1,
-            .sampleCount = 1,
-        });
-    m_clouds_hi_depth_texture_view_a = m_clouds_hi_depth_texture_a->create_view();
 
     m_clouds_hi_color_texture_b = std::make_unique<webgpu::raii::Texture>(m_device,
     WGPUTextureDescriptor {
@@ -206,17 +193,6 @@ void CloudGeometry::resize(int w, int h)
         .sampleCount = 1,
     });
     m_clouds_hi_color_texture_view_b = m_clouds_hi_color_texture_b->create_view();
-    m_clouds_hi_depth_texture_b = std::make_unique<webgpu::raii::Texture>(m_device,
-        WGPUTextureDescriptor {
-            .label = WGPUStringView { .data = "clouds_hi_depth_b", .length = WGPU_STRLEN },
-            .usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding,
-            .dimension = WGPUTextureDimension_2D,
-            .size = { .width = m_output_lo_resolution.x, .height = m_output_lo_resolution.y, .depthOrArrayLayers = 1 },
-            .format = WGPUTextureFormat_RG32Float,
-            .mipLevelCount = 1,
-            .sampleCount = 1,
-        });
-    m_clouds_hi_depth_texture_view_b = m_clouds_hi_depth_texture_b->create_view();
 
     m_render_clouds_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device,
         m_pipeline_manager->render_clouds_bind_group_layout(),
@@ -238,9 +214,7 @@ void CloudGeometry::resize(int w, int h)
             m_clouds_lo_depth_texture_view->create_bind_group_entry(2),
             m_linear_sampler->create_bind_group_entry(3),
             m_clouds_hi_color_texture_view_a->create_bind_group_entry(4),
-            m_clouds_hi_depth_texture_view_a->create_bind_group_entry(5),
-            m_clouds_hi_color_texture_view_b->create_bind_group_entry(6),
-            m_clouds_hi_depth_texture_view_b->create_bind_group_entry(7),
+            m_clouds_hi_color_texture_view_b->create_bind_group_entry(5),
         },
         "upscale clouds bind group a");
 
@@ -252,9 +226,7 @@ void CloudGeometry::resize(int w, int h)
            m_clouds_lo_depth_texture_view->create_bind_group_entry(2),
            m_linear_sampler->create_bind_group_entry(3),
            m_clouds_hi_color_texture_view_b->create_bind_group_entry(4),
-           m_clouds_hi_depth_texture_view_b->create_bind_group_entry(5),
-           m_clouds_hi_color_texture_view_a->create_bind_group_entry(6),
-           m_clouds_hi_depth_texture_view_a->create_bind_group_entry(7),
+           m_clouds_hi_color_texture_view_a->create_bind_group_entry(5),
        },
        "upscale clouds bind group b");
 }
@@ -347,7 +319,9 @@ void CloudGeometry::update_gpu_tiles_cloud(const std::vector<nucleus::tile::Id>&
 {
     std::lock_guard lock(m_mutex);
     for (const auto& id : deleted_tiles) {
-        m_loaded_cloud_textures.remove_tile(id);
+        if (m_loaded_cloud_textures.contains(id)) {
+            m_loaded_cloud_textures.remove_tile(id);
+        }
     }
     for (const auto& tile : new_tiles) {
         // test for validity
@@ -377,8 +351,8 @@ void CloudGeometry::update_gpu_tiles_cloud(const std::vector<nucleus::tile::Id>&
 
         // convert to coords at max zoom level
         uint32_t d_z = ZOOM_MAX - tile.id.zoom_level;
-        int32_t x_start = (tile.id.coords.x << d_z) - m_tile_coords_offset.x;
-        int32_t y_start = (tile.id.coords.y << d_z) - m_tile_coords_offset.y;
+        int32_t x_start = static_cast<int32_t>(tile.id.coords.x << d_z) - static_cast<int32_t>(m_tile_coords_offset.x);
+        int32_t y_start = static_cast<int32_t>(tile.id.coords.y << d_z) - static_cast<int32_t>(m_tile_coords_offset.y);
         int32_t size = 1 << d_z;
 
         for (int32_t dy = 0; dy < size; dy++) {

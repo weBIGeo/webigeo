@@ -2,6 +2,7 @@
  * weBIGeo
  * Copyright (C) 2024 Patrick Komon
  * Copyright (C) 2024 Gerald Kimmersdorfer
+ * Copyright (C) 2026 Wendelin Muth
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,7 +20,7 @@
 
 #include "PipelineManager.h"
 
-#include "CloudGeometry.h"
+#include "CloudGeometryConstants.h"
 #include "nucleus/srs.h"
 
 #include <webgpu/raii/BindGroupLayout.h>
@@ -272,22 +273,22 @@ void PipelineManager::create_render_atmosphere_pipeline()
 
 void PipelineManager::create_render_clouds_pipeline()
 {
-    glm::dvec2 bounds_min = nucleus::srs::lat_long_to_world(CloudGeometry::BOUNDS_MIN);
+    glm::dvec2 bounds_min = nucleus::srs::lat_long_to_world(clouds::BOUNDS_MIN);
     // Note: This is different from nucleus::srs::world_xy_to_tile_id because it doesn't apply the origin shift, resulting in signed coords.
     // This calculation matches the shader.
-    double tile_size_xy = nucleus::srs::tile_width(CloudGeometry::ZOOM_MAX);
+    double tile_size_xy = nucleus::srs::tile_width(clouds::ZOOM_MAX);
     glm::ivec2 tile_coords_offset = glm::floor(bounds_min / tile_size_xy);
 
     std::vector<WGPUConstantEntry> constants = {
         WGPUConstantEntry { .key = { .data = "tile_size_xy", .length = WGPU_STRLEN }, .value = tile_size_xy },
         WGPUConstantEntry { .key = { .data = "inv_tile_size_xy", .length = WGPU_STRLEN }, .value = 1.0 / tile_size_xy },
-        WGPUConstantEntry { .key = { .data = "tile_count_x", .length = WGPU_STRLEN }, .value = CloudGeometry::TILE_COUNTS.x },
-        WGPUConstantEntry { .key = { .data = "tile_count_y", .length = WGPU_STRLEN }, .value = CloudGeometry::TILE_COUNTS.y },
-        WGPUConstantEntry { .key = { .data = "zoom_max", .length = WGPU_STRLEN }, .value = CloudGeometry::ZOOM_MAX },
+        WGPUConstantEntry { .key = { .data = "tile_count_x", .length = WGPU_STRLEN }, .value = clouds::TILE_COUNTS.x },
+        WGPUConstantEntry { .key = { .data = "tile_count_y", .length = WGPU_STRLEN }, .value = clouds::TILE_COUNTS.y },
+        WGPUConstantEntry { .key = { .data = "zoom_max", .length = WGPU_STRLEN }, .value = clouds::ZOOM_MAX },
         WGPUConstantEntry { .key = { .data = "tile_coords_offset_x", .length = WGPU_STRLEN }, .value = static_cast<double>(tile_coords_offset.x) },
         WGPUConstantEntry { .key = { .data = "tile_coords_offset_y", .length = WGPU_STRLEN }, .value = static_cast<double>(tile_coords_offset.y) },
-        WGPUConstantEntry { .key = { .data = "atlas_bits_xy", .length = WGPU_STRLEN }, .value = CloudGeometry::ATLAS_BITS_XY },
-        WGPUConstantEntry { .key = { .data = "atlas_bits_z", .length = WGPU_STRLEN }, .value = CloudGeometry::ATLAS_BITS_Z },
+        WGPUConstantEntry { .key = { .data = "atlas_bits_xy", .length = WGPU_STRLEN }, .value = clouds::ATLAS_BITS_XY },
+        WGPUConstantEntry { .key = { .data = "atlas_bits_z", .length = WGPU_STRLEN }, .value = clouds::ATLAS_BITS_Z },
     };
     WGPUComputePipelineDescriptor pipeline_desc {};
 
@@ -640,7 +641,7 @@ void PipelineManager::create_compose_bind_group_layout()
     clouds_depth_texture_entry.binding = 12;
     clouds_depth_texture_entry.visibility = WGPUShaderStage_Fragment;
     clouds_depth_texture_entry.storageTexture.access = WGPUStorageTextureAccess_ReadOnly;
-    clouds_depth_texture_entry.storageTexture.format = WGPUTextureFormat_RG32Float;
+    clouds_depth_texture_entry.storageTexture.format = WGPUTextureFormat_R32Float;
     clouds_depth_texture_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
 
     WGPUBindGroupLayoutEntry shadow_texture_entry {};
@@ -1314,29 +1315,13 @@ void PipelineManager::create_upscale_clouds_bind_group_layout()
     accumulation_color_texture_r_entry.texture.sampleType = WGPUTextureSampleType_Float;
     accumulation_color_texture_r_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
-    // Depth buffer (high-res, D32F, read)
-    WGPUBindGroupLayoutEntry accumulation_depth_texture_r_entry {};
-    accumulation_depth_texture_r_entry.binding = 5;
-    accumulation_depth_texture_r_entry.visibility = WGPUShaderStage_Compute;
-    accumulation_depth_texture_r_entry.storageTexture.access = WGPUStorageTextureAccess_ReadOnly;
-    accumulation_depth_texture_r_entry.storageTexture.format = WGPUTextureFormat_RG32Float;
-    accumulation_depth_texture_r_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
-
     // Accumulation buffer (high-res, RGBA16Float, write)
     WGPUBindGroupLayoutEntry accumulation_color_texture_w_entry {};
-    accumulation_color_texture_w_entry.binding = 6;
+    accumulation_color_texture_w_entry.binding = 5;
     accumulation_color_texture_w_entry.visibility = WGPUShaderStage_Compute;
     accumulation_color_texture_w_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
     accumulation_color_texture_w_entry.storageTexture.format = WGPUTextureFormat_RGBA16Float;
     accumulation_color_texture_w_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
-
-    // Depth buffer (high-res, D32F, write)
-    WGPUBindGroupLayoutEntry accumulation_depth_texture_w_entry {};
-    accumulation_depth_texture_w_entry.binding = 7;
-    accumulation_depth_texture_w_entry.visibility = WGPUShaderStage_Compute;
-    accumulation_depth_texture_w_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
-    accumulation_depth_texture_w_entry.storageTexture.format = WGPUTextureFormat_RG32Float;
-    accumulation_depth_texture_w_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
 
     m_upscale_clouds_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
         std::vector<WGPUBindGroupLayoutEntry> {
@@ -1345,9 +1330,7 @@ void PipelineManager::create_upscale_clouds_bind_group_layout()
             current_frame_depth_texture_entry,
             linear_sampler_entry,
             accumulation_color_texture_r_entry,
-            accumulation_depth_texture_r_entry,
             accumulation_color_texture_w_entry,
-            accumulation_depth_texture_w_entry,
         },
         "upscale clouds bind group layout");
 }

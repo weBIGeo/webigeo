@@ -3,6 +3,8 @@
  * Copyright (C) 2024 Adam Celarek
  * Copyright (C) 2025 Patrick Komon
  * Copyright (C) 2025 Gerald Kimmersdorfer
+ * Copyright (C) 2026 Wendelin Muth
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -25,6 +27,7 @@
 #include "nucleus/tile/TileLoadService.h"
 #include "nucleus/tile/setup.h"
 #include "webgpu_engine/CloudGeometry.h"
+#include "webgpu_engine/CloudGeometryConstants.h"
 #include "webgpu_engine/Context.h"
 
 namespace webgpu_app {
@@ -64,8 +67,8 @@ RenderingContext::RenderingContext()
         m_scheduler_director->check_in("ortho", m_ortho_scheduler_holder.scheduler);
 
         auto cloud_service = std::make_unique<nucleus::tile::TileLoadService>("", TilePattern::ZXY, ".ktx2");
-        m_cloud_scheduler_holder = nucleus::tile::setup::texture_scheduler_3d(std::move(cloud_service), m_aabb_decorator, m_scheduler_thread.get(), {.tile_resolution = webgpu_engine::CloudGeometry::TILE_RESOLUTION_XY, .max_zoom_level = 10, .gpu_quad_limit = 1024 });
-        m_cloud_scheduler_holder.scheduler->set_gpu_quad_limit(webgpu_engine::CloudGeometry::LOADED_TILE_LIMIT);
+        m_cloud_scheduler_holder = nucleus::tile::setup::texture_scheduler_3d(std::move(cloud_service), m_aabb_decorator, m_scheduler_thread.get(), {.tile_resolution = webgpu_engine::clouds::TILE_RESOLUTION_XY, .max_zoom_level = 10, .gpu_quad_limit = 1024 });
+        m_cloud_scheduler_holder.scheduler->set_gpu_quad_limit(webgpu_engine::clouds::LOADED_TILE_LIMIT);
         m_scheduler_director->check_in("cloud", m_cloud_scheduler_holder.scheduler);
     }
     m_geometry_scheduler_holder.scheduler->set_dataquerier(m_data_querier);
@@ -105,7 +108,7 @@ void RenderingContext::initialize(WGPUInstance webgpu_instance, WGPUDevice webgp
     tile_geometry->set_tile_limit(1024);
     auto cloud_geometry = std::make_shared<webgpu_engine::CloudGeometry>();
     // This doesn't really make any sense if you think about it
-    cloud_geometry->set_tile_limit(webgpu_engine::CloudGeometry::LOADED_TILE_LIMIT);
+    cloud_geometry->set_tile_limit(webgpu_engine::clouds::LOADED_TILE_LIMIT);
 
     m_engine_context = std::make_unique<webgpu_engine::Context>();
     m_engine_context->set_webgpu_instance(webgpu_instance);

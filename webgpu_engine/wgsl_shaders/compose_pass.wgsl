@@ -2,6 +2,7 @@
  * weBIGeo
  * Copyright (C) 2022 Gerald Kimmersdorfer
  * Copyright (C) 2024 Patrick Komon
+ * Copyright (C) 2026 Wendelin Muth
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,7 +45,7 @@
 @group(2) @binding(10) var compute_overlay_sampler: sampler;
 
 @group(2) @binding(11) var clouds_texture: texture_2d<f32>;
-@group(2) @binding(12) var clouds_depth_texture: texture_storage_2d<rg32float, read>;
+@group(2) @binding(12) var clouds_depth_texture: texture_storage_2d<r32float, read>;
 @group(2) @binding(13) var cloud_shadow_texture: texture_2d<f32>;
 @group(2) @binding(14) var cloud_shadow_sampler: sampler;
 @group(2) @binding(15) var depth_texture: texture_2d<f32>;
@@ -323,36 +324,26 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
     // Clouds
     if (bool(conf.clouds_enabled)) {
         let clouds_color = textureLoad(clouds_texture, tci, 0);
-        let clouds_depth_stats = textureLoad(clouds_depth_texture, tci/2).xy;
-        let clouds_depth = clouds_depth_stats.x;
-        let clouds_depth_sq = clouds_depth_stats.y;
+        let clouds_depth = textureLoad(clouds_depth_texture, tci/2).x;
 
-//        if (clouds_depth > 0.0) {
-            // convert transmittance to alpha
-            let raw_alpha = 1.0 - clouds_color.a;
-            let safe_alpha = max(raw_alpha, 0.00001);
-            let straight_rgb = clouds_color.rgb / safe_alpha;
-            var tonemapped_rgb = straight_rgb / (straight_rgb + 1.0);
+        // convert transmittance to alpha
+        let raw_alpha = 1.0 - clouds_color.a;
+        let safe_alpha = max(raw_alpha, 0.00001);
+        let straight_rgb = clouds_color.rgb / safe_alpha;
+        var tonemapped_rgb = straight_rgb / (straight_rgb + 1.0);
 
-            // atmosphere
-            if (clouds_depth > 0.0 && bool(conf.atmosphere_enabled)) {
-                let atmosphere_blend = calculate_falloff(clouds_depth, 300000.0, 600000.0);
-                tonemapped_rgb = mix(atmospheric_color, tonemapped_rgb, atmosphere_blend);
-            }
+        // atmosphere
+        if (clouds_depth > 0.0 && bool(conf.atmosphere_enabled)) {
+            let atmosphere_blend = calculate_falloff(clouds_depth, 300000.0, 600000.0);
+            tonemapped_rgb = mix(atmospheric_color, tonemapped_rgb, atmosphere_blend);
+        }
 
-            var blend_alpha = raw_alpha;
+        var blend_alpha = raw_alpha;
 
-            // Almost works great but would require more work
-//            let depth_variance = max(0.0, clouds_depth_sq - (clouds_depth * clouds_depth));;
-//            if(clouds_depth > dist - 1000.0 && dist > 0.0) {
-//                blend_alpha *= 1.0 - smoothstep(100.0, 600.0, sqrt(depth_variance));
-//            }
-
-            out_Color = vec4(
-                out_Color.rgb * (1.0 - blend_alpha) + tonemapped_rgb * blend_alpha,
-                1.0 - (1.0 - out_Color.a) * (1.0 - blend_alpha)
-            );
-//        }
+        out_Color = vec4(
+            out_Color.rgb * (1.0 - blend_alpha) + tonemapped_rgb * blend_alpha,
+            1.0 - (1.0 - out_Color.a) * (1.0 - blend_alpha)
+        );
     }
 
     if (dist > 0.0 && all(pos_ws.xy >= image_overlay_settings.aabb_min) && all(pos_ws.xy <= image_overlay_settings.aabb_max)) {

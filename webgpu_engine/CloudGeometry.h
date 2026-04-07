@@ -1,8 +1,6 @@
 /*****************************************************************************
  * weBIGeo
- * Copyright (C) 2023 Adam Celerek
- * Copyright (C) 2023 Gerald Kimmersdorfer
- * Copyright (C) 2024 Patrick Komon
+ * Copyright (C) 2026 Wendelin Muth
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,22 +41,6 @@ class CloudGeometry : public QObject {
     Q_OBJECT
 public:
 
-    static constexpr uint32_t ZOOM_MAX = 10;
-    static constexpr glm::vec2 BOUNDS_MIN = {46.2, 9.4};
-    static constexpr glm::vec2 BOUNDS_MAX = {49.2, 17.4};
-    static constexpr glm::uvec2 TILE_COUNTS = {24, 14};
-    static constexpr uint32_t TILE_COUNT_TOTAL = TILE_COUNTS.x * TILE_COUNTS.y;
-    static constexpr uint32_t TILE_RESOLUTION_XY = 256;
-    static constexpr uint32_t TILE_RESOLUTION_Z = 64;
-    static constexpr float MAX_ALTITUDE = 14000.0;
-    static constexpr uint32_t ATLAS_BITS_XY = 2;
-    static constexpr uint32_t ATLAS_SCALE_XY = 1 << ATLAS_BITS_XY;
-    static constexpr uint32_t ATLAS_MASK_XY = ATLAS_SCALE_XY - 1;
-    static constexpr uint32_t ATLAS_BITS_Z = 5;
-    static constexpr uint32_t ATLAS_SCALE_Z = 1 << ATLAS_BITS_Z;
-    static constexpr uint32_t ATLAS_MASK_Z = ATLAS_SCALE_Z - 1;
-    static constexpr uint32_t LOADED_TILE_LIMIT = ATLAS_SCALE_XY * ATLAS_SCALE_XY * ATLAS_SCALE_Z;
-
     // Public shader parameters
     struct ShaderParameters {
         float step_size_min = 125.0f;
@@ -67,12 +49,12 @@ public:
         float scattering_coeff = 0.7f;
         float extinction_coeff = 1.0f;
         float albedo = 0.99f;
-        float sun_light_scale = 800.0;
-        float ambient_light_scale = 1.0;
-        float atmospheric_light_scale = 1.0;
-        float shadow_extinction_scale = 0.5;
-        float powder_scale = 0.9;
-        float fade_factor = 1.0;
+        float sun_light_scale = 800.0f;
+        float ambient_light_scale = 1.0f;
+        float atmospheric_light_scale = 1.0f;
+        float shadow_extinction_scale = 0.5f;
+        float powder_scale = 0.9f;
+        float fade_factor = 1.0f;
     };
 
     ShaderParameters shader_params = {};
@@ -99,9 +81,8 @@ public:
         return m_clouds_hi_color_texture_view_a.get();
     }
 
-    [[nodiscard]] webgpu::raii::TextureView* result_depth_view(int frame) const {
-        if (frame % 2 == 0) return m_clouds_hi_depth_texture_view_b.get();
-        return m_clouds_hi_depth_texture_view_a.get();
+    [[nodiscard]] webgpu::raii::TextureView* result_depth_view() const {
+        return m_clouds_lo_depth_texture_view.get();
     }
 
 signals:
@@ -190,12 +171,8 @@ private:
     std::unique_ptr<webgpu::raii::TextureView> m_clouds_lo_depth_texture_view;
     std::unique_ptr<webgpu::raii::Texture> m_clouds_hi_color_texture_a;
     std::unique_ptr<webgpu::raii::TextureView> m_clouds_hi_color_texture_view_a;
-    std::unique_ptr<webgpu::raii::Texture> m_clouds_hi_depth_texture_a;
-    std::unique_ptr<webgpu::raii::TextureView> m_clouds_hi_depth_texture_view_a;
     std::unique_ptr<webgpu::raii::Texture> m_clouds_hi_color_texture_b;
     std::unique_ptr<webgpu::raii::TextureView> m_clouds_hi_color_texture_view_b;
-    std::unique_ptr<webgpu::raii::Texture> m_clouds_hi_depth_texture_b;
-    std::unique_ptr<webgpu::raii::TextureView> m_clouds_hi_depth_texture_view_b;
     std::unique_ptr<webgpu::raii::Sampler> m_linear_sampler;
 
     std::unique_ptr<webgpu::raii::BindGroup> m_render_clouds_bind_group;

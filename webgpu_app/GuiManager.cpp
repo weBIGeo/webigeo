@@ -310,15 +310,12 @@ void GuiManager::draw()
         {
             auto& camera = m_terrain_renderer->get_camera_controller()->definition();
             auto pos = camera.position();
-            ImGui::Text("Position: %.2f, %.2f, %.2f", pos.x, pos.y, pos.z);
+            glm::vec3 posf = pos;
+            ImGui::InputFloat3("Position", glm::value_ptr(posf), "%.2f", ImGuiInputTextFlags_ReadOnly);
             glm::vec3 coords = nucleus::srs::world_to_lat_long_alt(pos);
-            if (ImGui::InputFloat3("Coords", glm::value_ptr(coords), "%.6f")) {
-                const auto new_coords = nucleus::srs::lat_long_alt_to_world(coords);
-                nucleus::camera::Definition new_def = { { new_coords.x - 300, new_coords.y - 400, new_coords.z + 100 }, { new_coords.x, new_coords.y, new_coords.z - 100 } };
-                m_terrain_renderer->get_camera_controller()->set_model_matrix(new_def);
-            }
+            ImGui::InputFloat3("Coords", glm::value_ptr(coords), "%.6f", ImGuiInputTextFlags_ReadOnly);
             float fov = camera.field_of_view();
-            if (ImGui::SliderFloat("FoV", &fov, 1.0, 179.0)) {
+            if (ImGui::SliderFloat("FoV", &fov, 1.0f, 179.0f)) {
                 m_terrain_renderer->get_camera_controller()->set_field_of_view(fov);
             }
         }
