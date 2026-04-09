@@ -321,30 +321,7 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         out_Color = vec4(atmospheric_color, 1.0);
     }
 
-    // Clouds
-    if (bool(conf.clouds_enabled)) {
-        let clouds_color = textureLoad(clouds_texture, tci, 0);
-        let clouds_depth = textureLoad(clouds_depth_texture, tci/2).x;
 
-        // convert transmittance to alpha
-        let raw_alpha = 1.0 - clouds_color.a;
-        let safe_alpha = max(raw_alpha, 0.00001);
-        let straight_rgb = clouds_color.rgb / safe_alpha;
-        var tonemapped_rgb = straight_rgb / (straight_rgb + 1.0);
-
-        // atmosphere
-        if (clouds_depth > 0.0 && bool(conf.atmosphere_enabled)) {
-            let atmosphere_blend = calculate_falloff(clouds_depth, 300000.0, 600000.0);
-            tonemapped_rgb = mix(atmospheric_color, tonemapped_rgb, atmosphere_blend);
-        }
-
-        var blend_alpha = raw_alpha;
-
-        out_Color = vec4(
-            out_Color.rgb * (1.0 - blend_alpha) + tonemapped_rgb * blend_alpha,
-            1.0 - (1.0 - out_Color.a) * (1.0 - blend_alpha)
-        );
-    }
 
     if (dist > 0.0 && all(pos_ws.xy >= image_overlay_settings.aabb_min) && all(pos_ws.xy <= image_overlay_settings.aabb_max)) {
         if (image_overlay_settings.mode == 0u) {
@@ -388,6 +365,31 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         var draw_line = true; // ensures that we only darken the pixel once
         apply_height_lines(&out_Color, pos_ws, normal, dist, conf.height_lines_settings.x, conf.height_lines_settings.z, conf.height_lines_settings.w, &draw_line, 1.0);
         apply_height_lines(&out_Color, pos_ws, normal, dist, conf.height_lines_settings.y, conf.height_lines_settings.z * 0.5, conf.height_lines_settings.w * 0.75, &draw_line, 1.0);
+    }
+
+    // Clouds
+    if (bool(conf.clouds_enabled)) {
+        let clouds_color = textureLoad(clouds_texture, tci, 0);
+        let clouds_depth = textureLoad(clouds_depth_texture, tci/2).x;
+
+        // convert transmittance to alpha
+        let raw_alpha = 1.0 - clouds_color.a;
+        let safe_alpha = max(raw_alpha, 0.00001);
+        let straight_rgb = clouds_color.rgb / safe_alpha;
+        var tonemapped_rgb = straight_rgb / (straight_rgb + 1.0);
+
+        // atmosphere
+        if (clouds_depth > 0.0 && bool(conf.atmosphere_enabled)) {
+            let atmosphere_blend = calculate_falloff(clouds_depth, 300000.0, 600000.0);
+            tonemapped_rgb = mix(atmospheric_color, tonemapped_rgb, atmosphere_blend);
+        }
+
+        var blend_alpha = raw_alpha;
+
+        out_Color = vec4(
+            out_Color.rgb * (1.0 - blend_alpha) + tonemapped_rgb * blend_alpha,
+            1.0 - (1.0 - out_Color.a) * (1.0 - blend_alpha)
+        );
     }
 
     return out_Color;
