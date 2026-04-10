@@ -631,7 +631,7 @@ void GuiManager::draw_about_popup()
         ImGui::OpenPopup("about_webigeo");
     }
     ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, {0.5f, 0.5f});
-    ImGui::SetNextWindowSize({400,370});
+    ImGui::SetNextWindowSize({450,470});
 
     if (ImGui::BeginPopupModal("about_webigeo", NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse))
     {
@@ -661,9 +661,28 @@ void GuiManager::draw_about_popup()
         ImGui::TextLinkOpenURL("netidee project page", "https://www.netidee.at/webigeo");
 
         ImGui::Spacing(); ImGui::Spacing();
-        ImGui::Text("Authors: "); ImGui::SameLine();
-        ImGui::TextWrapped("Patrick Komon, Gerald Kimmersdorfer, Adam Celarek, Wendelin Muth, "
-                           "Jakob Lindner, Jakob Maier, Markus Rampp");
+        ImGui::Text("Authors:");
+        ImGui::Text(" - "); ImGui::SameLine();
+        ImGui::TextLinkOpenURL("Adam Celarek", "https://github.com/adam-ce"); ImGui::SameLine();
+        ImGui::Text("(2022-2025)");
+        ImGui::Text(" - "); ImGui::SameLine();
+        ImGui::TextLinkOpenURL("Gerald Kimmersdorfer", "https://github.com/GeraldKimmersdorfer"); ImGui::SameLine();
+        ImGui::Text("(2023-2025)");
+        ImGui::Text(" - "); ImGui::SameLine();
+        ImGui::TextLinkOpenURL("Jakob Lindner", "https://github.com/JakobLindner"); ImGui::SameLine();
+        ImGui::Text("(2023)");
+        ImGui::Text(" - "); ImGui::SameLine();
+        ImGui::TextLinkOpenURL("Patrick Komon", "https://github.com/pkomon"); ImGui::SameLine();
+        ImGui::Text("(2024-2025)");
+        ImGui::Text(" - "); ImGui::SameLine();
+        ImGui::TextLinkOpenURL("Jakob Maier", "https://github.com/Gro2mi"); ImGui::SameLine();
+        ImGui::Text("(2024)");
+        ImGui::Text(" - "); ImGui::SameLine();
+        ImGui::TextLinkOpenURL("Markus Rampp", "https://github.com/gue-ni"); ImGui::SameLine();
+        ImGui::Text("(2025)");
+        ImGui::Text(" - "); ImGui::SameLine();
+        ImGui::TextLinkOpenURL("Wendelin Muth", "https://github.com/Qendolin"); ImGui::SameLine();
+        ImGui::Text("(2026)");
 
         ImGui::Spacing(); ImGui::Spacing();
         ImGui::Text("Height and ortho data is provided by "); ImGui::SameLine();
