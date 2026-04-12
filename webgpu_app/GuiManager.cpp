@@ -455,14 +455,18 @@ void GuiManager::draw()
             ImGui::Text("Lighting");
             ImGui::Indent();
             ImGui::DragFloat("Sun Light Scale", &shader_params.sun_light_scale, 1.0, 0.0, 10000.0);
-            ImGui::DragFloat("Ambient Light Scale", &shader_params.ambient_light_scale, 0.01, 0.0, 10000.0);
-            ImGui::DragFloat("Atmospheric Light Scale", &shader_params.atmospheric_light_scale, 0.01, 0.0, 10000.0);
-            ImGui::DragFloat("Shadow Extinction Scale", &shader_params.shadow_extinction_scale, 0.01, 0.0, 10000.0);
+            ImGui::DragFloat("Ambient Light Scale", &shader_params.ambient_light_scale, 0.01f, 0.0f, 10000.0f);
+            ImGui::DragFloat("Atmospheric Light Scale", &shader_params.atmospheric_light_scale, 0.01f, 0.0f, 10000.0f);
+            ImGui::DragFloat("Shadow Extinction Scale", &shader_params.shadow_extinction_scale, 0.01f, 0.0f, 10000.0f);
             ImGui::SliderFloat("Powder Effect Scale", &shader_params.powder_scale, 0, 1);
             ImGui::Unindent();
             ImGui::Text("Visibility");
             ImGui::Indent();
-            ImGui::SliderFloat("Fade", &shader_params.fade_factor, 0.001, 1.0);
+            ImGui::SliderFloat("Fade", &shader_params.fade_factor, 0.001f, 1.0f);
+            ImGui::Unindent();
+            ImGui::Text("Accumulation");
+            ImGui::Indent();
+            ImGui::SliderInt("Stable Frames Limit", &shader_params.stable_frames_limit, 1, 256);
             ImGui::Unindent();
         }
     }
