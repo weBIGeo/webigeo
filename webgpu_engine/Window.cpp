@@ -210,17 +210,7 @@ std::unique_ptr<webgpu::raii::RenderPassEncoder> begin_render_pass(
 void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_encoder)
 {
     m_needs_redraw = false;
-
-    // Painting logic here, using the optional framebuffer parameter which is currently unused
-
-    // ONLY ON CAMERA CHANGE!
-    // update_camera(m_camera);
-    // emit update_camera_requested(); //TODO remove/find replacement
-
-    // TODO remove, debugging
-    // uboSharedConfig* sc = &m_shared_config_ubo->data;
-    // sc->m_sun_light = QVector4D(0.0f, 1.0f, 1.0f, 1.0f);
-    // sc->m_sun_light_dir = QVector4D(elapsed, 1.0f, 1.0f, 1.0f);
+    
     // ToDo only update on change?
     m_shared_config_ubo->update_gpu_data(m_queue);
 
@@ -1907,21 +1897,6 @@ void Window::on_pipeline_run_completed()
         update_compute_overlay_aabb(selected_aabb);
     }
 
-    // QUICK HACK: write pipeline settings to files
-    // TODO: replace these by nodes in the future
-    /*if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES
-        || m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES_EVAL) {
-        std::filesystem::path trajectory_export_path =
-    m_compute_graph->get_node_as<compute::nodes::TileExportNode>("trajectories_export").get_settings().output_directory;
-
-        std::filesystem::path settings_export_path = trajectory_export_path.parent_path() / "settings.json";
-        qDebug() << "writing settings to " << settings_export_path.string();
-        ComputePipelineSettings::write_to_json_file(m_compute_pipeline_settings, settings_export_path);
-
-        std::filesystem::path timings_export_path = trajectory_export_path.parent_path() / "timings.json";
-        qDebug() << "writing timings to " << timings_export_path.string();
-        compute::nodes::write_timings_to_json_file(*m_compute_graph, timings_export_path);
-    }*/
 }
 
 void Window::create_buffers()
