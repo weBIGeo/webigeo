@@ -23,6 +23,7 @@
 #include "Buffer.h"
 #include "PipelineManager.h"
 #include <QObject>
+#include <glm/glm.hpp>
 #include <mutex>
 #include <nucleus/tile/GpuArrayHelper.h>
 #include <nucleus/tile/types.h>
@@ -35,9 +36,27 @@ namespace nucleus::camera {
 class Definition;
 }
 
+namespace webgpu_engine::clouds {
+static constexpr uint32_t ZOOM_MAX = 10;
+static constexpr glm::vec2 BOUNDS_MIN = {46.2, 9.4};
+static constexpr glm::vec2 BOUNDS_MAX = {49.2, 17.4};
+static constexpr glm::uvec2 TILE_COUNTS = {24, 14};
+static constexpr uint32_t TILE_COUNT_TOTAL = TILE_COUNTS.x * TILE_COUNTS.y;
+static constexpr uint32_t TILE_RESOLUTION_XY = 256;
+static constexpr uint32_t TILE_RESOLUTION_Z = 64;
+static constexpr float MAX_ALTITUDE = 14000.0;
+static constexpr uint32_t ATLAS_BITS_XY = 2;
+static constexpr uint32_t ATLAS_SCALE_XY = 1 << ATLAS_BITS_XY;
+static constexpr uint32_t ATLAS_MASK_XY = ATLAS_SCALE_XY - 1;
+static constexpr uint32_t ATLAS_BITS_Z = 5;
+static constexpr uint32_t ATLAS_SCALE_Z = 1 << ATLAS_BITS_Z;
+static constexpr uint32_t ATLAS_MASK_Z = ATLAS_SCALE_Z - 1;
+static constexpr uint32_t LOADED_TILE_LIMIT = ATLAS_SCALE_XY * ATLAS_SCALE_XY * ATLAS_SCALE_Z;
+}
+
 namespace webgpu_engine {
 
-class CloudGeometry : public QObject {
+class CloudRenderer : public QObject {
     Q_OBJECT
 public:
 
@@ -55,11 +74,12 @@ public:
         float shadow_extinction_scale = 0.5f;
         float powder_scale = 0.9f;
         float fade_factor = 1.0f;
+        int stable_frames_limit = 64;
     };
 
     ShaderParameters shader_params = {};
 
-    explicit CloudGeometry();
+    explicit CloudRenderer();
 
     void init(WGPUDevice device);
 
@@ -69,7 +89,7 @@ public:
 
     [[nodiscard]] bool needs_redraw() const
     {
-        return m_stable_frames <= 64;
+        return m_stable_frames <= static_cast<uint32_t>(shader_params.stable_frames_limit);
     }
 
     void set_pipeline_manager(const PipelineManager& pipeline_manager);

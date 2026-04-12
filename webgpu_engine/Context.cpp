@@ -67,9 +67,9 @@ void Context::set_tile_geometry(std::shared_ptr<TileGeometry> new_tile_geometry)
     m_tile_geometry = std::move(new_tile_geometry);
 }
 
-CloudGeometry* Context::cloud_geometry() const { return m_cloud_geometry.get(); }
+CloudRenderer* Context::cloud_geometry() const { return m_cloud_geometry.get(); }
 
-void Context::set_cloud_geometry(std::shared_ptr<CloudGeometry> new_cloud_geometry)
+void Context::set_cloud_geometry(std::shared_ptr<CloudRenderer> new_cloud_geometry)
 {
     assert(!is_alive()); // only set before init is called.
     m_cloud_geometry = std::move(new_cloud_geometry);

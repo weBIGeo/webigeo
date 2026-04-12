@@ -26,8 +26,7 @@
 #include "nucleus/tile/Texture3DScheduler.h"
 #include "nucleus/tile/TileLoadService.h"
 #include "nucleus/tile/setup.h"
-#include "webgpu_engine/CloudGeometry.h"
-#include "webgpu_engine/CloudGeometryConstants.h"
+#include "webgpu_engine/CloudRenderer.h"
 #include "webgpu_engine/Context.h"
 
 namespace webgpu_app {
@@ -106,7 +105,7 @@ void RenderingContext::initialize(WGPUInstance webgpu_instance, WGPUDevice webgp
 {
     auto tile_geometry = std::make_shared<webgpu_engine::TileGeometry>(65, 512);
     tile_geometry->set_tile_limit(1024);
-    auto cloud_geometry = std::make_shared<webgpu_engine::CloudGeometry>();
+    auto cloud_geometry = std::make_shared<webgpu_engine::CloudRenderer>();
     // This doesn't really make any sense if you think about it
     cloud_geometry->set_tile_limit(webgpu_engine::clouds::LOADED_TILE_LIMIT);
 
@@ -128,7 +127,7 @@ void RenderingContext::initialize(WGPUInstance webgpu_instance, WGPUDevice webgp
     connect(m_cloud_scheduler_holder.scheduler.get(),
        &nucleus::tile::Texture3DScheduler::gpu_tiles_updated,
        m_engine_context->cloud_geometry(),
-       &webgpu_engine::CloudGeometry::update_gpu_tiles_cloud);
+       &webgpu_engine::CloudRenderer::update_gpu_tiles_cloud);
     nucleus::utils::thread::async_call(m_geometry_scheduler_holder.scheduler.get(), [this]() { m_geometry_scheduler_holder.scheduler->set_enabled(true); });
 
     // TODO: texture compression

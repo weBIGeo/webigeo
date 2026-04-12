@@ -32,7 +32,7 @@ set(SOURCES
     PipelineManager.h PipelineManager.cpp
     UniformBufferObjects.h UniformBufferObjects.cpp
     TileGeometry.h TileGeometry.cpp
-    CloudGeometry.h CloudGeometry.cpp
+    CloudRenderer.h CloudRenderer.cpp
     Buffer.h Buffer.cpp
     TrackRenderer.h TrackRenderer.cpp
     Context.h Context.cpp

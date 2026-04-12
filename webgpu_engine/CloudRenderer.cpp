@@ -16,9 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "CloudGeometry.h"
+#include "CloudRenderer.h"
 
-#include "CloudGeometryConstants.h"
 #include "glm/ext/matrix_relational.hpp"
 #include "nucleus/camera/Definition.h"
 #include "nucleus/srs.h"
@@ -27,12 +26,12 @@
 using namespace webgpu_engine::clouds;
 namespace webgpu_engine {
 
-CloudGeometry::CloudGeometry()
+CloudRenderer::CloudRenderer()
     : QObject { nullptr }
 {
 }
 
-void CloudGeometry::init(WGPUDevice device)
+void CloudRenderer::init(WGPUDevice device)
 {
     m_device = device;
     m_queue = wgpuDeviceGetQueue(device);
@@ -137,7 +136,7 @@ glm::mat4 jitter_projection_matrix(const glm::mat4& projection, glm::vec2 jitter
 inline int ceil_div(int x, int y) { return (x + y - 1) / y; }
 inline unsigned ceil_div(unsigned x, unsigned y) { return (x + y - 1) / y; }
 
-void CloudGeometry::resize(int w, int h)
+void CloudRenderer::resize(int w, int h)
 {
     constexpr float resolution_scale = 2.0f;
     m_output_lo_resolution = { static_cast<float>(w) / resolution_scale, static_cast<float>(h) / resolution_scale };
@@ -231,7 +230,7 @@ void CloudGeometry::resize(int w, int h)
        "upscale clouds bind group b");
 }
 
-void CloudGeometry::draw(const WGPUCommandEncoder& command_encoder, const WGPUBindGroup& depth_texture_bind_group, const WGPUBindGroup& shared_config_bind_group, const nucleus::camera::Definition& camera, uint32_t frame_number)
+void CloudRenderer::draw(const WGPUCommandEncoder& command_encoder, const WGPUBindGroup& depth_texture_bind_group, const WGPUBindGroup& shared_config_bind_group, const nucleus::camera::Definition& camera, uint32_t frame_number)
 {
     auto jitter_offset = generate_jitter_simple_4x(frame_number, m_output_lo_resolution);
     glm::mat4 unjittered_projection = camera.projection_matrix();
@@ -311,11 +310,11 @@ void CloudGeometry::draw(const WGPUCommandEncoder& command_encoder, const WGPUBi
     }
 }
 
-void CloudGeometry::set_tile_limit(unsigned int num_tiles) { m_loaded_cloud_textures.set_tile_limit(num_tiles); }
+void CloudRenderer::set_tile_limit(unsigned int num_tiles) { m_loaded_cloud_textures.set_tile_limit(num_tiles); }
 
-void CloudGeometry::set_pipeline_manager(const PipelineManager& pipeline_manager) { m_pipeline_manager = &pipeline_manager; }
+void CloudRenderer::set_pipeline_manager(const PipelineManager& pipeline_manager) { m_pipeline_manager = &pipeline_manager; }
 
-void CloudGeometry::update_gpu_tiles_cloud(const std::vector<nucleus::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuTexture3DTile>& new_tiles)
+void CloudRenderer::update_gpu_tiles_cloud(const std::vector<nucleus::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuTexture3DTile>& new_tiles)
 {
     std::lock_guard lock(m_mutex);
     for (const auto& id : deleted_tiles) {
@@ -359,7 +358,7 @@ void CloudGeometry::update_gpu_tiles_cloud(const std::vector<nucleus::tile::Id>&
             for (int32_t dx = 0; dx < size; dx++) {
                 int32_t x = x_start + dx;
                 int32_t y = y_start + dy;
-                if (x < 0 || x >= TILE_COUNTS.x || y < 0 || y >= TILE_COUNTS.y)
+                if (x < 0 || x >= static_cast<int32_t>(TILE_COUNTS.x) || y < 0 || y >= static_cast<int32_t>(TILE_COUNTS.y))
                     continue;
                 size_t info_index = y * TILE_COUNTS.x + x;
                 m_tile_infos[info_index] = { .index = layer_index, .zoom = tile.id.zoom_level };
