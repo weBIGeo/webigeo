@@ -1,7 +1,6 @@
 /*****************************************************************************
  * weBIGeo
- * Copyright (C) 2024 Gerald Kimmersdorfer
- * Copyright (C) 2026 Wendelin Muth
+ * Copyright (C) 2026 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,35 +18,27 @@
 
 #pragma once
 
-#include "webgpu/raii/Texture.h"
 #include <SDL2/SDL.h>
-#include <set>
-#include <string>
-#include <vector>
 #include <webgpu/webgpu.h>
 
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-#include <imgui.h>
+#include "imgui/ImGuiPanel.h"
+#include <memory>
+#include <vector>
 #endif
-
-class TerrainRenderer;
-
-namespace webgpu_engine {
-class Window;
-}
 
 namespace webgpu_app {
 
 class TerrainRenderer;
 
-class GuiManager {
-
+class ImGuiManager {
 public:
-    GuiManager(TerrainRenderer* terrain_renderer);
+    explicit ImGuiManager(TerrainRenderer* terrain_renderer);
 
     void init(SDL_Window* window, WGPUDevice device, WGPUTextureFormat swapchainFormat, WGPUTextureFormat depthTextureFormat);
     void render(WGPURenderPassEncoder renderPass);
     void shutdown();
+
     bool want_capture_keyboard();
     bool want_capture_mouse();
     void on_sdl_event(SDL_Event& event);
@@ -56,35 +47,18 @@ public:
     bool get_gui_visibility() const;
 
 private:
-    SDL_Window* m_window;
-    WGPUDevice m_device;
+    SDL_Window* m_window = nullptr;
+    WGPUDevice m_device = {};
     TerrainRenderer* m_terrain_renderer = nullptr;
     bool m_gui_visible = true;
-    bool m_show_about_popup = false;
-
     bool m_first_frame = true;
-    std::vector<std::string> m_camera_preset_names;
-    int m_selected_camera_preset = 0;
-    uint32_t m_max_zoom_level = 18;
-
-    std::set<uint32_t> m_selected_timer = {};
 
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-    ImVec2 m_webigeo_logo_size;
-    std::unique_ptr<webgpu::raii::Texture> m_webigeo_logo;
-    std::unique_ptr<webgpu::raii::TextureView> m_webigeo_logo_view;
+    std::vector<std::unique_ptr<ImGuiPanel>> m_panels;
 #endif
 
     void draw();
-    void draw_disclaimer_popup();
-    void draw_about_popup();
-
     void install_fonts();
-
-    void toggle_timer(uint32_t timer_id);
-    bool is_timer_selected(uint32_t timer_id);
-
-    void before_first_frame();
 };
 
 } // namespace webgpu_app

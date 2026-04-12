@@ -282,12 +282,12 @@ void TerrainRenderer::start() {
     // clang-format on
 
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-    m_gui_manager = std::make_unique<GuiManager>(this);
+    m_gui_manager = std::make_unique<ImGuiManager>(this);
 #endif
 
     m_input_mapper = std::make_unique<InputMapper>(this, m_camera_controller.get(), m_gui_manager.get(), [this]() { return m_viewport_size; });
 
-    // TODO connect this (is used from GuiManager to update camera when settings are changed)
+    // TODO connect this (is used from ImGuiManager to update camera when settings are changed)
     //  connect(this, &TerrainRenderer::update_camera_requested, camera_controller, &nucleus::camera::Controller::update_camera_request);
     connect(m_webgpu_window.get(),
         &webgpu_engine::Window::set_camera_definition_requested,
