@@ -404,5 +404,6 @@ TimeSlot Manager::selected_time_slot() const { return m_api_service->get_slot(m_
 
 const QVector<TimeSlot>& Manager::get_slots() const { return m_api_service->get_slots(); }
 ManifestStatus Manager::get_manifest_status() const { return m_manifest_status; }
+const QString& Manager::server_url() const { return m_api_service->server_url(); }
 
 } // namespace webgpu_app
