@@ -82,6 +82,7 @@ void Window::set_wgpu_context(WGPUInstance instance, WGPUDevice device, WGPUAdap
     m_surface = surface;
     m_queue = queue;
     m_context = context;
+    connect(m_context, &Context::redraw_requested, this, &Window::request_redraw);
 }
 
 void Window::initialise_gpu()
@@ -212,6 +213,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
     m_needs_redraw = false;
     
     // ToDo only update on change?
+    m_shared_config_ubo->data = m_context->shared_config();
     m_shared_config_ubo->update_gpu_data(m_queue);
 
     // render atmosphere to color buffer
@@ -238,7 +240,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
 
 
     // render clouds
-    if (m_shared_config_ubo->data.m_clouds_enabled) {
+    if (m_context->shared_config().m_clouds_enabled) {
         m_context->cloud_geometry()->draw(command_encoder, m_depth_texture_bind_group->handle(), m_shared_config_bind_group->handle(), m_camera, m_paint_number);
         m_needs_redraw |= m_context->cloud_geometry()->needs_redraw(); // Repaint for TAAU
     }
@@ -254,7 +256,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
     }
 
     // render lines to color buffer
-    if (m_shared_config_ubo->data.m_track_render_mode > 0) {
+    if (m_context->shared_config().m_track_render_mode > 0) {
         m_track_renderer->render(
             command_encoder, *m_shared_config_bind_group, *m_camera_bind_group, *m_depth_texture_bind_group, framebuffer->color_texture_view(0));
     }
@@ -270,7 +272,7 @@ void Window::paint_gui()
 {
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
 
-    if (ImGui::Combo("Normal Mode", (int*)&m_shared_config_ubo->data.m_normal_mode, "None\0Flat\0Smooth\0\0")) {
+    if (ImGui::Combo("Normal Mode", (int*)&m_context->shared_config().m_normal_mode, "None\0Flat\0Smooth\0\0")) {
         m_needs_redraw = true;
     }
     {
@@ -291,34 +293,34 @@ void Window::paint_gui()
             }
             ImGui::EndCombo();
         }
-        m_shared_config_ubo->data.m_overlay_mode = overlays[currentItem].second;
-        if (m_shared_config_ubo->data.m_overlay_mode > 0) {
-            m_needs_redraw |= ImGui::SliderFloat("Overlay Strength", &m_shared_config_ubo->data.m_overlay_strength, 0.0f, 1.0f);
+        m_context->shared_config().m_overlay_mode = overlays[currentItem].second;
+        if (m_context->shared_config().m_overlay_mode > 0) {
+            m_needs_redraw |= ImGui::SliderFloat("Overlay Strength", &m_context->shared_config().m_overlay_strength, 0.0f, 1.0f);
         }
 
-        m_needs_redraw |= ImGui::Checkbox("Overlay Post Shading", (bool*)&m_shared_config_ubo->data.m_overlay_postshading_enabled);
+        m_needs_redraw |= ImGui::Checkbox("Overlay Post Shading", (bool*)&m_context->shared_config().m_overlay_postshading_enabled);
 
         ImGui::Separator();
 
-        m_needs_redraw |= ImGui::Checkbox("Phong Shading", (bool*)&m_shared_config_ubo->data.m_phong_enabled);
-        m_needs_redraw |= ImGui::Checkbox("Atmosphere", (bool*)&m_shared_config_ubo->data.m_atmosphere_enabled);
-        m_needs_redraw |= ImGui::Checkbox("Clouds", (bool*)&m_shared_config_ubo->data.m_clouds_enabled);
+        m_needs_redraw |= ImGui::Checkbox("Phong Shading", (bool*)&m_context->shared_config().m_phong_enabled);
+        m_needs_redraw |= ImGui::Checkbox("Atmosphere", (bool*)&m_context->shared_config().m_atmosphere_enabled);
+        m_needs_redraw |= ImGui::Checkbox("Clouds", (bool*)&m_context->shared_config().m_clouds_enabled);
 
-        bool snow_on = (m_shared_config_ubo->data.m_snow_settings_angle.x == 1.0f);
+        bool snow_on = (m_context->shared_config().m_snow_settings_angle.x == 1.0f);
         if (ImGui::Checkbox("Snow", &snow_on)) {
             m_needs_redraw = true;
-            m_shared_config_ubo->data.m_snow_settings_angle.x = (snow_on ? 1.0f : 0.0f);
+            m_context->shared_config().m_snow_settings_angle.x = (snow_on ? 1.0f : 0.0f);
         }
         if (snow_on) {
             ImGui::SameLine();
             if (ImGui::CollapsingHeader("###Snow Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
-                auto& snow_settings_angle = m_shared_config_ubo->data.m_snow_settings_angle;
+                auto& snow_settings_angle = m_context->shared_config().m_snow_settings_angle;
                 bool changed = ImGui::DragFloatRange2("Angle limit", &snow_settings_angle.y, &snow_settings_angle.z, 0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp);
                 changed |= ImGui::SliderFloat("Angle blend", &snow_settings_angle.w, 0.0f, 90.0f, "%.1f°");
-                changed |= ImGui::SliderFloat("Altitude limit", &m_shared_config_ubo->data.m_snow_settings_alt.x, 0.0f, 4000.0f, "%.1fm");
-                changed |= ImGui::SliderFloat("Altitude variation", &m_shared_config_ubo->data.m_snow_settings_alt.y, 0.0f, 1000.0f, "%.1f°");
-                changed |= ImGui::SliderFloat("Altitude blend", &m_shared_config_ubo->data.m_snow_settings_alt.z, 0.0f, 1000.0f);
-                changed |= ImGui::SliderFloat("Specular", &m_shared_config_ubo->data.m_snow_settings_alt.w, 0.0f, 5.0f);
+                changed |= ImGui::SliderFloat("Altitude limit", &m_context->shared_config().m_snow_settings_alt.x, 0.0f, 4000.0f, "%.1fm");
+                changed |= ImGui::SliderFloat("Altitude variation", &m_context->shared_config().m_snow_settings_alt.y, 0.0f, 1000.0f, "%.1f°");
+                changed |= ImGui::SliderFloat("Altitude blend", &m_context->shared_config().m_snow_settings_alt.z, 0.0f, 1000.0f);
+                changed |= ImGui::SliderFloat("Specular", &m_context->shared_config().m_snow_settings_alt.w, 0.0f, 5.0f);
 
                 if (changed) {
                     m_needs_redraw = true;
@@ -327,43 +329,23 @@ void Window::paint_gui()
             }
         }
 
-        m_needs_redraw |= ImGui::Checkbox("Heightlines", (bool*)&m_shared_config_ubo->data.m_height_lines_enabled);
-        if (m_shared_config_ubo->data.m_height_lines_enabled) {
+        m_needs_redraw |= ImGui::Checkbox("Heightlines", (bool*)&m_context->shared_config().m_height_lines_enabled);
+        if (m_context->shared_config().m_height_lines_enabled) {
             ImGui::SameLine();
             if (ImGui::CollapsingHeader("###Height Lines", ImGuiTreeNodeFlags_DefaultOpen)) {
-                float& primary = m_shared_config_ubo->data.m_height_lines_settings.x;
-                float& secondary = m_shared_config_ubo->data.m_height_lines_settings.y;
+                float& primary = m_context->shared_config().m_height_lines_settings.x;
+                float& secondary = m_context->shared_config().m_height_lines_settings.y;
                 float ratio = primary / secondary;
                 if (ImGui::DragFloat("Primary Interval", &primary, 1.0f, 5.0f, 1000.0f, "%.2f m")) {
                     m_needs_redraw = true;
                     secondary = primary / ratio;
                 }
                 m_needs_redraw |= ImGui::DragFloat("Secondary Interval", &secondary, 1.0f, 1.0f, 1000.0f, "%.2f m");
-                m_needs_redraw |= ImGui::DragFloat("Base Line Width", &m_shared_config_ubo->data.m_height_lines_settings.z, 0.01f, 0.1f, 5.0f, "%.2f");
-                m_needs_redraw |= ImGui::DragFloat("Darkening Factor", &m_shared_config_ubo->data.m_height_lines_settings.w, 0.01f, 0.0f, 1.0f, "%.2f");
+                m_needs_redraw |= ImGui::DragFloat("Base Line Width", &m_context->shared_config().m_height_lines_settings.z, 0.01f, 0.1f, 5.0f, "%.2f");
+                m_needs_redraw |= ImGui::DragFloat("Darkening Factor", &m_context->shared_config().m_height_lines_settings.w, 0.01f, 0.0f, 1.0f, "%.2f");
             }
         }
 
-        if (ImGui::CollapsingHeader("Illumination")) {
-            bool changed = ImGui::ColorEdit3("Light Color", (float*)&m_shared_config_ubo->data.m_sun_light);
-            changed |= ImGui::SliderFloat("Light Intensity", &m_shared_config_ubo->data.m_sun_light.w, 0.0f, 10.0f);
-            changed |= ImGui::DragFloat3("Light Direction", (float*)&m_shared_config_ubo->data.m_sun_light_dir, 0.01f, -1.0f, 1.0f);
-            ImGui::Separator();
-            changed |= ImGui::ColorEdit3("Ambient Color", (float*)&m_shared_config_ubo->data.m_amb_light);
-            changed |= ImGui::SliderFloat("Ambient Intensity", &m_shared_config_ubo->data.m_amb_light.w, 0.0f, 10.0f);
-            ImGui::Separator();
-            changed |= ImGui::ColorEdit4("Material Color", (float*)&m_shared_config_ubo->data.m_material_color);
-            ImGui::Separator();
-            changed |= ImGui::SliderFloat("Ambient Strength", &m_shared_config_ubo->data.m_material_light_response.x, 0.0f, 5.0f);
-            changed |= ImGui::SliderFloat("Diffuse Strength", &m_shared_config_ubo->data.m_material_light_response.y, 0.0f, 5.0f);
-            changed |= ImGui::SliderFloat("Specular Strength", &m_shared_config_ubo->data.m_material_light_response.z, 0.0f, 5.0f);
-            changed |= ImGui::SliderFloat("Shininess", &m_shared_config_ubo->data.m_material_light_response.w, 1.0f, 256.0f);
-
-            if (changed) {
-                m_shared_config_ubo->data.m_sun_light_dir = glm::normalize(m_shared_config_ubo->data.m_sun_light_dir);
-                m_needs_redraw = true;
-            }
-        }
     }
 
     if (ImGui::CollapsingHeader("Image overlay")) {
@@ -459,7 +441,7 @@ void Window::paint_gui()
         ImGui::PopStyleColor(1);
 
         const char* items = "none\0without depth test\0with depth test\0semi-transparent\0";
-        if (ImGui::Combo("Line render mode", (int*)&(m_shared_config_ubo->data.m_track_render_mode), items)) {
+        if (ImGui::Combo("Line render mode", (int*)&(m_context->shared_config().m_track_render_mode), items)) {
             m_needs_redraw = true;
         }
     }
@@ -1258,8 +1240,8 @@ void Window::update_compute_pipeline_settings()
 
         // snow settings
         compute::nodes::ComputeSnowNode::SnowSettingsUniform snow_settings_uniform = m_compute_pipeline_settings.sync_snow_settings_with_render_settings
-            ? compute::nodes::ComputeSnowNode::SnowSettingsUniform { m_shared_config_ubo->data.m_snow_settings_angle,
-                  m_shared_config_ubo->data.m_snow_settings_alt }
+            ? compute::nodes::ComputeSnowNode::SnowSettingsUniform { m_context->shared_config().m_snow_settings_angle,
+                  m_context->shared_config().m_snow_settings_alt }
             : m_compute_pipeline_settings.snow_settings;
         compute::nodes::ComputeSnowNode::SnowSettings snow_settings;
         snow_settings.min_angle = snow_settings_uniform.angle.y;
@@ -1697,9 +1679,10 @@ void Window::load_track_and_focus(const std::string& path)
     const auto track_aabb = nucleus::track::compute_world_aabb(*gpx_track);
     focus_region_3d(track_aabb);
 
-    if (m_shared_config_ubo->data.m_track_render_mode == 0) {
-        m_shared_config_ubo->data.m_track_render_mode = 1;
+    if (m_context->shared_config().m_track_render_mode == 0) {
+        m_context->shared_config().m_track_render_mode = 1;
     }
+
     m_needs_redraw = true;
 }
 

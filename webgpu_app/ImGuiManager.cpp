@@ -28,6 +28,7 @@
 #include "imgui/CameraPanel.h"
 #include "imgui/AppPanel.h"
 #include "imgui/CloudPanel.h"
+#include "imgui/IlluminationPanel.h"
 #include "imgui/EnginePanel.h"
 #include "imgui/AboutPanel.h"
 #include "imgui/CompassPanel.h"
@@ -87,6 +88,7 @@ void ImGuiManager::init(
     m_panels.push_back(std::make_unique<CameraPanel>(m_terrain_renderer));
     m_panels.push_back(std::make_unique<AppPanel>(m_terrain_renderer));
     m_panels.push_back(std::make_unique<CloudPanel>(rc->clouds_manager(), engine_ctx->cloud_geometry()));
+    m_panels.push_back(std::make_unique<IlluminationPanel>(engine_ctx));
     m_panels.push_back(std::make_unique<EnginePanel>(m_terrain_renderer));
 #endif
 }
