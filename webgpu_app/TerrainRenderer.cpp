@@ -574,7 +574,10 @@ void TerrainRenderer::webgpu_create_context()
     required_limits.minStorageBufferOffsetAlignment = supported_limits.minStorageBufferOffsetAlignment;
     required_limits.minUniformBufferOffsetAlignment = supported_limits.minUniformBufferOffsetAlignment;
     required_limits.maxInterStageShaderVariables = WGPU_LIMIT_U32_UNDEFINED; // required for current version of  Chrome Canary (2025-04-03)
-    required_limits.maxBufferSize = 2 * 1073741824ull; // 2 GiB
+    constexpr uint64_t desired_max_buffer_size = 2 * 1073741824ull; // 2 GiB
+    if (supported_limits.maxBufferSize < desired_max_buffer_size)
+        qWarning() << "Adapter maxBufferSize" << supported_limits.maxBufferSize << "is below the desired" << desired_max_buffer_size << ". cloud rendering might fail.";
+    required_limits.maxBufferSize = std::min(supported_limits.maxBufferSize, desired_max_buffer_size);
 
     // Let the engine change the required limits
     m_webgpu_window->update_required_gpu_limits(required_limits, supported_limits);
