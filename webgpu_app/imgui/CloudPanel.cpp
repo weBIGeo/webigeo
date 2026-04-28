@@ -35,41 +35,36 @@ CloudPanel::CloudPanel(clouds::Manager* clouds_manager, webgpu_engine::CloudRend
 
 void CloudPanel::draw_panel()
 {
-    const auto& times = m_clouds_manager->get_slots();
-    auto manifest_status = m_clouds_manager->get_manifest_status();
+    const auto& tilesets = m_clouds_manager->get_slots();
     auto selected_slot = m_clouds_manager->selected_time_slot();
 
     if (ImGui::CollapsingHeader(ICON_FA_CLOUD "  Clouds")) {
 
         ImGui::SeparatorText("Data");
 
-        if (times.empty()) {
-            if (manifest_status == clouds::ManifestStatus::Pending) {
+        if (tilesets.empty()) {
+            if (m_clouds_manager->is_loading()) {
                 ImGui::Text("Loading cloud data...");
             } else {
-                if (manifest_status == clouds::ManifestStatus::Error) {
-                    ImGui::Text("Failed to fetch cloud data.");
-                } else {
-                    ImGui::Text("No cloud data available.");
-                }
+                ImGui::Text("No cloud data available.");
                 ImGui::SameLine();
                 if (ImGui::Button(ICON_FA_SYNC "##reload_clouds")) {
-                    m_clouds_manager->refresh_manifest();
+                    m_clouds_manager->refresh_tileset_list();
                 }
             }
         } else {
             std::string preview_str = "Select time";
             if (!selected_slot.id.isEmpty()) {
-                preview_str = selected_slot.format_string() + " (" + clouds::to_string(selected_slot.status) + ")";
+                preview_str = selected_slot.format_string();
             }
             if (ImGui::BeginCombo("(UTC)", preview_str.c_str())) {
-                for (int n = 0; n < (int)times.size(); n++) {
-                    auto slot = times[n];
+                for (int n = 0; n < (int)tilesets.size(); n++) {
+                    const auto& slot = tilesets[n];
                     ImGui::PushID(slot.id.toStdString().c_str());
                     const bool is_selected = slot.id == selected_slot.id;
-                    std::string label = slot.format_string() + " (" + clouds::to_string(slot.status) + ")";
+                    std::string label = slot.format_string();
                     if (ImGui::Selectable(label.c_str(), is_selected)) {
-                        m_clouds_manager->select_time_slot(times[n]);
+                        m_clouds_manager->select_time_slot(tilesets[n]);
                     }
                     if (is_selected)
                         ImGui::SetItemDefaultFocus();
@@ -79,22 +74,12 @@ void CloudPanel::draw_panel()
             }
 
             ImGui::SameLine();
-            if (manifest_status == clouds::ManifestStatus::Pending) ImGui::BeginDisabled();
+            const bool loading = m_clouds_manager->is_loading();
+            if (loading) ImGui::BeginDisabled();
             if (ImGui::Button(ICON_FA_SYNC "##reload_clouds")) {
-                m_clouds_manager->refresh_manifest();
+                m_clouds_manager->refresh_tileset_list();
             }
-            if (manifest_status == clouds::ManifestStatus::Pending) ImGui::EndDisabled();
-
-            bool can_generate = selected_slot.is_generation_requestable();
-            if (!can_generate) ImGui::BeginDisabled();
-            if (ImGui::Button("Generate")) {
-                m_clouds_manager->generate_selected_slot();
-            }
-            if (!can_generate) ImGui::EndDisabled();
-            if (selected_slot.status == clouds::SlotStatus::Pending) {
-                ImGui::SameLine();
-                ImGui::Text("Progress: %s %d%%", selected_slot.progress.stage.toStdString().c_str(), selected_slot.progress.percent);
-            }
+            if (loading) ImGui::EndDisabled();
         }
 
         ImGui::SeparatorText("Shading");
