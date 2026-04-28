@@ -354,7 +354,7 @@ void Window::paint_gui()
             WebInterop::instance().open_file_dialog(".png", "overlay_png");
 #else
             IGFD::FileDialogConfig config;
-            config.path = ".";
+            config.path = m_last_dialog_directory;
             ImGuiFileDialog::Instance()->OpenDialog("OverlayImageFileDialog", "Choose File", ".png,.*", config);
 #endif
         }
@@ -387,6 +387,7 @@ void Window::paint_gui()
 
                 // If the AABB file exists, call the appropriate functions
                 if (std::filesystem::exists(aabb_filepath)) {
+                    m_last_dialog_directory = filename.parent_path().string();
                     update_image_overlay_texture(filename_str);
                     update_image_overlay_aabb_and_focus(aabb_filepath.string());
                     m_needs_redraw = true;
@@ -429,7 +430,7 @@ void Window::paint_gui()
             WebInterop::instance().open_file_dialog(".gpx", "track");
 #else
             IGFD::FileDialogConfig config;
-            config.path = ".";
+            config.path = m_last_dialog_directory;
             ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".gpx,.*", config);
 #endif
         }
@@ -450,6 +451,7 @@ void Window::paint_gui()
     if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey")) {
         if (ImGuiFileDialog::Instance()->IsOk()) { // action if OK
             std::string file_path = ImGuiFileDialog::Instance()->GetFilePathName();
+            m_last_dialog_directory = std::filesystem::path(file_path).parent_path().string();
             load_track_and_focus(file_path);
         }
         ImGuiFileDialog::Instance()->Close();
@@ -1499,7 +1501,7 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> Window::create_overlay_texture
     sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Linear;
+    sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
     sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
     sampler_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Linear;
     sampler_desc.lodMinClamp = 0.0f;
@@ -1759,7 +1761,7 @@ void Window::update_image_overlay_aabb_and_focus(const std::string& aabb_file_pa
         return;
     }
 
-    focus_region_2d(aabb);
+    //focus_region_2d(aabb);
 }
 
 void Window::clear_compute_overlay()

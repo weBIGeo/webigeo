@@ -178,6 +178,7 @@ private:
     bool m_first_paint = true;
     bool m_is_first_pipeline_run = true;
     uint32_t m_paint_number = 0;
+    std::string m_last_dialog_directory = ".";
 
     std::unique_ptr<TrackRenderer> m_track_renderer;
 
