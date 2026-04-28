@@ -74,7 +74,7 @@ private:
     // maps TileSetInfo::id -> index into m_slots
     QHash<QString, int> m_id_to_index;
 
-    const QString m_server_url = "https://atlas.cg.tuwien.ac.at/webigeo-clouds";
+    const QString m_server_url = "https://atlas.cg.tuwien.ac.at/webigeo-clouds/v2"; // http://localhost:8000/v2, https://atlas.cg.tuwien.ac.at/webigeo-clouds/v2
 };
 
 class Manager : public QObject {
