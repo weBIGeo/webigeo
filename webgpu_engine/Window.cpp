@@ -1737,6 +1737,26 @@ void Window::update_image_overlay_texture(const std::string& image_file_path)
     m_image_overlay_texture->texture().write(m_queue, image);
     m_image_overlay_settings_uniform_buffer->data.texture_size = glm::uvec2(image.width(), image.height());
     compute_mipmaps_for_texture(&m_image_overlay_texture->texture());
+
+    // Scan encoded float range across all non-zero pixels
+    constexpr float ENCODING_MIN = -10000.0f;
+    constexpr float ENCODING_MAX = 10000.0f;
+    float min_val = std::numeric_limits<float>::max();
+    float max_val = std::numeric_limits<float>::lowest();
+    for (const glm::u8vec4& px : image) {
+        uint32_t packed = (uint32_t(px.x) << 24) | (uint32_t(px.y) << 16) | (uint32_t(px.z) << 8) | uint32_t(px.w);
+        if (packed == 0)
+            continue;
+        float value = ENCODING_MIN + (float(packed) / float(0xFFFFFFFFu)) * (ENCODING_MAX - ENCODING_MIN);
+        min_val = std::min(min_val, value);
+        max_val = std::max(max_val, value);
+    }
+    if (min_val <= max_val) {
+        m_image_overlay_settings_uniform_buffer->data.float_decoding_lower_bound = min_val;
+        m_image_overlay_settings_uniform_buffer->data.float_decoding_upper_bound = max_val;
+        m_image_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
+    }
+
     recreate_compose_bind_group();
 }
 
@@ -1769,7 +1789,7 @@ void Window::update_image_overlay_aabb_and_focus(const std::string& aabb_file_pa
         return;
     }
 
-    //focus_region_2d(aabb);
+    focus_region_2d(aabb);
 }
 
 void Window::clear_compute_overlay()
