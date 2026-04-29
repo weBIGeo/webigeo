@@ -69,8 +69,9 @@ set(SOURCES
 # NodeGraphRenderer and NodeRenderer are only compiled when ImGui is enabled
 if (ALP_WEBGPU_APP_ENABLE_IMGUI)
     list(APPEND SOURCES
-        compute/NodeGraphRenderer.h compute/NodeGraphRenderer.cpp
-        compute/NodeRenderer.h compute/NodeRenderer.cpp
+        compute/imgui/NodeGraphRenderer.h compute/imgui/NodeGraphRenderer.cpp
+        compute/imgui/NodeRenderer.h compute/imgui/NodeRenderer.cpp
+        compute/imgui/ComputeSnowNodeRenderer.h compute/imgui/ComputeSnowNodeRenderer.cpp
     )
 endif()
 

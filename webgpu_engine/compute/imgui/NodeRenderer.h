@@ -24,11 +24,7 @@
 #include <string>
 #include <vector>
 
-#include "nodes/Node.h"
-
-namespace webgpu_engine::compute::nodes {
-class ComputeSnowNode;
-}
+#include "../nodes/Node.h"
 
 namespace webgpu_engine::compute {
 
@@ -53,13 +49,13 @@ public:
 
     nodes::Node* get_node() const { return m_node; }
 
-    // Removes optional "_node" and formats the name with capitalization.
-    // e.g., "request_height_node" → "Request Height"
     static std::unique_ptr<NodeRenderer> create(const std::string& name, nodes::Node& node);
 
+    // Removes optional "_node" and formats the name with capitalization.
+    // e.g., "request_height_node" → "Request Height"
     static std::string format_node_name(const std::string& name);
 
-    static std::string format_ms(const int duration_in_ms);
+    static std::string format_ms(int duration_in_ms);
 
 private:
     std::string m_name;
@@ -72,22 +68,6 @@ private:
     ImVec2 m_position = { 0, 0 };
     ImVec2 m_size = { -1, -1 }; // Initialized after first frame
     bool m_settings_open = true;
-};
-
-class SelectTilesNodeRenderer : public NodeRenderer {
-public:
-    using NodeRenderer::NodeRenderer;
-    // void render() override;
-};
-
-class ComputeSnowNodeRenderer : public NodeRenderer {
-public:
-    ComputeSnowNodeRenderer(const std::string& name, nodes::ComputeSnowNode& node);
-    bool has_settings() const override { return true; }
-    void render_settings_content() override;
-
-private:
-    nodes::ComputeSnowNode* m_snow_node;
 };
 
 } // namespace webgpu_engine::compute

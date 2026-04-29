@@ -26,7 +26,7 @@
 #include <vector>
 
 #include "NodeRenderer.h"
-#include "nodes/NodeGraph.h"
+#include "../nodes/NodeGraph.h"
 
 namespace webgpu_engine::compute {
 

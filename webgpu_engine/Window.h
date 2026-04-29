@@ -26,7 +26,7 @@
 #include "TrackRenderer.h"
 #include "UniformBufferObjects.h"
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-#include "compute/NodeGraphRenderer.h"
+#include "compute/imgui/NodeGraphRenderer.h"
 #endif
 #include "compute/nodes/NodeGraph.h"
 #include "compute/nodes/RequestTilesNode.h"

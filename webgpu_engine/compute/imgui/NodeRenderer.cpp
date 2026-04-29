@@ -19,7 +19,8 @@
 
 #include "NodeRenderer.h"
 
-#include "nodes/ComputeSnowNode.h"
+#include "ComputeSnowNodeRenderer.h"
+#include "../nodes/ComputeSnowNode.h"
 #include <IconsFontAwesome5.h>
 #include <imgui.h>
 #include <imnodes.h>
@@ -77,13 +78,11 @@ NodeRenderer::NodeRenderer(const std::string& name, nodes::Node& node)
     , m_node(&node)
     , m_node_id(int(hasher(m_name)))
 {
-    // compute input socket ids (hashes), needed by ImNodes
     for (const auto& socket : m_node->input_sockets()) {
         const int socket_id = int(hasher(m_name + socket.name()));
         m_input_socket_ids.push_back(socket_id);
     }
 
-    // compute output socket ids (hashes), needed by ImNodes
     for (const auto& socket : m_node->output_sockets()) {
         const int socket_id = int(hasher(m_name + socket.name()));
         m_output_socket_ids.push_back(socket_id);
@@ -163,14 +162,12 @@ void NodeRenderer::render(bool reset_position)
 
 void NodeRenderer::render_sockets()
 {
-    // input sockets
     for (size_t i = 0; i < m_input_socket_ids.size(); i++) {
         ImNodes::BeginInputAttribute(m_input_socket_ids.at(i));
         ImGui::Text("%s", m_node->input_sockets().at(i).name().c_str());
         ImNodes::EndInputAttribute();
     }
 
-    // output sockets
     for (size_t i = 0; i < m_output_socket_ids.size(); i++) {
         ImNodes::BeginOutputAttribute(m_output_socket_ids.at(i));
         ImGui::Text("%s", m_node->output_sockets().at(i).name().c_str());
@@ -186,7 +183,7 @@ void NodeRenderer::render_settings()
     ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(80, 80, 80, 255));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(100, 100, 100, 255));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(120, 120, 120, 255));
-    if (ImGui::Button(m_settings_open ? ICON_FA_CARET_DOWN " Settings" : ICON_FA_CARET_RIGHT " Settings", ImVec2(-FLT_MIN, 0.0f)))
+    if (ImGui::Button(m_settings_open ? ICON_FA_CARET_DOWN " Settings" : ICON_FA_CARET_RIGHT " Settings", ImVec2(std::min(300.0f, m_size.x) - 10, 0.0f)))
         m_settings_open = !m_settings_open;
     ImGui::PopStyleColor(3);
 
@@ -226,33 +223,8 @@ int NodeRenderer::get_output_socket_id(const std::string& output_socket_name) co
             return m_output_socket_ids.at(i);
         }
     }
-    qFatal() << "tried to get non-existing input socket " << output_socket_name << " from node renderer for node " << m_name;
+    qFatal() << "tried to get non-existing output socket " << output_socket_name << " from node renderer for node " << m_name;
     return -1;
-}
-
-ComputeSnowNodeRenderer::ComputeSnowNodeRenderer(const std::string& name, nodes::ComputeSnowNode& node)
-    : NodeRenderer(name, node)
-    , m_snow_node(&node)
-{
-}
-
-void ComputeSnowNodeRenderer::render_settings_content()
-{
-    auto settings = m_snow_node->get_snow_settings();
-    bool changed = false;
-
-    ImGui::PushItemWidth(100.0f);
-    changed |= ImGui::DragFloatRange2("Ang.-limit", &settings.min_angle, &settings.max_angle, 0.1f, 0.0f, 90.0f, "%.1f°", "%.1f°", ImGuiSliderFlags_AlwaysClamp);
-    changed |= ImGui::SliderFloat("Ang.-blend", &settings.angle_blend, 0.0f, 90.0f, "%.1f°");
-    changed |= ImGui::SliderFloat("Alt.-limit", &settings.min_altitude, 0.0f, 4000.0f, "%.1fm");
-    changed |= ImGui::SliderFloat("Alt.-variation", &settings.altitude_variation, 0.0f, 1000.0f, "%.1fm");
-    changed |= ImGui::SliderFloat("Alt.-blend", &settings.altitude_blend, 0.0f, 1000.0f, "%.1fm");
-    ImGui::PopItemWidth();
-
-    if (changed) {
-        m_snow_node->set_snow_settings(settings);
-        m_snow_node->run();
-    }
 }
 
 } // namespace webgpu_engine::compute
