@@ -19,7 +19,9 @@
 
 #include "NodeRenderer.h"
 
+#include "BufferExportNodeRenderer.h"
 #include "ComputeSnowNodeRenderer.h"
+#include "../nodes/BufferExportNode.h"
 #include "../nodes/ComputeSnowNode.h"
 #include <IconsFontAwesome5.h>
 #include <imgui.h>
@@ -129,6 +131,16 @@ void NodeRenderer::render(bool reset_position)
     }
     ImGui::SameLine();
     ImGui::TextUnformatted(m_name_formatted.c_str());
+    ImGui::SameLine();
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2, 1));
+    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(0, 0, 0, 0));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(255, 255, 255, 40));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(255, 255, 255, 80));
+    if (ImGui::Button(ICON_FA_PLAY "##run")) {
+        m_node->run();
+    }
+    ImGui::PopStyleColor(3);
+    ImGui::PopStyleVar();
     ImNodes::EndNodeTitleBar();
 
     render_settings();
@@ -196,6 +208,8 @@ void NodeRenderer::render_settings()
 
 std::unique_ptr<NodeRenderer> NodeRenderer::create(const std::string& name, nodes::Node& node)
 {
+    if (auto* n = dynamic_cast<nodes::BufferExportNode*>(&node))
+        return std::make_unique<BufferExportNodeRenderer>(name, *n);
     if (auto* n = dynamic_cast<nodes::ComputeSnowNode*>(&node))
         return std::make_unique<ComputeSnowNodeRenderer>(name, *n);
     return std::make_unique<NodeRenderer>(name, node);
