@@ -415,6 +415,14 @@ void Window::paint_gui()
             m_needs_redraw = true;
         }
 
+        if (ImGui::Checkbox("Linear Interpolation##image overlay", &m_image_overlay_linear_interpolation)) {
+            if (!m_image_overlay_texture_path.empty()) {
+                update_image_overlay_texture(m_image_overlay_texture_path);
+                m_image_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
+            }
+            m_needs_redraw = true;
+        }
+
         if (m_image_overlay_settings_uniform_buffer->data.mode == 1) {
             if (ImGui::DragFloatRange2("Float Map Range", &m_image_overlay_settings_uniform_buffer->data.float_decoding_lower_bound,
                     &m_image_overlay_settings_uniform_buffer->data.float_decoding_upper_bound, 1.0f, -10000, 10000)) {
@@ -1482,7 +1490,7 @@ uint32_t bit_width(uint32_t m)
 
 uint32_t getMaxMipLevelCount(const glm::uvec2 textureSize) { return std::max(1u, bit_width(std::max(textureSize.x, textureSize.y))); }
 
-std::unique_ptr<webgpu::raii::TextureWithSampler> Window::create_overlay_texture(unsigned int width, unsigned int height)
+std::unique_ptr<webgpu::raii::TextureWithSampler> Window::create_overlay_texture(unsigned int width, unsigned int height, bool linear_interpolation)
 {
     WGPUTextureDescriptor texture_desc {};
     texture_desc.label = WGPUStringView { .data = "image overlay texture", .length = WGPU_STRLEN };
@@ -1493,17 +1501,16 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> Window::create_overlay_texture
     texture_desc.format = WGPUTextureFormat::WGPUTextureFormat_RGBA8Unorm;
     texture_desc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_StorageBinding;
 
-    qDebug() << "mip level count: " << texture_desc.mipLevelCount;
-    qDebug() << "for texture size: " << width << "x" << height << "pixels";
-
     WGPUSamplerDescriptor sampler_desc {};
     sampler_desc.label = WGPUStringView { .data = "image overlay sampler", .length = WGPU_STRLEN };
     sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
-    sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
-    sampler_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Linear;
+    const auto filter_mode = linear_interpolation ? WGPUFilterMode::WGPUFilterMode_Linear : WGPUFilterMode::WGPUFilterMode_Nearest;
+    const auto mipmap_mode = linear_interpolation ? WGPUMipmapFilterMode::WGPUMipmapFilterMode_Linear : WGPUMipmapFilterMode::WGPUMipmapFilterMode_Nearest;
+    sampler_desc.magFilter = filter_mode;
+    sampler_desc.minFilter = filter_mode;
+    sampler_desc.mipmapFilter = mipmap_mode;
     sampler_desc.lodMinClamp = 0.0f;
     sampler_desc.lodMaxClamp = 1.0f;
     sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
@@ -1724,8 +1731,9 @@ void Window::focus_region_2d(const radix::geometry::Aabb<2, double>& aabb)
 
 void Window::update_image_overlay_texture(const std::string& image_file_path)
 {
+    m_image_overlay_texture_path = image_file_path;
     nucleus::Raster<glm::u8vec4> image = nucleus::utils::image_loader::rgba8(QString::fromStdString(image_file_path)).value();
-    m_image_overlay_texture = create_overlay_texture(image.width(), image.height());
+    m_image_overlay_texture = create_overlay_texture(image.width(), image.height(), m_image_overlay_linear_interpolation);
     m_image_overlay_texture->texture().write(m_queue, image);
     m_image_overlay_settings_uniform_buffer->data.texture_size = glm::uvec2(image.width(), image.height());
     compute_mipmaps_for_texture(&m_image_overlay_texture->texture());
