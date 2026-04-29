@@ -71,6 +71,7 @@ if (ALP_WEBGPU_APP_ENABLE_IMGUI)
     list(APPEND SOURCES
         compute/imgui/NodeGraphRenderer.h compute/imgui/NodeGraphRenderer.cpp
         compute/imgui/NodeRenderer.h compute/imgui/NodeRenderer.cpp
+        compute/imgui/BufferExportNodeRenderer.h compute/imgui/BufferExportNodeRenderer.cpp
         compute/imgui/ComputeSnowNodeRenderer.h compute/imgui/ComputeSnowNodeRenderer.cpp
     )
 endif()
