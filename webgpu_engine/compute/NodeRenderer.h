@@ -20,10 +20,15 @@
 #pragma once
 
 #include <imgui.h>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "nodes/Node.h"
+
+namespace webgpu_engine::compute::nodes {
+class ComputeSnowNode;
+}
 
 namespace webgpu_engine::compute {
 
@@ -34,7 +39,10 @@ public:
 
     void render(bool reset_position = false);
     void render_sockets();
-    virtual void render_settings();
+    void render_settings();
+
+    virtual bool has_settings() const { return false; }
+    virtual void render_settings_content() { }
 
     int get_input_socket_id(const std::string& input_socket_name) const;
     int get_output_socket_id(const std::string& output_socket_name) const;
@@ -47,6 +55,8 @@ public:
 
     // Removes optional "_node" and formats the name with capitalization.
     // e.g., "request_height_node" → "Request Height"
+    static std::unique_ptr<NodeRenderer> create(const std::string& name, nodes::Node& node);
+
     static std::string format_node_name(const std::string& name);
 
     static std::string format_ms(const int duration_in_ms);
@@ -61,12 +71,23 @@ private:
 
     ImVec2 m_position = { 0, 0 };
     ImVec2 m_size = { -1, -1 }; // Initialized after first frame
+    bool m_settings_open = true;
 };
 
 class SelectTilesNodeRenderer : public NodeRenderer {
 public:
     using NodeRenderer::NodeRenderer;
     // void render() override;
+};
+
+class ComputeSnowNodeRenderer : public NodeRenderer {
+public:
+    ComputeSnowNodeRenderer(const std::string& name, nodes::ComputeSnowNode& node);
+    bool has_settings() const override { return true; }
+    void render_settings_content() override;
+
+private:
+    nodes::ComputeSnowNode* m_snow_node;
 };
 
 } // namespace webgpu_engine::compute

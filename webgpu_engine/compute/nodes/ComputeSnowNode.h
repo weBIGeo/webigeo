@@ -69,6 +69,7 @@ public:
     ComputeSnowNode(const PipelineManager& pipeline_manager, WGPUDevice device, const SnowSettings& settings);
 
     void set_snow_settings(const SnowSettings& settings) { m_settings = settings; }
+    const SnowSettings& get_snow_settings() const { return m_settings; }
 
 public slots:
     void run_impl() override;

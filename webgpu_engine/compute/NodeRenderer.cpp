@@ -19,6 +19,8 @@
 
 #include "NodeRenderer.h"
 
+#include "nodes/ComputeSnowNode.h"
+#include <IconsFontAwesome5.h>
 #include <imgui.h>
 #include <imnodes.h>
 #include <iomanip>
@@ -123,11 +125,11 @@ void NodeRenderer::render(bool reset_position)
 
     ImNodes::BeginNodeTitleBar();
     bool enabled = m_node->is_enabled();
-    ImGui::TextUnformatted(m_name_formatted.c_str());
-    ImGui::SameLine();
     if (ImGui::Checkbox("##enabled", &enabled)) {
         m_node->set_enabled(enabled);
     }
+    ImGui::SameLine();
+    ImGui::TextUnformatted(m_name_formatted.c_str());
     ImNodes::EndNodeTitleBar();
 
     render_settings();
@@ -176,7 +178,31 @@ void NodeRenderer::render_sockets()
     }
 }
 
-void NodeRenderer::render_settings() { }
+void NodeRenderer::render_settings()
+{
+    if (!has_settings())
+        return;
+
+    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(80, 80, 80, 255));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(100, 100, 100, 255));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(120, 120, 120, 255));
+    if (ImGui::Button(m_settings_open ? ICON_FA_CARET_DOWN " Settings" : ICON_FA_CARET_RIGHT " Settings", ImVec2(-FLT_MIN, 0.0f)))
+        m_settings_open = !m_settings_open;
+    ImGui::PopStyleColor(3);
+
+    if (m_settings_open) {
+        ImGui::Indent();
+        render_settings_content();
+        ImGui::Unindent();
+    }
+}
+
+std::unique_ptr<NodeRenderer> NodeRenderer::create(const std::string& name, nodes::Node& node)
+{
+    if (auto* n = dynamic_cast<nodes::ComputeSnowNode*>(&node))
+        return std::make_unique<ComputeSnowNodeRenderer>(name, *n);
+    return std::make_unique<NodeRenderer>(name, node);
+}
 
 int NodeRenderer::get_input_socket_id(const std::string& input_socket_name) const
 {
@@ -202,6 +228,31 @@ int NodeRenderer::get_output_socket_id(const std::string& output_socket_name) co
     }
     qFatal() << "tried to get non-existing input socket " << output_socket_name << " from node renderer for node " << m_name;
     return -1;
+}
+
+ComputeSnowNodeRenderer::ComputeSnowNodeRenderer(const std::string& name, nodes::ComputeSnowNode& node)
+    : NodeRenderer(name, node)
+    , m_snow_node(&node)
+{
+}
+
+void ComputeSnowNodeRenderer::render_settings_content()
+{
+    auto settings = m_snow_node->get_snow_settings();
+    bool changed = false;
+
+    ImGui::PushItemWidth(100.0f);
+    changed |= ImGui::DragFloatRange2("Ang.-limit", &settings.min_angle, &settings.max_angle, 0.1f, 0.0f, 90.0f, "%.1f°", "%.1f°", ImGuiSliderFlags_AlwaysClamp);
+    changed |= ImGui::SliderFloat("Ang.-blend", &settings.angle_blend, 0.0f, 90.0f, "%.1f°");
+    changed |= ImGui::SliderFloat("Alt.-limit", &settings.min_altitude, 0.0f, 4000.0f, "%.1fm");
+    changed |= ImGui::SliderFloat("Alt.-variation", &settings.altitude_variation, 0.0f, 1000.0f, "%.1fm");
+    changed |= ImGui::SliderFloat("Alt.-blend", &settings.altitude_blend, 0.0f, 1000.0f, "%.1fm");
+    ImGui::PopItemWidth();
+
+    if (changed) {
+        m_snow_node->set_snow_settings(settings);
+        m_snow_node->run();
+    }
 }
 
 } // namespace webgpu_engine::compute
