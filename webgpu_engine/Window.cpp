@@ -692,69 +692,6 @@ void Window::paint_compute_pipeline_gui()
             ImGui::PushItemWidth(15.0f * ImGui::GetFontSize());
             if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
 
-                if (ImGui::TreeNodeEx("General")) {
-
-                    const uint32_t min_resolution_multiplier = 1;
-                    const uint32_t max_resolution_multiplier = 32;
-                    ImGui::SliderScalar("Output resolution",
-                        ImGuiDataType_U32,
-                        &m_compute_pipeline_settings.trajectory_resolution_multiplier,
-                        &min_resolution_multiplier,
-                        &max_resolution_multiplier,
-                        "%ux");
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        update_settings_and_rerun_pipeline("compute_avalanche_trajectories_node");
-                    }
-
-                    const uint32_t min_steps = 1;
-                    const uint32_t max_steps = 20000;
-                    ImGui::DragScalar("Num steps", ImGuiDataType_U32, &m_compute_pipeline_settings.num_steps, 1.0f, &min_steps, &max_steps, "%u");
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        update_settings_and_rerun_pipeline("compute_avalanche_trajectories_node");
-                    }
-
-                    const uint32_t min_num_samples = 1;
-                    const uint32_t max_num_samples = 2048;
-                    ImGui::DragScalar("Num particles per cell",
-                        ImGuiDataType_U32,
-                        &m_compute_pipeline_settings.num_paths_per_release_cell,
-                        1.0f,
-                        &min_num_samples,
-                        &max_num_samples,
-                        "%u");
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        update_settings_and_rerun_pipeline("compute_avalanche_trajectories_node");
-                    }
-
-                    const glm::uvec2 num_runs_bounds = glm::uvec2(1, 1000);
-                    ImGui::DragScalar("Number of runs##trajectories",
-                        ImGuiDataType_U32,
-                        &m_compute_pipeline_settings.num_runs,
-                        1.0f,
-                        &num_runs_bounds.x,
-                        &num_runs_bounds.y,
-                        "%u");
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        update_settings_and_rerun_pipeline("compute_avalanche_trajectories_node");
-                    }
-
-                    // don't need random seed to be adjustable for end users
-
-                    const uint32_t min_seed = 1;
-                    const uint32_t max_seed = 1000000;
-                    ImGui::DragScalar("Random seed", ImGuiDataType_U32, &m_compute_pipeline_settings.random_seed, 1.0f, &min_seed, &max_seed);
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        update_settings_and_rerun_pipeline("compute_avalanche_trajectories_node");
-                    }
-
-                    ImGui::TreePop();
-                }
-
-                // currently only default model works
-                /*if (ImGui::Combo("Model", (int*)&m_compute_pipeline_settings.model_type, "Default\0physics_less_simple\0")) {
-                    update_settings_and_rerun_pipeline("compute_avalanche_trajectories_node");
-                }*/
-
                 if (ImGui::TreeNodeEx("Release cells", ImGuiTreeNodeFlags_DefaultOpen)) {
                     ImGui::SliderInt("Interval##release cells", &m_compute_pipeline_settings.release_point_interval, 1, 64, "%u");
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
@@ -776,68 +713,6 @@ void Window::paint_compute_pipeline_gui()
                     ImGui::TreePop();
                 }
 
-                if (ImGui::TreeNodeEx("Model parameters", ImGuiTreeNodeFlags_DefaultOpen)) {
-                    if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_SIMPLE) {
-                        ImGui::DragFloat("Randomness", &m_compute_pipeline_settings.random_contribution, 0.01f, 0.0f, 90.0f, "%.1f°");
-                        if (ImGui::IsItemDeactivatedAfterEdit()) {
-                            update_settings_and_rerun_pipeline("compute_avalanche_trajectories_node");
-                        }
-
-                        ImGui::DragFloat("Persistence", &m_compute_pipeline_settings.persistence_contribution, 0.01f, 0.0f, 0.99f, "%.2f");
-                        if (ImGui::IsItemDeactivatedAfterEdit()) {
-                            update_settings_and_rerun_pipeline("compute_avalanche_trajectories_node");
-                        }
-
-                        ImGui::DragFloat("Alpha##runout_flowpy", &m_compute_pipeline_settings.runout_flowpy_alpha, 0.01f, 0.0f, 90.0f, "%.2f°");
-                        if (ImGui::IsItemDeactivatedAfterEdit()) {
-                            update_settings_and_rerun_pipeline("compute_avalanche_trajectories_node");
-                        }
-
-                    } else if (m_compute_pipeline_settings.model_type
-                        == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_LESS_SIMPLE) {
-                        ImGui::SliderFloat("Gravity##model_less_simple", &m_compute_pipeline_settings.model_less_simple_params.gravity, 0.0f, 15.0f, "%.2f");
-                        if (ImGui::IsItemDeactivatedAfterEdit()) {
-                            update_settings_and_rerun_pipeline("compute_avalanche_trajectories_node");
-                        }
-                        ImGui::SliderFloat("Mass##model_less_simple", &m_compute_pipeline_settings.model_less_simple_params.mass, 0.0f, 100.0f, "%.2f");
-                        if (ImGui::IsItemDeactivatedAfterEdit()) {
-                            update_settings_and_rerun_pipeline("compute_avalanche_trajectories_node");
-                        }
-                        ImGui::SliderFloat(
-                            "Drag coeff##model_less_simple", &m_compute_pipeline_settings.model_less_simple_params.drag_coeff, 1.0f, 10000.0f, "%.0f");
-                        if (ImGui::IsItemDeactivatedAfterEdit()) {
-                            update_settings_and_rerun_pipeline("compute_avalanche_trajectories_node");
-                        }
-                        ImGui::SliderFloat(
-                            "Friction coeff##model_less_simple", &m_compute_pipeline_settings.model_less_simple_params.friction_coeff, 0.0f, 0.5f, "%.3f");
-                        if (ImGui::IsItemDeactivatedAfterEdit()) {
-                            update_settings_and_rerun_pipeline("compute_avalanche_trajectories_node");
-                        }
-                        static int friction_model_current_item = 1;
-                        const std::vector<std::pair<std::string, int>> friction_model = {
-                            { "Coulomb", 0 },
-                            { "Voellmy", 1 },
-                            { "Voellmy Min Shear", 2 },
-                            { "SamosAt", 3 },
-                            { "None", 4 },
-                        };
-                        const char* current_item_label_friction = friction_model[friction_model_current_item].first.c_str();
-                        if (ImGui::BeginCombo("Friction model", current_item_label_friction)) {
-                            for (size_t i = 0; i < friction_model.size(); i++) {
-                                bool is_selected = ((size_t)friction_model_current_item == i);
-                                if (ImGui::Selectable(friction_model[i].first.c_str(), is_selected)) {
-                                    friction_model_current_item = int(i);
-                                    m_compute_pipeline_settings.friction_model_type = friction_model[i].second;
-                                    update_settings_and_rerun_pipeline("compute_avalanche_trajectories_node");
-                                }
-                                if (is_selected)
-                                    ImGui::SetItemDefaultFocus();
-                            }
-                            ImGui::EndCombo();
-                        }
-                    }
-                    ImGui::TreePop();
-                }
                 if (ImGui::Button("redraw with export")) {
                     update_settings_and_rerun_pipeline();
                 }
@@ -845,16 +720,6 @@ void Window::paint_compute_pipeline_gui()
                 { // Buffer to Texture Settings
                     ImGui::Separator();
                     bool rerun_buffer_to_texture = false;
-                    rerun_buffer_to_texture |= ImGui::Checkbox("Alpha Blending", &m_compute_pipeline_settings.use_transparency_buffer);
-                    if (m_compute_pipeline_settings.use_transparency_buffer) {
-                        auto& bounds = m_compute_pipeline_settings.transparency_map_bounds;
-                        ImGui::DragFloat2("Alpha Bounds", &bounds.x, 1.0f, 0.0f, 1000.0f, "%.2f");
-                        if (bounds.x > bounds.y) {
-                            bounds.x = bounds.y;
-                        }
-                        rerun_buffer_to_texture |= ImGui::IsItemDeactivatedAfterEdit();
-                    }
-                    rerun_buffer_to_texture |= ImGui::Checkbox("Texture Interpolation & MipMaps", &m_compute_pipeline_settings.texture_interpolation_mipmaps);
                     const std::string& unit = m_compute_overlay_layers[m_current_compute_color_layer_index].unit;
                     rerun_buffer_to_texture |= paint_legend_gui(m_compute_pipeline_settings.color_map_bounds.x,
                         m_compute_pipeline_settings.color_map_bounds.y,
@@ -897,108 +762,6 @@ void Window::paint_compute_pipeline_gui()
                 }
             } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES_EVAL) {
 
-                const uint32_t min_resolution_multiplier = 1;
-                const uint32_t max_resolution_multiplier = 32;
-                ImGui::SliderScalar("Resolution", ImGuiDataType_U32, &m_compute_pipeline_settings.trajectory_resolution_multiplier, &min_resolution_multiplier, &max_resolution_multiplier, "%ux");
-                if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    update_settings_and_rerun_pipeline();
-                }
-
-                const uint32_t min_steps = 1;
-                const uint32_t max_steps = 1024;
-                ImGui::DragScalar("Num steps", ImGuiDataType_U32, &m_compute_pipeline_settings.num_steps, 1.0f, &min_steps, &max_steps, "%u");
-                // ImGui::SliderScalar("Num steps", ImGuiDataType_U32, &m_compute_pipeline_settings.num_steps, &min_steps, &max_steps, "%u");
-                if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    update_settings_and_rerun_pipeline();
-                }
-
-                const uint32_t min_num_samples = 1;
-                const uint32_t max_num_samples = 1024;
-                ImGui::DragScalar("Paths per release point", ImGuiDataType_U32, &m_compute_pipeline_settings.num_paths_per_release_cell, 1.0f, &min_num_samples, &max_num_samples, "%u");
-                if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    update_settings_and_rerun_pipeline();
-                }
-
-                const glm::uvec2 num_runs_bounds = glm::uvec2(1, 1000);
-                ImGui::DragScalar("Runs##trajectories", ImGuiDataType_U32, &m_compute_pipeline_settings.num_runs, 1.0f, &num_runs_bounds.x, &num_runs_bounds.y, "%u");
-                if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    update_settings_and_rerun_pipeline();
-                }
-
-                if (ImGui::Combo("Model", (int*)&m_compute_pipeline_settings.model_type, "Default\0physics_less_simple)\0Gradients\0Discretized gradients\0D8 (no weights)\0D8 (with weights)\0")) {
-                    update_settings_and_rerun_pipeline();
-                }
-
-                if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_SIMPLE) {
-                    ImGui::DragFloat("Randomness", &m_compute_pipeline_settings.random_contribution, 0.01f, 0.0f, 90.0f, "%.1f");
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        update_settings_and_rerun_pipeline();
-                    }
-                    ImGui::DragFloat("Persistence", &m_compute_pipeline_settings.persistence_contribution, 0.01f, 0.0f, 1.0f, "%.3f");
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        update_settings_and_rerun_pipeline();
-                    }
-                } else if (m_compute_pipeline_settings.model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_LESS_SIMPLE) {
-                    ImGui::SliderFloat("Gravity##model2", &m_compute_pipeline_settings.model_less_simple_params.gravity, 0.0f, 15.0f, "%.2f");
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        update_settings_and_rerun_pipeline();
-                    }
-                    ImGui::SliderFloat("Mass##model2", &m_compute_pipeline_settings.model_less_simple_params.mass, 0.0f, 100.0f, "%.2f");
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        update_settings_and_rerun_pipeline();
-                    }
-                    ImGui::SliderFloat("Drag coeff##model2", &m_compute_pipeline_settings.model_less_simple_params.drag_coeff, 0.0f, 1.0f, "%.2f");
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        update_settings_and_rerun_pipeline();
-                    }
-                    ImGui::SliderFloat("Friction coeff##model2", &m_compute_pipeline_settings.model_less_simple_params.friction_coeff, 0.0f, 1.0f, "%.4f");
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        update_settings_and_rerun_pipeline();
-                    }
-                }
-                static int runout_models_current_item = 1;
-                const std::vector<std::pair<std::string, int>> runout_models = {
-                    { "None", 0 },
-                    { "FlowPy (Alpha)", 2 },
-                };
-                const char* current_item_label_model = runout_models[runout_models_current_item].first.c_str();
-                if (ImGui::BeginCombo("Runout model", current_item_label_model)) {
-                    for (size_t i = 0; i < runout_models.size(); i++) {
-                        bool is_selected = ((size_t)runout_models_current_item == i);
-                        if (ImGui::Selectable(runout_models[i].first.c_str(), is_selected)) {
-                            runout_models_current_item = int(i);
-                            m_compute_pipeline_settings.friction_model_type = runout_models[i].second;
-                            update_settings_and_rerun_pipeline();
-                        }
-                        if (is_selected)
-                            ImGui::SetItemDefaultFocus();
-                    }
-                    ImGui::EndCombo();
-                }
-
-                // if (m_compute_pipeline_settings.runout_model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::FrictionModelType::PERLA) {
-                //     ImGui::SliderFloat("My##runout_perla", &m_compute_pipeline_settings.perla.my, 0.004f, 0.6f, "%.2f");
-                //     if (ImGui::IsItemDeactivatedAfterEdit()) {
-                //         update_settings_and_rerun_pipeline();
-                //     }
-                //     ImGui::SliderFloat("M/D##runout_perla", &m_compute_pipeline_settings.perla.md, 20.0f, 150.0f, "%.2f");
-                //     if (ImGui::IsItemDeactivatedAfterEdit()) {
-                //         update_settings_and_rerun_pipeline();
-                //     }
-                //     ImGui::SliderFloat("L##runout_perla", &m_compute_pipeline_settings.perla.l, 1.0f, 15.0f, "%.2f");
-                //     if (ImGui::IsItemDeactivatedAfterEdit()) {
-                //         update_settings_and_rerun_pipeline();
-                //     }
-                //     ImGui::SliderFloat("Gravity##runout_perla", &m_compute_pipeline_settings.perla.g, 0.0f, 15.0f, "%.2f");
-                //     if (ImGui::IsItemDeactivatedAfterEdit()) {
-                //         update_settings_and_rerun_pipeline();
-                //     }
-                // } else if (m_compute_pipeline_settings.runout_model_type == compute::nodes::ComputeAvalancheTrajectoriesNode::FrictionModelType::FLOWPY) {
-                //     ImGui::DragFloat("Alpha##runout_flowpy", &m_compute_pipeline_settings.runout_flowpy_alpha, 0.01f, 0.0f, 90.0f, "%.2f");
-                //     if (ImGui::IsItemDeactivatedAfterEdit()) {
-                //         update_settings_and_rerun_pipeline();
-                //     }
-                // }
 #ifndef __EMSCRIPTEN__
                 if (ImGui::Button("Open eval dir ...", ImVec2(250, 20))) {
                     IGFD::FileDialogConfig config_eval_dir_file_dialog;
@@ -1042,32 +805,6 @@ void Window::paint_compute_pipeline_gui()
             } else if (m_active_compute_pipeline_type == ComputePipelineType::SNOW) {
                 if (ImGui::Checkbox("Sync with render settings", &m_compute_pipeline_settings.sync_snow_settings_with_render_settings)) {
                     update_settings_and_rerun_pipeline();
-                }
-
-                if (!m_compute_pipeline_settings.sync_snow_settings_with_render_settings) {
-                    if (ImGui::DragFloatRange2("Angle limit##compute",
-                            &m_compute_pipeline_settings.snow_settings.angle.y,
-                            &m_compute_pipeline_settings.snow_settings.angle.z,
-                            0.1f,
-                            0.0f,
-                            90.0f,
-                            "Min: %.1f°",
-                            "Max: %.1f°",
-                            ImGuiSliderFlags_AlwaysClamp)) {
-                        update_settings_and_rerun_pipeline();
-                    }
-                    if (ImGui::SliderFloat("Angle blend##compute", &m_compute_pipeline_settings.snow_settings.angle.w, 0.0f, 90.0f, "%.1f°")) {
-                        update_settings_and_rerun_pipeline();
-                    }
-                    if (ImGui::SliderFloat("Altitude limit##compute", &m_compute_pipeline_settings.snow_settings.alt.x, 0.0f, 4000.0f, "%.1fm")) {
-                        update_settings_and_rerun_pipeline();
-                    }
-                    if (ImGui::SliderFloat("Altitude variation##compute", &m_compute_pipeline_settings.snow_settings.alt.y, 0.0f, 1000.0f, "%.1f°")) {
-                        update_settings_and_rerun_pipeline();
-                    }
-                    if (ImGui::SliderFloat("Altitude blend##compute", &m_compute_pipeline_settings.snow_settings.alt.z, 0.0f, 1000.0f)) {
-                        update_settings_and_rerun_pipeline();
-                    }
                 }
             } else if (m_active_compute_pipeline_type == ComputePipelineType::RELEASE_POINTS) {
                 ImGui::SliderInt("Release point interval", &m_compute_pipeline_settings.release_point_interval, 1, 64, "%u");
