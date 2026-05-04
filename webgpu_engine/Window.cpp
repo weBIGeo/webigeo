@@ -495,9 +495,9 @@ void Window::paint_gui()
 
 void Window::rewire_buffer_to_texture_node()
 {
-    if (m_compute_graph->exists_node("buffer_to_texture_node") && m_compute_graph->exists_node("compute_avalanche_trajectories_node")) {
+    if (m_compute_graph->exists_node("buffer_to_texture_node") && m_compute_graph->exists_node("avalanche_trajectories_node")) {
         auto& buffer_to_texture_node = m_compute_graph->get_node_as<compute::nodes::BufferToTextureNode>("buffer_to_texture_node");
-        auto& trajectories_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("compute_avalanche_trajectories_node");
+        auto& trajectories_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("avalanche_trajectories_node");
 
         const std::string& current_color_socket = m_compute_overlay_layers[m_current_compute_color_layer_index].socket_name;
         const std::string& current_alpha_socket = m_compute_overlay_layers[m_current_compute_alpha_layer_index].socket_name;
@@ -695,7 +695,7 @@ void Window::paint_compute_pipeline_gui()
                 if (ImGui::TreeNodeEx("Release cells", ImGuiTreeNodeFlags_DefaultOpen)) {
                     ImGui::SliderInt("Interval##release cells", &m_compute_pipeline_settings.release_point_interval, 1, 64, "%u");
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        update_settings_and_rerun_pipeline("compute_release_points_node");
+                        update_settings_and_rerun_pipeline("release_points_node");
                     }
 
                     ImGui::DragFloatRange2("Steepness range##release cells",
@@ -708,7 +708,7 @@ void Window::paint_compute_pipeline_gui()
                         "Max: %.1f°",
                         ImGuiSliderFlags_AlwaysClamp);
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        update_settings_and_rerun_pipeline("compute_release_points_node");
+                        update_settings_and_rerun_pipeline("release_points_node");
                     }
                     ImGui::TreePop();
                 }
@@ -971,7 +971,7 @@ void Window::update_compute_pipeline_settings()
             settings.min_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_min_slope_angle);
             settings.max_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_max_slope_angle);
             settings.sampling_interval = glm::uvec2(m_compute_pipeline_settings.release_point_interval);
-            m_compute_graph->get_node_as<compute::nodes::ComputeReleasePointsNode>("compute_release_points_node").set_settings(settings);
+            m_compute_graph->get_node_as<compute::nodes::ComputeReleasePointsNode>("release_points_node").set_settings(settings);
         }
 
     } else if (m_active_compute_pipeline_type == ComputePipelineType::SNOW) {
@@ -995,7 +995,7 @@ void Window::update_compute_pipeline_settings()
         snow_settings.min_altitude = snow_settings_uniform.alt.x;
         snow_settings.altitude_variation = snow_settings_uniform.alt.y;
         snow_settings.altitude_blend = snow_settings_uniform.alt.z;
-        m_compute_graph->get_node_as<compute::nodes::ComputeSnowNode>("compute_snow_node").set_snow_settings(snow_settings);
+        m_compute_graph->get_node_as<compute::nodes::ComputeSnowNode>("snow_node").set_snow_settings(snow_settings);
 
     } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
         // tile selection
@@ -1010,7 +1010,7 @@ void Window::update_compute_pipeline_settings()
         settings.min_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_min_slope_angle);
         settings.max_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_max_slope_angle);
         settings.sampling_interval = glm::uvec2(m_compute_pipeline_settings.release_point_interval);
-        m_compute_graph->get_node_as<compute::nodes::ComputeReleasePointsNode>("compute_release_points_node").set_settings(settings);
+        m_compute_graph->get_node_as<compute::nodes::ComputeReleasePointsNode>("release_points_node").set_settings(settings);
 
         // trajectories settings
         compute::nodes::ComputeAvalancheTrajectoriesNode::AvalancheTrajectoriesSettings trajectory_settings {};
@@ -1029,7 +1029,7 @@ void Window::update_compute_pipeline_settings()
         trajectory_settings.random_seed = m_compute_pipeline_settings.random_seed;
         trajectory_settings.num_runs = m_compute_pipeline_settings.num_runs;
 
-        auto& trajectories_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("compute_avalanche_trajectories_node");
+        auto& trajectories_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("avalanche_trajectories_node");
         trajectories_node.set_settings(trajectory_settings);
 
         // buffertotexture settings
@@ -1106,7 +1106,7 @@ void Window::update_compute_pipeline_settings()
         trajectory_settings.runout_perla = m_compute_pipeline_settings.perla;
         trajectory_settings.runout_flowpy.alpha = m_compute_pipeline_settings.runout_flowpy_alpha;
 
-        auto& trajectories_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("compute_avalanche_trajectories_node");
+        auto& trajectories_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("avalanche_trajectories_node");
         trajectories_node.set_settings(trajectory_settings);
 
         {
@@ -1186,7 +1186,7 @@ void Window::update_compute_pipeline_settings()
         settings.min_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_min_slope_angle);
         settings.max_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_max_slope_angle);
         settings.sampling_interval = glm::uvec2(m_compute_pipeline_settings.release_point_interval);
-        m_compute_graph->get_node_as<compute::nodes::ComputeReleasePointsNode>("compute_release_points_node").set_settings(settings);
+        m_compute_graph->get_node_as<compute::nodes::ComputeReleasePointsNode>("release_points_node").set_settings(settings);
     }
 }
 
@@ -1621,13 +1621,13 @@ void Window::on_pipeline_run_completed()
         const webgpu::raii::TextureWithSampler* texture = nullptr;
         if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS) {
             texture = std::get<const webgpu::raii::TextureWithSampler*>(
-                m_compute_graph->get_node("compute_normals_node").output_socket("normal texture").get_data());
+                m_compute_graph->get_node("normals_node").output_socket("normal texture").get_data());
         } else if (m_active_compute_pipeline_type == ComputePipelineType::SNOW) {
             texture
-                = std::get<const webgpu::raii::TextureWithSampler*>(m_compute_graph->get_node("compute_snow_node").output_socket("snow texture").get_data());
+                = std::get<const webgpu::raii::TextureWithSampler*>(m_compute_graph->get_node("snow_node").output_socket("snow texture").get_data());
         } else if (m_active_compute_pipeline_type == ComputePipelineType::RELEASE_POINTS) {
             texture = std::get<const webgpu::raii::TextureWithSampler*>(
-                m_compute_graph->get_node("compute_release_points_node").output_socket("release point texture").get_data());
+                m_compute_graph->get_node("release_points_node").output_socket("release point texture").get_data());
         } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
             texture
                 = std::get<const webgpu::raii::TextureWithSampler*>(m_compute_graph->get_node("buffer_to_texture_node").output_socket("texture").get_data());

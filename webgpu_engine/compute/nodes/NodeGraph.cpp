@@ -169,7 +169,7 @@ static std::unique_ptr<NodeGraph> create_normal_compute_graph_unconnected(const 
     Node* height_request_node = node_graph->add_node("request_height_node", std::make_unique<RequestTilesNode>());
 
     ComputeNormalsNode* normal_compute_node
-        = static_cast<ComputeNormalsNode*>(node_graph->add_node("compute_normals_node", std::make_unique<ComputeNormalsNode>(manager, device)));
+        = static_cast<ComputeNormalsNode*>(node_graph->add_node("normals_node", std::make_unique<ComputeNormalsNode>(manager, device)));
 
     TileStitchNode::StitchSettings stitch_setting = { .tile_size = input_resolution,
         .tile_has_border = true,
@@ -209,8 +209,8 @@ static std::unique_ptr<NodeGraph> create_release_points_compute_graph_unconnecte
     auto node_graph = create_normal_compute_graph_unconnected(manager, device);
 
     // add and connect release points node
-    Node* release_points_node = node_graph->add_node("compute_release_points_node", std::make_unique<ComputeReleasePointsNode>(manager, device));
-    release_points_node->input_socket("normal texture").connect(node_graph->get_node("compute_normals_node").output_socket("normal texture"));
+    Node* release_points_node = node_graph->add_node("release_points_node", std::make_unique<ComputeReleasePointsNode>(manager, device));
+    release_points_node->input_socket("normal texture").connect(node_graph->get_node("normals_node").output_socket("normal texture"));
 
     return node_graph;
 }
@@ -220,7 +220,7 @@ static std::unique_ptr<NodeGraph> create_trajectories_compute_graph_unconnected(
     auto node_graph = create_release_points_compute_graph_unconnected(manager, device);
 
     ComputeAvalancheTrajectoriesNode* trajectories_node
-        = static_cast<ComputeAvalancheTrajectoriesNode*>(node_graph->add_node("compute_avalanche_trajectories_node", std::make_unique<ComputeAvalancheTrajectoriesNode>(manager, device)));
+        = static_cast<ComputeAvalancheTrajectoriesNode*>(node_graph->add_node("avalanche_trajectories_node", std::make_unique<ComputeAvalancheTrajectoriesNode>(manager, device)));
 
     BufferToTextureNode::BufferToTextureSettings buffer_to_texture_settings {
         .texture_format = WGPUTextureFormat_RGBA8Unorm,
@@ -231,10 +231,10 @@ static std::unique_ptr<NodeGraph> create_trajectories_compute_graph_unconnected(
 
     // connect trajectories node inputs
     trajectories_node->input_socket("region aabb").connect(node_graph->get_node("select_tiles_node").output_socket("region aabb"));
-    trajectories_node->input_socket("normal texture").connect(node_graph->get_node("compute_normals_node").output_socket("normal texture"));
+    trajectories_node->input_socket("normal texture").connect(node_graph->get_node("normals_node").output_socket("normal texture"));
     trajectories_node->input_socket("height texture").connect(node_graph->get_node("height_decode_node").output_socket("decoded texture"));
     trajectories_node->input_socket("release point texture")
-        .connect(node_graph->get_node("compute_release_points_node").output_socket("release point texture"));
+        .connect(node_graph->get_node("release_points_node").output_socket("release point texture"));
 
     // connect buffer to texture node inputs
     buffer_to_texture_node->input_socket("raster dimensions").connect(trajectories_node->output_socket("raster dimensions"));
@@ -267,10 +267,10 @@ std::unique_ptr<NodeGraph> NodeGraph::create_snow_compute_graph(const PipelineMa
     node_graph->set_name("snow_compute_graph");
 
     // add and connect snow compute node
-    Node* snow_compute_node = node_graph->add_node("compute_snow_node", std::make_unique<ComputeSnowNode>(manager, device));
+    Node* snow_compute_node = node_graph->add_node("snow_node", std::make_unique<ComputeSnowNode>(manager, device));
     snow_compute_node->input_socket("bounds").connect(node_graph->get_node("select_tiles_node").output_socket("region aabb"));
     snow_compute_node->input_socket("height texture").connect(node_graph->get_node("height_decode_node").output_socket("decoded texture"));
-    snow_compute_node->input_socket("normal texture").connect(node_graph->get_node("compute_normals_node").output_socket("normal texture"));
+    snow_compute_node->input_socket("normal texture").connect(node_graph->get_node("normals_node").output_socket("normal texture"));
 
     node_graph->connect_node_signals_and_slots();
 
@@ -303,7 +303,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_with_export_compute_gr
         = static_cast<TileExportNode*>(node_graph->add_node("trajectories_export", std::make_unique<TileExportNode>(device, export_settings_trajectories)));
 
     // Connect release points export node
-    rp_export_node->input_socket("texture").connect(node_graph->get_node("compute_release_points_node").output_socket("release point texture"));
+    rp_export_node->input_socket("texture").connect(node_graph->get_node("release_points_node").output_socket("release point texture"));
     rp_export_node->input_socket("region aabb").connect(node_graph->get_node("select_tiles_node").output_socket("region aabb"));
 
     // Connect height tiles export node
@@ -329,7 +329,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_with_export_compute_gr
     BufferExportNode* l5_export_node = static_cast<BufferExportNode*>(node_graph->add_node("l5_export_node",
         std::make_unique<BufferExportNode>(device, BufferExportNode::ExportSettings { "export/trajectories/texture_layer5_heightDifference.png" })));
 
-    Node& trajectories_node = node_graph->get_node("compute_avalanche_trajectories_node");
+    Node& trajectories_node = node_graph->get_node("avalanche_trajectories_node");
     // connect l1 export node inputs
     l1_export_node->input_socket("buffer").connect(trajectories_node.output_socket("layer1_zdelta"));
     l1_export_node->input_socket("dimensions").connect(trajectories_node.output_socket("raster dimensions"));
@@ -379,7 +379,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_evaluation_compute_gra
         .format = WGPUTextureFormat_RGBA8Unorm,
         .usage = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc),
     };
-    ComputeNormalsNode* normal_compute_node = static_cast<ComputeNormalsNode*>(node_graph->add_node("compute_normals_node", std::make_unique<ComputeNormalsNode>(manager, device)));
+    ComputeNormalsNode* normal_compute_node = static_cast<ComputeNormalsNode*>(node_graph->add_node("normals_node", std::make_unique<ComputeNormalsNode>(manager, device)));
     normal_compute_node->set_settings(normals_settings);
 
     HeightDecodeNode::HeightDecodeSettings height_decode_settings = {
@@ -398,11 +398,11 @@ std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_evaluation_compute_gra
 
     // NOTE dont compute release points but load instead - still leaving this code here to get it back up quickly (might be useful for testing angle calculations and stuff)
     // add and connect release points node
-    // Node* release_points_node = node_graph->add_node("compute_release_points_node", std::make_unique<ComputeReleasePointsNode>(manager, device));
+    // Node* release_points_node = node_graph->add_node("release_points_node", std::make_unique<ComputeReleasePointsNode>(manager, device));
     // release_points_node->input_socket("normal texture").connect(normal_compute_node->output_socket("normal texture"));
 
     ComputeAvalancheTrajectoriesNode* trajectories_node
-        = static_cast<ComputeAvalancheTrajectoriesNode*>(node_graph->add_node("compute_avalanche_trajectories_node", std::make_unique<ComputeAvalancheTrajectoriesNode>(manager, device)));
+        = static_cast<ComputeAvalancheTrajectoriesNode*>(node_graph->add_node("avalanche_trajectories_node", std::make_unique<ComputeAvalancheTrajectoriesNode>(manager, device)));
 
     BufferToTextureNode::BufferToTextureSettings buffer_to_texture_settings { .texture_format = WGPUTextureFormat_RGBA8Unorm,
         .texture_usage = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc) };
@@ -500,7 +500,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_iterative_simulation_compute_graph(
         = static_cast<IterativeSimulationNode*>(node_graph->add_node("flowpy", std::make_unique<IterativeSimulationNode>(manager, device)));
 
     flowpy_node->input_socket("height texture").connect(node_graph->get_node("height_decode_node").output_socket("decoded texture"));
-    flowpy_node->input_socket("release point texture").connect(node_graph->get_node("compute_release_points_node").output_socket("release point texture"));
+    flowpy_node->input_socket("release point texture").connect(node_graph->get_node("release_points_node").output_socket("release point texture"));
 
     node_graph->connect_node_signals_and_slots();
     return node_graph;

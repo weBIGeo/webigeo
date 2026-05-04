@@ -114,7 +114,7 @@ void WebigeoApp::update_settings(const Settings& node_graph_settings)
     // trajectory_settings.model2.gravity = node_graph_settings.slab_thickness;
     // trajectory_settings.model2.mass = node_graph_settings.density;
 
-    auto& trajectories_node = m_node_graph->get_node_as<ComputeAvalancheTrajectoriesNode>("compute_avalanche_trajectories_node");
+    auto& trajectories_node = m_node_graph->get_node_as<ComputeAvalancheTrajectoriesNode>("avalanche_trajectories_node");
     trajectories_node.set_settings(trajectory_settings);
     {
         BufferToTextureNode& node = m_node_graph->get_node_as<BufferToTextureNode>("buffer_to_texture_node");
