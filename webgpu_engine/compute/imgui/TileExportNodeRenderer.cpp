@@ -47,23 +47,6 @@ void TileExportNodeRenderer::render_settings_content()
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("%s", settings.output_directory.c_str());
 
-    ImGui::Separator();
-
-    if (ImGui::Checkbox("Remove Overlap", &settings.remove_overlap))
-        changed = true;
-    if (ImGui::Checkbox("Stitch Tiles", &settings.stitch_tiles))
-        changed = true;
-    if (settings.stitch_tiles) {
-        ImGui::Indent();
-        if (ImGui::Checkbox("Invert Y", &settings.stitch_inverted_y))
-            changed = true;
-        if (ImGui::Checkbox("Export AABB Text Files", &settings.stitch_export_aabb_text_files))
-            changed = true;
-        ImGui::Unindent();
-    }
-
-    if (changed)
-        m_node->set_settings(settings);
 }
 
 void TileExportNodeRenderer::render_dialogs()

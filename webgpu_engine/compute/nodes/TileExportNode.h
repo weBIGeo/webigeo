@@ -19,9 +19,6 @@
 #pragma once
 
 #include "Node.h"
-#include <map>
-
-#define MAX_STITCHED_IMAGE_SIZE 8192
 
 namespace webgpu_engine::compute::nodes {
 
@@ -30,21 +27,6 @@ class TileExportNode : public Node {
 
 public:
     struct ExportSettings {
-
-        // If true, the right and bottom 1px wide edge will be ignored when stitching and writing out
-        bool remove_overlap = true;
-
-        // If true, the tiles will be stitched together into one image per zoom level
-        bool stitch_tiles = true;
-
-        // For slippyMap tiles this has to be set to true as y starts from the bottom
-        bool stitch_inverted_y = true;
-
-        // If set to true the AABBs of the stitched tiles in the EPSG3857 CRS will be exported in
-        // an extra text file
-        bool stitch_export_aabb_text_files = true;
-
-        // Directory to save the tiles to
         std::string output_directory = "tile_export";
     };
 
@@ -59,18 +41,9 @@ public slots:
 private:
     WGPUDevice m_device;
     ExportSettings m_settings;
-    bool m_should_output_files;
-
-    int m_exported_tile_count;
-    int m_total_tile_count;
-
-    glm::uvec2 m_tile_size;
-
-    std::map<radix::tile::Id, std::shared_ptr<QByteArray>> m_tile_data;
 
     static void write_aabb_file(const QString& file_path, const radix::geometry::Aabb<2, double>& bounds);
     void impl_single_texture();
-    void readback_done();
 };
 
 } // namespace webgpu_engine::compute::nodes
