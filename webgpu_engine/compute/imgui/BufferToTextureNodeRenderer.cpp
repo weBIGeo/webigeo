@@ -34,8 +34,6 @@ void BufferToTextureNodeRenderer::render_settings_content()
     auto& s = m_node->settings();
     bool changed = false;
 
-    ImGui::PushItemWidth(120.0f);
-
     changed |= ImGui::Checkbox("Alpha Blending", &s.use_transparency_buffer);
     if (s.use_transparency_buffer) {
         ImGui::DragFloat2("Alpha Bounds", &s.transparency_map_bounds.x, 1.0f, 0.0f, 1000.0f, "%.2f");
@@ -62,8 +60,6 @@ void BufferToTextureNodeRenderer::render_settings_content()
 
     changed |= ImGui::DragFloat2("Color Bounds", &s.color_map_bounds.x, 1.0f, -10000.0f, 10000.0f, "%.2f");
     changed |= ImGui::Checkbox("Bin Interpolation", &s.use_bin_interpolation);
-
-    ImGui::PopItemWidth();
 
     if (changed)
         m_node->run();

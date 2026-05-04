@@ -356,7 +356,7 @@ void NodeGraphRenderer::render()
     ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
     ImGui::SetNextWindowSize(m_window_size, ImGuiCond_Always);
 
-    ImGui::Begin(m_window_title.c_str(), nullptr, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+    ImGui::Begin(m_window_title.c_str(), nullptr, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus);
 
     render_toolbar();
 
@@ -377,13 +377,15 @@ void NodeGraphRenderer::render()
     ImNodes::MiniMap(0.1f, ImNodesMiniMapLocation_BottomRight);
     ImNodes::EndNodeEditor();
 
-    for (auto& [name, node_renderer] : m_node_renderers) {
-        node_renderer->render_dialogs();
-    }
-
     ImGui::End();
 
     pop_style();
+
+    render_settings_panel();
+
+    for (auto& [name, node_renderer] : m_node_renderers) {
+        node_renderer->render_dialogs();
+    }
 
     poll_keyboard_shortcuts();
 
@@ -433,6 +435,45 @@ void NodeGraphRenderer::render_toolbar()
 
         ImGui::EndMenuBar();
     }
+}
+
+NodeRenderer* NodeGraphRenderer::find_selected_node_renderer() const
+{
+    if (ImNodes::NumSelectedNodes() != 1)
+        return nullptr;
+    int node_id;
+    ImNodes::GetSelectedNodes(&node_id);
+    for (const auto& [name, renderer] : m_node_renderers) {
+        if (renderer->get_node_id() == node_id)
+            return renderer.get();
+    }
+    return nullptr;
+}
+
+void NodeGraphRenderer::render_settings_panel()
+{
+    NodeRenderer* selected = find_selected_node_renderer();
+
+    constexpr float panel_width = 430.0f;
+    constexpr float panel_margin = 8.0f;
+    constexpr float panel_margin_top = 44.0f;
+    ImGui::SetNextWindowPos({ m_window_size.x - panel_width - panel_margin, panel_margin + panel_margin_top }, ImGuiCond_Always);
+    ImGui::SetNextWindowSizeConstraints({ panel_width, 0 }, { panel_width, m_window_size.y - panel_margin * 2 });
+    ImGui::Begin("Node Settings",
+        nullptr,
+        ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar);
+
+    if (selected && selected->has_settings()) {
+        ImGui::TextUnformatted(selected->get_name_formatted().c_str());
+        ImGui::Separator();
+        selected->render_settings_content();
+    } else if (selected) {
+        ImGui::TextDisabled("No settings for this node...");
+    } else {
+        ImGui::TextDisabled("Select a node to view settings.");
+    }
+
+    ImGui::End();
 }
 
 } // namespace webgpu_engine::compute

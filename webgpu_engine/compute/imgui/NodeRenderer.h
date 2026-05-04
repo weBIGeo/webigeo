@@ -35,12 +35,14 @@ public:
 
     void render(bool reset_position = false);
     void render_sockets();
-    void render_settings();
 
     virtual bool has_settings() const { return false; }
     virtual void render_settings_content() { }
     // Called outside ImNodes::BeginNodeEditor/EndNodeEditor for proper z-ordering
     virtual void render_dialogs() { }
+
+    int get_node_id() const { return m_node_id; }
+    const std::string& get_name_formatted() const { return m_name_formatted; }
 
     int get_input_socket_id(const std::string& input_socket_name) const;
     int get_output_socket_id(const std::string& output_socket_name) const;
@@ -69,7 +71,6 @@ private:
 
     ImVec2 m_position = { 0, 0 };
     ImVec2 m_size = { -1, -1 }; // Initialized after first frame
-    bool m_settings_open = false;
 };
 
 } // namespace webgpu_engine::compute

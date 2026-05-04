@@ -79,7 +79,10 @@ private:
     void pop_style();
 
     void render_toolbar();
+    void render_settings_panel();
     void poll_keyboard_shortcuts();
+
+    NodeRenderer* find_selected_node_renderer() const;
 };
 
 } // namespace webgpu_engine::compute

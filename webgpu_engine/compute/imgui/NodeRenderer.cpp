@@ -145,7 +145,6 @@ void NodeRenderer::render(bool reset_position)
     ImGui::PopStyleVar();
     ImNodes::EndNodeTitleBar();
 
-    render_settings();
     render_sockets();
 
     ImGui::Dummy(ImVec2(0.0f, 4.0f)); // spacing
@@ -189,24 +188,6 @@ void NodeRenderer::render_sockets()
     }
 }
 
-void NodeRenderer::render_settings()
-{
-    if (!has_settings())
-        return;
-
-    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(80, 80, 80, 255));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(100, 100, 100, 255));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(120, 120, 120, 255));
-    if (ImGui::Button(m_settings_open ? ICON_FA_CARET_DOWN " Settings" : ICON_FA_CARET_RIGHT " Settings", ImVec2(std::min(300.0f, m_size.x) - 10, 0.0f)))
-        m_settings_open = !m_settings_open;
-    ImGui::PopStyleColor(3);
-
-    if (m_settings_open) {
-        ImGui::Indent();
-        render_settings_content();
-        ImGui::Unindent();
-    }
-}
 
 std::unique_ptr<NodeRenderer> NodeRenderer::create(const std::string& name, nodes::Node& node)
 {
