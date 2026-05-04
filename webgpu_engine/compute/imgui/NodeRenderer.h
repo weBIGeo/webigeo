@@ -39,6 +39,8 @@ public:
 
     virtual bool has_settings() const { return false; }
     virtual void render_settings_content() { }
+    // Called outside ImNodes::BeginNodeEditor/EndNodeEditor for proper z-ordering
+    virtual void render_dialogs() { }
 
     int get_input_socket_id(const std::string& input_socket_name) const;
     int get_output_socket_id(const std::string& output_socket_name) const;

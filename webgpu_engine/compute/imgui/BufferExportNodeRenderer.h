@@ -31,6 +31,7 @@ public:
     BufferExportNodeRenderer(const std::string& name, nodes::BufferExportNode& node);
     bool has_settings() const override { return true; }
     void render_settings_content() override;
+    void render_dialogs() override;
 
 private:
     nodes::BufferExportNode* m_node;

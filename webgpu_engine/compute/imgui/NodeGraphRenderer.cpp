@@ -377,6 +377,10 @@ void NodeGraphRenderer::render()
     ImNodes::MiniMap(0.1f, ImNodesMiniMapLocation_BottomRight);
     ImNodes::EndNodeEditor();
 
+    for (auto& [name, node_renderer] : m_node_renderers) {
+        node_renderer->render_dialogs();
+    }
+
     ImGui::End();
 
     pop_style();

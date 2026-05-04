@@ -56,6 +56,15 @@ void BufferExportNodeRenderer::render_settings_content()
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("%s", settings.output_file.c_str());
 
+}
+
+void BufferExportNodeRenderer::render_dialogs()
+{
+    auto settings = m_node->get_settings();
+    constexpr ImVec2 dialog_size { 600, 400 };
+    const ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+    ImGui::SetNextWindowPos({ center.x - dialog_size.x * 0.5f, center.y - dialog_size.y * 0.5f }, ImGuiCond_Appearing);
+    ImGui::SetNextWindowSize(dialog_size, ImGuiCond_Appearing);
     if (ImGuiFileDialog::Instance()->Display("BufferExportSaveDialog")) {
         if (ImGuiFileDialog::Instance()->IsOk()) {
             m_last_dialog_directory = ImGuiFileDialog::Instance()->GetCurrentPath();
