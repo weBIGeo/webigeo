@@ -26,6 +26,8 @@ class BufferExportNode : public Node {
     Q_OBJECT
 
 public:
+    NODE_TYPE_NAME(BufferExportNode)
+
     struct ExportSettings {
         std::string output_file = "output_buffer.png";
     };

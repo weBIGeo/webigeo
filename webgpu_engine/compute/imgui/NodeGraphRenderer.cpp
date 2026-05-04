@@ -464,12 +464,22 @@ void NodeGraphRenderer::render_settings_panel()
         nullptr,
         ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar);
 
-    if (selected && selected->has_settings()) {
+    if (selected) {
         ImGui::TextUnformatted(selected->get_name_formatted().c_str());
+        ImGui::SameLine();
+        ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(40, 70, 120, 200));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(40, 70, 120, 200));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(40, 70, 120, 200));
+        ImGui::SmallButton(selected->get_node()->get_type_name().c_str());
+        ImGui::PopStyleColor(3);
         ImGui::Separator();
-        selected->render_settings_content();
-    } else if (selected) {
-        ImGui::TextDisabled("No settings for this node...");
+        bool enabled = selected->get_node()->is_enabled();
+        if (ImGui::Checkbox("Enabled", &enabled))
+            selected->get_node()->set_enabled(enabled);
+        if (selected->has_settings()) {
+            ImGui::Separator();
+            selected->render_settings_content();
+        }
     } else {
         ImGui::TextDisabled("Select a node to view settings.");
     }

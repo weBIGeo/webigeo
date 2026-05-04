@@ -30,6 +30,8 @@ class ComputeReleasePointsNode : public Node {
     Q_OBJECT
 
 public:
+    NODE_TYPE_NAME(ComputeReleasePointsNode)
+
     struct ReleasePointsSettings {
         WGPUTextureFormat texture_format = WGPUTextureFormat_RGBA8Unorm;
         WGPUTextureUsage texture_usage

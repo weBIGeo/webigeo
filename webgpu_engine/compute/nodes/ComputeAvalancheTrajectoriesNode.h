@@ -31,6 +31,8 @@ class ComputeAvalancheTrajectoriesNode : public Node {
     Q_OBJECT
 
 public:
+    NODE_TYPE_NAME(ComputeAvalancheTrajectoriesNode)
+
     static glm::uvec3 SHADER_WORKGROUP_SIZE; // TODO currently hardcoded in shader! can we somehow not hardcode it? maybe using overrides
 
     enum PhysicsModelType : uint32_t {

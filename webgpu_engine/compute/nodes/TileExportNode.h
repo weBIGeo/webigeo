@@ -26,6 +26,8 @@ class TileExportNode : public Node {
     Q_OBJECT
 
 public:
+    NODE_TYPE_NAME(TileExportNode)
+
     struct ExportSettings {
         std::string output_directory = "tile_export";
     };

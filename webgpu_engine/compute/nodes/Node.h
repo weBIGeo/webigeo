@@ -146,6 +146,10 @@ private:
     std::string m_message;
 };
 
+// Place inside a Node subclass body to implement get_type_name().
+#define NODE_TYPE_NAME(ClassName) \
+    std::string get_type_name() const override { return #ClassName; }
+
 /// Abstract base class for nodes.
 ///
 /// Subclasses usually need to override methods run and get_output_data_impl.
@@ -161,6 +165,8 @@ class Node : public QObject {
 public:
     Node(const std::vector<InputSocket>& input_sockets, const std::vector<OutputSocket>& output_sockets);
     virtual ~Node() = default;
+
+    virtual std::string get_type_name() const = 0;
 
     [[nodiscard]] bool has_input_socket(const std::string& name) const;
     [[nodiscard]] InputSocket& input_socket(const std::string& name);

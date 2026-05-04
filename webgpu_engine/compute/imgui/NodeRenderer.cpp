@@ -121,11 +121,6 @@ void NodeRenderer::render(bool reset_position)
     ImNodes::BeginNode(m_node_id);
 
     ImNodes::BeginNodeTitleBar();
-    bool enabled = m_node->is_enabled();
-    if (ImGui::Checkbox("##enabled", &enabled)) {
-        m_node->set_enabled(enabled);
-    }
-    ImGui::SameLine();
     ImGui::TextUnformatted(m_name_formatted.c_str());
     ImGui::SameLine();
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2, 1));
