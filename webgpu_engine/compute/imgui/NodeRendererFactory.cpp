@@ -23,12 +23,14 @@
 #include "ComputeAvalancheTrajectoriesNodeRenderer.h"
 #include "ComputeReleasePointsNodeRenderer.h"
 #include "ComputeSnowNodeRenderer.h"
+#include "TileExportNodeRenderer.h"
 #include "NodeRenderer.h"
 #include "../nodes/BufferExportNode.h"
 #include "../nodes/BufferToTextureNode.h"
 #include "../nodes/ComputeAvalancheTrajectoriesNode.h"
 #include "../nodes/ComputeReleasePointsNode.h"
 #include "../nodes/ComputeSnowNode.h"
+#include "../nodes/TileExportNode.h"
 
 namespace webgpu_engine::compute {
 
@@ -44,6 +46,8 @@ std::unique_ptr<NodeRenderer> NodeRendererFactory::create(const std::string& nam
         return std::make_unique<ComputeReleasePointsNodeRenderer>(name, *n);
     if (auto* n = dynamic_cast<nodes::ComputeSnowNode*>(&node))
         return std::make_unique<ComputeSnowNodeRenderer>(name, *n);
+    if (auto* n = dynamic_cast<nodes::TileExportNode*>(&node))
+        return std::make_unique<TileExportNodeRenderer>(name, *n);
     return std::make_unique<NodeRenderer>(name, node);
 }
 
