@@ -24,9 +24,11 @@
 
 namespace webgpu_app {
 
-void AboutPanel::open_disclaimer()
+void AboutPanel::on_first_frame()
 {
+#ifndef QT_DEBUG
     m_open_disclaimer = true;
+#endif
 }
 
 void AboutPanel::draw()
@@ -108,13 +110,13 @@ void AboutPanel::draw_about_popup()
         ImGui::Text("(2022-2025)");
         ImGui::Text(" - "); ImGui::SameLine();
         ImGui::TextLinkOpenURL("Gerald Kimmersdorfer", "https://github.com/GeraldKimmersdorfer"); ImGui::SameLine();
-        ImGui::Text("(2023-2025)");
+        ImGui::Text("(2023-2026)");
         ImGui::Text(" - "); ImGui::SameLine();
         ImGui::TextLinkOpenURL("Jakob Lindner", "https://github.com/JakobLindner"); ImGui::SameLine();
         ImGui::Text("(2023)");
         ImGui::Text(" - "); ImGui::SameLine();
         ImGui::TextLinkOpenURL("Patrick Komon", "https://github.com/pkomon"); ImGui::SameLine();
-        ImGui::Text("(2024-2025)");
+        ImGui::Text("(2024-2026)");
         ImGui::Text(" - "); ImGui::SameLine();
         ImGui::TextLinkOpenURL("Jakob Maier", "https://github.com/Gro2mi"); ImGui::SameLine();
         ImGui::Text("(2024)");

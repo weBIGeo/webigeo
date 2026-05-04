@@ -24,6 +24,9 @@ class ImGuiPanel {
 public:
     virtual ~ImGuiPanel() = default;
 
+    // Called once on the first rendered frame
+    virtual void on_first_frame() {}
+
     // Called outside the main sidebar window
     virtual void draw() {}
 

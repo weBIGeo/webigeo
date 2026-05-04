@@ -191,20 +191,8 @@ bool ImGuiManager::get_gui_visibility() const { return m_gui_visible; }
 void ImGuiManager::draw()
 {
     if (m_first_frame) {
-        // Initialize app panel zoom level
-        for (auto& panel : m_panels) {
-            if (auto* app = dynamic_cast<AppPanel*>(panel.get())) {
-                app->init();
-            }
-        }
-#ifndef QT_DEBUG
-        // Open disclaimer on first non-debug frame
-        for (auto& panel : m_panels) {
-            if (auto* about = dynamic_cast<AboutPanel*>(panel.get())) {
-                about->open_disclaimer();
-            }
-        }
-#endif
+        for (auto& panel : m_panels)
+            panel->on_first_frame();
         m_first_frame = false;
     }
 

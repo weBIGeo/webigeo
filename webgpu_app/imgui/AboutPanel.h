@@ -29,10 +29,8 @@ class AboutPanel : public ImGuiPanel {
 public:
     AboutPanel() = default;
 
+    void on_first_frame() override;
     void draw() override;
-
-    // Call once on the first frame to open the disclaimer popup.
-    void open_disclaimer();
 
 private:
     bool m_show_about_popup = false;
