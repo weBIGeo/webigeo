@@ -19,16 +19,6 @@
 
 #include "NodeRenderer.h"
 
-#include "BufferExportNodeRenderer.h"
-#include "BufferToTextureNodeRenderer.h"
-#include "ComputeAvalancheTrajectoriesNodeRenderer.h"
-#include "ComputeReleasePointsNodeRenderer.h"
-#include "ComputeSnowNodeRenderer.h"
-#include "../nodes/BufferExportNode.h"
-#include "../nodes/BufferToTextureNode.h"
-#include "../nodes/ComputeAvalancheTrajectoriesNode.h"
-#include "../nodes/ComputeReleasePointsNode.h"
-#include "../nodes/ComputeSnowNode.h"
 #include <IconsFontAwesome5.h>
 #include <imgui.h>
 #include <imnodes.h>
@@ -190,22 +180,6 @@ void NodeRenderer::render_sockets()
         ImGui::Text("%s", m_node->output_sockets().at(i).name().c_str());
         ImNodes::EndOutputAttribute();
     }
-}
-
-
-std::unique_ptr<NodeRenderer> NodeRenderer::create(const std::string& name, nodes::Node& node)
-{
-    if (auto* n = dynamic_cast<nodes::BufferExportNode*>(&node))
-        return std::make_unique<BufferExportNodeRenderer>(name, *n);
-    if (auto* n = dynamic_cast<nodes::BufferToTextureNode*>(&node))
-        return std::make_unique<BufferToTextureNodeRenderer>(name, *n);
-    if (auto* n = dynamic_cast<nodes::ComputeAvalancheTrajectoriesNode*>(&node))
-        return std::make_unique<ComputeAvalancheTrajectoriesNodeRenderer>(name, *n);
-    if (auto* n = dynamic_cast<nodes::ComputeReleasePointsNode*>(&node))
-        return std::make_unique<ComputeReleasePointsNodeRenderer>(name, *n);
-    if (auto* n = dynamic_cast<nodes::ComputeSnowNode*>(&node))
-        return std::make_unique<ComputeSnowNodeRenderer>(name, *n);
-    return std::make_unique<NodeRenderer>(name, node);
 }
 
 int NodeRenderer::get_input_socket_id(const std::string& input_socket_name) const

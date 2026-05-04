@@ -53,8 +53,6 @@ public:
 
     nodes::Node* get_node() const { return m_node; }
 
-    static std::unique_ptr<NodeRenderer> create(const std::string& name, nodes::Node& node);
-
     // Removes optional "_node" and formats the name with capitalization.
     // e.g., "request_height_node" → "Request Height"
     static std::string format_node_name(const std::string& name);

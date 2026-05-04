@@ -19,6 +19,7 @@
 
 #include "NodeGraphRenderer.h"
 
+#include "NodeRendererFactory.h"
 #include <imgui.h>
 #include <imnodes.h>
 #include <qDebug>
@@ -50,7 +51,7 @@ void NodeGraphRenderer::init(nodes::NodeGraph& node_graph)
     m_node_graph = &node_graph;
     auto& nodes = m_node_graph->get_nodes();
     for (auto& [name, node] : nodes) {
-        auto renderer = NodeRenderer::create(name, *node.get());
+        auto renderer = NodeRendererFactory::create(name, *node.get());
         m_node_renderers.emplace(name, std::move(renderer));
         m_node_renderers_by_node.emplace(node.get(), m_node_renderers.at(name).get());
     }
