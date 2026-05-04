@@ -23,7 +23,6 @@
 #include "BufferExportNode.h"
 #include "BufferToTextureNode.h"
 #include "ComputeAvalancheTrajectoriesNode.h"
-#include "ComputeD8DirectionsNode.h"
 #include "ComputeNormalsNode.h"
 #include "ComputeReleasePointsNode.h"
 #include "ComputeSnowNode.h"
