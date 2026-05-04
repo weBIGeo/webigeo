@@ -20,8 +20,10 @@
 #include "NodeRenderer.h"
 
 #include "BufferExportNodeRenderer.h"
+#include "BufferToTextureNodeRenderer.h"
 #include "ComputeSnowNodeRenderer.h"
 #include "../nodes/BufferExportNode.h"
+#include "../nodes/BufferToTextureNode.h"
 #include "../nodes/ComputeSnowNode.h"
 #include <IconsFontAwesome5.h>
 #include <imgui.h>
@@ -210,6 +212,8 @@ std::unique_ptr<NodeRenderer> NodeRenderer::create(const std::string& name, node
 {
     if (auto* n = dynamic_cast<nodes::BufferExportNode*>(&node))
         return std::make_unique<BufferExportNodeRenderer>(name, *n);
+    if (auto* n = dynamic_cast<nodes::BufferToTextureNode*>(&node))
+        return std::make_unique<BufferToTextureNodeRenderer>(name, *n);
     if (auto* n = dynamic_cast<nodes::ComputeSnowNode*>(&node))
         return std::make_unique<ComputeSnowNodeRenderer>(name, *n);
     return std::make_unique<NodeRenderer>(name, node);

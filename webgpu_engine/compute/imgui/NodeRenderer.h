@@ -69,7 +69,7 @@ private:
 
     ImVec2 m_position = { 0, 0 };
     ImVec2 m_size = { -1, -1 }; // Initialized after first frame
-    bool m_settings_open = true;
+    bool m_settings_open = false;
 };
 
 } // namespace webgpu_engine::compute

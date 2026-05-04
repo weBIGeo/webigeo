@@ -1,6 +1,5 @@
 /*****************************************************************************
  * weBIGeo
- * Copyright (C) 2025 Patrick Komon
  * Copyright (C) 2026 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
@@ -22,19 +21,19 @@
 #include "NodeRenderer.h"
 
 namespace webgpu_engine::compute::nodes {
-class ComputeSnowNode;
+class BufferToTextureNode;
 }
 
 namespace webgpu_engine::compute {
 
-class ComputeSnowNodeRenderer : public NodeRenderer {
+class BufferToTextureNodeRenderer : public NodeRenderer {
 public:
-    ComputeSnowNodeRenderer(const std::string& name, nodes::ComputeSnowNode& node);
+    BufferToTextureNodeRenderer(const std::string& name, nodes::BufferToTextureNode& node);
     bool has_settings() const override { return true; }
     void render_settings_content() override;
 
 private:
-    nodes::ComputeSnowNode* m_snow_node;
+    nodes::BufferToTextureNode* m_node;
 };
 
 } // namespace webgpu_engine::compute
