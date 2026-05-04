@@ -70,7 +70,6 @@ private:
 
     static void write_aabb_file(const QString& file_path, const radix::geometry::Aabb<2, double>& bounds);
     void impl_single_texture();
-    void impl_texture_array();
     void readback_done();
 };
 

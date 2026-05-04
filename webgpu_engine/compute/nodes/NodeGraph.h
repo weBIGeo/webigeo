@@ -65,17 +65,11 @@ public:
     void set_enabled_for_nodes_with_name(const std::string& name_substring, bool enabled);
 
     // obtain outputs - for now all node graphs always output
-    //  - a hashmap for overlay tiles (mapping tile id to texture array layer)
     //  - a texture array for overlay tiles
-    //  - a hashmap for normals tiles (mapping tile id to texture array layer)
     //  - a texture array for normals tiles
-    const GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>& output_normals_hash_map() const;
-    GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>& output_normals_hash_map();
     const TileStorageTexture& output_normals_texture_storage() const;
     TileStorageTexture& output_normals_texture_storage();
 
-    const GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>& output_overlay_hash_map() const;
-    GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>& output_overlay_hash_map();
     const TileStorageTexture& output_overlay_texture_storage() const;
     TileStorageTexture& output_overlay_texture_storage();
 
@@ -100,16 +94,13 @@ public:
     static std::unique_ptr<NodeGraph> create_trajectories_with_export_compute_graph(const PipelineManager& manager, WGPUDevice device);
     static std::unique_ptr<NodeGraph> create_trajectories_evaluation_compute_graph(const PipelineManager& manager, WGPUDevice device);
     static std::unique_ptr<NodeGraph> create_iterative_simulation_compute_graph(const PipelineManager& manager, WGPUDevice device);
-    static std::unique_ptr<NodeGraph> create_fxaa_trajectories_compute_graph(const PipelineManager& manager, WGPUDevice device);
 
 private:
     std::string m_name;
     std::unordered_map<std::string, std::unique_ptr<Node>> m_nodes;
 
-    GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>* m_output_normals_hash_map_ptr;
     TileStorageTexture* m_output_normals_texture_storage_ptr;
 
-    GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>* m_output_overlay_hash_map_ptr;
     TileStorageTexture* m_output_overlay_texture_storage_ptr;
 };
 

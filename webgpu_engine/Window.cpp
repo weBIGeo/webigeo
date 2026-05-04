@@ -1025,7 +1025,7 @@ void Window::update_compute_pipeline_settings()
         trajectory_settings.active_runout_model
             = compute::nodes::ComputeAvalancheTrajectoriesNode::FrictionModelType(m_compute_pipeline_settings.friction_model_type);
         trajectory_settings.runout_perla = m_compute_pipeline_settings.perla;
-        trajectory_settings.runout_flowpy.alpha = glm::radians(m_compute_pipeline_settings.runout_flowpy_alpha);
+        trajectory_settings.runout_flowpy.alpha = m_compute_pipeline_settings.runout_flowpy_alpha;
         trajectory_settings.random_seed = m_compute_pipeline_settings.random_seed;
         trajectory_settings.num_runs = m_compute_pipeline_settings.num_runs;
 
@@ -1104,7 +1104,7 @@ void Window::update_compute_pipeline_settings()
         trajectory_settings.active_runout_model
             = compute::nodes::ComputeAvalancheTrajectoriesNode::FrictionModelType(m_compute_pipeline_settings.friction_model_type);
         trajectory_settings.runout_perla = m_compute_pipeline_settings.perla;
-        trajectory_settings.runout_flowpy.alpha = glm::radians(m_compute_pipeline_settings.runout_flowpy_alpha);
+        trajectory_settings.runout_flowpy.alpha = m_compute_pipeline_settings.runout_flowpy_alpha;
 
         auto& trajectories_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("compute_avalanche_trajectories_node");
         trajectories_node.set_settings(trajectory_settings);

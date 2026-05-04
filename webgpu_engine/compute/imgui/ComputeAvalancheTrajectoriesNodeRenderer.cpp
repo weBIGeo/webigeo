@@ -40,7 +40,7 @@ void ComputeAvalancheTrajectoriesNodeRenderer::render_settings_content()
 
     // --- General ---
     const uint32_t min_res = 1, max_res = 32;
-    settings_changed |= ImGui::SliderScalar("Resolution", ImGuiDataType_U32, &settings.resolution_multiplier, &min_res, &max_res, "%ux");
+    settings_changed |= ImGui::SliderScalar("Output Resolution", ImGuiDataType_U32, &settings.resolution_multiplier, &min_res, &max_res, "%ux");
     rerun |= ImGui::IsItemDeactivatedAfterEdit();
 
     const uint32_t min_steps = 1, max_steps = 20000;
@@ -48,11 +48,11 @@ void ComputeAvalancheTrajectoriesNodeRenderer::render_settings_content()
     rerun |= ImGui::IsItemDeactivatedAfterEdit();
 
     const uint32_t min_paths = 1, max_paths = 2048;
-    settings_changed |= ImGui::DragScalar("Paths per cell", ImGuiDataType_U32, &settings.num_paths_per_release_cell, 1.0f, &min_paths, &max_paths, "%u");
+    settings_changed |= ImGui::DragScalar("Num particles per cell", ImGuiDataType_U32, &settings.num_paths_per_release_cell, 1.0f, &min_paths, &max_paths, "%u");
     rerun |= ImGui::IsItemDeactivatedAfterEdit();
 
     const uint32_t min_runs = 1, max_runs = 1000;
-    settings_changed |= ImGui::DragScalar("Runs", ImGuiDataType_U32, &settings.num_runs, 1.0f, &min_runs, &max_runs, "%u");
+    settings_changed |= ImGui::DragScalar("Number of Runs", ImGuiDataType_U32, &settings.num_runs, 1.0f, &min_runs, &max_runs, "%u");
     rerun |= ImGui::IsItemDeactivatedAfterEdit();
 
     const uint32_t min_seed = 1, max_seed = 1000000;
@@ -74,7 +74,7 @@ void ComputeAvalancheTrajectoriesNodeRenderer::render_settings_content()
         settings_changed |= ImGui::DragFloat("Persistence", &settings.persistence_contribution, 0.01f, 0.0f, 0.99f, "%.2f");
         rerun |= ImGui::IsItemDeactivatedAfterEdit();
 
-        settings_changed |= ImGui::DragFloat("Alpha (FlowPy)", &settings.runout_flowpy.alpha, 0.01f, 0.0f, 90.0f, "%.2f°");
+        settings_changed |= ImGui::DragFloat("Alpha", &settings.runout_flowpy.alpha, 0.01f, 0.0f, 90.0f, "%.2f°");
         rerun |= ImGui::IsItemDeactivatedAfterEdit();
 
     } else if (settings.active_model == Node::PhysicsModelType::PHYSICS_LESS_SIMPLE) {

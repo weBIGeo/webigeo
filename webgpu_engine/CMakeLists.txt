@@ -37,7 +37,6 @@ set(SOURCES
     TrackRenderer.h TrackRenderer.cpp
     Context.h Context.cpp
 
-    compute/GpuHashMap.h compute/GpuHashMap.cpp
     compute/GpuTileStorage.h compute/GpuTileStorage.cpp
     compute/GpuTileId.h compute/GpuTileId.cpp
     compute/RectangularTileRegion.h compute/RectangularTileRegion.cpp
@@ -45,7 +44,6 @@ set(SOURCES
     compute/nodes/SelectTilesNode.h compute/nodes/SelectTilesNode.cpp
     compute/nodes/RequestTilesNode.h compute/nodes/RequestTilesNode.cpp
     compute/nodes/ComputeNormalsNode.h compute/nodes/ComputeNormalsNode.cpp
-    compute/nodes/DownsampleTilesNode.h compute/nodes/DownsampleTilesNode.cpp
     compute/nodes/NodeGraph.h compute/nodes/NodeGraph.cpp
     compute/nodes/ComputeSnowNode.h compute/nodes/ComputeSnowNode.cpp
     compute/nodes/UpsampleTexturesNode.h compute/nodes/UpsampleTexturesNode.cpp
@@ -56,7 +54,6 @@ set(SOURCES
     compute/nodes/ComputeReleasePointsNode.h compute/nodes/ComputeReleasePointsNode.cpp
     compute/nodes/TileStitchNode.h compute/nodes/TileStitchNode.cpp
     compute/nodes/HeightDecodeNode.h compute/nodes/HeightDecodeNode.cpp
-    compute/nodes/FxaaNode.h compute/nodes/FxaaNode.cpp
     compute/nodes/IterativeSimulationNode.h compute/nodes/IterativeSimulationNode.cpp
     compute/nodes/LoadTextureNode.h compute/nodes/LoadTextureNode.cpp
     compute/nodes/LoadRegionAabbNode.h compute/nodes/LoadRegionAabbNode.cpp

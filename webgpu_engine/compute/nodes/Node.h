@@ -19,7 +19,6 @@
 
 #pragma once
 
-#include "../GpuHashMap.h"
 #include "../GpuTileId.h"
 #include "../GpuTileStorage.h"
 #include "radix/tile.h"
@@ -38,7 +37,6 @@ using DataType = size_t;
 using Data = std::variant<const std::vector<radix::tile::Id>*,
     const std::vector<QByteArray>*,
     TileStorageTexture*,
-    GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>*,
     webgpu::raii::RawBuffer<uint32_t>*,
     const webgpu::raii::TextureWithSampler*,
     const radix::geometry::Aabb<2, double>*,

@@ -82,7 +82,7 @@ void ComputeAvalancheTrajectoriesNode::update_gpu_settings(uint32_t run)
     m_settings_uniform.data.runout_perla_md = m_settings.runout_perla.md;
     m_settings_uniform.data.runout_perla_l = m_settings.runout_perla.l;
     m_settings_uniform.data.runout_perla_g = m_settings.runout_perla.g;
-    m_settings_uniform.data.runout_flowpy_alpha = m_settings.runout_flowpy.alpha;
+    m_settings_uniform.data.runout_flowpy_alpha = glm::radians(m_settings.runout_flowpy.alpha);
 
     // TODO: Get activation of layer if output socket is connected and following node is enabled?
     m_settings_uniform.data.output_layer = m_settings.output_layer;

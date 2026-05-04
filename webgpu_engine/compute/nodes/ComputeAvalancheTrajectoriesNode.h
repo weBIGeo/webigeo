@@ -76,7 +76,7 @@ public:
 
     /* FlowPy runout model */
     struct RunoutFlowPyParams {
-        float alpha = glm::radians(25.0f);
+        float alpha = 25.0f; // in degrees
     };
 
     struct OutputLayerParams {

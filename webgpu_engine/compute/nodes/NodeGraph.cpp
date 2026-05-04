@@ -26,8 +26,6 @@
 #include "ComputeNormalsNode.h"
 #include "ComputeReleasePointsNode.h"
 #include "ComputeSnowNode.h"
-#include "DownsampleTilesNode.h"
-#include "FxaaNode.h"
 #include "IterativeSimulationNode.h"
 #include "LoadRegionAabbNode.h"
 #include "LoadTextureNode.h"
@@ -78,17 +76,9 @@ std::unordered_map<std::string, std::unique_ptr<Node>>& NodeGraph::get_nodes() {
 
 const std::unordered_map<std::string, std::unique_ptr<Node>>& NodeGraph::get_nodes() const { return m_nodes; }
 
-const GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>& NodeGraph::output_normals_hash_map() const { return *m_output_normals_hash_map_ptr; }
-
-GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>& NodeGraph::output_normals_hash_map() { return *m_output_normals_hash_map_ptr; }
-
 const TileStorageTexture& NodeGraph::output_normals_texture_storage() const { return *m_output_normals_texture_storage_ptr; }
 
 TileStorageTexture& NodeGraph::output_normals_texture_storage() { return *m_output_normals_texture_storage_ptr; }
-
-const GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>& NodeGraph::output_overlay_hash_map() const { return *m_output_overlay_hash_map_ptr; }
-
-GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>& NodeGraph::output_overlay_hash_map() { return *m_output_overlay_hash_map_ptr; }
 
 const TileStorageTexture& NodeGraph::output_overlay_texture_storage() const { return *m_output_overlay_texture_storage_ptr; }
 
@@ -513,23 +503,6 @@ std::unique_ptr<NodeGraph> NodeGraph::create_iterative_simulation_compute_graph(
     flowpy_node->input_socket("release point texture").connect(node_graph->get_node("compute_release_points_node").output_socket("release point texture"));
 
     node_graph->connect_node_signals_and_slots();
-    return node_graph;
-}
-
-std::unique_ptr<NodeGraph> NodeGraph::create_fxaa_trajectories_compute_graph(const PipelineManager& manager, WGPUDevice device)
-{
-    auto node_graph = create_trajectories_compute_graph_unconnected(manager, device);
-    node_graph->set_name("fxaa_trajectories_compute_graph");
-    // fxaa node
-    {
-        FxaaNode* fxaa_node = static_cast<FxaaNode*>(node_graph->add_node("fxaa_node", std::make_unique<FxaaNode>(manager, device)));
-
-        // Connect release points export node
-        fxaa_node->input_socket("texture").connect(node_graph->get_node("buffer_to_texture_node").output_socket("texture"));
-    }
-
-    node_graph->connect_node_signals_and_slots();
-
     return node_graph;
 }
 

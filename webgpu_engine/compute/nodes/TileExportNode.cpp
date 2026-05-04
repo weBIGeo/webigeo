@@ -37,11 +37,6 @@ webgpu_engine::compute::nodes::TileExportNode::TileExportNode(WGPUDevice device,
               // need to pass EITHER single texture
               InputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>()),
               InputSocket(*this, "region aabb", data_type<const radix::geometry::Aabb<2, double>*>()), // optional, aabb file only written if connected
-
-              // OR tile ids, hashmap and textures
-              InputSocket(*this, "tile ids", data_type<const std::vector<radix::tile::Id>*>()),
-              InputSocket(*this, "hash map", data_type<GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>*>()),
-              InputSocket(*this, "textures", data_type<TileStorageTexture*>()),
           },
           {})
     , m_device(device)
@@ -58,17 +53,7 @@ void TileExportNode::run_impl()
 {
     qDebug() << "running TileExportNode ...";
 
-    if (input_socket("texture").is_socket_connected()) {
-        assert(!input_socket("tile ids").is_socket_connected());
-        assert(!input_socket("hash map").is_socket_connected());
-        assert(!input_socket("textures").is_socket_connected());
-        impl_single_texture();
-    } else {
-        assert(input_socket("tile ids").is_socket_connected());
-        assert(input_socket("hash map").is_socket_connected());
-        assert(input_socket("textures").is_socket_connected());
-        impl_texture_array();
-    }
+    impl_single_texture();
 }
 
 void TileExportNode::write_aabb_file(const QString& file_path, const radix::geometry::Aabb<2, double>& bounds)
@@ -132,32 +117,6 @@ void TileExportNode::impl_single_texture()
 
         emit this->run_completed(); 
     });
-}
-
-void TileExportNode::impl_texture_array()
-{
-    m_exported_tile_count = 0;
-
-    // get tile ids to process
-    const auto& tile_ids = *std::get<data_type<const std::vector<radix::tile::Id>*>()>(input_socket("tile ids").get_connected_data());
-    const auto& hash_map = *std::get<data_type<GpuHashMap<radix::tile::Id, uint32_t, GpuTileId>*>()>(input_socket("hash map").get_connected_data());
-    auto& textures = *std::get<data_type<TileStorageTexture*>()>(input_socket("textures").get_connected_data());
-
-    m_total_tile_count = int(tile_ids.size());
-    m_tile_size = glm::uvec2(textures.texture().texture().width(), textures.texture().texture().height());
-
-    for (size_t i = 0; i < tile_ids.size(); i++) {
-        textures.texture().texture().read_back_async(m_device, i, [this, &hash_map](size_t layer_index, std::shared_ptr<QByteArray> data) {
-            // const auto& tile_id = tile_ids[layer_index];
-            const auto& tile_id = hash_map.key_with_value(int(layer_index));
-            m_tile_data[tile_id] = data;
-
-            m_exported_tile_count++;
-            if (m_exported_tile_count == m_total_tile_count) {
-                readback_done();
-            }
-        });
-    }
 }
 
 void TileExportNode::readback_done()
