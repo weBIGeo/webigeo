@@ -101,7 +101,6 @@ public:
     static std::unique_ptr<NodeGraph> create_trajectories_evaluation_compute_graph(const PipelineManager& manager, WGPUDevice device);
     static std::unique_ptr<NodeGraph> create_iterative_simulation_compute_graph(const PipelineManager& manager, WGPUDevice device);
     static std::unique_ptr<NodeGraph> create_fxaa_trajectories_compute_graph(const PipelineManager& manager, WGPUDevice device);
-    static std::unique_ptr<NodeGraph> create_avalanche_influence_area_compute_graph(const PipelineManager& manager, WGPUDevice device);
     static std::unique_ptr<NodeGraph> create_d8_compute_graph(const PipelineManager& manager, WGPUDevice device);
 
 private:

@@ -22,7 +22,6 @@
 
 #include "BufferExportNode.h"
 #include "BufferToTextureNode.h"
-#include "ComputeAvalancheInfluenceAreaNode.h"
 #include "ComputeAvalancheTrajectoriesNode.h"
 #include "ComputeD8DirectionsNode.h"
 #include "ComputeNormalsNode.h"
@@ -530,75 +529,6 @@ std::unique_ptr<NodeGraph> NodeGraph::create_fxaa_trajectories_compute_graph(con
         // Connect release points export node
         fxaa_node->input_socket("texture").connect(node_graph->get_node("buffer_to_texture_node").output_socket("texture"));
     }
-
-    node_graph->connect_node_signals_and_slots();
-
-    return node_graph;
-}
-
-std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_influence_area_compute_graph(const PipelineManager& manager, WGPUDevice device)
-{
-    size_t capacity = 1024;
-    glm::uvec2 input_resolution = { 65, 65 };
-    glm::uvec2 area_of_influence_output_resolution = { 256, 256 };
-    glm::uvec2 upsample_output_resolution = { 256, 256 };
-
-    auto node_graph = std::make_unique<NodeGraph>("avalanche_influence_area_compute_graph");
-
-    Node* target_tile_select_node = node_graph->add_node("select_target_tiles_node", std::make_unique<SelectTilesNode>());
-    Node* source_tile_select_node = node_graph->add_node("select_source_tiles_node", std::make_unique<SelectTilesNode>());
-
-    Node* height_request_node = node_graph->add_node("request_height_node", std::make_unique<RequestTilesNode>());
-    Node* hash_map_node
-        = node_graph->add_node("create_hashmap_node", std::make_unique<CreateHashMapNode>(device, input_resolution, capacity, WGPUTextureFormat_R16Uint));
-    ComputeNormalsNode* normal_compute_node
-        = static_cast<ComputeNormalsNode*>(node_graph->add_node("compute_normals_node", std::make_unique<ComputeNormalsNode>(manager, device)));
-    ComputeAvalancheInfluenceAreaNode* avalanche_influence_area_compute_node
-        = static_cast<ComputeAvalancheInfluenceAreaNode*>(node_graph->add_node("compute_area_of_influence_node",
-            std::make_unique<ComputeAvalancheInfluenceAreaNode>(manager, device, area_of_influence_output_resolution, capacity, WGPUTextureFormat_RGBA8Unorm)));
-    Node* upsample_normals_textures_node
-        = node_graph->add_node("upsample_textures_node", std::make_unique<UpsampleTexturesNode>(manager, device, upsample_output_resolution, capacity));
-    DownsampleTilesNode* downsample_area_of_influence_tiles_node = static_cast<DownsampleTilesNode*>(
-        node_graph->add_node("downsample_area_of_influence_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity)));
-    DownsampleTilesNode* downsample_normals_tiles_node = static_cast<DownsampleTilesNode*>(
-        node_graph->add_node("downsample_normals_tiles_node", std::make_unique<DownsampleTilesNode>(manager, device, capacity)));
-
-    // connect tile request node inputs
-    source_tile_select_node->output_socket("tile ids").connect(height_request_node->input_socket("tile ids"));
-
-    // connect hash map node inputs
-    source_tile_select_node->output_socket("tile ids").connect(hash_map_node->input_socket("tile ids"));
-    height_request_node->output_socket("tile data").connect(hash_map_node->input_socket("texture data"));
-
-    // connect normal node inputs
-    source_tile_select_node->output_socket("tile ids").connect(normal_compute_node->input_socket("tile ids"));
-    hash_map_node->output_socket("hash map").connect(normal_compute_node->input_socket("hash map"));
-    hash_map_node->output_socket("textures").connect(normal_compute_node->input_socket("height textures"));
-
-    // connect influence area compute node inputs
-    target_tile_select_node->output_socket("tile ids").connect(avalanche_influence_area_compute_node->input_socket("tile ids"));
-    normal_compute_node->output_socket("hash map").connect(avalanche_influence_area_compute_node->input_socket("hash map"));
-    normal_compute_node->output_socket("normal textures").connect(avalanche_influence_area_compute_node->input_socket("normal textures"));
-    hash_map_node->output_socket("textures").connect(avalanche_influence_area_compute_node->input_socket("height textures"));
-
-    // create downsampled area of influence tiles
-    target_tile_select_node->output_socket("tile ids").connect(downsample_area_of_influence_tiles_node->input_socket("tile ids"));
-    avalanche_influence_area_compute_node->output_socket("hash map").connect(downsample_area_of_influence_tiles_node->input_socket("hash map"));
-    avalanche_influence_area_compute_node->output_socket("influence area textures").connect(downsample_area_of_influence_tiles_node->input_socket("textures"));
-
-    // connect upsample textures node inputs
-    normal_compute_node->output_socket("normal textures").connect(upsample_normals_textures_node->input_socket("source textures"));
-
-    // connect downsample normal tiles node inputs
-    source_tile_select_node->output_socket("tile ids").connect(downsample_normals_tiles_node->input_socket("tile ids"));
-    normal_compute_node->output_socket("hash map").connect(downsample_normals_tiles_node->input_socket("hash map"));
-    upsample_normals_textures_node->output_socket("output textures").connect(downsample_normals_tiles_node->input_socket("textures"));
-
-    node_graph->m_output_normals_hash_map_ptr = &downsample_normals_tiles_node->hash_map();
-    node_graph->m_output_normals_texture_storage_ptr = &downsample_normals_tiles_node->texture_storage();
-
-    node_graph->m_output_overlay_hash_map_ptr = &downsample_area_of_influence_tiles_node->hash_map();
-    node_graph->m_output_overlay_texture_storage_ptr = &downsample_area_of_influence_tiles_node->texture_storage();
 
     node_graph->connect_node_signals_and_slots();
 
