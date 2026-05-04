@@ -1077,16 +1077,16 @@ void Window::update_compute_pipeline_settings()
             m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l5_export_node").set_settings(height_diff_export_settings);
 
             // set trajectory color buffer export directory
-            compute::nodes::TileExportNode::ExportSettings export_trajectory_settings = { true, true, true, true, (export_root_dir / "trajectories").string() };
+            compute::nodes::TileExportNode::ExportSettings export_trajectory_settings = { (export_root_dir / "trajectories").string() };
             m_compute_graph->get_node_as<compute::nodes::TileExportNode>("trajectories_export").set_settings(export_trajectory_settings);
 
             // set heightmap export directory
-            compute::nodes::TileExportNode::ExportSettings export_height_settings = { true, true, true, true, (export_root_dir / "heights").string() };
+            compute::nodes::TileExportNode::ExportSettings export_height_settings = { (export_root_dir / "heights").string() };
             m_compute_graph->get_node_as<compute::nodes::TileExportNode>("height_export").set_settings(export_height_settings);
 
             // set release point export directory
             compute::nodes::TileExportNode::ExportSettings export_releasepoints_settings
-                = { true, true, true, true, (export_root_dir / "release_points").string() };
+                = { (export_root_dir / "release_points").string() };
             m_compute_graph->get_node_as<compute::nodes::TileExportNode>("rp_export").set_settings(export_releasepoints_settings);
         }
     } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES_EVAL) {
@@ -1153,16 +1153,16 @@ void Window::update_compute_pipeline_settings()
             m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l5_export_node").set_settings(height_diff_export_settings);
 
             // set trajectory color buffer export directory
-            compute::nodes::TileExportNode::ExportSettings export_trajectory_settings = { true, true, true, true, (export_root_dir / "trajectories").string() };
+            compute::nodes::TileExportNode::ExportSettings export_trajectory_settings = { (export_root_dir / "trajectories").string() };
             m_compute_graph->get_node_as<compute::nodes::TileExportNode>("trajectories_export").set_settings(export_trajectory_settings);
 
             // set heightmap export directory
-            compute::nodes::TileExportNode::ExportSettings export_height_settings = { true, true, true, true, (export_root_dir / "heights").string() };
+            compute::nodes::TileExportNode::ExportSettings export_height_settings = { (export_root_dir / "heights").string() };
             m_compute_graph->get_node_as<compute::nodes::TileExportNode>("height_export").set_settings(export_height_settings);
 
             // set release point export directory
             compute::nodes::TileExportNode::ExportSettings export_releasepoints_settings
-                = { true, true, true, true, (export_root_dir / "release_points").string() };
+                = { (export_root_dir / "release_points").string() };
             m_compute_graph->get_node_as<compute::nodes::TileExportNode>("rp_export").set_settings(export_releasepoints_settings);
         }
     } else if (m_active_compute_pipeline_type == ComputePipelineType::D8_DIRECTIONS) {

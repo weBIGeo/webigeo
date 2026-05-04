@@ -290,15 +290,15 @@ std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_with_export_compute_gr
     auto node_graph = create_trajectories_compute_graph_unconnected(manager, device);
     node_graph->set_name("trajectories_with_export_compute_graph");
 
-    TileExportNode::ExportSettings export_settings_rp = { true, true, true, true, "export/release_points" };
+    TileExportNode::ExportSettings export_settings_rp = { "export/release_points" };
     TileExportNode* rp_export_node
         = static_cast<TileExportNode*>(node_graph->add_node("rp_export", std::make_unique<TileExportNode>(device, export_settings_rp)));
 
-    TileExportNode::ExportSettings export_settings_height = { true, true, true, true, "export/heights" };
+    TileExportNode::ExportSettings export_settings_height = { "export/heights" };
     TileExportNode* height_export_node
         = static_cast<TileExportNode*>(node_graph->add_node("height_export", std::make_unique<TileExportNode>(device, export_settings_height)));
 
-    TileExportNode::ExportSettings export_settings_trajectories = { true, true, true, true, "export/trajectories" };
+    TileExportNode::ExportSettings export_settings_trajectories = { "export/trajectories" };
     TileExportNode* trajectories_export_node
         = static_cast<TileExportNode*>(node_graph->add_node("trajectories_export", std::make_unique<TileExportNode>(device, export_settings_trajectories)));
 
@@ -422,16 +422,16 @@ std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_evaluation_compute_gra
 
     // === SETUP EXPORT NODES ===
     {
-        TileExportNode::ExportSettings export_settings_rp = { true, true, true, true, "export/release_points" };
+        TileExportNode::ExportSettings export_settings_rp = { "export/release_points" };
         TileExportNode* rp_export_node = static_cast<TileExportNode*>(node_graph->add_node("rp_export", std::make_unique<TileExportNode>(device, export_settings_rp)));
 
-        TileExportNode::ExportSettings export_settings_height = { true, true, true, true, "export/heights" };
+        TileExportNode::ExportSettings export_settings_height = { "export/heights" };
         TileExportNode* height_export_node = static_cast<TileExportNode*>(node_graph->add_node("height_export", std::make_unique<TileExportNode>(device, export_settings_height)));
 
-        TileExportNode::ExportSettings export_settings_trajectories = { true, true, true, true, "export/trajectories" };
+        TileExportNode::ExportSettings export_settings_trajectories = { "export/trajectories" };
         TileExportNode* trajectories_export_node = static_cast<TileExportNode*>(node_graph->add_node("trajectories_export", std::make_unique<TileExportNode>(device, export_settings_trajectories)));
 
-        TileExportNode::ExportSettings export_settings_normals = { true, true, true, true, "export/normals" };
+        TileExportNode::ExportSettings export_settings_normals = { "export/normals" };
         TileExportNode* normals_export_node = static_cast<TileExportNode*>(node_graph->add_node("normals_export", std::make_unique<TileExportNode>(device, export_settings_normals)));
 
         // Connect release points export node
