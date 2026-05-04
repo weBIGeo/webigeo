@@ -38,7 +38,7 @@ struct ComputePipelineSettings {
     bool sync_snow_settings_with_render_settings = true; // snow node
     compute::nodes::ComputeSnowNode::SnowSettingsUniform snow_settings; // snow node
 
-    compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType model_type = compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::PHYSICS_SIMPLE;
+    compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType model_type = compute::nodes::ComputeAvalancheTrajectoriesNode::PhysicsModelType::WEBIGEO_AVALANCHE_SIMULATION;
     compute::nodes::ComputeAvalancheTrajectoriesNode::ModelPhysicsLessSimpleParams model_less_simple_params = {};
 
     int release_point_interval = 8; // trajectories node

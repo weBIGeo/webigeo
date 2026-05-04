@@ -65,17 +65,10 @@ void ComputeAvalancheTrajectoriesNode::update_gpu_settings(uint32_t run)
     m_settings_uniform.data.direction_offset = m_settings.persistence_contribution;
 
     m_settings_uniform.data.physics_model_type = m_settings.active_model;
-    m_settings_uniform.data.model1_linear_drag_coeff = m_settings.model1.slowdown_coefficient;
-    m_settings_uniform.data.model1_downward_acceleration_coeff = m_settings.model1.speedup_coefficient;
     m_settings_uniform.data.model2_gravity = m_settings.model2.gravity;
     m_settings_uniform.data.model2_mass = m_settings.model2.mass;
     m_settings_uniform.data.model2_friction_coeff = m_settings.model2.friction_coeff;
     m_settings_uniform.data.model2_drag_coeff = m_settings.model2.drag_coeff;
-
-    for (uint8_t i = 0; i < sizeof(m_settings.model_d8_with_weights.weights.size()); i++) {
-        m_settings_uniform.data.model_d8_with_weights_weights[i] = m_settings.model_d8_with_weights.weights[i];
-    }
-    m_settings_uniform.data.model_d8_with_weights_center_height_offset = m_settings.model_d8_with_weights.center_height_offset;
 
     m_settings_uniform.data.runout_model_type = m_settings.active_runout_model;
     m_settings_uniform.data.runout_perla_my = m_settings.runout_perla.my;

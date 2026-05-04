@@ -63,11 +63,11 @@ void ComputeAvalancheTrajectoriesNodeRenderer::render_settings_content()
 
     // --- Physics model ---
     if (ImGui::Combo("Model", (int*)&settings.active_model,
-            "Default\0Physics Less Simple\0Gradients\0Discretized Gradients\0D8 (no weights)\0D8 (with weights)\0")) {
+            "weBIGeo Avalanche Simulation\0Physics Less Simple\0")) {
         settings_changed = rerun = true;
     }
 
-    if (settings.active_model == Node::PhysicsModelType::PHYSICS_SIMPLE) {
+    if (settings.active_model == Node::PhysicsModelType::WEBIGEO_AVALANCHE_SIMULATION) {
         settings_changed |= ImGui::DragFloat("Randomness", &settings.random_contribution, 0.01f, 0.0f, 90.0f, "%.1f°");
         rerun |= ImGui::IsItemDeactivatedAfterEdit();
 
