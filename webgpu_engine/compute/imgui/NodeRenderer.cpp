@@ -175,9 +175,13 @@ void NodeRenderer::render_sockets()
         ImNodes::EndInputAttribute();
     }
 
+    const float node_content_width = get_size().x - 1;
     for (size_t i = 0; i < m_output_socket_ids.size(); i++) {
         ImNodes::BeginOutputAttribute(m_output_socket_ids.at(i));
-        ImGui::Text("%s", m_node->output_sockets().at(i).name().c_str());
+        const char* label = m_node->output_sockets().at(i).name().c_str();
+        const float text_width = ImGui::CalcTextSize(label).x;
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + node_content_width - text_width);
+        ImGui::TextUnformatted(label);
         ImNodes::EndOutputAttribute();
     }
 }
