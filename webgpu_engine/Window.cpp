@@ -920,8 +920,6 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, 
         m_compute_graph->set_enabled_for_nodes_with_name("export", false);
     } else if (pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES_EVAL) {
         m_compute_graph = compute::nodes::NodeGraph::create_trajectories_evaluation_compute_graph(*m_context->pipeline_manager(), m_device);
-    } else if (pipeline_type == ComputePipelineType::D8_DIRECTIONS) {
-        m_compute_graph = compute::nodes::NodeGraph::create_d8_compute_graph(*m_context->pipeline_manager(), m_device);
     } else if (pipeline_type == ComputePipelineType::RELEASE_POINTS) {
         m_compute_graph = compute::nodes::NodeGraph::create_release_points_compute_graph(*m_context->pipeline_manager(), m_device);
     } else if (pipeline_type == ComputePipelineType::ITERATIVE_SIMULATION) {

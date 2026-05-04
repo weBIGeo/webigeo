@@ -27,7 +27,6 @@
 #include "ComputeNormalsNode.h"
 #include "ComputeReleasePointsNode.h"
 #include "ComputeSnowNode.h"
-#include "CreateHashMapNode.h"
 #include "DownsampleTilesNode.h"
 #include "FxaaNode.h"
 #include "IterativeSimulationNode.h"
@@ -529,64 +528,6 @@ std::unique_ptr<NodeGraph> NodeGraph::create_fxaa_trajectories_compute_graph(con
         // Connect release points export node
         fxaa_node->input_socket("texture").connect(node_graph->get_node("buffer_to_texture_node").output_socket("texture"));
     }
-
-    node_graph->connect_node_signals_and_slots();
-
-    return node_graph;
-}
-
-std::unique_ptr<NodeGraph> NodeGraph::create_d8_compute_graph(const PipelineManager& manager, WGPUDevice device)
-{
-    size_t capacity = 1024;
-    glm::uvec2 input_resolution = { 65, 65 };
-    glm::uvec2 normal_output_resolution = { 65, 65 };
-
-    auto node_graph = std::make_unique<NodeGraph>("d8_compute_graph");
-    Node* tile_select_node = node_graph->add_node("select_tiles_node", std::make_unique<SelectTilesNode>());
-    Node* height_request_node = node_graph->add_node("request_height_node", std::make_unique<RequestTilesNode>());
-    Node* hash_map_node
-        = node_graph->add_node("hashmap_node", std::make_unique<CreateHashMapNode>(device, input_resolution, capacity, WGPUTextureFormat_R16Uint));
-    ComputeNormalsNode* normal_compute_node
-        = static_cast<ComputeNormalsNode*>(node_graph->add_node("compute_normals_node", std::make_unique<ComputeNormalsNode>(manager, device)));
-    ComputeD8DirectionsNode* d8_compute_node = static_cast<ComputeD8DirectionsNode*>(
-        node_graph->add_node("d8_compute_node", std::make_unique<ComputeD8DirectionsNode>(manager, device, normal_output_resolution, capacity)));
-
-    TileExportNode::ExportSettings export_settings = { true, true, true, true, "height_tiles" };
-    TileExportNode* tile_export_node
-        = static_cast<TileExportNode*>(node_graph->add_node("tile_export_node", std::make_unique<TileExportNode>(device, export_settings)));
-
-    // connect height request inputs
-    tile_select_node->output_socket("tile ids").connect(height_request_node->input_socket("tile ids"));
-
-    // connect height request inputs
-    tile_select_node->output_socket("tile ids").connect(hash_map_node->input_socket("tile ids"));
-    height_request_node->output_socket("tile data").connect(hash_map_node->input_socket("texture data"));
-
-    // connect normal node inputs
-    tile_select_node->output_socket("tile ids").connect(normal_compute_node->input_socket("tile ids"));
-    hash_map_node->output_socket("hash map").connect(normal_compute_node->input_socket("hash map"));
-    hash_map_node->output_socket("textures").connect(normal_compute_node->input_socket("height textures"));
-
-    // connect d8 node inputs
-    tile_select_node->output_socket("tile ids").connect(d8_compute_node->input_socket("tile ids"));
-    hash_map_node->output_socket("hash map").connect(d8_compute_node->input_socket("hash map"));
-    hash_map_node->output_socket("textures").connect(d8_compute_node->input_socket("height textures"));
-
-    // connect tile export inputs
-    tile_select_node->output_socket("tile ids").connect(tile_export_node->input_socket("tile ids"));
-
-    // Export height data
-    hash_map_node->output_socket("hash map").connect(tile_export_node->input_socket("hash map"));
-    hash_map_node->output_socket("textures").connect(tile_export_node->input_socket("textures"));
-
-    // Export d8 overlay
-    // d8_compute_node->output_socket("hash map").connect(tile_export_node->input_socket("hash map"));
-    // d8_compute_node->output_socket("d8 direction textures").connect(tile_export_node->input_socket("textures"));
-
-    // node_graph->m_output_normals_hash_map_ptr = &normal_compute_node->hash_map();
-    // node_graph->m_output_normals_texture_storage_ptr = &normal_compute_node->texture_storage();
-    node_graph->m_output_overlay_hash_map_ptr = &d8_compute_node->hash_map();
-    node_graph->m_output_overlay_texture_storage_ptr = &d8_compute_node->texture_storage();
 
     node_graph->connect_node_signals_and_slots();
 

@@ -44,7 +44,6 @@ set(SOURCES
     compute/nodes/Node.h compute/nodes/Node.cpp
     compute/nodes/SelectTilesNode.h compute/nodes/SelectTilesNode.cpp
     compute/nodes/RequestTilesNode.h compute/nodes/RequestTilesNode.cpp
-    compute/nodes/CreateHashMapNode.h compute/nodes/CreateHashMapNode.cpp
     compute/nodes/ComputeNormalsNode.h compute/nodes/ComputeNormalsNode.cpp
     compute/nodes/DownsampleTilesNode.h compute/nodes/DownsampleTilesNode.cpp
     compute/nodes/NodeGraph.h compute/nodes/NodeGraph.cpp
