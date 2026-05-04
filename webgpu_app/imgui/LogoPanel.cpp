@@ -20,6 +20,7 @@
 #include "LogoPanel.h"
 
 #include <imgui.h>
+#include <imgui_internal.h>
 
 #include "nucleus/utils/image_loader.h"
 #include "webgpu/raii/Texture.h"
@@ -70,10 +71,11 @@ void LogoPanel::draw()
     ImVec2 scaledSize = ImVec2(m_webigeo_logo_size.x * scaleFactor, m_webigeo_logo_size.y * scaleFactor);
     ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.0f);
-    ImGui::Begin("weBIGeo-Logo", nullptr,
-        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoInputs
-            | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse
-            | ImGuiWindowFlags_AlwaysAutoResize);
+    ImGui::Begin("weBIGeo-Logo",
+        nullptr,
+        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar
+            | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoBringToFrontOnFocus);
+    ImGui::BringWindowToDisplayBack(ImGui::GetCurrentWindow());
 
     ImGui::Image((ImTextureID)m_webigeo_logo_view->handle(), scaledSize);
     ImGui::End();
