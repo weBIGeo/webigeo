@@ -18,6 +18,7 @@
  *****************************************************************************/
 
 #include "BufferToTextureNode.h"
+#include "webgpu/raii/Texture.h"
 
 namespace webgpu_engine::compute::nodes {
 
@@ -124,20 +125,6 @@ void BufferToTextureNode::update_gpu_settings()
     m_settings_uniform.update_gpu_data(m_queue);
 }
 
-uint32_t bit_width(uint32_t m)
-{
-    if (m == 0)
-        return 0;
-    else {
-        uint32_t w = 0;
-        while (m >>= 1)
-            ++w;
-        return w;
-    }
-}
-
-uint32_t getMaxMipLevelCount(const glm::uvec2 textureSize) { return std::max(1u, bit_width(std::max(textureSize.x, textureSize.y))); }
-
 std::unique_ptr<webgpu::raii::TextureWithSampler> BufferToTextureNode::create_texture(WGPUDevice device, uint32_t width, uint32_t height, BufferToTextureSettings& settings)
 {
     // create output texture
@@ -145,7 +132,7 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> BufferToTextureNode::create_te
     texture_desc.label = WGPUStringView { .data = "buffer to texture output texture", .length = WGPU_STRLEN };
     texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
     texture_desc.size = { width, height, 1 };
-    texture_desc.mipLevelCount = settings.create_mipmaps ? getMaxMipLevelCount(glm::uvec2(width, height)) : 1;
+    texture_desc.mipLevelCount = settings.create_mipmaps ? webgpu::raii::Texture::max_mip_level_count(glm::uvec2(width, height)) : 1;
     texture_desc.sampleCount = 1;
     texture_desc.format = settings.texture_format;
     texture_desc.usage = settings.texture_usage;

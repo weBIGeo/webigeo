@@ -83,7 +83,6 @@ public:
     void paint_gui();
     void paint_compute_pipeline_gui();
 
-    void compute_mipmaps_for_texture(const webgpu::raii::Texture* texture);
 
     void set_max_zoom_level(uint32_t max_zoom_level);
 
