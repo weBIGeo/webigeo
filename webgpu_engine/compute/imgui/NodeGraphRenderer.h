@@ -28,6 +28,11 @@
 #include "nodes/NodeRenderer.h"
 #include "../NodeGraph.h"
 
+namespace webgpu_engine::compute::nodes {
+class InputSocket;
+class OutputSocket;
+}
+
 namespace webgpu_engine::compute {
 
 class NodeRenderer;
@@ -62,6 +67,9 @@ private:
     std::unordered_map<const nodes::Node*, NodeRenderer*> m_node_renderers_by_node;
     std::vector<std::pair<int, int>> m_links;
 
+    std::unordered_map<int, nodes::InputSocket*> m_input_socket_by_id;
+    std::unordered_map<int, nodes::OutputSocket*> m_output_socket_by_id;
+
     // Current rendering mode for the graph background and grid.
     GraphRenderingMode m_render_mode = GraphRenderingMode::Default;
 
@@ -81,6 +89,9 @@ private:
     void render_toolbar();
     void render_settings_panel();
     void poll_keyboard_shortcuts();
+
+    void rebuild_links();
+    void rebuild_socket_id_maps();
 
     NodeRenderer* find_selected_node_renderer() const;
 };

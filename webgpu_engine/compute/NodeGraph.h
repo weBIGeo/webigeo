@@ -73,8 +73,8 @@ public:
     const TileStorageTexture& output_overlay_texture_storage() const;
     TileStorageTexture& output_overlay_texture_storage();
 
-private:
     // finds topological order of nodes and connects run_finished and run slots accordingly
+    // safe to call multiple times
     void connect_node_signals_and_slots();
 
 public slots:
@@ -98,6 +98,7 @@ public:
 private:
     std::string m_name;
     std::unordered_map<std::string, std::unique_ptr<Node>> m_nodes;
+    std::vector<QMetaObject::Connection> m_topology_connections;
 
     TileStorageTexture* m_output_normals_texture_storage_ptr;
 

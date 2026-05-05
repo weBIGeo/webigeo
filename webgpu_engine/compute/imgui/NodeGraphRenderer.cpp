@@ -56,27 +56,8 @@ void NodeGraphRenderer::init(nodes::NodeGraph& node_graph)
         m_node_renderers_by_node.emplace(node.get(), m_node_renderers.at(name).get());
     }
 
-    // create links
-    for (auto& [name, node_renderer] : m_node_renderers) {
-        // get connected attribute index
-        const auto& node = *nodes.at(name).get();
-        const auto& input_sockets = node.input_sockets();
-        for (size_t i = 0; i < input_sockets.size(); i++) {
-            const auto& input_socket = input_sockets.at(i);
-            if (input_socket.is_socket_connected()) {
-                const auto first_attribute_index = node_renderer->get_input_socket_id(input_socket.name());
-
-                // find connected node name and socket name
-                const std::string& connected_socket_name = input_socket.connected_socket().name();
-                const nodes::Node& connected_node = input_socket.connected_socket().node();
-                const NodeRenderer* connected_node_renderer = m_node_renderers_by_node.at(&connected_node);
-
-                const auto second_attribute_index = connected_node_renderer->get_output_socket_id(connected_socket_name);
-
-                m_links.emplace_back(first_attribute_index, second_attribute_index);
-            }
-        }
-    }
+    rebuild_socket_id_maps();
+    rebuild_links();
 
     m_first_frame_after_init = true;
 }
@@ -378,6 +359,26 @@ void NodeGraphRenderer::render()
     ImNodes::MiniMap(0.1f, ImNodesMiniMapLocation_BottomRight);
     ImNodes::EndNodeEditor();
 
+    int start_attr_id, end_attr_id;
+    if (ImNodes::IsLinkCreated(&start_attr_id, &end_attr_id)) {
+        nodes::OutputSocket* output_socket = nullptr;
+        nodes::InputSocket* input_socket = nullptr;
+
+        if (m_output_socket_by_id.count(start_attr_id) && m_input_socket_by_id.count(end_attr_id)) {
+            output_socket = m_output_socket_by_id.at(start_attr_id);
+            input_socket = m_input_socket_by_id.at(end_attr_id);
+        } else if (m_output_socket_by_id.count(end_attr_id) && m_input_socket_by_id.count(start_attr_id)) {
+            output_socket = m_output_socket_by_id.at(end_attr_id);
+            input_socket = m_input_socket_by_id.at(start_attr_id);
+        }
+
+        if (output_socket && input_socket && output_socket->type() == input_socket->type()) {
+            input_socket->connect(*output_socket);
+            m_node_graph->connect_node_signals_and_slots();
+            rebuild_links();
+        }
+    }
+
     ImGui::End();
 
     pop_style();
@@ -404,6 +405,38 @@ void NodeGraphRenderer::poll_keyboard_shortcuts()
     }
     if (ImGui::IsKeyPressed(ImGuiKey_C)) {
         recenter_graph(1.0f);
+    }
+}
+
+void NodeGraphRenderer::rebuild_links()
+{
+    m_links.clear();
+    auto& nodes = m_node_graph->get_nodes();
+    for (auto& [name, node_renderer] : m_node_renderers) {
+        const auto& node = *nodes.at(name).get();
+        for (const auto& input_socket : node.input_sockets()) {
+            if (!input_socket.is_socket_connected())
+                continue;
+            const int input_attr_id = node_renderer->get_input_socket_id(input_socket.name());
+            const nodes::Node& connected_node = input_socket.connected_socket().node();
+            const NodeRenderer* connected_renderer = m_node_renderers_by_node.at(&connected_node);
+            const int output_attr_id = connected_renderer->get_output_socket_id(input_socket.connected_socket().name());
+            m_links.emplace_back(input_attr_id, output_attr_id);
+        }
+    }
+}
+
+void NodeGraphRenderer::rebuild_socket_id_maps()
+{
+    m_input_socket_by_id.clear();
+    m_output_socket_by_id.clear();
+    auto& nodes = m_node_graph->get_nodes();
+    for (auto& [name, node_renderer] : m_node_renderers) {
+        auto& node = *nodes.at(name).get();
+        for (auto& socket : node.input_sockets())
+            m_input_socket_by_id[node_renderer->get_input_socket_id(socket.name())] = &socket;
+        for (auto& socket : node.output_sockets())
+            m_output_socket_by_id[node_renderer->get_output_socket_id(socket.name())] = &socket;
     }
 }
 

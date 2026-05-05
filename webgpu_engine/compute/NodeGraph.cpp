@@ -136,14 +136,18 @@ void NodeGraph::connect_node_signals_and_slots()
         }
     }
 
-    connect(this, &NodeGraph::run_triggered, topological_ordering.front(), &Node::run);
+    for (auto& conn : m_topology_connections)
+        QObject::disconnect(conn);
+    m_topology_connections.clear();
+
+    m_topology_connections.push_back(connect(this, &NodeGraph::run_triggered, topological_ordering.front(), &Node::run));
     for (uint32_t i = 0; i < topological_ordering.size() - 1; i++) {
-        connect(topological_ordering[i], &Node::run_completed, topological_ordering[i + 1], &Node::run);
+        m_topology_connections.push_back(connect(topological_ordering[i], &Node::run_completed, topological_ordering[i + 1], &Node::run));
     }
-    connect(topological_ordering.back(), &Node::run_completed, this, &NodeGraph::run_completed); // emits run completed signal in NodeGraph
+    m_topology_connections.push_back(connect(topological_ordering.back(), &Node::run_completed, this, &NodeGraph::run_completed));
 
     for (auto& [_, node] : m_nodes) {
-        connect(node.get(), &Node::run_failed, this, &NodeGraph::emit_graph_failure);
+        m_topology_connections.push_back(connect(node.get(), &Node::run_failed, this, &NodeGraph::emit_graph_failure));
     }
 }
 
