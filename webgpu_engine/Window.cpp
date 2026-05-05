@@ -27,17 +27,13 @@
 #include "compute/nodes/ComputeReleasePointsNode.h"
 #include "compute/nodes/ComputeSnowNode.h"
 #include "compute/nodes/LoadRegionAabbNode.h"
-#include "compute/nodes/LoadTextureNode.h"
 #include "compute/nodes/SelectTilesNode.h"
 #include "compute/nodes/TileExportNode.h"
-#include "compute/nodes/util.h"
-#include "glm/gtc/type_ptr.hpp"
 #include "nucleus/tile/drawing.h"
 #include "nucleus/track/GPX.h"
 #include "nucleus/utils/image_loader.h"
 #include "webgpu/raii/RenderPassEncoder.h"
 #include "webgpu_engine/Context.h"
-#include <QFile>
 #include <ktx.h>
 
 #ifdef __EMSCRIPTEN__
@@ -45,9 +41,6 @@
 #include <webgpu_app/WebInterop.h>
 #endif
 #include <webgpu/webgpu.h>
-#include <webgpu/webgpu_interface.hpp>
-
-#include <glm/gtx/string_cast.hpp>
 
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
 #include "imgui.h"
