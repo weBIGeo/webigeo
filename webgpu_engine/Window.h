@@ -212,23 +212,6 @@ private:
 #endif
 
 
-    // ToDo: THE FOLLOWING IS A HACK UNTIL WE CAN MODIFY THE NODE GRAPH DIRECTLY
-    void rewire_buffer_to_texture_node();
-    struct computeLayer {
-        std::string name;
-        std::string socket_name;
-        std::string unit;
-    };
-    const std::vector<computeLayer> m_compute_overlay_layers = {
-        { "Speed", "layer1_zdelta", " m/s" },
-        { "Cell Counts", "layer2_cellCounts", "" },
-        { "Travel Length", "layer3_travelLength", " m" },
-        { "Travel Angle", "layer4_travelAngle", " °" },
-        { "Altitude Difference", "layer5_altitudeDifference", " hm" },
-    };
-    size_t m_current_compute_color_layer_index = 0;
-    size_t m_current_compute_alpha_layer_index = 1;
-    // === UNTIL HERE ===
 };
 
 } // namespace webgpu_engine

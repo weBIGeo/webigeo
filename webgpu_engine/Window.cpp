@@ -494,20 +494,6 @@ void Window::paint_gui()
 #endif
 }
 
-void Window::rewire_buffer_to_texture_node()
-{
-    if (m_compute_graph->exists_node("buffer_to_texture_node") && m_compute_graph->exists_node("avalanche_trajectories_node")) {
-        auto& buffer_to_texture_node = m_compute_graph->get_node_as<compute::nodes::BufferToTextureNode>("buffer_to_texture_node");
-        auto& trajectories_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("avalanche_trajectories_node");
-
-        const std::string& current_color_socket = m_compute_overlay_layers[m_current_compute_color_layer_index].socket_name;
-        const std::string& current_alpha_socket = m_compute_overlay_layers[m_current_compute_alpha_layer_index].socket_name;
-        buffer_to_texture_node.input_socket("storage buffer").connect(trajectories_node.output_socket(current_color_socket));
-        buffer_to_texture_node.input_socket("transparency buffer").connect(trajectories_node.output_socket(current_alpha_socket));
-    } else {
-        qWarning() << "Compute graph nodes not found!";
-    }
-}
 
 void Window::paint_compute_pipeline_gui()
 {
@@ -571,51 +557,7 @@ void Window::paint_compute_pipeline_gui()
             ImGui::EndCombo();
         }
 
-        if (ImGui::TreeNodeEx("Pipeline-specific settings", ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::PushItemWidth(15.0f * ImGui::GetFontSize());
-            if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
-                { // Buffer to Texture Settings
-                    ImGui::Separator();
-                    bool rerun_buffer_to_texture = false;
 
-                    // HACK TO CHANGE INPUT LAYERS
-                    const char* current_color_layer = m_compute_overlay_layers[m_current_compute_color_layer_index].name.c_str();
-                    if (ImGui::BeginCombo("Color Layer", current_color_layer)) {
-                        for (size_t i = 0; i < m_compute_overlay_layers.size(); ++i) {
-                            bool is_selected = (m_current_compute_color_layer_index == i);
-                            if (ImGui::Selectable(m_compute_overlay_layers[i].name.c_str(), is_selected)) {
-                                m_current_compute_color_layer_index = i;
-                                rewire_buffer_to_texture_node();
-                                rerun_buffer_to_texture = true;
-                            }
-                            if (is_selected)
-                                ImGui::SetItemDefaultFocus();
-                        }
-                        ImGui::EndCombo();
-                    }
-                    const char* current_alpha_layer = m_compute_overlay_layers[m_current_compute_alpha_layer_index].name.c_str();
-                    if (ImGui::BeginCombo("Alpha Layer", current_alpha_layer)) {
-                        for (size_t i = 0; i < m_compute_overlay_layers.size(); ++i) {
-                            bool is_selected = (m_current_compute_alpha_layer_index == i);
-                            if (ImGui::Selectable(m_compute_overlay_layers[i].name.c_str(), is_selected)) {
-                                m_current_compute_alpha_layer_index = i;
-                                rewire_buffer_to_texture_node();
-                                rerun_buffer_to_texture = true;
-                            }
-                            if (is_selected)
-                                ImGui::SetItemDefaultFocus();
-                        }
-                        ImGui::EndCombo();
-                    }
-
-                    if (rerun_buffer_to_texture) {
-                        update_settings_and_rerun_pipeline("buffer_to_texture_node");
-                    }
-                }
-            }
-            ImGui::PopItemWidth();
-            ImGui::TreePop();
-        }
     }
 
     {
