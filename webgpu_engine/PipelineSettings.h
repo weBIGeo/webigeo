@@ -65,11 +65,6 @@ struct ComputePipelineSettings {
     bool use_transparency_buffer = true;
     bool texture_interpolation_mipmaps = false;
 
-    // file paths for evaluation pipeline
-    std::string release_points_texture_path;
-    std::string heightmap_texture_path;
-    std::string aabb_file_path;
-
     static void write_to_json_file(const ComputePipelineSettings& settings, const std::filesystem::path& output_path);
     static ComputePipelineSettings read_from_json_file(const std::filesystem::path& input_path);
 };

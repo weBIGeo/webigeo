@@ -56,10 +56,9 @@ public:
         NORMALS = 0,
         SNOW = 1,
         AVALANCHE_TRAJECTORIES = 2,
-        AVALANCHE_TRAJECTORIES_EVAL = 3,
-        D8_DIRECTIONS = 4,
-        RELEASE_POINTS = 5,
-        ITERATIVE_SIMULATION = 6,
+        D8_DIRECTIONS = 3,
+        RELEASE_POINTS = 4,
+        ITERATIVE_SIMULATION = 5,
     };
 
 public:
@@ -138,7 +137,6 @@ private:
     void update_compute_overlay_texture(const webgpu::raii::TextureWithSampler& texture_with_sampler);
     void update_compute_overlay_aabb(const radix::geometry::Aabb<2, double>& aabb);
 
-    void load_eval_dir(const std::string& path);
 
     void after_first_frame();
 

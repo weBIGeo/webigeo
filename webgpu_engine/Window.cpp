@@ -628,12 +628,10 @@ void Window::paint_compute_pipeline_gui()
     if (ImGui::CollapsingHeader("Compute pipeline", ImGuiTreeNodeFlags_DefaultOpen)) {
 
         if (ImGui::Button("Run", ImVec2(250, 20))) {
-            bool eval_ready_to_run = (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES_EVAL) && (!m_compute_pipeline_settings.heightmap_texture_path.empty());
-            bool normal_pipeline_ready_to_run = (m_active_compute_pipeline_type != ComputePipelineType::AVALANCHE_TRAJECTORIES_EVAL) && m_is_region_selected;
-            if (normal_pipeline_ready_to_run || eval_ready_to_run) {
+            if (m_is_region_selected) {
                 update_settings_and_rerun_pipeline();
             } else {
-                display_message("Cannot run pipeline - No region selected (track for normal pipeline, eval dir for eval pipeline)");
+                display_message("Cannot run pipeline - No region selected");
             }
         }
 
@@ -669,7 +667,6 @@ void Window::paint_compute_pipeline_gui()
             { "Normals", ComputePipelineType::NORMALS },
             { "Snow", ComputePipelineType::SNOW },
             { "Avalanche trajectories", ComputePipelineType::AVALANCHE_TRAJECTORIES },
-            //{ "Avalanche trajectories (eval)", ComputePipelineType::AVALANCHE_TRAJECTORIES_EVAL },
             //{ "D8 directions", ComputePipelineType::D8_DIRECTIONS },
             { "Release points", ComputePipelineType::RELEASE_POINTS },
             { "Iterative simulation (WIP)", ComputePipelineType::ITERATIVE_SIMULATION },
@@ -760,48 +757,6 @@ void Window::paint_compute_pipeline_gui()
                         update_settings_and_rerun_pipeline("buffer_to_texture_node");
                     }
                 }
-            } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES_EVAL) {
-
-#ifndef __EMSCRIPTEN__
-                if (ImGui::Button("Open eval dir ...", ImVec2(250, 20))) {
-                    IGFD::FileDialogConfig config_eval_dir_file_dialog;
-                    config_eval_dir_file_dialog.path = ".";
-                    ImGuiFileDialog::Instance()->OpenDialog("EvalDirFileDialog", "Choose evaluation directory", nullptr, config_eval_dir_file_dialog);
-                }
-
-                if (ImGuiFileDialog::Instance()->Display("EvalDirFileDialog")) {
-                    if (ImGuiFileDialog::Instance()->IsOk()) { // action if OK
-                        std::string file_path = ImGuiFileDialog::Instance()->GetCurrentPath();
-                        load_eval_dir(file_path);
-                    }
-                    ImGuiFileDialog::Instance()->Close();
-                }
-
-                if (ImGui::CollapsingHeader("Loaded files", ImGuiTreeNodeFlags_DefaultOpen)) {
-
-                    ImGui::Text("Heights: %s", m_compute_pipeline_settings.heightmap_texture_path.c_str());
-                    if (ImGui::IsItemHovered()) {
-                        ImGui::BeginTooltip();
-                        ImGui::Text("%s", m_compute_pipeline_settings.heightmap_texture_path.c_str());
-                        ImGui::EndTooltip();
-                    }
-
-                    ImGui::Text("Release points: %s", m_compute_pipeline_settings.release_points_texture_path.c_str());
-                    if (ImGui::IsItemHovered()) {
-                        ImGui::BeginTooltip();
-                        ImGui::Text("%s", m_compute_pipeline_settings.release_points_texture_path.c_str());
-                        ImGui::EndTooltip();
-                    }
-
-                    ImGui::Text("AABB: %s", m_compute_pipeline_settings.aabb_file_path.c_str());
-                    if (ImGui::IsItemHovered()) {
-                        ImGui::BeginTooltip();
-                        ImGui::Text("%s", m_compute_pipeline_settings.aabb_file_path.c_str());
-                        ImGui::EndTooltip();
-                    }
-                }
-#endif
-
             } else if (m_active_compute_pipeline_type == ComputePipelineType::SNOW) {
                 if (ImGui::Checkbox("Sync with render settings", &m_compute_pipeline_settings.sync_snow_settings_with_render_settings)) {
                     update_settings_and_rerun_pipeline();
@@ -918,8 +873,6 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, 
     } else if (pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
         m_compute_graph = compute::nodes::NodeGraph::create_trajectories_with_export_compute_graph(*m_context->pipeline_manager(), m_device);
         m_compute_graph->set_enabled_for_nodes_with_name("export", false);
-    } else if (pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES_EVAL) {
-        m_compute_graph = compute::nodes::NodeGraph::create_trajectories_evaluation_compute_graph(*m_context->pipeline_manager(), m_device);
     } else if (pipeline_type == ComputePipelineType::RELEASE_POINTS) {
         m_compute_graph = compute::nodes::NodeGraph::create_release_points_compute_graph(*m_context->pipeline_manager(), m_device);
     } else if (pipeline_type == ComputePipelineType::ITERATIVE_SIMULATION) {
@@ -1050,82 +1003,6 @@ void Window::update_compute_pipeline_settings()
                 node.settings().texture_max_aniostropy = 1;
                 node.settings().create_mipmaps = false;
             }
-        }
-
-        // update file export path to include current date and time
-        {
-            const std::filesystem::path export_root_dir = "export_" + get_current_date_time_string();
-
-            // set trajectory layer export directories
-            compute::nodes::BufferExportNode::ExportSettings zdelta_export_settings { (export_root_dir / "trajectories/texture_layer1_zdelta.png").string() };
-            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l1_export_node").set_settings(zdelta_export_settings);
-            compute::nodes::BufferExportNode::ExportSettings cell_counts_export_settings {
-                (export_root_dir / "trajectories/texture_layer2_cellCounts.png").string()
-            };
-            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l2_export_node").set_settings(cell_counts_export_settings);
-            compute::nodes::BufferExportNode::ExportSettings travel_length_export_settings {
-                (export_root_dir / "trajectories/texture_layer3_travelLength.png").string()
-            };
-            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l3_export_node").set_settings(travel_length_export_settings);
-            compute::nodes::BufferExportNode::ExportSettings travel_angle_export_settings {
-                (export_root_dir / "trajectories/texture_layer4_travelAngle.png").string()
-            };
-            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l4_export_node").set_settings(travel_angle_export_settings);
-            compute::nodes::BufferExportNode::ExportSettings height_diff_export_settings {
-                (export_root_dir / "trajectories/texture_layer5_heightDifference.png").string()
-            };
-            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l5_export_node").set_settings(height_diff_export_settings);
-
-            // set trajectory color buffer export directory
-            compute::nodes::TileExportNode::ExportSettings export_trajectory_settings = { (export_root_dir / "trajectories").string() };
-            m_compute_graph->get_node_as<compute::nodes::TileExportNode>("trajectories_export").set_settings(export_trajectory_settings);
-
-            // set heightmap export directory
-            compute::nodes::TileExportNode::ExportSettings export_height_settings = { (export_root_dir / "heights").string() };
-            m_compute_graph->get_node_as<compute::nodes::TileExportNode>("height_export").set_settings(export_height_settings);
-
-            // set release point export directory
-            compute::nodes::TileExportNode::ExportSettings export_releasepoints_settings
-                = { (export_root_dir / "release_points").string() };
-            m_compute_graph->get_node_as<compute::nodes::TileExportNode>("rp_export").set_settings(export_releasepoints_settings);
-        }
-    } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES_EVAL) {
-
-        // trajectories settings
-        compute::nodes::ComputeAvalancheTrajectoriesNode::AvalancheTrajectoriesSettings trajectory_settings {};
-        trajectory_settings.resolution_multiplier = m_compute_pipeline_settings.trajectory_resolution_multiplier;
-        trajectory_settings.num_steps = m_compute_pipeline_settings.num_steps;
-        trajectory_settings.step_length = m_compute_pipeline_settings.step_length;
-        trajectory_settings.num_paths_per_release_cell = m_compute_pipeline_settings.num_paths_per_release_cell;
-        trajectory_settings.random_contribution = m_compute_pipeline_settings.random_contribution;
-        trajectory_settings.persistence_contribution = m_compute_pipeline_settings.persistence_contribution;
-        trajectory_settings.active_model = m_compute_pipeline_settings.model_type;
-        trajectory_settings.model2 = m_compute_pipeline_settings.model_less_simple_params;
-        trajectory_settings.active_runout_model
-            = compute::nodes::ComputeAvalancheTrajectoriesNode::FrictionModelType(m_compute_pipeline_settings.friction_model_type);
-        trajectory_settings.runout_perla = m_compute_pipeline_settings.perla;
-        trajectory_settings.runout_flowpy.alpha = m_compute_pipeline_settings.runout_flowpy_alpha;
-
-        auto& trajectories_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("avalanche_trajectories_node");
-        trajectories_node.set_settings(trajectory_settings);
-
-        {
-            compute::nodes::LoadTextureNode::LoadTextureNodeSettings settings;
-            settings.format = WGPUTextureFormat_RGBA8Unorm;
-            settings.file_path = m_compute_pipeline_settings.release_points_texture_path;
-            m_compute_graph->get_node_as<compute::nodes::LoadTextureNode>("load_rp_node").set_settings(settings);
-        }
-
-        {
-            compute::nodes::LoadTextureNode::LoadTextureNodeSettings settings;
-            settings.file_path = m_compute_pipeline_settings.heightmap_texture_path;
-            m_compute_graph->get_node_as<compute::nodes::LoadTextureNode>("load_heights_node").set_settings(settings);
-        }
-
-        {
-            compute::nodes::LoadRegionAabbNode::LoadRegionAabbNodeSettings settings;
-            settings.file_path = m_compute_pipeline_settings.aabb_file_path;
-            m_compute_graph->get_node_as<compute::nodes::LoadRegionAabbNode>("load_aabb_node").set_settings(settings);
         }
 
         // update file export path to include current date and time
@@ -1552,45 +1429,6 @@ void Window::update_compute_overlay_aabb(const radix::geometry::Aabb<2, double>&
     m_compute_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
 }
 
-void Window::load_eval_dir(const std::string& path)
-{
-    const std::filesystem::path dir = path;
-    const auto settings_path = dir / "settings.json";
-
-    qDebug() << "try to load settings and raster files from directory " << path;
-
-    if (!std::filesystem::exists(settings_path)) {
-        display_message("Directory " + path + " does not contain settings.json - abort");
-        return;
-    }
-
-    const auto heights_path = (dir / "heights" / "texture.png");
-    if (!std::filesystem::exists(heights_path)) {
-        display_message("Directory " + path + " does not contain heights - expected in " + heights_path.string() + " - abort");
-        return;
-    }
-
-    const auto release_points_path = dir / "release_points" / "texture.png";
-    if (!std::filesystem::exists(release_points_path)) {
-        display_message("Directory " + path + " does not contain release points - expected in " + release_points_path.string() + " - abort");
-        return;
-    }
-
-    const auto aabb_path = dir / "heights" / "aabb.txt";
-    if (!std::filesystem::exists(aabb_path)) {
-        display_message("Directory " + path + " does not contain aabb - expected in " + aabb_path.string() + " - abort");
-        return;
-    }
-
-    qDebug() << "required files exist - update settings and set eval input paths";
-
-    m_compute_pipeline_settings = ComputePipelineSettings::read_from_json_file(settings_path);
-    m_compute_pipeline_settings.heightmap_texture_path = heights_path.string();
-    m_compute_pipeline_settings.release_points_texture_path = release_points_path.string();
-    m_compute_pipeline_settings.aabb_file_path = aabb_path.string();
-    update_compute_pipeline_settings();
-}
-
 void Window::after_first_frame()
 {
 #if defined(QT_DEBUG)
@@ -1601,7 +1439,6 @@ void Window::after_first_frame()
 
 void Window::reload_shaders()
 {
-    qDebug() << "reloading shaders...";
     m_context->shader_module_manager()->release_shader_modules();
     m_context->shader_module_manager()->create_shader_modules();
     m_context->pipeline_manager()->release_pipelines();
@@ -1631,8 +1468,6 @@ void Window::on_pipeline_run_completed()
         } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
             texture
                 = std::get<const webgpu::raii::TextureWithSampler*>(m_compute_graph->get_node("buffer_to_texture_node").output_socket("texture").get_data());
-            // texture = std::get<const webgpu::raii::TextureWithSampler*>(m_compute_graph->get_node("fxaa_node").output_socket("texture").get_data()); // TO
-            // ENABLE FXAA
         } else if (m_active_compute_pipeline_type == ComputePipelineType::ITERATIVE_SIMULATION) {
             texture = std::get<const webgpu::raii::TextureWithSampler*>(m_compute_graph->get_node("flowpy").output_socket("texture").get_data());
         }
