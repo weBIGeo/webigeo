@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "Node.h"
+#include "nodes/Node.h"
 #include "webgpu_engine/PipelineManager.h"
 #include <memory>
 

@@ -28,7 +28,7 @@
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
 #include "compute/imgui/NodeGraphRenderer.h"
 #endif
-#include "compute/nodes/NodeGraph.h"
+#include "compute/NodeGraph.h"
 #include "compute/nodes/RequestTilesNode.h"
 #include "nucleus/AbstractRenderWindow.h"
 #include "nucleus/camera/AbstractDepthTester.h"

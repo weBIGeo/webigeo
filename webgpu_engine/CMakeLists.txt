@@ -45,7 +45,7 @@ set(SOURCES
     compute/nodes/SelectTilesNode.h compute/nodes/SelectTilesNode.cpp
     compute/nodes/RequestTilesNode.h compute/nodes/RequestTilesNode.cpp
     compute/nodes/ComputeNormalsNode.h compute/nodes/ComputeNormalsNode.cpp
-    compute/nodes/NodeGraph.h compute/nodes/NodeGraph.cpp
+    compute/NodeGraph.h compute/NodeGraph.cpp
     compute/nodes/ComputeSnowNode.h compute/nodes/ComputeSnowNode.cpp
     compute/nodes/UpsampleTexturesNode.h compute/nodes/UpsampleTexturesNode.cpp
     compute/nodes/ComputeAvalancheTrajectoriesNode.h compute/nodes/ComputeAvalancheTrajectoriesNode.cpp
