@@ -667,7 +667,6 @@ void Window::paint_compute_pipeline_gui()
             { "Normals", ComputePipelineType::NORMALS },
             { "Snow", ComputePipelineType::SNOW },
             { "Avalanche trajectories", ComputePipelineType::AVALANCHE_TRAJECTORIES },
-            //{ "D8 directions", ComputePipelineType::D8_DIRECTIONS },
             { "Release points", ComputePipelineType::RELEASE_POINTS },
             { "Iterative simulation (WIP)", ComputePipelineType::ITERATIVE_SIMULATION },
         };
@@ -1042,14 +1041,6 @@ void Window::update_compute_pipeline_settings()
                 = { (export_root_dir / "release_points").string() };
             m_compute_graph->get_node_as<compute::nodes::TileExportNode>("rp_export").set_settings(export_releasepoints_settings);
         }
-    } else if (m_active_compute_pipeline_type == ComputePipelineType::D8_DIRECTIONS) {
-        // tile selection
-        m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
-            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.zoomlevel);
-
-        // tile source
-        m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node")
-            .set_settings(m_tile_source_settings.at(m_compute_pipeline_settings.tile_source_index));
     } else if (m_active_compute_pipeline_type == ComputePipelineType::ITERATIVE_SIMULATION) {
         // tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")

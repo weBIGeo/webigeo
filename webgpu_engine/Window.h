@@ -56,9 +56,8 @@ public:
         NORMALS = 0,
         SNOW = 1,
         AVALANCHE_TRAJECTORIES = 2,
-        D8_DIRECTIONS = 3,
-        RELEASE_POINTS = 4,
-        ITERATIVE_SIMULATION = 5,
+        RELEASE_POINTS = 3,
+        ITERATIVE_SIMULATION = 4,
     };
 
 public:
