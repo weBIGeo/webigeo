@@ -351,9 +351,19 @@ void NodeGraphRenderer::render()
 
     // draw links
     for (size_t i = 0; i < m_links.size(); ++i) {
-        const std::pair<int, int> p = m_links[i];
-        // in this case, we just use the array index of the link as the unique identifier
-        ImNodes::Link(int(i), p.first, p.second);
+        const auto& [input_attr_id, output_attr_id] = m_links[i];
+        if (auto it = m_input_socket_by_id.find(input_attr_id); it != m_input_socket_by_id.end()) {
+            const ImU32 color = NodeRenderer::pin_color_for_type(it->second->type());
+            ImNodes::PushColorStyle(ImNodesCol_Link, color);
+            ImNodes::PushColorStyle(ImNodesCol_LinkHovered, color);
+            ImNodes::PushColorStyle(ImNodesCol_LinkSelected, color);
+            ImNodes::Link(int(i), input_attr_id, output_attr_id);
+            ImNodes::PopColorStyle();
+            ImNodes::PopColorStyle();
+            ImNodes::PopColorStyle();
+        } else {
+            ImNodes::Link(int(i), input_attr_id, output_attr_id);
+        }
     }
 
     ImNodes::MiniMap(0.1f, ImNodesMiniMapLocation_BottomRight);

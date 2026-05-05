@@ -20,6 +20,7 @@
 #pragma once
 
 #include <imgui.h>
+#include <imnodes.h>
 #include <memory>
 #include <string>
 #include <vector>
@@ -56,8 +57,10 @@ public:
     // Removes optional "_node" and formats the name with capitalization.
     // e.g., "request_height_node" → "Request Height"
     static std::string format_node_name(const std::string& name);
-
     static std::string format_ms(int duration_in_ms);
+
+    static ImU32 pin_color_for_type(nodes::DataType type);
+    static ImNodesPinShape pin_shape_for_type(nodes::DataType type);
 
 private:
     std::string m_name;
