@@ -212,7 +212,6 @@ private:
     bool m_should_render_node_graph = false;
 #endif
 
-    bool paint_legend_gui(float& min_value, float& max_value, bool& bin_interpolation, const std::string& unit = "");
 
     // ToDo: THE FOLLOWING IS A HACK UNTIL WE CAN MODIFY THE NODE GRAPH DIRECTLY
     void rewire_buffer_to_texture_node();

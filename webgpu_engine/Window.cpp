@@ -508,120 +508,6 @@ void Window::rewire_buffer_to_texture_node()
     }
 }
 
-bool Window::paint_legend_gui(float& min_value, float& max_value, bool& bin_interpolation, const std::string& unit)
-{
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-    bool somethingChanged = false;
-
-    static bool print_mode = false;
-    if (ImGui::IsKeyPressed(ImGuiKey_J)) {
-        print_mode = !print_mode;
-    }
-
-    static uint32_t digit_count = 1;
-    // Up and down modifies digit count, clamp 0
-    if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) {
-        digit_count = std::min(digit_count + 1, 6u);
-    }
-    if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) {
-        digit_count = std::max(digit_count - 1, 0u);
-    }
-    std::string digit_format = "%." + std::to_string(digit_count) + "f";
-
-    // NOTE: Define the same color bins as in the WGSL shader
-    static const std::vector<ImVec4> colors = {
-        ImVec4(0x40 / 255.0f, 0x40 / 255.0f, 0x43 / 255.0f, 1.0f), // 404043
-        ImVec4(0x45 / 255.0f, 0x44 / 255.0f, 0x55 / 255.0f, 1.0f), // 454455
-        ImVec4(0x50 / 255.0f, 0x4a / 255.0f, 0x6b / 255.0f, 1.0f), // 504a6b
-        ImVec4(0x5e / 255.0f, 0x4c / 255.0f, 0x83 / 255.0f, 1.0f), // 5e4c83
-        ImVec4(0x6f / 255.0f, 0x4b / 255.0f, 0x96 / 255.0f, 1.0f), // 6f4b96
-        ImVec4(0x7f / 255.0f, 0x4f / 255.0f, 0x9d / 255.0f, 1.0f), // 7f4f9d
-        ImVec4(0x90 / 255.0f, 0x55 / 255.0f, 0xa1 / 255.0f, 1.0f), // 9055a1
-        ImVec4(0x9f / 255.0f, 0x5b / 255.0f, 0xa1 / 255.0f, 1.0f), // 9f5ba1
-        ImVec4(0xb0 / 255.0f, 0x61 / 255.0f, 0xa1 / 255.0f, 1.0f), // b061a1
-        ImVec4(0xc0 / 255.0f, 0x66 / 255.0f, 0x9d / 255.0f, 1.0f), // c0669d
-        ImVec4(0xd1 / 255.0f, 0x6b / 255.0f, 0x97 / 255.0f, 1.0f), // d16b97
-        ImVec4(0xe0 / 255.0f, 0x73 / 255.0f, 0x91 / 255.0f, 1.0f), // e07391
-        ImVec4(0xee / 255.0f, 0x7e / 255.0f, 0x89 / 255.0f, 1.0f), // ee7e89
-        ImVec4(0xf7 / 255.0f, 0x8e / 255.0f, 0x85 / 255.0f, 1.0f), // f78e85
-        ImVec4(0xfc / 255.0f, 0xa1 / 255.0f, 0x87 / 255.0f, 1.0f), // fca187
-        ImVec4(0xfe / 255.0f, 0xb3 / 255.0f, 0x8f / 255.0f, 1.0f), // feb38f
-        ImVec4(0xfe / 255.0f, 0xc7 / 255.0f, 0x9c / 255.0f, 1.0f), // fec79c
-        ImVec4(0xfe / 255.0f, 0xd9 / 255.0f, 0xab / 255.0f, 1.0f), // fed9ab
-        ImVec4(0xfe / 255.0f, 0xec / 255.0f, 0xbc / 255.0f, 1.0f), // feecbc
-        ImVec4(0xfd / 255.0f, 0xfe / 255.0f, 0xcf / 255.0f, 1.0f) // fdfecf
-    };
-
-    const int bin_count = static_cast<int>(colors.size());
-    const float step = (max_value - min_value) / (bin_count - 1);
-
-    // first calculate how much vertical space the legend will need
-    const float item_height = ImGui::GetTextLineHeightWithSpacing();
-    const float estimated_window_height = (bin_count + 1) * item_height;
-
-    // set window position to be vertically centered
-    ImVec2 window_pos = ImVec2(10, (ImGui::GetIO().DisplaySize.y - estimated_window_height) * 0.5f);
-
-    ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, ImVec2(0.0f, 0.0f));
-
-    if (print_mode) {
-        ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(255, 255, 255, 255)); // Opaque white background
-        ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 0, 0, 255)); // Black text
-    } else {
-        ImGui::SetNextWindowBgAlpha(0.5f); // Transparent background
-    }
-
-    if (ImGui::Begin("Flowpy Legend",
-            nullptr,
-            ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings
-                | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav)) {
-        for (int i = bin_count - 1; i >= 0; i--) {
-            ImGui::PushID(i);
-
-            if (print_mode) {
-                ImGui::ColorButton("##color", colors[i], ImGuiColorEditFlags_NoTooltip, ImVec2(16, 16));
-            } else {
-                ImGui::ColorButton("##color", colors[i], ImGuiColorEditFlags_NoTooltip, ImVec2(20, 20));
-            }
-            ImGui::SameLine();
-
-            float bin_value = min_value + (i * step);
-
-            if (print_mode) {
-                ImGui::Text(digit_format.c_str(), bin_value);
-                ImGui::SameLine(0.0f, 0.0f); // No spacing between the texts
-                ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "%s", unit.c_str());
-            } else {
-                if (i == bin_count - 1) {
-                    ImGui::SetNextItemWidth(70);
-                    ImGui::DragFloat("##max", &max_value, 0.01f, min_value + step, FLT_MAX, ("%.1f" + unit).c_str());
-                    somethingChanged |= ImGui::IsItemDeactivatedAfterEdit();
-                } else if (i == 0) {
-                    ImGui::SetNextItemWidth(70);
-                    ImGui::DragFloat("##min", &min_value, 0.01f, -FLT_MAX, max_value - step, ("%.1f" + unit).c_str());
-                    somethingChanged |= ImGui::IsItemDeactivatedAfterEdit();
-                } else {
-                    ImGui::Text("%.1f %s", bin_value, unit.c_str());
-                }
-            }
-            ImGui::PopID();
-        }
-    }
-    if (!print_mode) {
-        somethingChanged |= ImGui::Checkbox("continuous", &bin_interpolation);
-    }
-    ImGui::End();
-
-    if (print_mode) {
-        ImGui::PopStyleColor(2); // Pop WindowBg and Text
-    }
-
-    return somethingChanged;
-#else
-    return false;
-#endif
-}
-
 void Window::paint_compute_pipeline_gui()
 {
 #if ALP_WEBGPU_APP_ENABLE_IMGUI
@@ -687,40 +573,9 @@ void Window::paint_compute_pipeline_gui()
         if (ImGui::TreeNodeEx("Pipeline-specific settings", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::PushItemWidth(15.0f * ImGui::GetFontSize());
             if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
-
-                if (ImGui::TreeNodeEx("Release cells", ImGuiTreeNodeFlags_DefaultOpen)) {
-                    ImGui::SliderInt("Interval##release cells", &m_compute_pipeline_settings.release_point_interval, 1, 64, "%u");
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        update_settings_and_rerun_pipeline("release_points_node");
-                    }
-
-                    ImGui::DragFloatRange2("Steepness range##release cells",
-                        &m_compute_pipeline_settings.trigger_point_min_slope_angle,
-                        &m_compute_pipeline_settings.trigger_point_max_slope_angle,
-                        0.1f,
-                        0.0f,
-                        90.0f,
-                        "Min: %.1f°",
-                        "Max: %.1f°",
-                        ImGuiSliderFlags_AlwaysClamp);
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        update_settings_and_rerun_pipeline("release_points_node");
-                    }
-                    ImGui::TreePop();
-                }
-
-                if (ImGui::Button("redraw with export")) {
-                    update_settings_and_rerun_pipeline();
-                }
-
                 { // Buffer to Texture Settings
                     ImGui::Separator();
                     bool rerun_buffer_to_texture = false;
-                    const std::string& unit = m_compute_overlay_layers[m_current_compute_color_layer_index].unit;
-                    rerun_buffer_to_texture |= paint_legend_gui(m_compute_pipeline_settings.color_map_bounds.x,
-                        m_compute_pipeline_settings.color_map_bounds.y,
-                        m_compute_pipeline_settings.use_bin_interpolation,
-                        unit);
 
                     // HACK TO CHANGE INPUT LAYERS
                     const char* current_color_layer = m_compute_overlay_layers[m_current_compute_color_layer_index].name.c_str();
@@ -755,48 +610,6 @@ void Window::paint_compute_pipeline_gui()
                     if (rerun_buffer_to_texture) {
                         update_settings_and_rerun_pipeline("buffer_to_texture_node");
                     }
-                }
-            } else if (m_active_compute_pipeline_type == ComputePipelineType::SNOW) {
-                if (ImGui::Checkbox("Sync with render settings", &m_compute_pipeline_settings.sync_snow_settings_with_render_settings)) {
-                    update_settings_and_rerun_pipeline();
-                }
-            } else if (m_active_compute_pipeline_type == ComputePipelineType::RELEASE_POINTS) {
-                ImGui::SliderInt("Release point interval", &m_compute_pipeline_settings.release_point_interval, 1, 64, "%u");
-                if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    update_settings_and_rerun_pipeline();
-                }
-
-                ImGui::DragFloatRange2("Release point steepness",
-                    &m_compute_pipeline_settings.trigger_point_min_slope_angle,
-                    &m_compute_pipeline_settings.trigger_point_max_slope_angle,
-                    0.1f,
-                    0.0f,
-                    90.0f,
-                    "Min: %.1f°",
-                    "Max: %.1f°",
-                    ImGuiSliderFlags_AlwaysClamp);
-                if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    update_settings_and_rerun_pipeline();
-                }
-            } else if (m_active_compute_pipeline_type == ComputePipelineType::ITERATIVE_SIMULATION) {
-                // TODO remove duplicate code!
-
-                ImGui::SliderInt("Release point interval##iterative", &m_compute_pipeline_settings.release_point_interval, 1, 64, "%u");
-                if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    update_settings_and_rerun_pipeline();
-                }
-
-                ImGui::DragFloatRange2("Release point steepness",
-                    &m_compute_pipeline_settings.trigger_point_min_slope_angle,
-                    &m_compute_pipeline_settings.trigger_point_max_slope_angle,
-                    0.1f,
-                    0.0f,
-                    90.0f,
-                    "Min: %.1f°",
-                    "Max: %.1f°",
-                    ImGuiSliderFlags_AlwaysClamp);
-                if (ImGui::IsItemDeactivatedAfterEdit()) {
-                    update_settings_and_rerun_pipeline();
                 }
             }
             ImGui::PopItemWidth();
