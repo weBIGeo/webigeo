@@ -65,14 +65,14 @@ set(SOURCES
 if (ALP_WEBGPU_APP_ENABLE_IMGUI)
     list(APPEND SOURCES
         compute/imgui/NodeGraphRenderer.h compute/imgui/NodeGraphRenderer.cpp
-        compute/imgui/NodeRenderer.h compute/imgui/NodeRenderer.cpp
-        compute/imgui/NodeRendererFactory.h compute/imgui/NodeRendererFactory.cpp
-        compute/imgui/BufferExportNodeRenderer.h compute/imgui/BufferExportNodeRenderer.cpp
-        compute/imgui/BufferToTextureNodeRenderer.h compute/imgui/BufferToTextureNodeRenderer.cpp
-        compute/imgui/ComputeAvalancheTrajectoriesNodeRenderer.h compute/imgui/ComputeAvalancheTrajectoriesNodeRenderer.cpp
-        compute/imgui/ComputeReleasePointsNodeRenderer.h compute/imgui/ComputeReleasePointsNodeRenderer.cpp
-        compute/imgui/ComputeSnowNodeRenderer.h compute/imgui/ComputeSnowNodeRenderer.cpp
-        compute/imgui/TileExportNodeRenderer.h compute/imgui/TileExportNodeRenderer.cpp
+        compute/imgui/nodes/NodeRenderer.h compute/imgui/nodes/NodeRenderer.cpp
+        compute/imgui/nodes/NodeRendererFactory.h compute/imgui/nodes/NodeRendererFactory.cpp
+        compute/imgui/nodes/BufferExportNodeRenderer.h compute/imgui/nodes/BufferExportNodeRenderer.cpp
+        compute/imgui/nodes/BufferToTextureNodeRenderer.h compute/imgui/nodes/BufferToTextureNodeRenderer.cpp
+        compute/imgui/nodes/ComputeAvalancheTrajectoriesNodeRenderer.h compute/imgui/nodes/ComputeAvalancheTrajectoriesNodeRenderer.cpp
+        compute/imgui/nodes/ComputeReleasePointsNodeRenderer.h compute/imgui/nodes/ComputeReleasePointsNodeRenderer.cpp
+        compute/imgui/nodes/ComputeSnowNodeRenderer.h compute/imgui/nodes/ComputeSnowNodeRenderer.cpp
+        compute/imgui/nodes/TileExportNodeRenderer.h compute/imgui/nodes/TileExportNodeRenderer.cpp
     )
 endif()
 

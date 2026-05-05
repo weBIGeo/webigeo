@@ -25,7 +25,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "NodeRenderer.h"
+#include "nodes/NodeRenderer.h"
 #include "../NodeGraph.h"
 
 namespace webgpu_engine::compute {

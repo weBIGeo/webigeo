@@ -18,7 +18,7 @@
 
 #include "BufferToTextureNodeRenderer.h"
 
-#include "../nodes/BufferToTextureNode.h"
+#include "../../nodes/BufferToTextureNode.h"
 #include <imgui.h>
 
 namespace webgpu_engine::compute {

@@ -16,59 +16,49 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "BufferExportNodeRenderer.h"
+#include "TileExportNodeRenderer.h"
 
-#include "../nodes/BufferExportNode.h"
+#include "../../nodes/TileExportNode.h"
 #include <ImGuiFileDialog.h>
 #include <imgui.h>
 
 namespace webgpu_engine::compute {
 
-static std::string short_path(const std::string& path)
-{
-    const auto pos = path.find_last_of("/\\");
-    if (pos == std::string::npos)
-        return path;
-    return "...\\" + path.substr(pos + 1);
-}
-
-BufferExportNodeRenderer::BufferExportNodeRenderer(const std::string& name, nodes::BufferExportNode& node)
+TileExportNodeRenderer::TileExportNodeRenderer(const std::string& name, nodes::TileExportNode& node)
     : NodeRenderer(name, node)
     , m_node(&node)
 {
 }
 
-void BufferExportNodeRenderer::render_settings_content()
+void TileExportNodeRenderer::render_settings_content()
 {
     auto settings = m_node->get_settings();
+    bool changed = false;
 
     ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(0, 0, 0, 0));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(255, 255, 255, 30));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(255, 255, 255, 60));
-    if (ImGui::SmallButton(short_path(settings.output_file).c_str())) {
-        const auto dir_end = settings.output_file.find_last_of("/\\");
+    if (ImGui::SmallButton(settings.output_directory.c_str())) {
         IGFD::FileDialogConfig config;
-        config.path = (dir_end != std::string::npos) ? settings.output_file.substr(0, dir_end) : m_last_dialog_directory;
-        config.fileName = (dir_end != std::string::npos) ? settings.output_file.substr(dir_end + 1) : settings.output_file;
-        ImGuiFileDialog::Instance()->OpenDialog("BufferExportSaveDialog", "Save Buffer As", ".png", config);
+        config.path = settings.output_directory;
+        ImGuiFileDialog::Instance()->OpenDialog("TileExportDirDialog", "Select Output Directory", nullptr, config);
     }
     ImGui::PopStyleColor(3);
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("%s", settings.output_file.c_str());
+        ImGui::SetTooltip("%s", settings.output_directory.c_str());
 
 }
 
-void BufferExportNodeRenderer::render_dialogs()
+void TileExportNodeRenderer::render_dialogs()
 {
-    auto settings = m_node->get_settings();
     constexpr ImVec2 dialog_size { 600, 400 };
     const ImVec2 center = ImGui::GetMainViewport()->GetCenter();
     ImGui::SetNextWindowPos({ center.x - dialog_size.x * 0.5f, center.y - dialog_size.y * 0.5f }, ImGuiCond_Appearing);
     ImGui::SetNextWindowSize(dialog_size, ImGuiCond_Appearing);
-    if (ImGuiFileDialog::Instance()->Display("BufferExportSaveDialog")) {
+    if (ImGuiFileDialog::Instance()->Display("TileExportDirDialog")) {
         if (ImGuiFileDialog::Instance()->IsOk()) {
-            m_last_dialog_directory = ImGuiFileDialog::Instance()->GetCurrentPath();
-            settings.output_file = ImGuiFileDialog::Instance()->GetFilePathName();
+            auto settings = m_node->get_settings();
+            settings.output_directory = ImGuiFileDialog::Instance()->GetCurrentPath();
             m_node->set_settings(settings);
         }
         ImGuiFileDialog::Instance()->Close();

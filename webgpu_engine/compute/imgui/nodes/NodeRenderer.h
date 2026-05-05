@@ -24,7 +24,7 @@
 #include <string>
 #include <vector>
 
-#include "../nodes/Node.h"
+#include "../../nodes/Node.h"
 
 namespace webgpu_engine::compute {
 

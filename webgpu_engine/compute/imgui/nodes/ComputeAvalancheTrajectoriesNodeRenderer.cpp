@@ -18,7 +18,7 @@
 
 #include "ComputeAvalancheTrajectoriesNodeRenderer.h"
 
-#include "../nodes/ComputeAvalancheTrajectoriesNode.h"
+#include "../../nodes/ComputeAvalancheTrajectoriesNode.h"
 #include <imgui.h>
 
 namespace webgpu_engine::compute {

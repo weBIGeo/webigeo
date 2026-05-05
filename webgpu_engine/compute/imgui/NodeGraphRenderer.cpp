@@ -19,7 +19,7 @@
 
 #include "NodeGraphRenderer.h"
 
-#include "NodeRendererFactory.h"
+#include "nodes/NodeRendererFactory.h"
 #include <imgui.h>
 #include <imnodes.h>
 #include <qDebug>

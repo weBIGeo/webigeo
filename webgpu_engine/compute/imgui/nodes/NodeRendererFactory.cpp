@@ -25,12 +25,12 @@
 #include "ComputeSnowNodeRenderer.h"
 #include "TileExportNodeRenderer.h"
 #include "NodeRenderer.h"
-#include "../nodes/BufferExportNode.h"
-#include "../nodes/BufferToTextureNode.h"
-#include "../nodes/ComputeAvalancheTrajectoriesNode.h"
-#include "../nodes/ComputeReleasePointsNode.h"
-#include "../nodes/ComputeSnowNode.h"
-#include "../nodes/TileExportNode.h"
+#include "../../nodes/BufferExportNode.h"
+#include "../../nodes/BufferToTextureNode.h"
+#include "../../nodes/ComputeAvalancheTrajectoriesNode.h"
+#include "../../nodes/ComputeReleasePointsNode.h"
+#include "../../nodes/ComputeSnowNode.h"
+#include "../../nodes/TileExportNode.h"
 
 namespace webgpu_engine::compute {
 

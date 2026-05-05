@@ -19,7 +19,7 @@
 
 #include "ComputeSnowNodeRenderer.h"
 
-#include "../nodes/ComputeSnowNode.h"
+#include "../../nodes/ComputeSnowNode.h"
 #include <imgui.h>
 
 namespace webgpu_engine::compute {

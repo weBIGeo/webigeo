@@ -18,7 +18,7 @@
 
 #include "ComputeReleasePointsNodeRenderer.h"
 
-#include "../nodes/ComputeReleasePointsNode.h"
+#include "../../nodes/ComputeReleasePointsNode.h"
 #include <glm/glm.hpp>
 #include <imgui.h>
 
