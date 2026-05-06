@@ -52,8 +52,6 @@ struct ComputePipelineSettings {
     float trigger_point_min_slope_angle = 30.0f; // release points node
     float trigger_point_max_slope_angle = 45.0f; // release points node
 
-    int tile_source_index = 0; // 0 DTM, 1 DSM
-
     int friction_model_type = int(compute::nodes::ComputeAvalancheTrajectoriesNode::FrictionModelType::VoellmyMinShear);
     compute::nodes::ComputeAvalancheTrajectoriesNode::RunoutPerlaParams perla;
     float runout_flowpy_alpha = 25.0f; // degrees

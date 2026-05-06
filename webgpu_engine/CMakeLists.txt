@@ -72,6 +72,7 @@ if (ALP_WEBGPU_APP_ENABLE_IMGUI)
         compute/imgui/nodes/ComputeAvalancheTrajectoriesNodeRenderer.h compute/imgui/nodes/ComputeAvalancheTrajectoriesNodeRenderer.cpp
         compute/imgui/nodes/ComputeReleasePointsNodeRenderer.h compute/imgui/nodes/ComputeReleasePointsNodeRenderer.cpp
         compute/imgui/nodes/ComputeSnowNodeRenderer.h compute/imgui/nodes/ComputeSnowNodeRenderer.cpp
+        compute/imgui/nodes/RequestTilesNodeRenderer.h compute/imgui/nodes/RequestTilesNodeRenderer.cpp
     )
 endif()
 

@@ -29,7 +29,6 @@
 #include "compute/imgui/NodeGraphRenderer.h"
 #endif
 #include "compute/NodeGraph.h"
-#include "compute/nodes/RequestTilesNode.h"
 #include "nucleus/AbstractRenderWindow.h"
 #include "nucleus/camera/AbstractDepthTester.h"
 #include "nucleus/camera/Controller.h"
@@ -183,15 +182,6 @@ private:
     ComputePipelineSettings m_compute_pipeline_settings;
     bool m_is_region_selected = false;
     GuiErrorState m_gui_error_state;
-
-    std::vector<compute::nodes::RequestTilesNode::RequestTilesNodeSettings> m_tile_source_settings = {
-        compute::nodes::RequestTilesNode::RequestTilesNodeSettings(),
-        compute::nodes::RequestTilesNode::RequestTilesNodeSettings {
-            .tile_path = "https://alpinemaps.cg.tuwien.ac.at/tiles/alpine_png/",
-            .url_pattern = nucleus::tile::TileLoadService::UrlPattern::ZXY,
-            .file_extension = ".png",
-        },
-    };
 
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_image_overlay_texture;
     std::unique_ptr<Buffer<ImageOverlaySettings>> m_image_overlay_settings_uniform_buffer;

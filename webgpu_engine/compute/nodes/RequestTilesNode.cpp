@@ -95,6 +95,7 @@ void RequestTilesNode::on_single_tile_received(const nucleus::tile::Data& tile)
 void RequestTilesNode::set_settings(const RequestTilesNodeSettings& settings)
 {
     m_settings = settings;
+    m_requested_tile_ids.clear(); // force re-download on next run
     m_tile_loader = std::make_unique<nucleus::tile::TileLoadService>(QString::fromStdString(settings.tile_path), settings.url_pattern, QString::fromStdString(settings.file_extension));
     connect(m_tile_loader.get(), &nucleus::tile::TileLoadService::load_finished, this, &RequestTilesNode::on_single_tile_received);
 }

@@ -20,13 +20,13 @@
  *****************************************************************************/
 
 #include "Window.h"
-#include "gpu_utils.h"
 #include "compute/nodes/BufferToTextureNode.h"
 #include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
 #include "compute/nodes/ComputeReleasePointsNode.h"
 #include "compute/nodes/ComputeSnowNode.h"
 #include "compute/nodes/LoadRegionAabbNode.h"
 #include "compute/nodes/SelectTilesNode.h"
+#include "gpu_utils.h"
 #include "nucleus/tile/drawing.h"
 #include "nucleus/track/GPX.h"
 #include "nucleus/utils/image_loader.h"
@@ -47,7 +47,6 @@
 #include "ImGuiFileDialog.h"
 #endif
 // TODO: Remove ImGuiFileDialog dependency on Web-build
-
 
 #include <IconsFontAwesome5.h>
 #endif
@@ -108,7 +107,6 @@ void Window::initialise_gpu()
     // emit gpu_ready_changed(true); //TODO remove/find replacement
 }
 
-
 std::unique_ptr<webgpu::raii::TextureWithSampler> Window::create_shadow_texture(uint32_t width, uint32_t height, uint32_t mip_levels)
 {
     WGPUTextureDescriptor texture_desc {};
@@ -148,8 +146,8 @@ void Window::on_shadow_texture_updated(const QByteArray& data)
 
     size_t level_0_size = ktxTexture_GetLevelSize(ktx_texture, 0);
     size_t level_0_offset = 0;
-    ktxTexture_GetImageOffset(ktx_texture, 0,0,0, &level_0_offset);
-    std::span byte_span{ktxTexture_GetData(ktx_texture) + level_0_offset, level_0_size};
+    ktxTexture_GetImageOffset(ktx_texture, 0, 0, 0, &level_0_offset);
+    std::span byte_span { ktxTexture_GetData(ktx_texture) + level_0_offset, level_0_size };
 
     WGPUTexelCopyTextureInfo image_copy_texture {};
     image_copy_texture.texture = m_shadow_texture->texture().handle();
@@ -203,7 +201,7 @@ std::unique_ptr<webgpu::raii::RenderPassEncoder> begin_render_pass(
 void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_encoder)
 {
     m_needs_redraw = false;
-    
+
     // ToDo only update on change?
     m_shared_config_ubo->data = m_context->shared_config();
     m_shared_config_ubo->update_gpu_data(m_queue);
@@ -230,10 +228,10 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         m_context->tile_geometry()->draw(render_pass->handle(), m_camera, culled_draw_list);
     }
 
-
     // render clouds
     if (m_context->shared_config().m_clouds_enabled) {
-        m_context->cloud_geometry()->draw(command_encoder, m_depth_texture_bind_group->handle(), m_shared_config_bind_group->handle(), m_camera, m_paint_number);
+        m_context->cloud_geometry()->draw(
+            command_encoder, m_depth_texture_bind_group->handle(), m_shared_config_bind_group->handle(), m_camera, m_paint_number);
         m_needs_redraw |= m_context->cloud_geometry()->needs_redraw(); // Repaint for TAAU
     }
 
@@ -269,9 +267,16 @@ void Window::paint_gui()
     }
     {
         static int currentItem = 0;
-        static const std::vector<std::pair<std::string, int>> overlays
-            = { { "None", 0 }, { "Normals", 1 }, { "Tiles", 2 }, { "Zoomlevel", 3 }, { "Vertex-ID", 4 }, { "Vertex Height-Sample", 5 },
-                  { "Decoded Normals", 100 }, { "Steepness", 101 }, { "SSAO Buffer", 102 }, { "Shadow Cascades", 103 } };
+        static const std::vector<std::pair<std::string, int>> overlays = { { "None", 0 },
+            { "Normals", 1 },
+            { "Tiles", 2 },
+            { "Zoomlevel", 3 },
+            { "Vertex-ID", 4 },
+            { "Vertex Height-Sample", 5 },
+            { "Decoded Normals", 100 },
+            { "Steepness", 101 },
+            { "SSAO Buffer", 102 },
+            { "Shadow Cascades", 103 } };
         const char* currentItemLabel = overlays[currentItem].first.c_str();
         if (ImGui::BeginCombo("Overlay", currentItemLabel)) {
             for (size_t i = 0; i < overlays.size(); i++) {
@@ -307,7 +312,8 @@ void Window::paint_gui()
             ImGui::SameLine();
             if (ImGui::CollapsingHeader("###Snow Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
                 auto& snow_settings_angle = m_context->shared_config().m_snow_settings_angle;
-                bool changed = ImGui::DragFloatRange2("Angle limit", &snow_settings_angle.y, &snow_settings_angle.z, 0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp);
+                bool changed = ImGui::DragFloatRange2(
+                    "Angle limit", &snow_settings_angle.y, &snow_settings_angle.z, 0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp);
                 changed |= ImGui::SliderFloat("Angle blend", &snow_settings_angle.w, 0.0f, 90.0f, "%.1f°");
                 changed |= ImGui::SliderFloat("Altitude limit", &m_context->shared_config().m_snow_settings_alt.x, 0.0f, 4000.0f, "%.1fm");
                 changed |= ImGui::SliderFloat("Altitude variation", &m_context->shared_config().m_snow_settings_alt.y, 0.0f, 1000.0f, "%.1f°");
@@ -337,7 +343,6 @@ void Window::paint_gui()
                 m_needs_redraw |= ImGui::DragFloat("Darkening Factor", &m_context->shared_config().m_height_lines_settings.w, 0.01f, 0.0f, 1.0f, "%.2f");
             }
         }
-
     }
 
     if (ImGui::CollapsingHeader("Image overlay")) {
@@ -416,8 +421,12 @@ void Window::paint_gui()
         }
 
         if (m_image_overlay_settings_uniform_buffer->data.mode == 1) {
-            if (ImGui::DragFloatRange2("Float Map Range", &m_image_overlay_settings_uniform_buffer->data.float_decoding_lower_bound,
-                    &m_image_overlay_settings_uniform_buffer->data.float_decoding_upper_bound, 1.0f, -10000, 10000)) {
+            if (ImGui::DragFloatRange2("Float Map Range",
+                    &m_image_overlay_settings_uniform_buffer->data.float_decoding_lower_bound,
+                    &m_image_overlay_settings_uniform_buffer->data.float_decoding_upper_bound,
+                    1.0f,
+                    -10000,
+                    10000)) {
                 m_image_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
                 m_needs_redraw = true;
             }
@@ -485,7 +494,6 @@ void Window::paint_gui()
 #endif
 }
 
-
 void Window::paint_compute_pipeline_gui()
 {
 #if ALP_WEBGPU_APP_ENABLE_IMGUI
@@ -510,12 +518,6 @@ void Window::paint_compute_pipeline_gui()
 
         if (ImGui::SliderFloat("Strength##compute overlay", &m_compute_overlay_settings_uniform_buffer->data.alpha, 0.0f, 1.0f, "%.2f")) {
             m_compute_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
-            m_needs_redraw = true;
-        }
-
-        const char* tile_source_items = "DTM tiles\0DSM tiles\0";
-        if (ImGui::Combo("Tile source", &m_compute_pipeline_settings.tile_source_index, tile_source_items)) {
-            update_settings_and_rerun_pipeline();
             m_needs_redraw = true;
         }
 
@@ -547,8 +549,6 @@ void Window::paint_compute_pipeline_gui()
             }
             ImGui::EndCombo();
         }
-
-
     }
 
     {
@@ -652,118 +652,20 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, 
     m_is_first_pipeline_run = true;
 }
 
-std::string get_current_date_time_string() { return std::format("{:%Y-%m-%d_%H-%M-%S}", std::chrono::system_clock::now()); }
-
 void Window::update_compute_pipeline_settings()
 {
     if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS || m_active_compute_pipeline_type == ComputePipelineType::RELEASE_POINTS) {
-        // tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
             .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.zoomlevel);
-
-        // tile source
-        m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node")
-            .set_settings(m_tile_source_settings.at(m_compute_pipeline_settings.tile_source_index));
-
-        if (m_active_compute_pipeline_type == ComputePipelineType::RELEASE_POINTS) {
-            compute::nodes::ComputeReleasePointsNode::ReleasePointsSettings settings;
-            settings.min_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_min_slope_angle);
-            settings.max_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_max_slope_angle);
-            settings.sampling_interval = glm::uvec2(m_compute_pipeline_settings.release_point_interval);
-            m_compute_graph->get_node_as<compute::nodes::ComputeReleasePointsNode>("release_points_node").set_settings(settings);
-        }
-
     } else if (m_active_compute_pipeline_type == ComputePipelineType::SNOW) {
-        // tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
             .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.zoomlevel);
-
-        // tile source
-        m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node")
-            .set_settings(m_tile_source_settings.at(m_compute_pipeline_settings.tile_source_index));
-
-        // snow settings
-        compute::nodes::ComputeSnowNode::SnowSettingsUniform snow_settings_uniform = m_compute_pipeline_settings.sync_snow_settings_with_render_settings
-            ? compute::nodes::ComputeSnowNode::SnowSettingsUniform { m_context->shared_config().m_snow_settings_angle,
-                  m_context->shared_config().m_snow_settings_alt }
-            : m_compute_pipeline_settings.snow_settings;
-        compute::nodes::ComputeSnowNode::SnowSettings snow_settings;
-        snow_settings.min_angle = snow_settings_uniform.angle.y;
-        snow_settings.max_angle = snow_settings_uniform.angle.z;
-        snow_settings.angle_blend = snow_settings_uniform.angle.w;
-        snow_settings.min_altitude = snow_settings_uniform.alt.x;
-        snow_settings.altitude_variation = snow_settings_uniform.alt.y;
-        snow_settings.altitude_blend = snow_settings_uniform.alt.z;
-        m_compute_graph->get_node_as<compute::nodes::ComputeSnowNode>("snow_node").set_snow_settings(snow_settings);
-
     } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
-        // tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
             .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.zoomlevel);
-
-        // tile source
-        m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node")
-            .set_settings(m_tile_source_settings.at(m_compute_pipeline_settings.tile_source_index));
-
-        compute::nodes::ComputeReleasePointsNode::ReleasePointsSettings settings;
-        settings.min_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_min_slope_angle);
-        settings.max_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_max_slope_angle);
-        settings.sampling_interval = glm::uvec2(m_compute_pipeline_settings.release_point_interval);
-        m_compute_graph->get_node_as<compute::nodes::ComputeReleasePointsNode>("release_points_node").set_settings(settings);
-
-        // trajectories settings
-        compute::nodes::ComputeAvalancheTrajectoriesNode::AvalancheTrajectoriesSettings trajectory_settings {};
-        trajectory_settings.resolution_multiplier = m_compute_pipeline_settings.trajectory_resolution_multiplier;
-        trajectory_settings.num_steps = m_compute_pipeline_settings.num_steps;
-        trajectory_settings.step_length = m_compute_pipeline_settings.step_length;
-        trajectory_settings.num_paths_per_release_cell = m_compute_pipeline_settings.num_paths_per_release_cell;
-        trajectory_settings.random_contribution = m_compute_pipeline_settings.random_contribution;
-        trajectory_settings.persistence_contribution = m_compute_pipeline_settings.persistence_contribution;
-        trajectory_settings.active_model = m_compute_pipeline_settings.model_type;
-        trajectory_settings.model2 = m_compute_pipeline_settings.model_less_simple_params;
-        trajectory_settings.active_runout_model
-            = compute::nodes::ComputeAvalancheTrajectoriesNode::FrictionModelType(m_compute_pipeline_settings.friction_model_type);
-        trajectory_settings.runout_perla = m_compute_pipeline_settings.perla;
-        trajectory_settings.runout_flowpy.alpha = m_compute_pipeline_settings.runout_flowpy_alpha;
-        trajectory_settings.random_seed = m_compute_pipeline_settings.random_seed;
-        trajectory_settings.num_runs = m_compute_pipeline_settings.num_runs;
-
-        auto& trajectories_node = m_compute_graph->get_node_as<compute::nodes::ComputeAvalancheTrajectoriesNode>("avalanche_trajectories_node");
-        trajectories_node.set_settings(trajectory_settings);
-
-        // buffertotexture settings
-        {
-            auto& node = m_compute_graph->get_node_as<compute::nodes::BufferToTextureNode>("buffer_to_texture_node");
-            node.settings().color_map_bounds = m_compute_pipeline_settings.color_map_bounds;
-            node.settings().transparency_map_bounds = m_compute_pipeline_settings.transparency_map_bounds;
-            node.settings().use_bin_interpolation = m_compute_pipeline_settings.use_bin_interpolation;
-            node.settings().use_transparency_buffer = m_compute_pipeline_settings.use_transparency_buffer;
-            if (m_compute_pipeline_settings.texture_interpolation_mipmaps) {
-                node.settings().texture_filter_mode = WGPUFilterMode_Linear;
-                node.settings().texture_mipmap_filter_mode = WGPUMipmapFilterMode_Linear;
-                node.settings().texture_max_aniostropy = 16;
-                node.settings().create_mipmaps = true;
-            } else {
-                node.settings().texture_filter_mode = WGPUFilterMode_Nearest;
-                node.settings().texture_mipmap_filter_mode = WGPUMipmapFilterMode_Nearest;
-                node.settings().texture_max_aniostropy = 1;
-                node.settings().create_mipmaps = false;
-            }
-        }
     } else if (m_active_compute_pipeline_type == ComputePipelineType::ITERATIVE_SIMULATION) {
-        // tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
             .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.zoomlevel);
-
-        // tile source
-        m_compute_graph->get_node_as<compute::nodes::RequestTilesNode>("request_height_node")
-            .set_settings(m_tile_source_settings.at(m_compute_pipeline_settings.tile_source_index));
-
-        compute::nodes::ComputeReleasePointsNode::ReleasePointsSettings settings;
-        settings.min_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_min_slope_angle);
-        settings.max_slope_angle = glm::radians(m_compute_pipeline_settings.trigger_point_max_slope_angle);
-        settings.sampling_interval = glm::uvec2(m_compute_pipeline_settings.release_point_interval);
-        m_compute_graph->get_node_as<compute::nodes::ComputeReleasePointsNode>("release_points_node").set_settings(settings);
     }
 }
 
@@ -1074,11 +976,9 @@ void Window::on_pipeline_run_completed()
 
         const webgpu::raii::TextureWithSampler* texture = nullptr;
         if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS) {
-            texture = std::get<const webgpu::raii::TextureWithSampler*>(
-                m_compute_graph->get_node("normals_node").output_socket("normal texture").get_data());
+            texture = std::get<const webgpu::raii::TextureWithSampler*>(m_compute_graph->get_node("normals_node").output_socket("normal texture").get_data());
         } else if (m_active_compute_pipeline_type == ComputePipelineType::SNOW) {
-            texture
-                = std::get<const webgpu::raii::TextureWithSampler*>(m_compute_graph->get_node("snow_node").output_socket("snow texture").get_data());
+            texture = std::get<const webgpu::raii::TextureWithSampler*>(m_compute_graph->get_node("snow_node").output_socket("snow texture").get_data());
         } else if (m_active_compute_pipeline_type == ComputePipelineType::RELEASE_POINTS) {
             texture = std::get<const webgpu::raii::TextureWithSampler*>(
                 m_compute_graph->get_node("release_points_node").output_socket("release point texture").get_data());
@@ -1092,11 +992,11 @@ void Window::on_pipeline_run_completed()
         update_compute_overlay_texture(*texture);
 
         auto& select_tiles_node = m_compute_graph->get_node_as<compute::nodes::SelectTilesNode&>("select_tiles_node");
-        radix::geometry::Aabb<2, double> selected_aabb = *std::get<const radix::geometry::Aabb<2, double>*>(select_tiles_node.output_socket("region aabb").get_data());
+        radix::geometry::Aabb<2, double> selected_aabb
+            = *std::get<const radix::geometry::Aabb<2, double>*>(select_tiles_node.output_socket("region aabb").get_data());
         selected_aabb.max -= glm::dvec2(nucleus::srs::tile_width(18) / 65, nucleus::srs::tile_height(18) / 65); // stitch node ignores last col/row
         update_compute_overlay_aabb(selected_aabb);
     }
-
 }
 
 void Window::create_buffers()
@@ -1109,11 +1009,13 @@ void Window::create_buffers()
 
 void Window::create_bind_groups()
 {
-    m_shared_config_bind_group = std::make_unique<webgpu::raii::BindGroup>(
-        m_device, m_context->pipeline_manager()->shared_config_bind_group_layout(), std::initializer_list<WGPUBindGroupEntry> { m_shared_config_ubo->raw_buffer().create_bind_group_entry(0) });
+    m_shared_config_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device,
+        m_context->pipeline_manager()->shared_config_bind_group_layout(),
+        std::initializer_list<WGPUBindGroupEntry> { m_shared_config_ubo->raw_buffer().create_bind_group_entry(0) });
 
-    m_camera_bind_group = std::make_unique<webgpu::raii::BindGroup>(
-        m_device, m_context->pipeline_manager()->camera_bind_group_layout(), std::initializer_list<WGPUBindGroupEntry> { m_camera_config_ubo->raw_buffer().create_bind_group_entry(0) });
+    m_camera_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device,
+        m_context->pipeline_manager()->camera_bind_group_layout(),
+        std::initializer_list<WGPUBindGroupEntry> { m_camera_config_ubo->raw_buffer().create_bind_group_entry(0) });
 }
 
 void Window::recreate_compose_bind_group()
@@ -1148,7 +1050,6 @@ void Window::recreate_compose_bind_group()
                 m_gbuffer->depth_texture_view().create_bind_group_entry(15),
             });
     }
-
 }
 
 void Window::update_required_gpu_limits(WGPULimits& limits, const WGPULimits& supported_limits)
