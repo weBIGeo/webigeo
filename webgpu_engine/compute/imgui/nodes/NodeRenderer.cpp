@@ -119,9 +119,9 @@ ImVec2 NodeRenderer::get_size() const
 {
     if (m_size.x >= 0)
         return m_size;
-    float width = std::max(100.0f, (float)m_name_formatted.size() * 7.3f + 21.0f);
+    float width = std::max(100.0f, (float)m_name_formatted.size() * 7.3f);
     size_t num = m_node->input_sockets().size() + m_node->output_sockets().size();
-    float height = 75.0f + num * 20.0f;
+    float height = num * 20.0f;
     return ImVec2(width, height);
 }
 
