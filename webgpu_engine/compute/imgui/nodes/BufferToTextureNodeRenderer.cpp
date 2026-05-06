@@ -62,7 +62,7 @@ void BufferToTextureNodeRenderer::render_settings_content()
     changed |= ImGui::Checkbox("Bin Interpolation", &s.use_bin_interpolation);
 
     if (changed)
-        m_node->run();
+        m_node->rerun();
 }
 
 } // namespace webgpu_engine::compute

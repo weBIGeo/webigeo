@@ -43,7 +43,7 @@ void ComputeSnowNodeRenderer::render_settings_content()
 
     if (changed) {
         m_snow_node->set_snow_settings(settings);
-        m_snow_node->run();
+        m_snow_node->rerun();
     }
 }
 

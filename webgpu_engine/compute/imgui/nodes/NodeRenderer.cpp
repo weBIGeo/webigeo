@@ -156,7 +156,7 @@ void NodeRenderer::render(bool reset_position)
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(255, 255, 255, 40));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(255, 255, 255, 80));
     if (ImGui::Button(ICON_FA_PLAY "##run")) {
-        m_node->run();
+        m_node->rerun();
     }
     ImGui::PopStyleColor(3);
     ImGui::PopStyleVar();

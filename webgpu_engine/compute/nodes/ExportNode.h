@@ -1,6 +1,7 @@
 /*****************************************************************************
  * weBIGeo
  * Copyright (C) 2024 Gerald Kimmersdorfer
+ * Copyright (C) 2024 Patrick Komon
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,20 +23,27 @@
 
 namespace webgpu_engine::compute::nodes {
 
-class TileExportNode : public Node {
+// General-purpose export node. Connect any combination of:
+//   - "texture" -> exports a GPU texture to an image file
+//   - "buffer" + "dimensions" -> exports a uint32 GPU buffer to an image file
+//   - "region aabb" -> writes a bounding-box text file
+class ExportNode : public Node {
     Q_OBJECT
 
 public:
-    NODE_TYPE_NAME(TileExportNode)
+    NODE_TYPE_NAME(ExportNode)
 
     struct ExportSettings {
-        std::string output_directory = "tile_export";
+        // Supported placeholders: {node_name}, {run_datetime}, {run_id}
+        std::string buffer_output_file = "export/{run_datetime}_{run_id}/exp_{node_name}_buff.png";
+        std::string texture_output_file = "export/{run_datetime}_{run_id}/exp_{node_name}_tex.png";
+        std::string aabb_output_file = "export/{run_datetime}_{run_id}/exp_aabb.txt";
     };
 
-    TileExportNode(WGPUDevice device, const ExportSettings& settings);
+    ExportNode(WGPUDevice device, const ExportSettings& settings = ExportSettings{});
 
+    const ExportSettings& get_settings() const { return m_settings; }
     void set_settings(const ExportSettings& settings);
-    const ExportSettings& get_settings() const;
 
 public slots:
     void run_impl() override;
@@ -43,9 +51,6 @@ public slots:
 private:
     WGPUDevice m_device;
     ExportSettings m_settings;
-
-    static void write_aabb_file(const QString& file_path, const radix::geometry::Aabb<2, double>& bounds);
-    void impl_single_texture();
 };
 
 } // namespace webgpu_engine::compute::nodes

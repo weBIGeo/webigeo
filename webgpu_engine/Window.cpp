@@ -21,14 +21,12 @@
 
 #include "Window.h"
 #include "gpu_utils.h"
-#include "compute/nodes/BufferExportNode.h"
 #include "compute/nodes/BufferToTextureNode.h"
 #include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
 #include "compute/nodes/ComputeReleasePointsNode.h"
 #include "compute/nodes/ComputeSnowNode.h"
 #include "compute/nodes/LoadRegionAabbNode.h"
 #include "compute/nodes/SelectTilesNode.h"
-#include "compute/nodes/TileExportNode.h"
 #include "nucleus/tile/drawing.h"
 #include "nucleus/track/GPX.h"
 #include "nucleus/utils/image_loader.h"
@@ -629,8 +627,8 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, 
 
     update_compute_pipeline_settings();
 
-    connect(m_compute_graph.get(), &compute::nodes::NodeGraph::run_completed, this, &Window::request_redraw);
-    connect(m_compute_graph.get(), &compute::nodes::NodeGraph::run_completed, this, &Window::on_pipeline_run_completed);
+    connect(m_compute_graph.get(), &compute::nodes::NodeGraph::run_completed, this, [this](compute::GraphRunContext) { request_redraw(); });
+    connect(m_compute_graph.get(), &compute::nodes::NodeGraph::run_completed, this, [this](compute::GraphRunContext) { on_pipeline_run_completed(); });
 
     connect(m_compute_graph.get(), &compute::nodes::NodeGraph::run_failed, this, [this](compute::nodes::GraphRunFailureInfo info) {
         qWarning() << "graph run failed. " << info.node_name() << ": " << info.node_run_failure_info().message();
@@ -752,44 +750,6 @@ void Window::update_compute_pipeline_settings()
                 node.settings().create_mipmaps = false;
             }
         }
-
-        // update file export path to include current date and time
-        {
-            const std::filesystem::path export_root_dir = "export_" + get_current_date_time_string();
-
-            // set trajectory layer export directories
-            compute::nodes::BufferExportNode::ExportSettings zdelta_export_settings { (export_root_dir / "trajectories/texture_layer1_zdelta.png").string() };
-            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l1_export_node").set_settings(zdelta_export_settings);
-            compute::nodes::BufferExportNode::ExportSettings cell_counts_export_settings {
-                (export_root_dir / "trajectories/texture_layer2_cellCounts.png").string()
-            };
-            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l2_export_node").set_settings(cell_counts_export_settings);
-            compute::nodes::BufferExportNode::ExportSettings travel_length_export_settings {
-                (export_root_dir / "trajectories/texture_layer3_travelLength.png").string()
-            };
-            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l3_export_node").set_settings(travel_length_export_settings);
-            compute::nodes::BufferExportNode::ExportSettings travel_angle_export_settings {
-                (export_root_dir / "trajectories/texture_layer4_travelAngle.png").string()
-            };
-            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l4_export_node").set_settings(travel_angle_export_settings);
-            compute::nodes::BufferExportNode::ExportSettings height_diff_export_settings {
-                (export_root_dir / "trajectories/texture_layer5_heightDifference.png").string()
-            };
-            m_compute_graph->get_node_as<compute::nodes::BufferExportNode>("l5_export_node").set_settings(height_diff_export_settings);
-
-            // set trajectory color buffer export directory
-            compute::nodes::TileExportNode::ExportSettings export_trajectory_settings = { (export_root_dir / "trajectories").string() };
-            m_compute_graph->get_node_as<compute::nodes::TileExportNode>("trajectories_export").set_settings(export_trajectory_settings);
-
-            // set heightmap export directory
-            compute::nodes::TileExportNode::ExportSettings export_height_settings = { (export_root_dir / "heights").string() };
-            m_compute_graph->get_node_as<compute::nodes::TileExportNode>("height_export").set_settings(export_height_settings);
-
-            // set release point export directory
-            compute::nodes::TileExportNode::ExportSettings export_releasepoints_settings
-                = { (export_root_dir / "release_points").string() };
-            m_compute_graph->get_node_as<compute::nodes::TileExportNode>("rp_export").set_settings(export_releasepoints_settings);
-        }
     } else if (m_active_compute_pipeline_type == ComputePipelineType::ITERATIVE_SIMULATION) {
         // tile selection
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
@@ -813,7 +773,7 @@ void Window::update_settings_and_rerun_pipeline(const std::string& entry_node)
     if (m_is_region_selected) {
         if (!entry_node.empty() && !m_is_first_pipeline_run) {
             if (m_compute_graph->exists_node(entry_node)) {
-                m_compute_graph->get_node_as<compute::nodes::Node>(entry_node).run();
+                m_compute_graph->get_node_as<compute::nodes::Node>(entry_node).rerun();
             } else {
                 qCritical() << "Entry node" << entry_node << "does not exist.";
             }

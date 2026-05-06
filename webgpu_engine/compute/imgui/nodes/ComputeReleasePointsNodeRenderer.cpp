@@ -57,7 +57,7 @@ void ComputeReleasePointsNodeRenderer::render_settings_content()
     if (settings_changed)
         m_node->set_settings(settings);
     if (rerun)
-        m_node->run();
+        m_node->rerun();
 }
 
 } // namespace webgpu_engine::compute

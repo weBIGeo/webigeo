@@ -20,12 +20,14 @@
 
 #include "NodeGraph.h"
 
-#include "nodes/BufferExportNode.h"
+#include <QDateTime>
+
 #include "nodes/BufferToTextureNode.h"
 #include "nodes/ComputeAvalancheTrajectoriesNode.h"
 #include "nodes/ComputeNormalsNode.h"
 #include "nodes/ComputeReleasePointsNode.h"
 #include "nodes/ComputeSnowNode.h"
+#include "nodes/ExportNode.h"
 #include "nodes/IterativeSimulationNode.h"
 #include "nodes/LoadRegionAabbNode.h"
 #include "nodes/LoadTextureNode.h"
@@ -33,7 +35,6 @@
 #include "nodes/SelectTilesNode.h"
 #include "nodes/UpsampleTexturesNode.h"
 #include "nodes/HeightDecodeNode.h"
-#include "nodes/TileExportNode.h"
 #include "nodes/TileStitchNode.h"
 #include <QDebug>
 #include <memory>
@@ -58,6 +59,7 @@ NodeGraph::NodeGraph(const std::string& name)
 Node* NodeGraph::add_node(const std::string& name, std::unique_ptr<Node> node)
 {
     assert(!m_nodes.contains(name));
+    node->set_node_name(name);
     m_nodes.emplace(name, std::move(node));
     return m_nodes.at(name).get();
 }
@@ -144,7 +146,7 @@ void NodeGraph::connect_node_signals_and_slots()
     for (uint32_t i = 0; i < topological_ordering.size() - 1; i++) {
         m_topology_connections.push_back(connect(topological_ordering[i], &Node::run_completed, topological_ordering[i + 1], &Node::run));
     }
-    m_topology_connections.push_back(connect(topological_ordering.back(), &Node::run_completed, this, &NodeGraph::run_completed));
+    m_topology_connections.push_back(connect(topological_ordering.back(), &Node::run_completed, this, [this](webgpu_engine::compute::GraphRunContext ctx) { emit run_completed(ctx); }));
 
     for (auto& [_, node] : m_nodes) {
         m_topology_connections.push_back(connect(node.get(), &Node::run_failed, this, &NodeGraph::emit_graph_failure));
@@ -154,7 +156,12 @@ void NodeGraph::connect_node_signals_and_slots()
 void NodeGraph::run()
 {
     qDebug() << "running node graph ...";
-    emit run_triggered();
+
+    ++m_run_id;
+
+    std::string run_datetime = QDateTime::currentDateTime().toString("yyyy-MM-ddTHH-mm-ss").toStdString();
+
+    emit run_triggered(webgpu_engine::compute::GraphRunContext { m_run_id, run_datetime });
 }
 
 void NodeGraph::emit_graph_failure(NodeRunFailureInfo info)
@@ -293,17 +300,14 @@ std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_with_export_compute_gr
     auto node_graph = create_trajectories_compute_graph_unconnected(manager, device);
     node_graph->set_name("trajectories_with_export_compute_graph");
 
-    TileExportNode::ExportSettings export_settings_rp = { "export/release_points" };
-    TileExportNode* rp_export_node
-        = static_cast<TileExportNode*>(node_graph->add_node("rp_export", std::make_unique<TileExportNode>(device, export_settings_rp)));
+    ExportNode* rp_export_node
+        = static_cast<ExportNode*>(node_graph->add_node("rp_export", std::make_unique<ExportNode>(device)));
 
-    TileExportNode::ExportSettings export_settings_height = { "export/heights" };
-    TileExportNode* height_export_node
-        = static_cast<TileExportNode*>(node_graph->add_node("height_export", std::make_unique<TileExportNode>(device, export_settings_height)));
+    ExportNode* height_export_node
+        = static_cast<ExportNode*>(node_graph->add_node("height_export", std::make_unique<ExportNode>(device)));
 
-    TileExportNode::ExportSettings export_settings_trajectories = { "export/trajectories" };
-    TileExportNode* trajectories_export_node
-        = static_cast<TileExportNode*>(node_graph->add_node("trajectories_export", std::make_unique<TileExportNode>(device, export_settings_trajectories)));
+    ExportNode* trajectories_export_node
+        = static_cast<ExportNode*>(node_graph->add_node("trajectories_export", std::make_unique<ExportNode>(device)));
 
     // Connect release points export node
     rp_export_node->input_socket("texture").connect(node_graph->get_node("release_points_node").output_socket("release point texture"));
@@ -317,20 +321,20 @@ std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_with_export_compute_gr
     trajectories_export_node->input_socket("texture").connect(node_graph->get_node("buffer_to_texture_node").output_socket("texture"));
     trajectories_export_node->input_socket("region aabb").connect(node_graph->get_node("select_tiles_node").output_socket("region aabb"));
 
-    BufferExportNode* l1_export_node = static_cast<BufferExportNode*>(node_graph->add_node(
-        "l1_export_node", std::make_unique<BufferExportNode>(device, BufferExportNode::ExportSettings { "export/trajectories/texture_layer1_zdelta.png" })));
+    ExportNode* l1_export_node = static_cast<ExportNode*>(node_graph->add_node(
+        "l1_export_node", std::make_unique<ExportNode>(device)));
 
-    BufferExportNode* l2_export_node = static_cast<BufferExportNode*>(node_graph->add_node("l2_export_node",
-        std::make_unique<BufferExportNode>(device, BufferExportNode::ExportSettings { "export/trajectories/texture_layer2_cellCounts.png" })));
+    ExportNode* l2_export_node = static_cast<ExportNode*>(node_graph->add_node("l2_export_node",
+        std::make_unique<ExportNode>(device)));
 
-    BufferExportNode* l3_export_node = static_cast<BufferExportNode*>(node_graph->add_node("l3_export_node",
-        std::make_unique<BufferExportNode>(device, BufferExportNode::ExportSettings { "export/trajectories/texture_layer3_travelLength.png" })));
+    ExportNode* l3_export_node = static_cast<ExportNode*>(node_graph->add_node("l3_export_node",
+        std::make_unique<ExportNode>(device)));
 
-    BufferExportNode* l4_export_node = static_cast<BufferExportNode*>(node_graph->add_node("l4_export_node",
-        std::make_unique<BufferExportNode>(device, BufferExportNode::ExportSettings { "export/trajectories/texture_layer4_travelAngle.png" })));
+    ExportNode* l4_export_node = static_cast<ExportNode*>(node_graph->add_node("l4_export_node",
+        std::make_unique<ExportNode>(device)));
 
-    BufferExportNode* l5_export_node = static_cast<BufferExportNode*>(node_graph->add_node("l5_export_node",
-        std::make_unique<BufferExportNode>(device, BufferExportNode::ExportSettings { "export/trajectories/texture_layer5_heightDifference.png" })));
+    ExportNode* l5_export_node = static_cast<ExportNode*>(node_graph->add_node("l5_export_node",
+        std::make_unique<ExportNode>(device)));
 
     Node& trajectories_node = node_graph->get_node("avalanche_trajectories_node");
     // connect l1 export node inputs
@@ -425,17 +429,14 @@ std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_evaluation_compute_gra
 
     // === SETUP EXPORT NODES ===
     {
-        TileExportNode::ExportSettings export_settings_rp = { "export/release_points" };
-        TileExportNode* rp_export_node = static_cast<TileExportNode*>(node_graph->add_node("rp_export", std::make_unique<TileExportNode>(device, export_settings_rp)));
-
-        TileExportNode::ExportSettings export_settings_height = { "export/heights" };
-        TileExportNode* height_export_node = static_cast<TileExportNode*>(node_graph->add_node("height_export", std::make_unique<TileExportNode>(device, export_settings_height)));
-
-        TileExportNode::ExportSettings export_settings_trajectories = { "export/trajectories" };
-        TileExportNode* trajectories_export_node = static_cast<TileExportNode*>(node_graph->add_node("trajectories_export", std::make_unique<TileExportNode>(device, export_settings_trajectories)));
-
-        TileExportNode::ExportSettings export_settings_normals = { "export/normals" };
-        TileExportNode* normals_export_node = static_cast<TileExportNode*>(node_graph->add_node("normals_export", std::make_unique<TileExportNode>(device, export_settings_normals)));
+        ExportNode* rp_export_node
+            = static_cast<ExportNode*>(node_graph->add_node("rp_export", std::make_unique<ExportNode>(device)));
+        ExportNode* height_export_node
+            = static_cast<ExportNode*>(node_graph->add_node("height_export", std::make_unique<ExportNode>(device)));
+        ExportNode* trajectories_export_node = static_cast<ExportNode*>(
+            node_graph->add_node("trajectories_export", std::make_unique<ExportNode>(device)));
+        ExportNode* normals_export_node
+            = static_cast<ExportNode*>(node_graph->add_node("normals_export", std::make_unique<ExportNode>(device)));
 
         // Connect release points export node
         rp_export_node->input_socket("texture").connect(load_rp_node->output_socket("texture"));
@@ -453,20 +454,20 @@ std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_evaluation_compute_gra
         normals_export_node->input_socket("texture").connect(normal_compute_node->output_socket("normal texture"));
         normals_export_node->input_socket("region aabb").connect(load_aabb_node->output_socket("region aabb"));
 
-        BufferExportNode* l1_export_node = static_cast<BufferExportNode*>(
-            node_graph->add_node("l1_export_node", std::make_unique<BufferExportNode>(device, BufferExportNode::ExportSettings { "export/trajectories/texture_layer1_zdelta.png" })));
+        ExportNode* l1_export_node = static_cast<ExportNode*>(
+            node_graph->add_node("l1_export_node", std::make_unique<ExportNode>(device)));
 
-        BufferExportNode* l2_export_node = static_cast<BufferExportNode*>(
-            node_graph->add_node("l2_export_node", std::make_unique<BufferExportNode>(device, BufferExportNode::ExportSettings { "export/trajectories/texture_layer2_cellCounts.png" })));
+        ExportNode* l2_export_node = static_cast<ExportNode*>(
+            node_graph->add_node("l2_export_node", std::make_unique<ExportNode>(device)));
 
-        BufferExportNode* l3_export_node = static_cast<BufferExportNode*>(
-            node_graph->add_node("l3_export_node", std::make_unique<BufferExportNode>(device, BufferExportNode::ExportSettings { "export/trajectories/texture_layer3_travelLength.png" })));
+        ExportNode* l3_export_node = static_cast<ExportNode*>(
+            node_graph->add_node("l3_export_node", std::make_unique<ExportNode>(device)));
 
-        BufferExportNode* l4_export_node = static_cast<BufferExportNode*>(
-            node_graph->add_node("l4_export_node", std::make_unique<BufferExportNode>(device, BufferExportNode::ExportSettings { "export/trajectories/texture_layer4_travelAngle.png" })));
+        ExportNode* l4_export_node = static_cast<ExportNode*>(
+            node_graph->add_node("l4_export_node", std::make_unique<ExportNode>(device)));
 
-        BufferExportNode* l5_export_node = static_cast<BufferExportNode*>(
-            node_graph->add_node("l5_export_node", std::make_unique<BufferExportNode>(device, BufferExportNode::ExportSettings { "export/trajectories/texture_layer5_heightDifference.png" })));
+        ExportNode* l5_export_node = static_cast<ExportNode*>(
+            node_graph->add_node("l5_export_node", std::make_unique<ExportNode>(device)));
 
         // connect l1 export node inputs
         l1_export_node->input_socket("buffer").connect(trajectories_node->output_socket("layer1_zdelta"));

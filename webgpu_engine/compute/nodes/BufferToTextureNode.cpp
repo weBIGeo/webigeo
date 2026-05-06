@@ -48,7 +48,7 @@ BufferToTextureNode::BufferToTextureNode(const PipelineManager& pipeline_manager
 
 void BufferToTextureNode::run_impl()
 {
-    qDebug() << "running BufferToTextureNode ...";
+
     const auto input_raster_dimensions = std::get<data_type<glm::uvec2>()>(input_socket("raster dimensions").get_connected_data());
     const auto& input_storage_buffer = *std::get<data_type<webgpu::raii::RawBuffer<uint32_t>*>()>(input_socket("storage buffer").get_connected_data());
     const auto& input_transparency_buffer = *std::get<data_type<webgpu::raii::RawBuffer<uint32_t>*>()>(input_socket("transparency buffer").get_connected_data());
@@ -58,9 +58,8 @@ void BufferToTextureNode::run_impl()
 
     // assert input textures have same size, otherwise fail run
     if (input_raster_dimensions.x > MAX_TEXTURE_RESOLUTION || input_raster_dimensions.y > MAX_TEXTURE_RESOLUTION) {
-        emit run_failed(NodeRunFailureInfo(*this,
-            std::format(
-                "cannot create texture: texture dimensions ({}x{}) exceed {}", input_raster_dimensions.x, input_raster_dimensions.y, MAX_TEXTURE_RESOLUTION)));
+        fail_run(std::format(
+                "cannot create texture: texture dimensions ({}x{}) exceed {}", input_raster_dimensions.x, input_raster_dimensions.y, MAX_TEXTURE_RESOLUTION));
         return;
     }
 
@@ -102,7 +101,7 @@ void BufferToTextureNode::run_impl()
     const auto on_work_done
         = []([[maybe_unused]] WGPUQueueWorkDoneStatus status, [[maybe_unused]] WGPUStringView message, void* userdata, [[maybe_unused]] void* userdata2) {
               BufferToTextureNode* _this = reinterpret_cast<BufferToTextureNode*>(userdata);
-              emit _this->run_completed();
+              _this->complete_run();
           };
 
     WGPUQueueWorkDoneCallbackInfo callback_info {

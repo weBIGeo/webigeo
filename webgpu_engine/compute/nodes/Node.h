@@ -21,9 +21,11 @@
 
 #include "../GpuTileId.h"
 #include "../GpuTileStorage.h"
+#include "../GraphRunContext.h"
 #include "radix/tile.h"
 #include <QByteArray>
 #include <QObject>
+#include <queue>
 #include <variant>
 #include <vector>
 
@@ -152,13 +154,10 @@ private:
 
 /// Abstract base class for nodes.
 ///
-/// Subclasses usually need to override methods run and get_output_data_impl.
-///  - in run, subclass should
-///     - get input data from connected nodes via get_input_data(size_t input_socket_index)
-///     - do some calculations
-///     - save results somewhere (e.g. class member)
-///   - in get_output_data_impl
-///     - return pointer to result
+/// Subclasses implement run_impl() and signal completion by calling complete_run() or
+/// fail_run(). The base class owns the run lifecycle: it buffers the GraphRunContext,
+/// queues concurrent run() calls received while an async op is in-flight, and emits
+/// run_completed / run_failed.
 class Node : public QObject {
     Q_OBJECT
 
@@ -190,28 +189,42 @@ public:
 
     [[nodiscard]] bool is_running() const;
 
+    void set_node_name(const std::string& name);
+    [[nodiscard]] const std::string& get_node_name() const;
+    [[nodiscard]] uint64_t get_run_id() const;
+    [[nodiscard]] const std::string& get_run_datetime() const;
+
 public slots:
-    void run();
+    void run(webgpu_engine::compute::GraphRunContext context);
+    void rerun(); // re-runs with the last buffered context
 
 signals:
     void run_started();
-    void run_completed();
+    void run_completed(webgpu_engine::compute::GraphRunContext context);
     void run_failed(NodeRunFailureInfo failed_info);
 
 protected:
     /// Override to implement node behavior.
-    /// Call either signal run_completed() or run_failed(info) to indicate completion or failure of run.
-    /// Postcondition:
-    ///   - get_output_data(output-index) returns result
+    /// Call complete_run() on success or fail_run(message) on failure.
+    /// Postcondition (success): get_output_data(name) returns result.
     virtual void run_impl() = 0;
 
-protected:
+    void complete_run();
+    void fail_run(const std::string& message);
+
     [[nodiscard]] Data get_output_data(const std::string& output_socket_name);
     [[nodiscard]] Data get_input_data(const std::string& input_socket_name);
 
 private:
+    void process_pending();
+
+private:
     std::vector<InputSocket> m_input_sockets;
     std::vector<OutputSocket> m_output_sockets;
+
+    std::string m_node_name;
+    webgpu_engine::compute::GraphRunContext m_run_context;
+    std::queue<webgpu_engine::compute::GraphRunContext> m_pending_contexts;
 
     std::chrono::high_resolution_clock::time_point m_last_run_started;
     std::chrono::high_resolution_clock::time_point m_last_run_finished;

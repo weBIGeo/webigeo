@@ -19,9 +19,11 @@
 
 #pragma once
 
+#include "GraphRunContext.h"
 #include "nodes/Node.h"
 #include "webgpu_engine/PipelineManager.h"
 #include <memory>
+#include <string>
 
 namespace webgpu_engine::compute::nodes {
 
@@ -82,8 +84,8 @@ public slots:
     void emit_graph_failure(NodeRunFailureInfo info);
 
 signals:
-    void run_triggered();
-    void run_completed();
+    void run_triggered(webgpu_engine::compute::GraphRunContext context);
+    void run_completed(webgpu_engine::compute::GraphRunContext context);
     void run_failed(GraphRunFailureInfo info);
 
 public:
@@ -101,8 +103,9 @@ private:
     std::vector<QMetaObject::Connection> m_topology_connections;
 
     TileStorageTexture* m_output_normals_texture_storage_ptr;
-
     TileStorageTexture* m_output_overlay_texture_storage_ptr;
+
+    uint64_t m_run_id = 0;
 };
 
 } // namespace webgpu_engine::compute::nodes

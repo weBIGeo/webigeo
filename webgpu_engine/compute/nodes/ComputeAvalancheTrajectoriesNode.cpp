@@ -91,7 +91,7 @@ const ComputeAvalancheTrajectoriesNode::AvalancheTrajectoriesSettings& ComputeAv
 
 void ComputeAvalancheTrajectoriesNode::run_impl()
 {
-    qDebug() << "running ComputeAvalancheTrajectoriesNode ...";
+
 
     const auto region_aabb = std::get<data_type<const radix::geometry::Aabb<2, double>*>()>(input_socket("region aabb").get_connected_data());
     const auto& normal_texture = *std::get<data_type<const webgpu::raii::TextureWithSampler*>()>(input_socket("normal texture").get_connected_data());
@@ -105,10 +105,9 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
     // assert input textures have same size, otherwise fail run
     if (input_width != height_texture.texture().width() || input_height != height_texture.texture().height()
         || input_width != release_point_texture.texture().width() || input_height != release_point_texture.texture().height()) {
-        emit run_failed(NodeRunFailureInfo(*this,
-            std::format("failed to compute trajectories: input texture sizes must match (normals: {}x{}, heights: {}x{}, release points: {}x{})", input_width,
+        fail_run(std::format("failed to compute trajectories: input texture sizes must match (normals: {}x{}, heights: {}x{}, release points: {}x{})", input_width,
                 input_height, height_texture.texture().width(), height_texture.texture().height(), release_point_texture.texture().width(),
-                release_point_texture.texture().height())));
+                release_point_texture.texture().height()));
         return;
     }
 
@@ -196,7 +195,7 @@ void ComputeAvalancheTrajectoriesNode::run_impl()
     const auto on_work_done
         = []([[maybe_unused]] WGPUQueueWorkDoneStatus status, [[maybe_unused]] WGPUStringView message, void* userdata, [[maybe_unused]] void* userdata2) {
               ComputeAvalancheTrajectoriesNode* _this = reinterpret_cast<ComputeAvalancheTrajectoriesNode*>(userdata);
-              emit _this->run_completed(); // emits signal run_finished()
+              _this->complete_run();
           };
 
     WGPUQueueWorkDoneCallbackInfo callback_info {

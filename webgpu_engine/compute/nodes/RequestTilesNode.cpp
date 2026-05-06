@@ -42,7 +42,7 @@ RequestTilesNode::RequestTilesNode()
 
 void RequestTilesNode::run_impl()
 {
-    qDebug() << "running HeightRequestNode ...";
+
 
     // get tile ids to request
     // TODO maybe make get_input_data a template (so usage would become get_input_data<type>(socket_index))
@@ -104,9 +104,9 @@ void RequestTilesNode::check_progress_and_emit_signals()
     // when all requests are finished (either failed or successfully)
     if (m_num_signals_received == m_num_tiles_requested) {
         if (m_num_tiles_unavailable > 0) {
-            emit run_failed(NodeRunFailureInfo(*this, std::format("failed to load {} tiles from {}", m_num_tiles_unavailable, m_settings.tile_path)));
+            fail_run(std::format("failed to load {} tiles from {}", m_num_tiles_unavailable, m_settings.tile_path));
         } else {
-            emit run_completed();
+            complete_run();
         }
     }
 }

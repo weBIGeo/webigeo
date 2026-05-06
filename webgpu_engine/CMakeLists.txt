@@ -45,12 +45,12 @@ set(SOURCES
     compute/nodes/SelectTilesNode.h compute/nodes/SelectTilesNode.cpp
     compute/nodes/RequestTilesNode.h compute/nodes/RequestTilesNode.cpp
     compute/nodes/ComputeNormalsNode.h compute/nodes/ComputeNormalsNode.cpp
+    compute/GraphRunContext.h
     compute/NodeGraph.h compute/NodeGraph.cpp
     compute/nodes/ComputeSnowNode.h compute/nodes/ComputeSnowNode.cpp
     compute/nodes/UpsampleTexturesNode.h compute/nodes/UpsampleTexturesNode.cpp
     compute/nodes/ComputeAvalancheTrajectoriesNode.h compute/nodes/ComputeAvalancheTrajectoriesNode.cpp
-    compute/nodes/TileExportNode.h compute/nodes/TileExportNode.cpp
-    compute/nodes/BufferExportNode.h compute/nodes/BufferExportNode.cpp
+    compute/nodes/ExportNode.h compute/nodes/ExportNode.cpp
     compute/nodes/BufferToTextureNode.h compute/nodes/BufferToTextureNode.cpp
     compute/nodes/ComputeReleasePointsNode.h compute/nodes/ComputeReleasePointsNode.cpp
     compute/nodes/TileStitchNode.h compute/nodes/TileStitchNode.cpp
@@ -67,12 +67,11 @@ if (ALP_WEBGPU_APP_ENABLE_IMGUI)
         compute/imgui/NodeGraphRenderer.h compute/imgui/NodeGraphRenderer.cpp
         compute/imgui/nodes/NodeRenderer.h compute/imgui/nodes/NodeRenderer.cpp
         compute/imgui/nodes/NodeRendererFactory.h compute/imgui/nodes/NodeRendererFactory.cpp
-        compute/imgui/nodes/BufferExportNodeRenderer.h compute/imgui/nodes/BufferExportNodeRenderer.cpp
+        compute/imgui/nodes/ExportNodeRenderer.h compute/imgui/nodes/ExportNodeRenderer.cpp
         compute/imgui/nodes/BufferToTextureNodeRenderer.h compute/imgui/nodes/BufferToTextureNodeRenderer.cpp
         compute/imgui/nodes/ComputeAvalancheTrajectoriesNodeRenderer.h compute/imgui/nodes/ComputeAvalancheTrajectoriesNodeRenderer.cpp
         compute/imgui/nodes/ComputeReleasePointsNodeRenderer.h compute/imgui/nodes/ComputeReleasePointsNodeRenderer.cpp
         compute/imgui/nodes/ComputeSnowNodeRenderer.h compute/imgui/nodes/ComputeSnowNodeRenderer.cpp
-        compute/imgui/nodes/TileExportNodeRenderer.h compute/imgui/nodes/TileExportNodeRenderer.cpp
     )
 endif()
 

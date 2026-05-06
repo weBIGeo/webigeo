@@ -18,23 +18,14 @@
 
 #pragma once
 
-#include "NodeRenderer.h"
-
-namespace webgpu_engine::compute::nodes {
-class TileExportNode;
-}
+#include <cstdint>
+#include <string>
 
 namespace webgpu_engine::compute {
 
-class TileExportNodeRenderer : public NodeRenderer {
-public:
-    TileExportNodeRenderer(const std::string& name, nodes::TileExportNode& node);
-    bool has_settings() const override { return true; }
-    void render_settings_content() override;
-    void render_dialogs() override;
-
-private:
-    nodes::TileExportNode* m_node;
+struct GraphRunContext {
+    uint64_t run_id = 0;
+    std::string run_datetime; // format: YYYY-mm-ddTHH-MM-SS
 };
 
 } // namespace webgpu_engine::compute

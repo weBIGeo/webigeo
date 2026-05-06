@@ -1,6 +1,6 @@
 /*****************************************************************************
  * weBIGeo
- * Copyright (C) 2024 Gerald Kimmersdorfer
+ * Copyright (C) 2026 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,31 +18,25 @@
 
 #pragma once
 
-#include "Node.h"
+#include "NodeRenderer.h"
 
 namespace webgpu_engine::compute::nodes {
+class ExportNode;
+}
 
-class BufferExportNode : public Node {
-    Q_OBJECT
+namespace webgpu_engine::compute {
 
+class ExportNodeRenderer : public NodeRenderer {
 public:
-    NODE_TYPE_NAME(BufferExportNode)
-
-    struct ExportSettings {
-        std::string output_file = "output_buffer.png";
-    };
-
-    BufferExportNode(WGPUDevice device, const ExportSettings& settings);
-
-    const ExportSettings& get_settings() const { return m_settings; }
-    void set_settings(const ExportSettings& settings);
-
-public slots:
-    void run_impl() override;
+    ExportNodeRenderer(const std::string& name, nodes::ExportNode& node);
+    bool has_settings() const override { return true; }
+    void render_settings_content() override;
 
 private:
-    WGPUDevice m_device;
-    ExportSettings m_settings;
+    nodes::ExportNode* m_node;
+    char m_buffer_buf[512] = {};
+    char m_texture_buf[512] = {};
+    char m_aabb_buf[512] = {};
 };
 
-} // namespace webgpu_engine::compute::nodes
+} // namespace webgpu_engine::compute
