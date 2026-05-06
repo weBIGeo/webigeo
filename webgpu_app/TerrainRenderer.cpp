@@ -124,7 +124,7 @@ void TerrainRenderer::render_gui()
     ImGui::Checkbox("Repaint each frame", &m_force_repaint);
     ImGui::Text("Repaint-Counter: %d", m_repaint_count);
 
-    if (ImGui::Button("Reload shaders [F5]", ImVec2(350, 20))) {
+    if (ImGui::Button("Reload shaders [F5]", ImVec2(350, 0))) {
         m_webgpu_window->reload_shaders();
     }
 #endif

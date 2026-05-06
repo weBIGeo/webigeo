@@ -104,6 +104,11 @@ static void write_aabb_file(const std::string& file_path, const radix::geometry:
     }
 }
 
+ExportNode::ExportNode(WGPUDevice device)
+    : ExportNode(device, ExportSettings{})
+{
+}
+
 ExportNode::ExportNode(WGPUDevice device, const ExportSettings& settings)
     : Node(
           {

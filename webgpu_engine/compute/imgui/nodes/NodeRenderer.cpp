@@ -84,7 +84,7 @@ std::string NodeRenderer::format_ms(int duration_in_ms)
     std::ostringstream ss;
     ss << std::fixed << std::setprecision(2);
 
-    if (duration_in_ms < 100) {
+    if (duration_in_ms < 1000) {
         ss.str("");
         ss.clear();
         ss << duration_in_ms << " ms";
@@ -150,22 +150,9 @@ void NodeRenderer::render(bool reset_position)
 
     ImNodes::BeginNodeTitleBar();
     ImGui::TextUnformatted(m_name_formatted.c_str());
-    ImGui::SameLine();
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2, 1));
-    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(0, 0, 0, 0));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(255, 255, 255, 40));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(255, 255, 255, 80));
-    if (ImGui::Button(ICON_FA_PLAY "##run")) {
-        m_node->rerun();
-    }
-    ImGui::PopStyleColor(3);
-    ImGui::PopStyleVar();
     ImNodes::EndNodeTitleBar();
 
     render_sockets();
-
-    ImGui::Dummy(ImVec2(0.0f, 4.0f)); // spacing
-    ImGui::Text("Last run: %s", NodeRenderer::format_ms(m_node->get_last_run_duration_in_ms()).c_str());
 
     ImNodes::EndNode();
 
@@ -173,6 +160,23 @@ void NodeRenderer::render(bool reset_position)
     ImVec2 min = ImGui::GetItemRectMin();
     ImVec2 max = ImGui::GetItemRectMax();
     m_size = ImVec2(max.x - min.x, max.y - min.y);
+
+    // Context menu (right-click on node)
+    std::string popup_id = "##ctx_" + m_name;
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+        ImGui::OpenPopup(popup_id.c_str());
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12.0f, 8.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12.0f, 8.0f));
+    if (ImGui::BeginPopup(popup_id.c_str())) {
+        if (ImGui::MenuItem(ICON_FA_REDO "  Rerun"))
+            m_node->rerun();
+        bool enabled = m_node->is_enabled();
+        if (ImGui::MenuItem(enabled ? ICON_FA_TOGGLE_OFF "  Disable" : ICON_FA_TOGGLE_ON "  Enable"))
+            m_node->set_enabled(!enabled);
+        ImGui::EndPopup();
+    }
+    ImGui::PopStyleVar(2);
 
     // Get position of the node
     m_position = ImNodes::GetNodeEditorSpacePos(m_node_id);
@@ -211,7 +215,8 @@ void NodeRenderer::render_sockets()
         ImNodes::BeginOutputAttribute(m_output_socket_ids.at(i), pin_shape_for_type(type));
         const char* label = m_node->output_sockets().at(i).name().c_str();
         const float text_width = ImGui::CalcTextSize(label).x;
-        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + node_content_width - text_width);
+        const float text_indent = std::max(0.0f, node_content_width - text_width);
+        ImGui::SetCursorPosX(ImGui::GetCursorPosX() + text_indent);
         ImGui::TextUnformatted(label);
         ImNodes::EndOutputAttribute();
         ImNodes::PopColorStyle();

@@ -341,7 +341,7 @@ void Window::paint_gui()
     }
 
     if (ImGui::CollapsingHeader("Image overlay")) {
-        if (ImGui::Button("Open overlay image file ...", ImVec2(350, 20))) {
+        if (ImGui::Button("Open overlay image file ...", ImVec2(350, 0))) {
 #ifdef __EMSCRIPTEN__
             WebInterop::instance().open_file_dialog(".png", "overlay_png");
 #else
@@ -393,7 +393,7 @@ void Window::paint_gui()
 
 #ifdef __EMSCRIPTEN__
         // NOTE: In the web we can't check the filesystem for the aabb file so the user has to open it separately
-        if (ImGui::Button("Open overlay aabb file ...", ImVec2(350, 20))) {
+        if (ImGui::Button("Open overlay aabb file ...", ImVec2(350, 0))) {
             WebInterop::instance().open_file_dialog(".txt", "overlay_aabb_txt");
         }
 #endif
@@ -425,7 +425,7 @@ void Window::paint_gui()
     }
 
     if (ImGui::CollapsingHeader("Track", ImGuiTreeNodeFlags_DefaultOpen)) {
-        if (ImGui::Button("Open GPX file ...", ImVec2(250, 20))) {
+        if (ImGui::Button("Open GPX file ...", ImVec2(250, 0))) {
 #ifdef __EMSCRIPTEN__
             WebInterop::instance().open_file_dialog(".gpx", "track");
 #else
@@ -436,7 +436,7 @@ void Window::paint_gui()
         }
         ImGui::SameLine();
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(106 / 255.0f, 112 / 255.0f, 115 / 255.0f, 1.00f));
-        if (ImGui::Button("Open Preset ...", ImVec2(100, 20))) {
+        if (ImGui::Button("Open Preset ...", ImVec2(100, 0))) {
             load_track_and_focus(DEFAULT_GPX_TRACK_PATH);
         }
         ImGui::PopStyleColor(1);
@@ -491,7 +491,7 @@ void Window::paint_compute_pipeline_gui()
 #if ALP_WEBGPU_APP_ENABLE_IMGUI
     if (ImGui::CollapsingHeader("Compute pipeline", ImGuiTreeNodeFlags_DefaultOpen)) {
 
-        if (ImGui::Button("Run", ImVec2(250, 20))) {
+        if (ImGui::Button("Run", ImVec2(250, 0))) {
             if (m_is_region_selected) {
                 update_settings_and_rerun_pipeline();
             } else {
@@ -502,7 +502,7 @@ void Window::paint_compute_pipeline_gui()
         ImGui::SameLine();
 
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(150 / 255.0f, 10 / 255.0f, 10 / 255.0f, 1.00f));
-        if (ImGui::Button("Clear", ImVec2(100, 20))) {
+        if (ImGui::Button("Clear", ImVec2(100, 0))) {
             create_and_set_compute_pipeline(m_active_compute_pipeline_type);
             m_needs_redraw = true;
         }

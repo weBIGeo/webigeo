@@ -40,7 +40,8 @@ public:
         std::string aabb_output_file = "export/{run_datetime}_{run_id}/exp_aabb.txt";
     };
 
-    ExportNode(WGPUDevice device, const ExportSettings& settings = ExportSettings{});
+    explicit ExportNode(WGPUDevice device);
+    ExportNode(WGPUDevice device, const ExportSettings& settings);
 
     const ExportSettings& get_settings() const { return m_settings; }
     void set_settings(const ExportSettings& settings);
