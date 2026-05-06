@@ -86,7 +86,7 @@ private:
     void push_style();
     void pop_style();
 
-    void render_toolbar();
+    void render_menu();
     void render_settings_panel();
     void poll_keyboard_shortcuts();
 

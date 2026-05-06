@@ -20,6 +20,7 @@
 #include "NodeGraphRenderer.h"
 
 #include "nodes/NodeRendererFactory.h"
+#include <IconsFontAwesome5.h>
 #include <imgui.h>
 #include <imnodes.h>
 #include <qDebug>
@@ -338,9 +339,12 @@ void NodeGraphRenderer::render()
     ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
     ImGui::SetNextWindowSize(m_window_size, ImGuiCond_Always);
 
-    ImGui::Begin(m_window_title.c_str(), nullptr, ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus);
+    ImGui::Begin(m_window_title.c_str(),
+        nullptr,
+        ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus
+            | ImGuiWindowFlags_NoTitleBar);
 
-    render_toolbar();
+    render_menu();
 
     ImNodes::BeginNodeEditor();
 
@@ -416,6 +420,9 @@ void NodeGraphRenderer::poll_keyboard_shortcuts()
     if (ImGui::IsKeyPressed(ImGuiKey_C)) {
         recenter_graph(1.0f);
     }
+    if (ImGui::IsKeyPressed(ImGuiKey_R)) {
+        m_node_graph->run();
+    }
 }
 
 void NodeGraphRenderer::rebuild_links()
@@ -450,21 +457,44 @@ void NodeGraphRenderer::rebuild_socket_id_maps()
     }
 }
 
-void NodeGraphRenderer::render_toolbar()
+void NodeGraphRenderer::render_menu()
 {
     if (ImGui::BeginMenuBar()) {
-        if (ImGui::BeginMenu("Layout")) {
-            if (ImGui::MenuItem("Reset Layout", "L")) {
+        if (ImGui::BeginMenu("File")) {
+            if (ImGui::MenuItem(ICON_FA_FOLDER_OPEN "  Load Graph")) {
+                // TODO: load graph
+            }
+            if (ImGui::MenuItem(ICON_FA_SAVE "  Save Graph")) {
+                // TODO: save graph
+            }
+            if (ImGui::BeginMenu(ICON_FA_LAYER_GROUP "  Configurations")) {
+                if (ImGui::MenuItem(ICON_FA_PLUS "  New Configuration")) {
+                    // TODO: new configuration
+                }
+                ImGui::EndMenu();
+            }
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Graph")) {
+            if (ImGui::MenuItem(ICON_FA_PLAY "  Run Full Graph", "R")) {
+                m_node_graph->run();
+            }
+            if (ImGui::MenuItem(ICON_FA_TRASH "  Clear Output")) {
+                // TODO: clear output
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem(ICON_FA_TH "  Reset Layout", "L")) {
                 reset_graph_layout(1.0f);
             }
-            if (ImGui::MenuItem("Recenter Graph", "C")) {
+            if (ImGui::MenuItem(ICON_FA_COMPRESS_ARROWS_ALT "  Recenter Graph", "C")) {
                 recenter_graph(1.0f);
             }
             ImGui::EndMenu();
         }
 
         if (ImGui::BeginMenu("View")) {
-            if (ImGui::MenuItem("Toggle Background Mode", "M")) {
+            if (ImGui::MenuItem(ICON_FA_ADJUST "  Toggle Background Mode", "M")) {
                 m_render_mode = static_cast<GraphRenderingMode>((static_cast<int>(m_render_mode) + 1) % 4);
             }
             ImGui::Separator();
