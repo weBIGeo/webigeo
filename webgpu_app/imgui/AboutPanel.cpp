@@ -75,7 +75,7 @@ void AboutPanel::draw_about_popup()
         ImGui::OpenPopup("about_webigeo");
     }
     ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, {0.5f, 0.5f});
-    ImGui::SetNextWindowSize({450, 470});
+    ImGui::SetNextWindowSize({450, 478});
 
     if (ImGui::BeginPopupModal("about_webigeo", NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse)) {
         const char* title = "About weBIGeo";
@@ -151,7 +151,7 @@ void AboutPanel::draw_about_popup()
 void AboutPanel::draw_disclaimer_popup()
 {
     ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(365, 200));
+    ImGui::SetNextWindowSize(ImVec2(365, 208));
 
     if (ImGui::BeginPopupModal("research_preview", NULL, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize)) {
         const char* text = "WARNING: RESEARCH PREVIEW";
