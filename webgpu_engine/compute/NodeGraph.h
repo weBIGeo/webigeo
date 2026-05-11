@@ -94,7 +94,6 @@ public:
     static std::unique_ptr<NodeGraph> create_release_points_compute_graph(const PipelineManager& manager, WGPUDevice device);
     static std::unique_ptr<NodeGraph> create_avalanche_trajectories_compute_graph(const PipelineManager& manager, WGPUDevice device);
     static std::unique_ptr<NodeGraph> create_trajectories_with_export_compute_graph(const PipelineManager& manager, WGPUDevice device);
-    static std::unique_ptr<NodeGraph> create_trajectories_evaluation_compute_graph(const PipelineManager& manager, WGPUDevice device);
     static std::unique_ptr<NodeGraph> create_iterative_simulation_compute_graph(const PipelineManager& manager, WGPUDevice device);
 
 private:
