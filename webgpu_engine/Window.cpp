@@ -20,10 +20,6 @@
  *****************************************************************************/
 
 #include "Window.h"
-#include "compute/nodes/BufferToTextureNode.h"
-#include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
-#include "compute/nodes/ComputeReleasePointsNode.h"
-#include "compute/nodes/ComputeSnowNode.h"
 #include "compute/nodes/LoadRegionAabbNode.h"
 #include "compute/nodes/SelectTilesNode.h"
 #include "gpu_utils.h"
@@ -904,6 +900,7 @@ bool Window::update_image_overlay_aabb(const radix::geometry::Aabb<2, double>& a
 
 void Window::update_image_overlay_aabb_and_focus(const std::string& aabb_file_path)
 {
+    // TODO: OverlayRenderer should be in charge of overlay related code
     const auto aabb = compute::nodes::LoadRegionAabbNode::load_aabb_from_file(aabb_file_path).value();
 
     bool update_successful = update_image_overlay_aabb(aabb);
@@ -916,6 +913,7 @@ void Window::update_image_overlay_aabb_and_focus(const std::string& aabb_file_pa
 
 void Window::clear_compute_overlay()
 {
+    // TODO: OverlayRenderer should be in charge of overlay related code
     m_compute_overlay_texture_view = nullptr;
     m_compute_overlay_sampler = nullptr;
     recreate_compose_bind_group();
@@ -923,6 +921,7 @@ void Window::clear_compute_overlay()
 
 void Window::update_compute_overlay_texture(const webgpu::raii::TextureWithSampler& texture_with_sampler)
 {
+    // TODO: OverlayRenderer should be in charge of overlay related code
     m_compute_overlay_texture_view = &texture_with_sampler.texture_view();
     m_compute_overlay_sampler = &texture_with_sampler.sampler();
     m_compute_overlay_settings_uniform_buffer->data.texture_size = glm::uvec2(texture_with_sampler.texture().width(), texture_with_sampler.texture().height());
@@ -934,6 +933,7 @@ void Window::update_compute_overlay_texture(const webgpu::raii::TextureWithSampl
 
 void Window::update_compute_overlay_aabb(const radix::geometry::Aabb<2, double>& aabb)
 {
+    // TODO: OverlayRenderer should be in charge of overlay related code
     m_compute_overlay_settings_uniform_buffer->data.aabb_min = glm::fvec2(aabb.min);
     m_compute_overlay_settings_uniform_buffer->data.aabb_max = glm::fvec2(aabb.max);
     m_compute_overlay_settings_uniform_buffer->update_gpu_data(m_queue);
