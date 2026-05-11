@@ -660,6 +660,7 @@ void Window::update_compute_pipeline_settings()
 
 void Window::update_settings_and_rerun_pipeline(const std::string& entry_node)
 {
+    // TODO: This should go -> Node Graph Renderer is in charge for that
     update_compute_pipeline_settings();
     if (m_is_region_selected) {
         if (!entry_node.empty() && !m_is_first_pipeline_run) {
@@ -679,6 +680,7 @@ void Window::update_settings_and_rerun_pipeline(const std::string& entry_node)
 
 std::unique_ptr<webgpu::raii::TextureWithSampler> Window::create_overlay_texture(unsigned int width, unsigned int height, bool linear_interpolation)
 {
+    // TODO: OverlayRenderer should be in charge of overlay related code
     WGPUTextureDescriptor texture_desc {};
     texture_desc.label = WGPUStringView { .data = "image overlay texture", .length = WGPU_STRLEN };
     texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
@@ -881,6 +883,7 @@ void Window::update_image_overlay_texture(const std::string& image_file_path)
 
 bool Window::update_image_overlay_aabb(const radix::geometry::Aabb<2, double>& aabb)
 {
+    // TODO: OverlayRenderer should be in charge of overlay related code
     // Make sure the aabb actually changed
     glm::fvec2 new_min = glm::fvec2 { aabb.min.x, aabb.min.y };
     glm::fvec2 new_max = glm::fvec2 { aabb.max.x, aabb.max.y };
