@@ -26,8 +26,9 @@
 #include "nucleus/tile/Texture3DScheduler.h"
 #include "nucleus/tile/TileLoadService.h"
 #include "nucleus/tile/setup.h"
-#include "webgpu_engine/CloudRenderer.h"
 #include "webgpu_engine/Context.h"
+#include "webgpu_engine/renderer/CloudRenderer.h"
+#include "webgpu_engine/renderer/TileMeshRenderer.h"
 
 namespace webgpu_app {
 
@@ -103,30 +104,30 @@ RenderingContext::RenderingContext()
 
 void RenderingContext::initialize(WGPUInstance webgpu_instance, WGPUDevice webgpu_device)
 {
-    auto tile_geometry = std::make_shared<webgpu_engine::TileGeometry>(65, 512);
-    tile_geometry->set_tile_limit(1024);
-    auto cloud_geometry = std::make_shared<webgpu_engine::CloudRenderer>();
+    auto tile_mesh_renderer = std::make_shared<webgpu_engine::TileMeshRenderer>(65, 512);
+    tile_mesh_renderer->set_tile_limit(1024);
+    auto cloud_renderer = std::make_shared<webgpu_engine::CloudRenderer>();
     // This doesn't really make any sense if you think about it
-    cloud_geometry->set_tile_limit(webgpu_engine::clouds::LOADED_TILE_LIMIT);
+    cloud_renderer->set_tile_limit(webgpu_engine::clouds::LOADED_TILE_LIMIT);
 
     m_engine_context = std::make_unique<webgpu_engine::Context>();
     m_engine_context->set_webgpu_instance(webgpu_instance);
     m_engine_context->set_webgpu_device(webgpu_device);
     m_engine_context->set_aabb_decorator(m_aabb_decorator);
-    m_engine_context->set_tile_geometry(tile_geometry);
-    m_engine_context->set_cloud_geometry(cloud_geometry);
+    m_engine_context->set_tile_mesh_renderer(tile_mesh_renderer);
+    m_engine_context->set_cloud_renderer(cloud_renderer);
 
     connect(m_geometry_scheduler_holder.scheduler.get(),
         &nucleus::tile::GeometryScheduler::gpu_tiles_updated,
-        m_engine_context->tile_geometry(),
-        &webgpu_engine::TileGeometry::update_gpu_tiles_height);
+        m_engine_context->tile_mesh_renderer(),
+        &webgpu_engine::TileMeshRenderer::update_gpu_tiles_height);
     connect(m_ortho_scheduler_holder.scheduler.get(),
         &nucleus::tile::TextureScheduler::gpu_tiles_updated,
-        m_engine_context->tile_geometry(),
-        &webgpu_engine::TileGeometry::update_gpu_tiles_ortho);
+        m_engine_context->tile_mesh_renderer(),
+        &webgpu_engine::TileMeshRenderer::update_gpu_tiles_ortho);
     connect(m_cloud_scheduler_holder.scheduler.get(),
        &nucleus::tile::Texture3DScheduler::gpu_tiles_updated,
-       m_engine_context->cloud_geometry(),
+       m_engine_context->cloud_renderer(),
        &webgpu_engine::CloudRenderer::update_gpu_tiles_cloud);
     nucleus::utils::thread::async_call(m_geometry_scheduler_holder.scheduler.get(), [this]() { m_geometry_scheduler_holder.scheduler->set_enabled(true); });
 

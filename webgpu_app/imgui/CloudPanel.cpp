@@ -23,7 +23,7 @@
 #include <imgui.h>
 
 #include "../CloudsManager.h"
-#include "webgpu_engine/CloudRenderer.h"
+#include "webgpu_engine/renderer/CloudRenderer.h"
 
 namespace webgpu_app {
 

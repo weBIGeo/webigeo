@@ -48,7 +48,7 @@
 #include <nucleus/tile/setup.h>
 #include <nucleus/timing/CpuTimer.h>
 #include <webgpu_engine/Context.h>
-#include <webgpu_engine/TileGeometry.h>
+#include <webgpu_engine/renderer/TileMeshRenderer.h>
 
 namespace webgpu_app {
 

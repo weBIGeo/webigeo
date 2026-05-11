@@ -32,10 +32,12 @@ set(SOURCES
     ShaderModuleManager.h ShaderModuleManager.cpp
     PipelineManager.h PipelineManager.cpp
     UniformBufferObjects.h UniformBufferObjects.cpp
-    TileGeometry.h TileGeometry.cpp
-    CloudRenderer.h CloudRenderer.cpp
     Buffer.h Buffer.cpp
-    TrackRenderer.h TrackRenderer.cpp
+    renderer/TileMeshRenderer.h renderer/TileMeshRenderer.cpp
+    renderer/CloudRenderer.h renderer/CloudRenderer.cpp
+    renderer/TrackRenderer.h renderer/TrackRenderer.cpp
+    renderer/AtmosphereRenderer.h renderer/AtmosphereRenderer.cpp
+    renderer/OverlayRenderer.h renderer/OverlayRenderer.cpp
     Context.h Context.cpp
 
     compute/GpuTileStorage.h compute/GpuTileStorage.cpp

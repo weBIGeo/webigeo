@@ -18,13 +18,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "TileGeometry.h"
+#include "TileMeshRenderer.h"
 
 #include "nucleus/camera/Definition.h"
 #include "nucleus/utils/terrain_mesh_index_generator.h"
 #include <QDebug>
 
-using webgpu_engine::TileGeometry;
+using webgpu_engine::TileMeshRenderer;
 
 namespace {
 template <typename T> int bufferLengthInBytes(const std::vector<T>& vec) { return int(vec.size() * sizeof(T)); }
@@ -32,14 +32,14 @@ template <typename T> int bufferLengthInBytes(const std::vector<T>& vec) { retur
 
 namespace webgpu_engine {
 
-TileGeometry::TileGeometry(uint32_t height_resolution, uint32_t ortho_resolution)
+TileMeshRenderer::TileMeshRenderer(uint32_t height_resolution, uint32_t ortho_resolution)
     : QObject { nullptr }
     , m_height_resolution { height_resolution }
     , m_ortho_resolution { ortho_resolution }
 {
 }
 
-void TileGeometry::init(WGPUDevice device)
+void TileMeshRenderer::init(WGPUDevice device)
 {
     m_device = device;
     m_queue = wgpuDeviceGetQueue(device);
@@ -123,7 +123,7 @@ void TileGeometry::init(WGPUDevice device)
     m_tile_bind_group = create_bind_group(m_ortho_textures->texture_view(), m_ortho_textures->sampler());
 }
 
-void TileGeometry::draw(
+void TileMeshRenderer::draw(
     WGPURenderPassEncoder render_pass, const nucleus::camera::Definition& camera, const std::vector<nucleus::tile::TileBounds>& draw_tiles) const
 {
     std::vector<glm::vec4> bounds;
@@ -191,15 +191,15 @@ void TileGeometry::draw(
     wgpuRenderPassEncoderDrawIndexed(render_pass, uint32_t(m_index_buffer_size), uint32_t(draw_tiles.size()), 0, 0, 0);
 }
 
-void TileGeometry::set_tile_limit(unsigned int num_tiles)
+void TileMeshRenderer::set_tile_limit(unsigned int num_tiles)
 {
     m_loaded_height_textures.set_tile_limit(num_tiles);
     m_loaded_ortho_textures.set_tile_limit(num_tiles);
 }
 
-void TileGeometry::set_pipeline_manager(const PipelineManager& pipeline_manager) { m_pipeline_manager = &pipeline_manager; }
+void TileMeshRenderer::set_pipeline_manager(const PipelineManager& pipeline_manager) { m_pipeline_manager = &pipeline_manager; }
 
-std::unique_ptr<webgpu::raii::BindGroup> TileGeometry::create_bind_group(const webgpu::raii::TextureView& view, const webgpu::raii::Sampler& sampler) const
+std::unique_ptr<webgpu::raii::BindGroup> TileMeshRenderer::create_bind_group(const webgpu::raii::TextureView& view, const webgpu::raii::Sampler& sampler) const
 {
     return std::make_unique<webgpu::raii::BindGroup>(m_device,
         m_pipeline_manager->tile_bind_group_layout(),
@@ -213,7 +213,7 @@ std::unique_ptr<webgpu::raii::BindGroup> TileGeometry::create_bind_group(const w
         "tile bind group");
 }
 
-void TileGeometry::update_gpu_tiles_height(const std::vector<radix::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuGeometryTile>& new_tiles)
+void TileMeshRenderer::update_gpu_tiles_height(const std::vector<radix::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuGeometryTile>& new_tiles)
 {
     for (const auto& id : deleted_tiles) {
         m_loaded_height_textures.remove_tile(id);
@@ -230,7 +230,7 @@ void TileGeometry::update_gpu_tiles_height(const std::vector<radix::tile::Id>& d
     }
 }
 
-void TileGeometry::update_gpu_tiles_ortho(const std::vector<nucleus::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuTextureTile>& new_tiles)
+void TileMeshRenderer::update_gpu_tiles_ortho(const std::vector<nucleus::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuTextureTile>& new_tiles)
 {
     for (const auto& id : deleted_tiles) {
         m_loaded_ortho_textures.remove_tile(id);

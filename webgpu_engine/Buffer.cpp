@@ -19,8 +19,8 @@
 
 #include "Buffer.h"
 
-#include "CloudRenderer.h"
-#include "TrackRenderer.h"
+#include "renderer/CloudRenderer.h"
+#include "renderer/TrackRenderer.h"
 #include "UniformBufferObjects.h"
 #include "compute/nodes/BufferToTextureNode.h"
 #include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"

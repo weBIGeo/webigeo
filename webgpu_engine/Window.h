@@ -23,7 +23,8 @@
 #include "PipelineManager.h"
 #include "PipelineSettings.h"
 #include "ShaderModuleManager.h"
-#include "TrackRenderer.h"
+#include "renderer/AtmosphereRenderer.h"
+#include "renderer/TrackRenderer.h"
 #include "UniformBufferObjects.h"
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
 #include "compute/imgui/NodeGraphRenderer.h"
@@ -163,7 +164,7 @@ private:
     webgpu::FramebufferFormat m_gbuffer_format;
     std::unique_ptr<webgpu::Framebuffer> m_gbuffer;
 
-    std::unique_ptr<webgpu::Framebuffer> m_atmosphere_framebuffer;
+    std::unique_ptr<AtmosphereRenderer> m_atmosphere_renderer;
 
     // ToDo: Swapchain should get a raii class and the size could be saved in there
     glm::vec2 m_swapchain_size = glm::vec2(0.0f);

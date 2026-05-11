@@ -20,8 +20,8 @@
 
 #include <memory>
 
-#include "Buffer.h"
-#include "PipelineManager.h"
+#include "../Buffer.h"
+#include "../PipelineManager.h"
 #include <QObject>
 #include <glm/glm.hpp>
 #include <mutex>

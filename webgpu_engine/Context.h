@@ -20,8 +20,9 @@
 
 #pragma once
 
-#include "CloudRenderer.h"
-#include "TileGeometry.h"
+#include "renderer/AtmosphereRenderer.h"
+#include "renderer/CloudRenderer.h"
+#include "renderer/TileMeshRenderer.h"
 #include "UniformBufferObjects.h"
 #include "nucleus/EngineContext.h"
 #include "nucleus/track/Manager.h"
@@ -36,11 +37,14 @@ public:
     ~Context() override;
     void operator=(Context const&) = delete;
 
-    TileGeometry* tile_geometry() const;
-    void set_tile_geometry(std::shared_ptr<TileGeometry> new_tile_geometry);
+    TileMeshRenderer* tile_mesh_renderer() const;
+    void set_tile_mesh_renderer(std::shared_ptr<TileMeshRenderer> new_tile_mesh_renderer);
 
-    CloudRenderer* cloud_geometry() const;
-    void set_cloud_geometry(std::shared_ptr<CloudRenderer> new_cloud_geometry);
+    CloudRenderer* cloud_renderer() const;
+    void set_cloud_renderer(std::shared_ptr<CloudRenderer> new_cloud_renderer);
+
+    AtmosphereRenderer* atmosphere_renderer() const;
+    void set_atmosphere_renderer(std::shared_ptr<AtmosphereRenderer> new_atmosphere_renderer);
 
     WGPUInstance webgpu_instance() const;
     void set_webgpu_instance(WGPUInstance instance);
@@ -72,8 +76,9 @@ private:
     WGPUDevice m_webgpu_device = 0;
     WGPUInstance m_webgpu_instance = 0;
     uboSharedConfig m_shared_config;
-    std::shared_ptr<TileGeometry> m_tile_geometry;
-    std::shared_ptr<CloudRenderer> m_cloud_geometry;
+    std::shared_ptr<TileMeshRenderer> m_tile_mesh_renderer;
+    std::shared_ptr<CloudRenderer> m_cloud_renderer;
+    std::shared_ptr<AtmosphereRenderer> m_atmosphere_renderer;
     // std::shared_ptr<TextureLayer> m_ortho_layer;
 
     std::unique_ptr<webgpu_engine::ShaderModuleManager> m_shader_module_manager;

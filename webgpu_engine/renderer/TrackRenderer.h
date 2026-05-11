@@ -18,8 +18,8 @@
 
 #pragma once
 
-#include "Buffer.h"
-#include "PipelineManager.h"
+#include "../Buffer.h"
+#include "../PipelineManager.h"
 #include "webgpu/raii/BindGroup.h"
 #include "webgpu/raii/RawBuffer.h"
 #include <glm/glm.hpp>

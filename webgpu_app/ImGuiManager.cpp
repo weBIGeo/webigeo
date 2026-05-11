@@ -87,7 +87,7 @@ void ImGuiManager::init(
     m_panels.push_back(std::make_unique<TimingPanel>(m_terrain_renderer));
     m_panels.push_back(std::make_unique<CameraPanel>(m_terrain_renderer));
     m_panels.push_back(std::make_unique<AppPanel>(m_terrain_renderer));
-    m_panels.push_back(std::make_unique<CloudPanel>(rc->clouds_manager(), engine_ctx->cloud_geometry()));
+    m_panels.push_back(std::make_unique<CloudPanel>(rc->clouds_manager(), engine_ctx->cloud_renderer()));
     m_panels.push_back(std::make_unique<IlluminationPanel>(engine_ctx));
     m_panels.push_back(std::make_unique<EnginePanel>(m_terrain_renderer));
 #endif

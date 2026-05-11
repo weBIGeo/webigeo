@@ -22,8 +22,8 @@
 
 #include <memory>
 
-#include "Buffer.h"
-#include "PipelineManager.h"
+#include "../Buffer.h"
+#include "../PipelineManager.h"
 #include "webgpu_engine/compute/GpuTileId.h"
 #include <QObject>
 #include <nucleus/tile/GpuArrayHelper.h>
@@ -39,10 +39,10 @@ class Definition;
 
 namespace webgpu_engine {
 
-class TileGeometry : public QObject {
+class TileMeshRenderer : public QObject {
     Q_OBJECT
 public:
-    explicit TileGeometry(uint32_t height_resolution, uint32_t ortho_resolution);
+    explicit TileMeshRenderer(uint32_t height_resolution, uint32_t ortho_resolution);
 
     void init(WGPUDevice device);
 

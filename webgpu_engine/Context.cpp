@@ -39,14 +39,18 @@ void Context::internal_initialise()
     m_pipeline_manager = std::make_unique<PipelineManager>(m_webgpu_device, *m_shader_module_manager);
     m_pipeline_manager->create_pipelines();
 
-    // init of shader registry and track manager should be moved out of here for more flexibility, similar to tile_geometry
-    if (m_tile_geometry) {
-        m_tile_geometry->set_pipeline_manager(*m_pipeline_manager);
-        m_tile_geometry->init(m_webgpu_device);
+    // init of shader registry and track manager should be moved out of here for more flexibility, similar to tile_mesh_renderer
+    if (m_tile_mesh_renderer) {
+        m_tile_mesh_renderer->set_pipeline_manager(*m_pipeline_manager);
+        m_tile_mesh_renderer->init(m_webgpu_device);
     }
-    if (m_cloud_geometry) {
-        m_cloud_geometry->set_pipeline_manager(*m_pipeline_manager);
-        m_cloud_geometry->init(m_webgpu_device);
+    if (m_cloud_renderer) {
+        m_cloud_renderer->set_pipeline_manager(*m_pipeline_manager);
+        m_cloud_renderer->init(m_webgpu_device);
+    }
+    if (m_atmosphere_renderer) {
+        m_atmosphere_renderer->set_pipeline_manager(*m_pipeline_manager);
+        m_atmosphere_renderer->init(m_webgpu_device);
     }
 
     // if (m_ortho_layer)
@@ -57,23 +61,31 @@ void Context::internal_destroy()
 {
     // this is necessary for a clean shutdown (and we want a clean shutdown for the ci integration test).
     // m_ortho_layer.reset();
-    m_tile_geometry.reset();
+    m_tile_mesh_renderer.reset();
 }
 
-TileGeometry* Context::tile_geometry() const { return m_tile_geometry.get(); }
+TileMeshRenderer* Context::tile_mesh_renderer() const { return m_tile_mesh_renderer.get(); }
 
-void Context::set_tile_geometry(std::shared_ptr<TileGeometry> new_tile_geometry)
+void Context::set_tile_mesh_renderer(std::shared_ptr<TileMeshRenderer> new_tile_mesh_renderer)
 {
     assert(!is_alive()); // only set before init is called.
-    m_tile_geometry = std::move(new_tile_geometry);
+    m_tile_mesh_renderer = std::move(new_tile_mesh_renderer);
 }
 
-CloudRenderer* Context::cloud_geometry() const { return m_cloud_geometry.get(); }
+CloudRenderer* Context::cloud_renderer() const { return m_cloud_renderer.get(); }
 
-void Context::set_cloud_geometry(std::shared_ptr<CloudRenderer> new_cloud_geometry)
+void Context::set_cloud_renderer(std::shared_ptr<CloudRenderer> new_cloud_renderer)
 {
     assert(!is_alive()); // only set before init is called.
-    m_cloud_geometry = std::move(new_cloud_geometry);
+    m_cloud_renderer = std::move(new_cloud_renderer);
+}
+
+AtmosphereRenderer* Context::atmosphere_renderer() const { return m_atmosphere_renderer.get(); }
+
+void Context::set_atmosphere_renderer(std::shared_ptr<AtmosphereRenderer> new_atmosphere_renderer)
+{
+    assert(!is_alive()); // only set before init is called.
+    m_atmosphere_renderer = std::move(new_atmosphere_renderer);
 }
 
 WGPUInstance Context::webgpu_instance() const { return m_webgpu_instance; }

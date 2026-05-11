@@ -85,6 +85,10 @@ void Window::initialise_gpu()
 
     m_track_renderer = std::make_unique<TrackRenderer>(m_device, *m_context->pipeline_manager());
 
+    m_atmosphere_renderer = std::make_unique<AtmosphereRenderer>();
+    m_atmosphere_renderer->set_pipeline_manager(*m_context->pipeline_manager());
+    m_atmosphere_renderer->init(m_device);
+
     m_image_overlay_settings_uniform_buffer = std::make_unique<Buffer<ImageOverlaySettings>>(m_device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
     m_image_overlay_settings_uniform_buffer->data.aabb_min = glm::fvec2(0);
     m_image_overlay_settings_uniform_buffer->data.aabb_max = glm::fvec2(0);
@@ -176,9 +180,7 @@ void Window::resize_framebuffer(int w, int h)
     m_gbuffer_format.size = glm::uvec2 { w, h };
     m_gbuffer = std::make_unique<webgpu::Framebuffer>(m_device, m_gbuffer_format);
 
-    webgpu::FramebufferFormat atmosphere_framebuffer_format(m_context->pipeline_manager()->render_atmosphere_pipeline().framebuffer_format());
-    atmosphere_framebuffer_format.size = glm::uvec2(1, h);
-    m_atmosphere_framebuffer = std::make_unique<webgpu::Framebuffer>(m_device, atmosphere_framebuffer_format);
+    m_atmosphere_renderer->resize(w, h);
 
     m_depth_texture_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device,
         m_context->pipeline_manager()->depth_texture_bind_group_layout(),
@@ -186,7 +188,7 @@ void Window::resize_framebuffer(int w, int h)
             m_gbuffer->depth_texture_view().create_bind_group_entry(0), // depth
         });
 
-    m_context->cloud_geometry()->resize(w, h);
+    m_context->cloud_renderer()->resize(w, h);
 
     // Do late
     recreate_compose_bind_group();
@@ -207,12 +209,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
     m_shared_config_ubo->update_gpu_data(m_queue);
 
     // render atmosphere to color buffer
-    {
-        std::unique_ptr<webgpu::raii::RenderPassEncoder> render_pass = m_atmosphere_framebuffer->begin_render_pass(command_encoder);
-        wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 0, m_camera_bind_group->handle(), 0, nullptr);
-        wgpuRenderPassEncoderSetPipeline(render_pass->handle(), m_context->pipeline_manager()->render_atmosphere_pipeline().pipeline().handle());
-        wgpuRenderPassEncoderDraw(render_pass->handle(), 3, 1, 0, 0);
-    }
+    m_atmosphere_renderer->draw(command_encoder, m_camera_bind_group->handle());
 
     // render tiles to geometry buffers
     {
@@ -225,14 +222,14 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
             drawing::limit(drawing::generate_list(m_camera, m_context->aabb_decorator(), m_max_zoom_level), 1024), m_context->aabb_decorator());
         const auto culled_draw_list = drawing::sort(drawing::cull(draw_list, m_camera), m_camera.position());
 
-        m_context->tile_geometry()->draw(render_pass->handle(), m_camera, culled_draw_list);
+        m_context->tile_mesh_renderer()->draw(render_pass->handle(), m_camera, culled_draw_list);
     }
 
     // render clouds
     if (m_context->shared_config().m_clouds_enabled) {
-        m_context->cloud_geometry()->draw(
+        m_context->cloud_renderer()->draw(
             command_encoder, m_depth_texture_bind_group->handle(), m_shared_config_bind_group->handle(), m_camera, m_paint_number);
-        m_needs_redraw |= m_context->cloud_geometry()->needs_redraw(); // Repaint for TAAU
+        m_needs_redraw |= m_context->cloud_renderer()->needs_redraw(); // Repaint for TAAU
     }
 
     // render geometry buffers to target framebuffer
@@ -1035,7 +1032,7 @@ void Window::recreate_compose_bind_group()
                 m_gbuffer->color_texture_view(0).create_bind_group_entry(0), // albedo texture
                 m_gbuffer->color_texture_view(1).create_bind_group_entry(1), // position texture
                 m_gbuffer->color_texture_view(2).create_bind_group_entry(2), // normal texture
-                m_atmosphere_framebuffer->color_texture_view(0).create_bind_group_entry(3), // atmosphere texture
+                m_atmosphere_renderer->result_view()->create_bind_group_entry(3), // atmosphere texture
                 m_gbuffer->color_texture_view(3).create_bind_group_entry(4), // overlay texture
                 m_image_overlay_settings_uniform_buffer->raw_buffer().create_bind_group_entry(5), // image overlay aabb
                 m_image_overlay_texture->texture_view().create_bind_group_entry(6), // image overlay texture (in uv space)
@@ -1043,8 +1040,8 @@ void Window::recreate_compose_bind_group()
                 m_compute_overlay_settings_uniform_buffer->raw_buffer().create_bind_group_entry(8), // compute overlay aabb
                 compute_overlay_texture_entry, // compute overlay texture (in uv space)
                 compute_overlay_sampler_entry, // compute overlay sampler
-                m_context->cloud_geometry()->result_color_view(i)->create_bind_group_entry(11),
-                m_context->cloud_geometry()->result_depth_view()->create_bind_group_entry(12),
+                m_context->cloud_renderer()->result_color_view(i)->create_bind_group_entry(11),
+                m_context->cloud_renderer()->result_depth_view()->create_bind_group_entry(12),
                 m_shadow_texture->texture_view().create_bind_group_entry(13),
                 m_shadow_texture->sampler().create_bind_group_entry(14),
                 m_gbuffer->depth_texture_view().create_bind_group_entry(15),

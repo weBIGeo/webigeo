@@ -20,7 +20,7 @@
 
 #include "PipelineManager.h"
 
-#include "CloudRenderer.h"
+#include "renderer/CloudRenderer.h"
 #include "nucleus/srs.h"
 
 #include <webgpu/raii/BindGroupLayout.h>
