@@ -520,7 +520,7 @@ void Window::paint_compute_pipeline_gui()
 
         const uint32_t min_zoomlevel = 1;
         const uint32_t max_zoomlevel = 18;
-        ImGui::SliderScalar("Zoom level", ImGuiDataType_U32, &m_compute_pipeline_settings.zoomlevel, &min_zoomlevel, &max_zoomlevel, "%u");
+        ImGui::SliderScalar("Zoom level", ImGuiDataType_U32, &m_compute_zoomlevel, &min_zoomlevel, &max_zoomlevel, "%u");
         if (ImGui::IsItemDeactivatedAfterEdit()) {
             update_settings_and_rerun_pipeline();
         }
@@ -651,18 +651,10 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, 
 
 void Window::update_compute_pipeline_settings()
 {
-    if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS || m_active_compute_pipeline_type == ComputePipelineType::RELEASE_POINTS) {
+    // TODO: this function should go
+    if (m_compute_graph->exists_node("select_tiles_node")) {
         m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
-            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.zoomlevel);
-    } else if (m_active_compute_pipeline_type == ComputePipelineType::SNOW) {
-        m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
-            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.zoomlevel);
-    } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
-        m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
-            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.zoomlevel);
-    } else if (m_active_compute_pipeline_type == ComputePipelineType::ITERATIVE_SIMULATION) {
-        m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node")
-            .select_tiles_in_world_aabb(m_compute_pipeline_settings.target_region, m_compute_pipeline_settings.zoomlevel);
+            .select_tiles_in_world_aabb(m_selected_region, m_compute_zoomlevel);
     }
 }
 
@@ -839,9 +831,8 @@ void Window::focus_region_3d(const radix::geometry::Aabb3d& aabb)
     nucleus::camera::Definition new_camera_definition = { aabb.centre() + glm::dvec3 { 0, 0, std::max(aabb_size.x, aabb_size.y) }, aabb.centre() };
     new_camera_definition.set_viewport_size(m_camera.viewport_size());
 
-    // update pipeline settings
     m_is_region_selected = true;
-    m_compute_pipeline_settings.target_region = aabb;
+    m_selected_region = aabb;
     update_compute_pipeline_settings();
 
     emit set_camera_definition_requested(new_camera_definition);

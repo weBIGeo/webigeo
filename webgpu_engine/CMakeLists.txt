@@ -28,7 +28,6 @@ project(alpine-renderer-webgpu_engine LANGUAGES C CXX)
 set(SOURCES
     Window.h Window.cpp
     gpu_utils.h gpu_utils.cpp
-    PipelineSettings.h PipelineSettings.cpp
     ShaderModuleManager.h ShaderModuleManager.cpp
     PipelineManager.h PipelineManager.cpp
     UniformBufferObjects.h UniformBufferObjects.cpp

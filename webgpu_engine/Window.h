@@ -21,7 +21,6 @@
 
 #include "Context.h"
 #include "PipelineManager.h"
-#include "PipelineSettings.h"
 #include "ShaderModuleManager.h"
 #include "renderer/AtmosphereRenderer.h"
 #include "renderer/TrackRenderer.h"
@@ -121,7 +120,6 @@ private:
     glm::vec4 synchronous_position_readback(const glm::dvec2& normalised_device_coordinates);
 
     void select_last_loaded_track_region();
-    void refresh_compute_pipeline_settings(const radix::geometry::Aabb3d& world_aabb, const nucleus::track::Point& focused_track_point_coords);
     void create_and_set_compute_pipeline(ComputePipelineType pipeline_type, bool should_recreate_compose_bind_group = true);
     void update_compute_pipeline_settings();
     void update_settings_and_rerun_pipeline(const std::string& entry_node = "");
@@ -180,7 +178,10 @@ private:
 
     std::unique_ptr<compute::nodes::NodeGraph> m_compute_graph;
     ComputePipelineType m_active_compute_pipeline_type;
-    ComputePipelineSettings m_compute_pipeline_settings;
+    // TODO: these should move into a dedicated gpxTrackNode, or TrackRenderer
+    //       should expose a Node that is responsible for filling the region/tiles.
+    radix::geometry::Aabb3d m_selected_region;
+    uint32_t m_compute_zoomlevel = 15;
     bool m_is_region_selected = false;
     GuiErrorState m_gui_error_state;
 
