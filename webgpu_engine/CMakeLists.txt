@@ -58,7 +58,6 @@ set(SOURCES
     compute/nodes/HeightDecodeNode.h compute/nodes/HeightDecodeNode.cpp
     compute/nodes/IterativeSimulationNode.h compute/nodes/IterativeSimulationNode.cpp
     compute/nodes/LoadTextureNode.h compute/nodes/LoadTextureNode.cpp
-    compute/nodes/LoadRegionAabbNode.h compute/nodes/LoadRegionAabbNode.cpp
     compute/nodes/util.h compute/nodes/util.cpp
 )
 

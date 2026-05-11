@@ -20,8 +20,8 @@
  *****************************************************************************/
 
 #include "Window.h"
-#include "compute/nodes/LoadRegionAabbNode.h"
 #include "compute/nodes/SelectTilesNode.h"
+#include "renderer/OverlayRenderer.h"
 #include "gpu_utils.h"
 #include "nucleus/tile/drawing.h"
 #include "nucleus/track/GPX.h"
@@ -901,7 +901,7 @@ bool Window::update_image_overlay_aabb(const radix::geometry::Aabb<2, double>& a
 void Window::update_image_overlay_aabb_and_focus(const std::string& aabb_file_path)
 {
     // TODO: OverlayRenderer should be in charge of overlay related code
-    const auto aabb = compute::nodes::LoadRegionAabbNode::load_aabb_from_file(aabb_file_path).value();
+    const auto aabb = OverlayRenderer::load_aabb_from_file(aabb_file_path).value();
 
     bool update_successful = update_image_overlay_aabb(aabb);
     if (!update_successful) {

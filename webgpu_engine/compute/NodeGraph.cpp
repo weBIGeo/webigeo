@@ -29,7 +29,6 @@
 #include "nodes/ComputeSnowNode.h"
 #include "nodes/ExportNode.h"
 #include "nodes/IterativeSimulationNode.h"
-#include "nodes/LoadRegionAabbNode.h"
 #include "nodes/LoadTextureNode.h"
 #include "nodes/RequestTilesNode.h"
 #include "nodes/SelectTilesNode.h"
