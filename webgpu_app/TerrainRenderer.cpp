@@ -78,7 +78,11 @@ void TerrainRenderer::init_window() {
         SDL_WINDOWPOS_CENTERED, // Window position y
         m_viewport_size.x, // Window width
         m_viewport_size.y, // Window height
-        SDL_WINDOW_RESIZABLE); // SDL_WINDOW_VULKAN
+#ifdef __EMSCRIPTEN__
+        SDL_WINDOW_RESIZABLE);
+#else
+        SDL_WINDOW_RESIZABLE | SDL_WINDOW_MAXIMIZED);
+#endif
 
     if (!m_sdl_window) {
         SDL_Quit();
