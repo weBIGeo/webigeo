@@ -1,6 +1,5 @@
 /*****************************************************************************
  * weBIGeo
- * Copyright (C) 2026 Gerald Kimmersdorfer
  * Copyright (C) 2026 Patrick Komon
  *
  * This program is free software: you can redistribute it and/or modify
@@ -17,25 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#pragma once
-
-#include <QObject>
+#include "SearchService.h"
 
 namespace webgpu_app {
 
-class ImGuiPanel : public QObject {
-    Q_OBJECT
-public:
-    virtual ~ImGuiPanel() = default;
-
-    // Called once on the first rendered frame
-    virtual void on_first_frame() {}
-
-    // Called outside the main sidebar window
-    virtual void draw() {}
-
-    // Called inside the main sidebar ImGui::Begin/End block
-    virtual void draw_panel() {}
-};
-
-} // namespace webgpu_app
+}
