@@ -58,6 +58,7 @@ void SearchPanel::draw_open_search_button()
 
     if (ImGui::Button(ICON_FA_SEARCH "###ToggleSearchWindow", ImVec2(48, 48))) {
         m_show_search_window = !m_show_search_window;
+        m_set_focus_on_text = m_show_search_window;
     }
 
     ImGui::PopStyleColor(3);
@@ -70,7 +71,7 @@ void SearchPanel::draw_search()
     const int line_height = 24;
     const int window_height = (m_search_results.size() + 1) * line_height + 2 * ImGui::GetStyle().WindowPadding.y;
     const int search_button_width = 60;
-    const int search_text_width = 300;
+    const int search_text_width = 340;
     const int window_width = search_text_width + search_button_width + 2 * ImGui::GetStyle().WindowPadding.x + ImGui::GetStyle().ItemSpacing.x;
 
     ImVec2 window_pos(ImGui::GetIO().DisplaySize.x / 2 - window_width / 2, line_height);
@@ -84,17 +85,24 @@ void SearchPanel::draw_search()
     ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f));
 
     ImGui::PushItemWidth(search_text_width);
-    std::string search_text;
-    search_text.resize(30);
-    if (ImGui::InputText("##search_input", search_text.data(), search_text.capacity(), ImGuiInputTextFlags_EnterReturnsTrue)) {
-        qInfo() << "search requested" << search_text;
-        emit search_requested(search_text);
+
+    static std::array<char, 128> buffer {};
+
+    if (m_set_focus_on_text) {
+        m_set_focus_on_text = false;
+        ImGui::SetKeyboardFocusHere();
     }
+    if (ImGui::InputText("##search_input", buffer.data(), buffer.size(), ImGuiInputTextFlags_EnterReturnsTrue)) {
+        qInfo() << "search requested" << buffer.data();
+        emit search_requested(std::string(buffer.data()));
+        m_set_focus_on_text = true;
+    }
+
     ImGui::PopItemWidth();
     ImGui::SameLine();
     if (ImGui::Button("Search", ImVec2(search_button_width, 0))) {
-        qInfo() << "search requested" << search_text;
-        emit search_requested(search_text);
+        qInfo() << "search requested" << buffer.data();
+        emit search_requested(std::string(buffer.data()));
     }
 
     if (!m_search_results.empty()) {
@@ -108,16 +116,14 @@ void SearchPanel::draw_search()
                 ImGuiSelectableFlags flags = (item_highlighted_idx == i) ? ImGuiSelectableFlags_Highlight : 0;
                 if (ImGui::Selectable(m_search_results.at(i).name.c_str(), is_selected, flags)) {
                     item_selected_idx = i;
-                    qInfo() << "result selected " << m_search_results.at(i).name;
+                    qInfo() << "result selected" << m_search_results.at(i).name;
                     emit search_result_selected(m_search_results.at(i).latitude, m_search_results.at(i).longitude);
+                    m_show_search_window = false;
                 }
 
                 if (ImGui::IsItemHovered()) {
                     item_highlighted_idx = i;
                 }
-
-                if (is_selected)
-                    ImGui::SetItemDefaultFocus();
             }
             ImGui::EndListBox();
         }

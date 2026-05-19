@@ -48,6 +48,7 @@ private:
     TerrainRenderer* m_terrain_renderer;
     std::vector<SearchResult> m_search_results;
     bool m_show_search_window = false;
+    bool m_set_focus_on_text = false;
 };
 
 } // namespace webgpu_app

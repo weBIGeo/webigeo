@@ -22,7 +22,6 @@
 #include <QJsonObject>
 #include <QUrl>
 #include <QUrlQuery>
-#include <iostream>
 
 namespace webgpu_app {
 
@@ -52,7 +51,6 @@ void SearchService::search(const std::string& search_term)
 
 void SearchService::http_reply_received(QNetworkReply* reply)
 {
-    std::cout << "received reply" << std::endl;
     reply->deleteLater();
 
     if (reply->error() != QNetworkReply::NoError) {
