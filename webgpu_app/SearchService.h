@@ -50,6 +50,7 @@ private slots:
 
 private:
     std::unique_ptr<QNetworkAccessManager> m_network_manager;
+    size_t m_limit = 15;
 };
 
 } // namespace webgpu_app

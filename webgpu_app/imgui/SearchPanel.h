@@ -35,10 +35,10 @@ public:
 
     void draw() override;
     void draw_open_search_button();
-    void draw_search();
+    void draw_search_popup();
 
 public slots:
-    void display_search_results(const std::vector<SearchResult>& search_results);
+    void display_search_results(const std::vector<webgpu_app::SearchResult>& search_results);
 
 signals:
     void search_requested(const std::string& searchText);
@@ -47,7 +47,7 @@ signals:
 private:
     TerrainRenderer* m_terrain_renderer;
     std::vector<SearchResult> m_search_results;
-    bool m_show_search_window = false;
+    bool m_open_search_window = false;
     bool m_set_focus_on_text = false;
 };
 

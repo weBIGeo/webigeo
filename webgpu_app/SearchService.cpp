@@ -33,13 +33,12 @@ SearchService::SearchService()
 
 void SearchService::search(const std::string& search_term)
 {
-    const int limit = 5;
     const std::string format = "geojson";
 
     auto url = QUrl("https://nominatim.openstreetmap.org/search");
     const auto url_query = QUrlQuery({
         { "q", QString::fromStdString(search_term) },
-        { "limit", QString::number(limit) },
+        { "limit", QString::number(m_limit) },
         { "format", QString::fromStdString(format) },
     });
     url.setQuery(url_query);

@@ -34,10 +34,7 @@ SearchPanel::SearchPanel(TerrainRenderer* renderer)
 void SearchPanel::draw()
 {
     draw_open_search_button();
-
-    if (m_show_search_window) {
-        draw_search();
-    }
+    draw_search_popup();
 }
 
 void SearchPanel::draw_open_search_button()
@@ -52,13 +49,13 @@ void SearchPanel::draw_open_search_button()
     ImGui::Begin("ToggleSearchWindow", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
 
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // fully transparent
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.0f, 0.0f, 0.0f, 0.2f)); // black with alpha 0.2
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.0f, 0.0f, 0.0f, 0.2f)); // same for active
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.0f, 0.0f, 0.0f, 0.2f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.0f, 0.0f, 0.0f, 0.2f));
 
     if (ImGui::Button(ICON_FA_SEARCH "###ToggleSearchWindow", ImVec2(48, 48))) {
-        m_show_search_window = !m_show_search_window;
-        m_set_focus_on_text = m_show_search_window;
+        m_open_search_window = !m_open_search_window;
+        m_set_focus_on_text = m_open_search_window;
     }
 
     ImGui::PopStyleColor(3);
@@ -66,10 +63,17 @@ void SearchPanel::draw_open_search_button()
     ImGui::PopStyleVar();
 }
 
-void SearchPanel::draw_search()
+void SearchPanel::draw_search_popup()
 {
-    const int line_height = 24;
-    const int window_height = (m_search_results.size() + 1) * line_height + 2 * ImGui::GetStyle().WindowPadding.y;
+    if (m_open_search_window) {
+        m_open_search_window = false;
+        ImGui::OpenPopup("search_panel");
+    }
+
+    const size_t max_num_search_results_at_once = 10; // if more search result, adds scroll bar
+    const int line_height = ImGui::GetTextLineHeightWithSpacing();
+    const int window_height = ImGui::GetTextLineHeightWithSpacing() + 2 * ImGui::GetStyle().WindowPadding.y + 2 * 3
+        + std::min(m_search_results.size(), max_num_search_results_at_once) * ImGui::GetTextLineHeightWithSpacing() + (m_search_results.empty() ? 0 : 12);
     const int search_button_width = 60;
     const int search_text_width = 340;
     const int window_width = search_text_width + search_button_width + 2 * ImGui::GetStyle().WindowPadding.x + ImGui::GetStyle().ItemSpacing.x;
@@ -78,59 +82,58 @@ void SearchPanel::draw_search()
     ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(window_width, window_height));
 
-    ImGui::Begin("SearchWindow", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove);
-    ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
+    if (ImGui::BeginPopup("search_panel", ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse)) {
+        ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f));
+        ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f));
+        ImGui::PushItemWidth(search_text_width);
 
-    ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f));
-    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f));
+        static std::array<char, 128> buffer {};
 
-    ImGui::PushItemWidth(search_text_width);
-
-    static std::array<char, 128> buffer {};
-
-    if (m_set_focus_on_text) {
-        m_set_focus_on_text = false;
-        ImGui::SetKeyboardFocusHere();
-    }
-    if (ImGui::InputText("##search_input", buffer.data(), buffer.size(), ImGuiInputTextFlags_EnterReturnsTrue)) {
-        qInfo() << "search requested" << buffer.data();
-        emit search_requested(std::string(buffer.data()));
-        m_set_focus_on_text = true;
-    }
-
-    ImGui::PopItemWidth();
-    ImGui::SameLine();
-    if (ImGui::Button("Search", ImVec2(search_button_width, 0))) {
-        qInfo() << "search requested" << buffer.data();
-        emit search_requested(std::string(buffer.data()));
-    }
-
-    if (!m_search_results.empty()) {
-        int item_selected_idx = -1;
-        int item_highlighted_idx = -1;
-
-        if (ImGui::BeginListBox("##search_results",
-                ImVec2(-FLT_MIN, float(m_search_results.size()) * ImGui::GetTextLineHeightWithSpacing() + 2 * ImGui::GetStyle().ItemInnerSpacing.y))) {
-            for (int i = 0; i < int(m_search_results.size()); i++) {
-                bool is_selected = (item_selected_idx == i);
-                ImGuiSelectableFlags flags = (item_highlighted_idx == i) ? ImGuiSelectableFlags_Highlight : 0;
-                if (ImGui::Selectable(m_search_results.at(i).name.c_str(), is_selected, flags)) {
-                    item_selected_idx = i;
-                    qInfo() << "result selected" << m_search_results.at(i).name;
-                    emit search_result_selected(m_search_results.at(i).latitude, m_search_results.at(i).longitude);
-                    m_show_search_window = false;
-                }
-
-                if (ImGui::IsItemHovered()) {
-                    item_highlighted_idx = i;
-                }
-            }
-            ImGui::EndListBox();
+        if (m_set_focus_on_text) {
+            m_set_focus_on_text = false;
+            ImGui::SetKeyboardFocusHere();
         }
-    }
+        if (ImGui::InputText("##search_input", buffer.data(), buffer.size(), ImGuiInputTextFlags_EnterReturnsTrue)) {
+            qInfo() << "search requested" << buffer.data();
+            emit search_requested(std::string(buffer.data()));
+            m_set_focus_on_text = true;
+        }
 
-    ImGui::PopStyleColor(2);
-    ImGui::End();
+        ImGui::PopItemWidth();
+        ImGui::SameLine();
+        if (ImGui::Button("Search", ImVec2(search_button_width, 0))) {
+            qInfo() << "search requested" << buffer.data();
+            emit search_requested(std::string(buffer.data()));
+        }
+
+        if (!m_search_results.empty()) {
+            int item_selected_idx = -1;
+            int item_highlighted_idx = -1;
+
+            if (ImGui::BeginListBox("##search_results",
+                    ImVec2(-FLT_MIN,
+                        std::min(m_search_results.size(), max_num_search_results_at_once) * ImGui::GetTextLineHeightWithSpacing()
+                            + 2 * ImGui::GetStyle().ItemInnerSpacing.y))) {
+                for (int i = 0; i < int(m_search_results.size()); i++) {
+                    bool is_selected = (item_selected_idx == i);
+                    ImGuiSelectableFlags flags = (item_highlighted_idx == i) ? ImGuiSelectableFlags_Highlight : 0;
+                    if (ImGui::Selectable(m_search_results.at(i).name.c_str(), is_selected, flags)) {
+                        item_selected_idx = i;
+                        qInfo() << "result selected" << m_search_results.at(i).name;
+                        emit search_result_selected(m_search_results.at(i).latitude, m_search_results.at(i).longitude);
+                        ImGui::CloseCurrentPopup();
+                    }
+
+                    if (ImGui::IsItemHovered()) {
+                        item_highlighted_idx = i;
+                    }
+                }
+                ImGui::EndListBox();
+            }
+        }
+        ImGui::PopStyleColor(2);
+        ImGui::EndPopup();
+    }
 }
 
 void SearchPanel::display_search_results(const std::vector<SearchResult>& search_results) { m_search_results = search_results; }
