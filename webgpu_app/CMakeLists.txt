@@ -48,7 +48,6 @@ if (ALP_WEBGPU_APP_ENABLE_IMGUI)
         imgui/CompassPanel.h imgui/CompassPanel.cpp
         imgui/LogoPanel.h imgui/LogoPanel.cpp
         imgui/SearchPanel.h imgui/SearchPanel.cpp
-        SearchController.h SearchController.cpp
         SearchService.h SearchService.cpp
     )
 endif()

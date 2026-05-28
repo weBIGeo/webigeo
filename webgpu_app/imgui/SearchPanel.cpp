@@ -121,7 +121,11 @@ void SearchPanel::draw_search_popup()
                         item_selected_idx = i;
                         qInfo() << "result selected" << m_search_results.at(i).name;
                         emit search_result_selected(m_search_results.at(i).latitude, m_search_results.at(i).longitude);
+
+                        // clear text and search results
                         ImGui::CloseCurrentPopup();
+                        buffer.fill('\0');
+                        m_search_results.clear();
                     }
 
                     if (ImGui::IsItemHovered()) {

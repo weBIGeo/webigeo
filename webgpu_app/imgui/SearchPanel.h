@@ -34,8 +34,6 @@ public:
     explicit SearchPanel(TerrainRenderer* renderer);
 
     void draw() override;
-    void draw_open_search_button();
-    void draw_search_popup();
 
 public slots:
     void display_search_results(const std::vector<webgpu_app::SearchResult>& search_results);
@@ -43,6 +41,10 @@ public slots:
 signals:
     void search_requested(const std::string& searchText);
     void search_result_selected(double latitude, double longitude);
+
+private:
+    void draw_open_search_button();
+    void draw_search_popup();
 
 private:
     TerrainRenderer* m_terrain_renderer;
