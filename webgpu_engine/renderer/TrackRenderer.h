@@ -19,11 +19,13 @@
 #pragma once
 
 #include "../Buffer.h"
-#include "../PipelineManager.h"
 #include "webgpu/raii/BindGroup.h"
 #include "webgpu/raii/RawBuffer.h"
 #include <glm/glm.hpp>
+#include <memory>
 #include <vector>
+#include <webgpu/Context.h>
+#include <webgpu/raii/Pipeline.h>
 
 namespace webgpu_engine {
 
@@ -37,7 +39,7 @@ public:
     };
 
 public:
-    TrackRenderer(WGPUDevice device, const PipelineManager& pipeline_manager);
+    explicit TrackRenderer(webgpu::Context& ctx);
 
     void add_track(const Track& track, const glm::vec4& color = { 78.0 / 255.0f, 163.0 / 255.0f, 196.0 / 255.0f, 1.0f });
     void add_world_positions(const std::vector<glm::vec4>& world_positions, const glm::vec4& color = { 1.0f, 0.0f, 0.0f, 1.0f });
@@ -46,9 +48,9 @@ public:
         const webgpu::raii::BindGroup& depth_texture, const webgpu::raii::TextureView& color_texture);
 
 private:
-    WGPUDevice m_device;
-    WGPUQueue m_queue;
-    const PipelineManager* m_pipeline_manager;
+    webgpu::Context* m_ctx;
+
+    std::unique_ptr<webgpu::raii::RenderPipeline> m_pipeline;
 
     std::vector<std::unique_ptr<webgpu::raii::RawBuffer<glm::fvec4>>> m_position_buffers;
     std::vector<std::unique_ptr<webgpu_engine::Buffer<TrackRenderer::LineConfig>>> m_line_config_buffers;

@@ -104,12 +104,12 @@ static void write_aabb_file(const std::string& file_path, const radix::geometry:
     }
 }
 
-ExportNode::ExportNode(WGPUDevice device)
-    : ExportNode(device, ExportSettings{})
+ExportNode::ExportNode(webgpu::Context& ctx)
+    : ExportNode(ctx, ExportSettings{})
 {
 }
 
-ExportNode::ExportNode(WGPUDevice device, const ExportSettings& settings)
+ExportNode::ExportNode(webgpu::Context& ctx, const ExportSettings& settings)
     : Node(
           {
               InputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>()),
@@ -118,7 +118,7 @@ ExportNode::ExportNode(WGPUDevice device, const ExportSettings& settings)
               InputSocket(*this, "region aabb", data_type<const radix::geometry::Aabb<2, double>*>()),
           },
           {})
-    , m_device(device)
+    , m_ctx(&ctx)
     , m_settings(settings)
 {
 }
@@ -148,7 +148,7 @@ void ExportNode::run_impl()
         const glm::uvec2 dims { texture.texture().width(), texture.texture().height() };
         const std::string path = resolve_placeholders(m_settings.texture_output_file, node_name, run_id, run_datetime);
         (*pending)++;
-        texture.texture().read_back_async(m_device, 0, [path, dims, on_done]([[maybe_unused]] size_t, std::shared_ptr<QByteArray> data) {
+        texture.texture().read_back_async(m_ctx->device(), 0, [path, dims, on_done]([[maybe_unused]] size_t, std::shared_ptr<QByteArray> data) {
             write_texture_file(*data, dims, path);
             on_done();
         });
@@ -167,7 +167,7 @@ void ExportNode::run_impl()
             } else {
                 const std::string path = resolve_placeholders(m_settings.buffer_output_file, node_name, run_id, run_datetime);
                 (*pending)++;
-                buffer.read_back_async(m_device, [path, dims, on_done](WGPUMapAsyncStatus status, std::vector<uint32_t> data) {
+                buffer.read_back_async(m_ctx->device(), [path, dims, on_done](WGPUMapAsyncStatus status, std::vector<uint32_t> data) {
                     if (status == WGPUMapAsyncStatus_Success)
                         write_buffer_file(data, dims, path);
                     else

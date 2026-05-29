@@ -19,9 +19,9 @@
 #pragma once
 
 #include "Node.h"
-#include "PipelineManager.h"
-
 #include <Buffer.h>
+#include <webgpu/Context.h>
+#include <webgpu/raii/CombinedComputePipeline.h>
 
 namespace webgpu_engine::compute::nodes {
 
@@ -50,8 +50,8 @@ public:
 public:
     static glm::uvec3 SHADER_WORKGROUP_SIZE; // TODO currently hardcoded in shader! can we somehow not hardcode it? maybe using overrides
 
-    ComputeReleasePointsNode(const PipelineManager& pipeline_manager, WGPUDevice device);
-    ComputeReleasePointsNode(const PipelineManager& pipeline_manager, WGPUDevice device, const ReleasePointsSettings& settings);
+    ComputeReleasePointsNode(webgpu::Context& ctx);
+    ComputeReleasePointsNode(webgpu::Context& ctx, const ReleasePointsSettings& settings);
 
     void set_settings(const ReleasePointsSettings& settings) { m_settings = settings; }
     const ReleasePointsSettings& get_settings() const { return m_settings; }
@@ -64,13 +64,12 @@ private:
         WGPUDevice device, uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage);
 
 private:
-    const PipelineManager* m_pipeline_manager;
-    WGPUDevice m_device;
-    WGPUQueue m_queue;
+    webgpu::Context* m_ctx;
 
     ReleasePointsSettings m_settings;
     webgpu_engine::Buffer<ReleasePointsSettingsUniform> m_settings_uniform;
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_output_texture;
+    std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_pipeline;
 };
 
 } // namespace webgpu_engine::compute::nodes

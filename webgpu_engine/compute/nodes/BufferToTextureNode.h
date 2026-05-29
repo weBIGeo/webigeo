@@ -21,7 +21,8 @@
 
 #include "Node.h"
 #include "webgpu_engine/Buffer.h"
-#include "webgpu_engine/PipelineManager.h"
+#include <webgpu/Context.h>
+#include <webgpu/raii/CombinedComputePipeline.h>
 
 namespace webgpu_engine::compute::nodes {
 
@@ -73,8 +74,8 @@ public:
 
     BufferToTextureSettings& settings() { return m_settings; }
 
-    BufferToTextureNode(const PipelineManager& pipeline_manager, WGPUDevice device);
-    BufferToTextureNode(const PipelineManager& pipeline_manager, WGPUDevice device, const BufferToTextureSettings& settings);
+    BufferToTextureNode(webgpu::Context& ctx);
+    BufferToTextureNode(webgpu::Context& ctx, const BufferToTextureSettings& settings);
 
 public slots:
     void run_impl() override;
@@ -85,12 +86,11 @@ private:
     std::unique_ptr<webgpu::raii::TextureWithSampler> create_texture(WGPUDevice device, uint32_t width, uint32_t height, BufferToTextureSettings& settings);
 
 private:
-    const PipelineManager* m_pipeline_manager;
-    WGPUDevice m_device;
-    WGPUQueue m_queue;
+    webgpu::Context* m_ctx;
 
     BufferToTextureSettings m_settings;
     webgpu_engine::Buffer<BufferToTextureSettingsUniform> m_settings_uniform;
+    std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_pipeline;
 
     // output
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_output_texture; // texture per tile

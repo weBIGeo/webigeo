@@ -23,6 +23,9 @@
 #include "nucleus/camera/Definition.h"
 #include "nucleus/utils/terrain_mesh_index_generator.h"
 #include <QDebug>
+#include <webgpu/RenderResourceRegistry.h>
+#include <webgpu/raii/BindGroupLayout.h>
+#include <webgpu/util/VertexBufferInfo.h>
 
 using webgpu_engine::TileMeshRenderer;
 
@@ -39,10 +42,9 @@ TileMeshRenderer::TileMeshRenderer(uint32_t height_resolution, uint32_t ortho_re
 {
 }
 
-void TileMeshRenderer::init(WGPUDevice device)
+void TileMeshRenderer::init(webgpu::Context& ctx)
 {
-    m_device = device;
-    m_queue = wgpuDeviceGetQueue(device);
+    m_ctx = &ctx;
 
     const auto height_resolution = glm::uvec2(m_height_resolution);
     const auto ortho_resolution = glm::uvec2(m_ortho_resolution);
@@ -50,22 +52,22 @@ void TileMeshRenderer::init(WGPUDevice device)
 
     // create index buffer
     const std::vector<uint16_t> indices = nucleus::utils::terrain_mesh_index_generator::surface_quads_with_curtains<uint16_t>(unsigned(m_height_resolution));
-    m_index_buffer = std::make_unique<webgpu::raii::RawBuffer<uint16_t>>(m_device, WGPUBufferUsage_Index | WGPUBufferUsage_CopyDst, indices.size());
-    m_index_buffer->write(m_queue, indices.data(), indices.size());
+    m_index_buffer = std::make_unique<webgpu::raii::RawBuffer<uint16_t>>(m_ctx->device(), WGPUBufferUsage_Index | WGPUBufferUsage_CopyDst, indices.size());
+    m_index_buffer->write(m_ctx->queue(), indices.data(), indices.size());
     m_index_buffer_size = indices.size();
 
     // create buffers for bounds, tile ids, zoom level, height and ortho texture buffers
-    m_bounds_buffer = std::make_unique<webgpu::raii::RawBuffer<glm::vec4>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
-    m_tileset_id_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
-    m_height_zoom_level_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
-    m_height_texture_layer_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
-    m_ortho_zoom_level_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
-    m_ortho_texture_layer_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
+    m_bounds_buffer = std::make_unique<webgpu::raii::RawBuffer<glm::vec4>>(m_ctx->device(), WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
+    m_tileset_id_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_ctx->device(), WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
+    m_height_zoom_level_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_ctx->device(), WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
+    m_height_texture_layer_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_ctx->device(), WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
+    m_ortho_zoom_level_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_ctx->device(), WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
+    m_ortho_texture_layer_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_ctx->device(), WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
 
-    m_tile_id_buffer = std::make_unique<webgpu::raii::RawBuffer<compute::GpuTileId>>(m_device, WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
-    m_n_edge_vertices_buffer = std::make_unique<Buffer<int32_t>>(m_device, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst);
+    m_tile_id_buffer = std::make_unique<webgpu::raii::RawBuffer<compute::GpuTileId>>(m_ctx->device(), WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
+    m_n_edge_vertices_buffer = std::make_unique<Buffer<int32_t>>(m_ctx->device(), WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst);
     m_n_edge_vertices_buffer->data = int(m_height_resolution);
-    m_n_edge_vertices_buffer->update_gpu_data(m_queue);
+    m_n_edge_vertices_buffer->update_gpu_data(m_ctx->queue());
 
     WGPUTextureDescriptor height_texture_desc {};
     height_texture_desc.label = WGPUStringView { .data = "height texture", .length = WGPU_STRLEN };
@@ -92,7 +94,7 @@ void TileMeshRenderer::init(WGPUDevice device)
     height_sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
     height_sampler_desc.maxAnisotropy = 1;
 
-    m_heightmap_textures = std::make_unique<webgpu::raii::TextureWithSampler>(m_device, height_texture_desc, height_sampler_desc);
+    m_heightmap_textures = std::make_unique<webgpu::raii::TextureWithSampler>(m_ctx->device(), height_texture_desc, height_sampler_desc);
 
     // TODO mipmaps and compression
     WGPUTextureDescriptor ortho_texture_desc {};
@@ -118,9 +120,88 @@ void TileMeshRenderer::init(WGPUDevice device)
     ortho_sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
     ortho_sampler_desc.maxAnisotropy = 1;
 
-    m_ortho_textures = std::make_unique<webgpu::raii::TextureWithSampler>(m_device, ortho_texture_desc, ortho_sampler_desc);
+    m_ortho_textures = std::make_unique<webgpu::raii::TextureWithSampler>(m_ctx->device(), ortho_texture_desc, ortho_sampler_desc);
 
-    m_tile_bind_group = create_bind_group(m_ortho_textures->texture_view(), m_ortho_textures->sampler());
+    auto& reg = ctx.resource_registry();
+    reg.register_shader("render_tiles", "render_tiles.wgsl");
+    reg.register_bind_group_layout("tile", [](WGPUDevice device) {
+        WGPUBindGroupLayoutEntry n_vertices_entry {};
+        n_vertices_entry.binding = 0;
+        n_vertices_entry.visibility = WGPUShaderStage_Vertex;
+        n_vertices_entry.buffer.type = WGPUBufferBindingType_Uniform;
+        n_vertices_entry.buffer.minBindingSize = 0;
+
+        WGPUBindGroupLayoutEntry heightmap_texture_entry {};
+        heightmap_texture_entry.binding = 1;
+        heightmap_texture_entry.visibility = WGPUShaderStage_Vertex;
+        heightmap_texture_entry.texture.sampleType = WGPUTextureSampleType_Uint;
+        heightmap_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
+
+        WGPUBindGroupLayoutEntry heightmap_texture_sampler {};
+        heightmap_texture_sampler.binding = 2;
+        heightmap_texture_sampler.visibility = WGPUShaderStage_Vertex;
+        heightmap_texture_sampler.sampler.type = WGPUSamplerBindingType_NonFiltering;
+
+        WGPUBindGroupLayoutEntry ortho_texture_entry {};
+        ortho_texture_entry.binding = 3;
+        ortho_texture_entry.visibility = WGPUShaderStage_Fragment;
+        ortho_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
+        ortho_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2DArray;
+
+        WGPUBindGroupLayoutEntry ortho_texture_sampler {};
+        ortho_texture_sampler.binding = 4;
+        ortho_texture_sampler.visibility = WGPUShaderStage_Fragment;
+        ortho_texture_sampler.sampler.type = WGPUSamplerBindingType_Filtering;
+
+        return std::make_unique<webgpu::raii::BindGroupLayout>(device,
+            std::vector<WGPUBindGroupLayoutEntry> {
+                n_vertices_entry, heightmap_texture_entry, heightmap_texture_sampler, ortho_texture_entry, ortho_texture_sampler },
+            "tile bind group");
+    });
+    reg.register_pipeline([this](WGPUDevice dev, const webgpu::RenderResourceRegistry& reg) {
+        webgpu::util::SingleVertexBufferInfo bounds_buffer_info(WGPUVertexStepMode_Instance);
+        bounds_buffer_info.add_attribute<float, 4>(0);
+        webgpu::util::SingleVertexBufferInfo texture_layer_buffer_info(WGPUVertexStepMode_Instance);
+        texture_layer_buffer_info.add_attribute<int32_t, 1>(1);
+        webgpu::util::SingleVertexBufferInfo ortho_texture_layer_buffer_info(WGPUVertexStepMode_Instance);
+        ortho_texture_layer_buffer_info.add_attribute<int32_t, 1>(2);
+        webgpu::util::SingleVertexBufferInfo tileset_id_buffer_info(WGPUVertexStepMode_Instance);
+        tileset_id_buffer_info.add_attribute<int32_t, 1>(3);
+        webgpu::util::SingleVertexBufferInfo height_zoomlevel_buffer_info(WGPUVertexStepMode_Instance);
+        height_zoomlevel_buffer_info.add_attribute<int32_t, 1>(4);
+        webgpu::util::SingleVertexBufferInfo tile_id_buffer_info(WGPUVertexStepMode_Instance);
+        tile_id_buffer_info.add_attribute<uint32_t, 4>(5);
+        webgpu::util::SingleVertexBufferInfo ortho_zoomlevel_buffer_info(WGPUVertexStepMode_Instance);
+        ortho_zoomlevel_buffer_info.add_attribute<int32_t, 1>(6);
+
+        webgpu::FramebufferFormat format {};
+        format.depth_format = WGPUTextureFormat_Depth24Plus;
+        format.color_formats.emplace_back(WGPUTextureFormat_R32Uint);    // albedo
+        format.color_formats.emplace_back(WGPUTextureFormat_RGBA32Float); // position
+        format.color_formats.emplace_back(WGPUTextureFormat_RG16Uint);   // normal
+        format.color_formats.emplace_back(WGPUTextureFormat_R32Uint);    // overlay
+
+        m_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(dev,
+            reg.shader("render_tiles"),
+            reg.shader("render_tiles"),
+            std::vector<webgpu::util::SingleVertexBufferInfo> {
+                bounds_buffer_info,
+                texture_layer_buffer_info,
+                ortho_texture_layer_buffer_info,
+                tileset_id_buffer_info,
+                height_zoomlevel_buffer_info,
+                tile_id_buffer_info,
+                ortho_zoomlevel_buffer_info,
+            },
+            format,
+            std::vector<const webgpu::raii::BindGroupLayout*> {
+                &reg.bind_group_layout("shared_config"),
+                &reg.bind_group_layout("camera"),
+                &reg.bind_group_layout("tile"),
+            });
+
+        m_tile_bind_group = create_bind_group(m_ortho_textures->texture_view(), m_ortho_textures->sampler());
+    });
 }
 
 void TileMeshRenderer::draw(
@@ -165,13 +246,13 @@ void TileMeshRenderer::draw(
     }
 
     // write updated vertex buffers
-    m_bounds_buffer->write(m_queue, bounds.data(), bounds.size());
-    m_tileset_id_buffer->write(m_queue, tileset_id.data(), tileset_id.size());
-    m_height_zoom_level_buffer->write(m_queue, height_zoom_levels.data(), height_zoom_levels.size());
-    m_height_texture_layer_buffer->write(m_queue, height_texture_layer.data(), height_texture_layer.size());
-    m_ortho_zoom_level_buffer->write(m_queue, ortho_zoom_levels.data(), ortho_zoom_levels.size());
-    m_ortho_texture_layer_buffer->write(m_queue, ortho_texture_layers.data(), ortho_texture_layers.size());
-    m_tile_id_buffer->write(m_queue, tile_ids.data(), tile_ids.size());
+    m_bounds_buffer->write(m_ctx->queue(), bounds.data(), bounds.size());
+    m_tileset_id_buffer->write(m_ctx->queue(), tileset_id.data(), tileset_id.size());
+    m_height_zoom_level_buffer->write(m_ctx->queue(), height_zoom_levels.data(), height_zoom_levels.size());
+    m_height_texture_layer_buffer->write(m_ctx->queue(), height_texture_layer.data(), height_texture_layer.size());
+    m_ortho_zoom_level_buffer->write(m_ctx->queue(), ortho_zoom_levels.data(), ortho_zoom_levels.size());
+    m_ortho_texture_layer_buffer->write(m_ctx->queue(), ortho_texture_layers.data(), ortho_texture_layers.size());
+    m_tile_id_buffer->write(m_ctx->queue(), tile_ids.data(), tile_ids.size());
 
     // set bind group for uniforms, textures and samplers
     wgpuRenderPassEncoderSetBindGroup(render_pass, 2, m_tile_bind_group->handle(), 0, nullptr);
@@ -187,7 +268,7 @@ void TileMeshRenderer::draw(
     wgpuRenderPassEncoderSetVertexBuffer(render_pass, 6, m_ortho_zoom_level_buffer->handle(), 0, m_ortho_zoom_level_buffer->size_in_byte());
 
     // set pipeline and draw call
-    wgpuRenderPassEncoderSetPipeline(render_pass, m_pipeline_manager->render_tiles_pipeline().pipeline().handle());
+    wgpuRenderPassEncoderSetPipeline(render_pass, m_pipeline->pipeline().handle());
     wgpuRenderPassEncoderDrawIndexed(render_pass, uint32_t(m_index_buffer_size), uint32_t(draw_tiles.size()), 0, 0, 0);
 }
 
@@ -197,12 +278,10 @@ void TileMeshRenderer::set_tile_limit(unsigned int num_tiles)
     m_loaded_ortho_textures.set_tile_limit(num_tiles);
 }
 
-void TileMeshRenderer::set_pipeline_manager(const PipelineManager& pipeline_manager) { m_pipeline_manager = &pipeline_manager; }
-
 std::unique_ptr<webgpu::raii::BindGroup> TileMeshRenderer::create_bind_group(const webgpu::raii::TextureView& view, const webgpu::raii::Sampler& sampler) const
 {
-    return std::make_unique<webgpu::raii::BindGroup>(m_device,
-        m_pipeline_manager->tile_bind_group_layout(),
+    return std::make_unique<webgpu::raii::BindGroup>(m_ctx->device(),
+        m_ctx->resource_registry().bind_group_layout("tile"),
         std::initializer_list<WGPUBindGroupEntry> {
             m_n_edge_vertices_buffer->raw_buffer().create_bind_group_entry(0),
             m_heightmap_textures->texture_view().create_bind_group_entry(1),
@@ -212,6 +291,8 @@ std::unique_ptr<webgpu::raii::BindGroup> TileMeshRenderer::create_bind_group(con
         },
         "tile bind group");
 }
+
+const webgpu::raii::GenericRenderPipeline& TileMeshRenderer::render_tiles_pipeline() const { return *m_pipeline; }
 
 void TileMeshRenderer::update_gpu_tiles_height(const std::vector<radix::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuGeometryTile>& new_tiles)
 {
@@ -226,7 +307,7 @@ void TileMeshRenderer::update_gpu_tiles_height(const std::vector<radix::tile::Id
 
         // find empty spot and upload texture
         const uint32_t layer_index = m_loaded_height_textures.add_tile(tile.id);
-        m_heightmap_textures->texture().write(m_queue, *tile.surface, layer_index);
+        m_heightmap_textures->texture().write(m_ctx->queue(), *tile.surface, layer_index);
     }
 }
 
@@ -242,7 +323,7 @@ void TileMeshRenderer::update_gpu_tiles_ortho(const std::vector<nucleus::tile::I
 
         // find empty spot and upload texture
         const auto layer_index = m_loaded_ortho_textures.add_tile(tile.id);
-        m_ortho_textures->texture().write(m_queue, tile.texture->front(), uint32_t(layer_index));
+        m_ortho_textures->texture().write(m_ctx->queue(), tile.texture->front(), uint32_t(layer_index));
     }
 }
 

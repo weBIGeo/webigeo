@@ -19,14 +19,84 @@
 #include "TrackRenderer.h"
 
 #include "nucleus/srs.h"
+#include <webgpu/RenderResourceRegistry.h>
+#include <webgpu/raii/BindGroupLayout.h>
+#include <webgpu/raii/PipelineLayout.h>
 
 namespace webgpu_engine {
 
-TrackRenderer::TrackRenderer(WGPUDevice device, const PipelineManager& pipeline_manager)
-    : m_device { device }
-    , m_queue { wgpuDeviceGetQueue(device) }
-    , m_pipeline_manager { &pipeline_manager }
+TrackRenderer::TrackRenderer(webgpu::Context& ctx)
+    : m_ctx { &ctx }
 {
+    auto& reg = ctx.resource_registry();
+    reg.register_shader("render_lines", "render_lines.wgsl");
+    reg.register_bind_group_layout("lines", [](WGPUDevice device) {
+        WGPUBindGroupLayoutEntry input_positions_entry {};
+        input_positions_entry.binding = 0;
+        input_positions_entry.visibility = WGPUShaderStage_Vertex;
+        input_positions_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+        input_positions_entry.buffer.minBindingSize = 0;
+
+        WGPUBindGroupLayoutEntry input_config_entry {};
+        input_config_entry.binding = 1;
+        input_config_entry.visibility = WGPUShaderStage_Fragment;
+        input_config_entry.buffer.type = WGPUBufferBindingType_Uniform;
+        input_config_entry.buffer.minBindingSize = 0;
+
+        return std::make_unique<webgpu::raii::BindGroupLayout>(
+            device, std::vector<WGPUBindGroupLayoutEntry> { input_positions_entry, input_config_entry }, "line renderer, bind group layout");
+    });
+    reg.register_pipeline([this](WGPUDevice dev, const webgpu::RenderResourceRegistry& reg) {
+        WGPUBlendState blend_state {};
+        blend_state.color.operation = WGPUBlendOperation_Add;
+        blend_state.color.srcFactor = WGPUBlendFactor_One;
+        blend_state.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
+        blend_state.alpha.operation = WGPUBlendOperation_Add;
+        blend_state.alpha.srcFactor = WGPUBlendFactor_Zero;
+        blend_state.alpha.dstFactor = WGPUBlendFactor_One;
+
+        WGPUColorTargetState color_target_state {};
+        color_target_state.blend = &blend_state;
+        color_target_state.writeMask = WGPUColorWriteMask_All;
+        color_target_state.format = WGPUTextureFormat_BGRA8Unorm;
+
+        WGPUFragmentState fragment_state {};
+        fragment_state.module = reg.shader("render_lines").handle();
+        fragment_state.entryPoint = WGPUStringView { .data = "fragmentMain", .length = WGPU_STRLEN };
+        fragment_state.constantCount = 0;
+        fragment_state.constants = nullptr;
+        fragment_state.targetCount = 1;
+        fragment_state.targets = &color_target_state;
+
+        std::vector<WGPUBindGroupLayout> bind_group_layout_handles {
+            reg.bind_group_layout("shared_config").handle(),
+            reg.bind_group_layout("camera").handle(),
+            reg.bind_group_layout("depth_texture").handle(),
+            reg.bind_group_layout("lines").handle(),
+        };
+        webgpu::raii::PipelineLayout layout(dev, bind_group_layout_handles);
+
+        WGPURenderPipelineDescriptor pipeline_desc {};
+        pipeline_desc.label = WGPUStringView { .data = "line render pipeline", .length = WGPU_STRLEN };
+        pipeline_desc.vertex.module = reg.shader("render_lines").handle();
+        pipeline_desc.vertex.entryPoint = WGPUStringView { .data = "vertexMain", .length = WGPU_STRLEN };
+        pipeline_desc.vertex.bufferCount = 0;
+        pipeline_desc.vertex.buffers = nullptr;
+        pipeline_desc.vertex.constantCount = 0;
+        pipeline_desc.vertex.constants = nullptr;
+        pipeline_desc.primitive.topology = WGPUPrimitiveTopology::WGPUPrimitiveTopology_LineStrip;
+        pipeline_desc.primitive.stripIndexFormat = WGPUIndexFormat::WGPUIndexFormat_Uint16;
+        pipeline_desc.primitive.frontFace = WGPUFrontFace::WGPUFrontFace_CCW;
+        pipeline_desc.primitive.cullMode = WGPUCullMode::WGPUCullMode_None;
+        pipeline_desc.fragment = &fragment_state;
+        pipeline_desc.depthStencil = nullptr;
+        pipeline_desc.multisample.count = 1;
+        pipeline_desc.multisample.mask = ~0u;
+        pipeline_desc.multisample.alphaToCoverageEnabled = false;
+        pipeline_desc.layout = layout.handle();
+
+        m_pipeline = std::make_unique<webgpu::raii::RenderPipeline>(dev, pipeline_desc);
+    });
 }
 
 void TrackRenderer::add_track(const Track& track, const glm::vec4& color)
@@ -44,14 +114,15 @@ void TrackRenderer::add_world_positions(const std::vector<glm::vec4>& world_posi
     assert(!world_positions.empty());
 
     m_position_buffers.emplace_back(std::make_unique<webgpu::raii::RawBuffer<glm::fvec4>>(
-        m_device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst, world_positions.size(), "track renderer, storage buffer for points"));
-    m_position_buffers.back()->write(m_queue, world_positions.data(), world_positions.size());
+        m_ctx->device(), WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst, world_positions.size(), "track renderer, storage buffer for points"));
+    m_position_buffers.back()->write(m_ctx->queue(), world_positions.data(), world_positions.size());
 
-    m_line_config_buffers.emplace_back(std::make_unique<webgpu_engine::Buffer<LineConfig>>(m_device, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst));
+    m_line_config_buffers.emplace_back(std::make_unique<webgpu_engine::Buffer<LineConfig>>(m_ctx->device(), WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst));
     m_line_config_buffers.back()->data.line_color = color;
-    m_line_config_buffers.back()->update_gpu_data(m_queue);
+    m_line_config_buffers.back()->update_gpu_data(m_ctx->queue());
 
-    m_bind_groups.emplace_back(std::make_unique<webgpu::raii::BindGroup>(m_device, m_pipeline_manager->lines_bind_group_layout(),
+    m_bind_groups.emplace_back(std::make_unique<webgpu::raii::BindGroup>(m_ctx->device(),
+        m_ctx->resource_registry().bind_group_layout("lines"),
         std::initializer_list<WGPUBindGroupEntry> {
             m_position_buffers.back()->create_bind_group_entry(0), m_line_config_buffers.back()->raw_buffer().create_bind_group_entry(1) }));
 }
@@ -84,7 +155,7 @@ void TrackRenderer::render(WGPUCommandEncoder command_encoder, const webgpu::rai
     render_pass_descriptor.timestampWrites = nullptr;
 
     auto render_pass = webgpu::raii::RenderPassEncoder(command_encoder, render_pass_descriptor);
-    wgpuRenderPassEncoderSetPipeline(render_pass.handle(), m_pipeline_manager->render_lines_pipeline().handle());
+    wgpuRenderPassEncoderSetPipeline(render_pass.handle(), m_pipeline->handle());
     wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 0, shared_config.handle(), 0, nullptr);
     wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 1, camera_config.handle(), 0, nullptr);
     wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 2, depth_texture.handle(), 0, nullptr);

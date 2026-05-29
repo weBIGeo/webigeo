@@ -23,7 +23,8 @@
 #include "Node.h"
 
 #include "webgpu_engine/Buffer.h"
-#include "webgpu_engine/PipelineManager.h"
+#include <webgpu/Context.h>
+#include <webgpu/raii/CombinedComputePipeline.h>
 
 namespace webgpu_engine::compute::nodes {
 
@@ -150,8 +151,8 @@ private:
     };
 
 public:
-    ComputeAvalancheTrajectoriesNode(const PipelineManager& pipeline_manager, WGPUDevice device);
-    ComputeAvalancheTrajectoriesNode(const PipelineManager& pipeline_manager, WGPUDevice device, const AvalancheTrajectoriesSettings& settings);
+    ComputeAvalancheTrajectoriesNode(webgpu::Context& ctx);
+    ComputeAvalancheTrajectoriesNode(webgpu::Context& ctx, const AvalancheTrajectoriesSettings& settings);
 
     void set_settings(const AvalancheTrajectoriesSettings& settings);
     const AvalancheTrajectoriesSettings& get_settings() const;
@@ -166,14 +167,13 @@ private:
     static std::unique_ptr<webgpu::raii::Sampler> create_height_sampler(WGPUDevice device);
 
 private:
-    const PipelineManager* m_pipeline_manager;
-    WGPUDevice m_device;
-    WGPUQueue m_queue;
+    webgpu::Context* m_ctx;
 
     AvalancheTrajectoriesSettings m_settings;
     webgpu_engine::Buffer<AvalancheTrajectoriesSettingsUniform> m_settings_uniform;
     std::unique_ptr<webgpu::raii::Sampler> m_normal_sampler;
     std::unique_ptr<webgpu::raii::Sampler> m_height_sampler;
+    std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_pipeline;
     std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_output_storage_buffer;
 
     std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_layer1_zdelta_buffer;

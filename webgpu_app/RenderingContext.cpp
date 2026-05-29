@@ -102,7 +102,7 @@ RenderingContext::RenderingContext()
     });
 }
 
-void RenderingContext::initialize(WGPUInstance webgpu_instance, WGPUDevice webgpu_device)
+void RenderingContext::initialize(webgpu::Context& ctx)
 {
     auto tile_mesh_renderer = std::make_shared<webgpu_engine::TileMeshRenderer>(65, 512);
     tile_mesh_renderer->set_tile_limit(1024);
@@ -111,8 +111,7 @@ void RenderingContext::initialize(WGPUInstance webgpu_instance, WGPUDevice webgp
     cloud_renderer->set_tile_limit(webgpu_engine::clouds::LOADED_TILE_LIMIT);
 
     m_engine_context = std::make_unique<webgpu_engine::Context>();
-    m_engine_context->set_webgpu_instance(webgpu_instance);
-    m_engine_context->set_webgpu_device(webgpu_device);
+    m_engine_context->set_webgpu_ctx(ctx);
     m_engine_context->set_aabb_decorator(m_aabb_decorator);
     m_engine_context->set_tile_mesh_renderer(tile_mesh_renderer);
     m_engine_context->set_cloud_renderer(cloud_renderer);

@@ -27,16 +27,14 @@
 
 namespace webgpu_engine::compute::nodes {
 
-webgpu_engine::compute::nodes::TileStitchNode::TileStitchNode(const PipelineManager& manager, WGPUDevice device, StitchSettings settings)
+webgpu_engine::compute::nodes::TileStitchNode::TileStitchNode(webgpu::Context& ctx, StitchSettings settings)
     : Node(
           {
               InputSocket(*this, "tile ids", data_type<const std::vector<radix::tile::Id>*>()),
               InputSocket(*this, "texture data", data_type<const std::vector<QByteArray>*>()),
           },
           { OutputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }) })
-    , m_pipeline_manager(&manager)
-    , m_device(device)
-    , m_queue(wgpuDeviceGetQueue(m_device))
+    , m_ctx(&ctx)
     , m_settings(settings)
 {
 }
@@ -106,7 +104,7 @@ void TileStitchNode::run_impl()
     sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
     sampler_desc.maxAnisotropy = 1;
 
-    m_output_texture = std::make_unique<webgpu::raii::TextureWithSampler>(m_device, texture_desc, sampler_desc);
+    m_output_texture = std::make_unique<webgpu::raii::TextureWithSampler>(m_ctx->device(), texture_desc, sampler_desc);
     auto& tex = m_output_texture->texture();
 
     // store them in this context, otherwise they get deleted too soon (might not be necessary...)
@@ -146,13 +144,13 @@ void TileStitchNode::run_impl()
         copy_extent.height = s.y;
         copy_extent.depthOrArrayLayers = 1;
 
-        wgpuQueueWriteTexture(m_queue, &image_copy_texture, image.bytes(), uint32_t(image.size_in_bytes()), &texture_data_layout, &copy_extent);
+        wgpuQueueWriteTexture(m_ctx->queue(), &image_copy_texture, image.bytes(), uint32_t(image.size_in_bytes()), &texture_data_layout, &copy_extent);
     }
 
     complete_run();
 
     // Weird that this works here. Is wgpuQueueWriteTexture blocking after all?
-    // m_output_texture->texture().save_to_file(m_device, "C:\\tmp\\asd.png");
+    // m_output_texture->texture().save_to_file(m_ctx->device(), "C:\\tmp\\asd.png");
 }
 
 } // namespace webgpu_engine::compute::nodes

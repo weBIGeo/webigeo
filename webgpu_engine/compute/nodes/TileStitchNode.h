@@ -19,7 +19,7 @@
 #pragma once
 
 #include "Node.h"
-#include "PipelineManager.h"
+#include <webgpu/Context.h>
 
 #define MAX_STITCHED_IMAGE_SIZE 8192
 
@@ -49,15 +49,13 @@ public:
         WGPUTextureUsage texture_usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
     };
 
-    TileStitchNode(const PipelineManager& manager, WGPUDevice device, StitchSettings settings);
+    TileStitchNode(webgpu::Context& ctx, StitchSettings settings);
 
 public slots:
     void run_impl() override;
 
 private:
-    const PipelineManager* m_pipeline_manager;
-    WGPUDevice m_device;
-    WGPUQueue m_queue;
+    webgpu::Context* m_ctx;
 
     StitchSettings m_settings;
 

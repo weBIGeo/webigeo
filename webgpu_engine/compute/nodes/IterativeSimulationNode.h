@@ -20,7 +20,8 @@
 
 #include "Buffer.h"
 #include "Node.h"
-#include "webgpu_engine/PipelineManager.h"
+#include <webgpu/Context.h>
+#include <webgpu/raii/CombinedComputePipeline.h>
 
 namespace webgpu_engine::compute::nodes {
 
@@ -43,8 +44,8 @@ public:
         uint32_t padding3;
     };
 
-    IterativeSimulationNode(const PipelineManager& pipeline_manager, WGPUDevice device);
-    IterativeSimulationNode(const PipelineManager& pipeline_manager, WGPUDevice device, const IterativeSimulationSettings& settings);
+    IterativeSimulationNode(webgpu::Context& ctx);
+    IterativeSimulationNode(webgpu::Context& ctx, const IterativeSimulationSettings& settings);
 
 public slots:
     void run_impl() override;
@@ -54,11 +55,10 @@ private:
         WGPUDevice device, uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage);
 
 private:
-    const PipelineManager* m_pipeline_manager;
-    WGPUDevice m_device;
-    WGPUQueue m_queue;
+    webgpu::Context* m_ctx;
 
     IterativeSimulationSettings m_settings;
+    std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_pipeline;
 
     std::unique_ptr<Buffer<IterativeSimulationSettingsUniform>> m_settings_uniform;
     std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_flux_buffer;

@@ -54,6 +54,9 @@ set(SOURCES
 
     Framebuffer.h Framebuffer.cpp
 
+    Context.h
+    RenderResourceRegistry.h RenderResourceRegistry.cpp
+
     webgpu_interface.hpp webgpu_interface.cpp)
 
 add_library(webgpu STATIC ${SOURCES})

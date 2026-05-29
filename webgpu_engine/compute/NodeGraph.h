@@ -21,9 +21,9 @@
 
 #include "GraphRunContext.h"
 #include "nodes/Node.h"
-#include "webgpu_engine/PipelineManager.h"
 #include <memory>
 #include <string>
+#include <webgpu/Context.h>
 
 namespace webgpu_engine::compute::nodes {
 
@@ -89,12 +89,12 @@ signals:
     void run_failed(GraphRunFailureInfo info);
 
 public:
-    static std::unique_ptr<NodeGraph> create_normal_compute_graph(const PipelineManager& manager, WGPUDevice device);
-    static std::unique_ptr<NodeGraph> create_snow_compute_graph(const PipelineManager& manager, WGPUDevice device);
-    static std::unique_ptr<NodeGraph> create_release_points_compute_graph(const PipelineManager& manager, WGPUDevice device);
-    static std::unique_ptr<NodeGraph> create_avalanche_trajectories_compute_graph(const PipelineManager& manager, WGPUDevice device);
-    static std::unique_ptr<NodeGraph> create_trajectories_with_export_compute_graph(const PipelineManager& manager, WGPUDevice device);
-    static std::unique_ptr<NodeGraph> create_iterative_simulation_compute_graph(const PipelineManager& manager, WGPUDevice device);
+    static std::unique_ptr<NodeGraph> create_normal_compute_graph(webgpu::Context& ctx);
+    static std::unique_ptr<NodeGraph> create_snow_compute_graph(webgpu::Context& ctx);
+    static std::unique_ptr<NodeGraph> create_release_points_compute_graph(webgpu::Context& ctx);
+    static std::unique_ptr<NodeGraph> create_avalanche_trajectories_compute_graph(webgpu::Context& ctx);
+    static std::unique_ptr<NodeGraph> create_trajectories_with_export_compute_graph(webgpu::Context& ctx);
+    static std::unique_ptr<NodeGraph> create_iterative_simulation_compute_graph(webgpu::Context& ctx);
 
 private:
     std::string m_name;

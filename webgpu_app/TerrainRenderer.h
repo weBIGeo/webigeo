@@ -86,6 +86,8 @@ private:
 
     WGPUInstanceDescriptor m_instance_desc;
 
+    webgpu::Context m_webgpu_ctx;
+
     WGPUInstance m_instance = nullptr;
     WGPUSurface m_surface = nullptr;
     WGPUAdapter m_adapter = nullptr;

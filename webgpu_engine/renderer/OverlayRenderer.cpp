@@ -35,8 +35,6 @@ void OverlayRenderer::resize(int /*w*/, int /*h*/) { /* TODO: implement */ }
 
 void OverlayRenderer::draw(const WGPUCommandEncoder& /*command_encoder*/) { /* TODO: implement */ }
 
-void OverlayRenderer::set_pipeline_manager(const PipelineManager& pipeline_manager) { m_pipeline_manager = &pipeline_manager; }
-
 tl::expected<radix::geometry::Aabb<2, double>, std::string> OverlayRenderer::load_aabb_from_file(const std::string& file_path)
 {
     QFile aabb_file(QString::fromStdString(file_path));

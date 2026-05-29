@@ -265,7 +265,7 @@ void TerrainRenderer::start() {
     webgpu_create_context();
 
     m_context = std::make_unique<RenderingContext>();
-    m_context->initialize(m_instance, m_device);
+    m_context->initialize(m_webgpu_ctx);
 
     m_camera_controller = std::make_unique<nucleus::camera::Controller>(nucleus::camera::PositionStorage::instance()->get("grossglockner"), m_webgpu_window.get(), m_context->data_querier());
 
@@ -301,7 +301,7 @@ void TerrainRenderer::start() {
     connect(m_webgpu_window.get(), &nucleus::AbstractRenderWindow::update_requested, this, &TerrainRenderer::schedule_update);
     connect(m_input_mapper.get(), &InputMapper::key_pressed, this, &TerrainRenderer::handle_shortcuts);
 
-    m_webgpu_window->set_wgpu_context(m_instance, m_device, m_adapter, m_surface, m_queue, m_context->engine_context());
+    m_webgpu_window->set_context(m_context->engine_context());
     m_webgpu_window->initialise_gpu();
 
     // Configures surface
@@ -629,6 +629,8 @@ void TerrainRenderer::webgpu_create_context()
         qFatal("Could not get queue!");
     }
     qInfo() << "Got queue: " << m_queue;
+
+    m_webgpu_ctx.init(m_instance, m_device, m_adapter, m_surface, m_queue);
 }
 
 void TerrainRenderer::webgpu_release_context()

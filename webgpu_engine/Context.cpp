@@ -20,6 +20,8 @@
 
 #include "Context.h"
 
+#include <webgpu/raii/BindGroupLayout.h>
+
 namespace webgpu_engine {
 
 Context::Context(QObject* parent)
@@ -31,27 +33,176 @@ Context::~Context() = default;
 
 void Context::internal_initialise()
 {
-    assert(m_webgpu_device != 0);
+    assert(m_webgpu_ctx_ptr != nullptr);
 
-    // TODO maybe init externally too
-    m_shader_module_manager = std::make_unique<ShaderModuleManager>(m_webgpu_device);
-    m_shader_module_manager->create_shader_modules();
-    m_pipeline_manager = std::make_unique<PipelineManager>(m_webgpu_device, *m_shader_module_manager);
-    m_pipeline_manager->create_pipelines();
+    auto& reg = webgpu_ctx().resource_registry();
 
-    // init of shader registry and track manager should be moved out of here for more flexibility, similar to tile_mesh_renderer
-    if (m_tile_mesh_renderer) {
-        m_tile_mesh_renderer->set_pipeline_manager(*m_pipeline_manager);
-        m_tile_mesh_renderer->init(m_webgpu_device);
-    }
-    if (m_cloud_renderer) {
-        m_cloud_renderer->set_pipeline_manager(*m_pipeline_manager);
-        m_cloud_renderer->init(m_webgpu_device);
-    }
-    if (m_atmosphere_renderer) {
-        m_atmosphere_renderer->set_pipeline_manager(*m_pipeline_manager);
-        m_atmosphere_renderer->init(m_webgpu_device);
-    }
+    reg.register_bind_group_layout("shared_config", [](WGPUDevice device) {
+        WGPUBindGroupLayoutEntry entry {};
+        entry.binding = 0;
+        entry.visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment | WGPUShaderStage_Compute;
+        entry.buffer.type = WGPUBufferBindingType_Uniform;
+        entry.buffer.minBindingSize = 0;
+        return std::make_unique<webgpu::raii::BindGroupLayout>(device, std::vector<WGPUBindGroupLayoutEntry> { entry }, "shared config bind group layout");
+    });
+
+    reg.register_bind_group_layout("camera", [](WGPUDevice device) {
+        WGPUBindGroupLayoutEntry entry {};
+        entry.binding = 0;
+        entry.visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+        entry.buffer.type = WGPUBufferBindingType_Uniform;
+        entry.buffer.minBindingSize = 0;
+        return std::make_unique<webgpu::raii::BindGroupLayout>(device, std::vector<WGPUBindGroupLayoutEntry> { entry }, "camera bind group layout");
+    });
+
+    reg.register_bind_group_layout("depth_texture", [](WGPUDevice device) {
+        WGPUBindGroupLayoutEntry entry {};
+        entry.binding = 0;
+        entry.visibility = WGPUShaderStage_Fragment | WGPUShaderStage_Compute;
+        entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
+        entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+        return std::make_unique<webgpu::raii::BindGroupLayout>(device, std::vector<WGPUBindGroupLayoutEntry> { entry }, "depth texture bind group layout");
+    });
+
+    reg.register_bind_group_layout("compose", [](WGPUDevice device) {
+        WGPUBindGroupLayoutEntry albedo_entry {};
+        albedo_entry.binding = 0;
+        albedo_entry.visibility = WGPUShaderStage_Fragment;
+        albedo_entry.texture.sampleType = WGPUTextureSampleType_Uint;
+        albedo_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+        WGPUBindGroupLayoutEntry position_entry {};
+        position_entry.binding = 1;
+        position_entry.visibility = WGPUShaderStage_Fragment;
+        position_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
+        position_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+        WGPUBindGroupLayoutEntry normal_entry {};
+        normal_entry.binding = 2;
+        normal_entry.visibility = WGPUShaderStage_Fragment;
+        normal_entry.texture.sampleType = WGPUTextureSampleType_Uint;
+        normal_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+        WGPUBindGroupLayoutEntry atmosphere_entry {};
+        atmosphere_entry.binding = 3;
+        atmosphere_entry.visibility = WGPUShaderStage_Fragment;
+        atmosphere_entry.texture.sampleType = WGPUTextureSampleType_Float;
+        atmosphere_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+        WGPUBindGroupLayoutEntry overlay_entry {};
+        overlay_entry.binding = 4;
+        overlay_entry.visibility = WGPUShaderStage_Fragment;
+        overlay_entry.texture.sampleType = WGPUTextureSampleType_Uint;
+        overlay_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+        WGPUBindGroupLayoutEntry image_overlay_region_entry {};
+        image_overlay_region_entry.binding = 5;
+        image_overlay_region_entry.visibility = WGPUShaderStage_Fragment;
+        image_overlay_region_entry.buffer.type = WGPUBufferBindingType_Uniform;
+
+        WGPUBindGroupLayoutEntry image_overlay_texture_entry {};
+        image_overlay_texture_entry.binding = 6;
+        image_overlay_texture_entry.visibility = WGPUShaderStage_Fragment;
+        image_overlay_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
+        image_overlay_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+        WGPUBindGroupLayoutEntry image_overlay_sampler_entry {};
+        image_overlay_sampler_entry.binding = 7;
+        image_overlay_sampler_entry.visibility = WGPUShaderStage_Fragment;
+        image_overlay_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
+
+        WGPUBindGroupLayoutEntry compute_overlay_region_entry {};
+        compute_overlay_region_entry.binding = 8;
+        compute_overlay_region_entry.visibility = WGPUShaderStage_Fragment;
+        compute_overlay_region_entry.buffer.type = WGPUBufferBindingType_Uniform;
+
+        WGPUBindGroupLayoutEntry compute_overlay_texture_entry {};
+        compute_overlay_texture_entry.binding = 9;
+        compute_overlay_texture_entry.visibility = WGPUShaderStage_Fragment;
+        compute_overlay_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
+        compute_overlay_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+        WGPUBindGroupLayoutEntry compute_overlay_sampler_entry {};
+        compute_overlay_sampler_entry.binding = 10;
+        compute_overlay_sampler_entry.visibility = WGPUShaderStage_Fragment;
+        compute_overlay_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
+
+        WGPUBindGroupLayoutEntry clouds_texture_entry {};
+        clouds_texture_entry.binding = 11;
+        clouds_texture_entry.visibility = WGPUShaderStage_Fragment;
+        clouds_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
+        clouds_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+        WGPUBindGroupLayoutEntry clouds_depth_entry {};
+        clouds_depth_entry.binding = 12;
+        clouds_depth_entry.visibility = WGPUShaderStage_Fragment;
+        clouds_depth_entry.storageTexture.access = WGPUStorageTextureAccess_ReadOnly;
+        clouds_depth_entry.storageTexture.format = WGPUTextureFormat_R32Float;
+        clouds_depth_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+
+        WGPUBindGroupLayoutEntry shadow_texture_entry {};
+        shadow_texture_entry.binding = 13;
+        shadow_texture_entry.visibility = WGPUShaderStage_Fragment;
+        shadow_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
+        shadow_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+        WGPUBindGroupLayoutEntry shadow_sampler_entry {};
+        shadow_sampler_entry.binding = 14;
+        shadow_sampler_entry.visibility = WGPUShaderStage_Fragment;
+        shadow_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
+
+        WGPUBindGroupLayoutEntry depth_texture_entry {};
+        depth_texture_entry.binding = 15;
+        depth_texture_entry.visibility = WGPUShaderStage_Fragment;
+        depth_texture_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
+        depth_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+        return std::make_unique<webgpu::raii::BindGroupLayout>(device,
+            std::vector<WGPUBindGroupLayoutEntry> {
+                albedo_entry,
+                position_entry,
+                normal_entry,
+                atmosphere_entry,
+                overlay_entry,
+                image_overlay_region_entry,
+                image_overlay_texture_entry,
+                image_overlay_sampler_entry,
+                compute_overlay_region_entry,
+                compute_overlay_texture_entry,
+                compute_overlay_sampler_entry,
+                clouds_texture_entry,
+                clouds_depth_entry,
+                shadow_texture_entry,
+                shadow_sampler_entry,
+                depth_texture_entry,
+            },
+            "compose bind group layout");
+    });
+
+    reg.register_shader("mipmap_creation", "compute/mipmap_creation_compute.wgsl");
+
+    reg.register_bind_group_layout("mipmap_creation", [](WGPUDevice device) {
+        WGPUBindGroupLayoutEntry input_entry {};
+        input_entry.binding = 0;
+        input_entry.visibility = WGPUShaderStage_Compute;
+        input_entry.texture.sampleType = WGPUTextureSampleType_Float;
+        input_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+        WGPUBindGroupLayoutEntry output_entry {};
+        output_entry.binding = 1;
+        output_entry.visibility = WGPUShaderStage_Compute;
+        output_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+        output_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
+        output_entry.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
+
+        return std::make_unique<webgpu::raii::BindGroupLayout>(
+            device, std::vector<WGPUBindGroupLayoutEntry> { input_entry, output_entry }, "mipmap creation bind group layout");
+    });
+
+    if (m_tile_mesh_renderer)
+        m_tile_mesh_renderer->init(webgpu_ctx());
+    if (m_cloud_renderer)
+        m_cloud_renderer->init(webgpu_ctx());
 
     // if (m_ortho_layer)
     //     m_ortho_layer->init();
@@ -88,17 +239,7 @@ void Context::set_atmosphere_renderer(std::shared_ptr<AtmosphereRenderer> new_at
     m_atmosphere_renderer = std::move(new_atmosphere_renderer);
 }
 
-WGPUInstance Context::webgpu_instance() const { return m_webgpu_instance; }
-
-void Context::set_webgpu_instance(WGPUInstance instance) { m_webgpu_instance = instance; }
-
-WGPUDevice Context::webgpu_device() const { return m_webgpu_device; }
-
-void Context::set_webgpu_device(WGPUDevice device) { m_webgpu_device = device; }
-
-ShaderModuleManager* Context::shader_module_manager() { return m_shader_module_manager.get(); }
-
-PipelineManager* Context::pipeline_manager() { return m_pipeline_manager.get(); }
+void Context::set_webgpu_ctx(webgpu::Context& ctx) { m_webgpu_ctx_ptr = &ctx; }
 
 nucleus::track::Manager* Context::track_manager() { return nullptr; }
 

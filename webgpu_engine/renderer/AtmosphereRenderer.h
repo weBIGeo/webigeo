@@ -21,9 +21,10 @@
 
 #include <memory>
 
-#include "../PipelineManager.h"
 #include <QObject>
+#include <webgpu/Context.h>
 #include <webgpu/Framebuffer.h>
+#include <webgpu/raii/Pipeline.h>
 #include <webgpu/raii/TextureView.h>
 #include <webgpu/webgpu.h>
 
@@ -34,7 +35,7 @@ class AtmosphereRenderer : public QObject {
 public:
     explicit AtmosphereRenderer();
 
-    void init(WGPUDevice device);
+    void init(webgpu::Context& ctx);
 
     void resize(int w, int h);
 
@@ -42,13 +43,11 @@ public:
     // camera_bind_group must be bound to group 0 by the pipeline (provides view/projection data).
     void draw(const WGPUCommandEncoder& command_encoder, const WGPUBindGroup& camera_bind_group);
 
-    void set_pipeline_manager(const PipelineManager& pipeline_manager);
-
     [[nodiscard]] const webgpu::raii::TextureView* result_view() const;
 
 private:
-    WGPUDevice m_device = {};
-    const PipelineManager* m_pipeline_manager = nullptr;
+    webgpu::Context* m_ctx = nullptr;
+    std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_pipeline;
     std::unique_ptr<webgpu::Framebuffer> m_atmosphere_framebuffer;
 };
 

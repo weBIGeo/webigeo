@@ -23,13 +23,14 @@
 #include <memory>
 
 #include "../Buffer.h"
-#include "../PipelineManager.h"
 #include "webgpu_engine/compute/GpuTileId.h"
 #include <QObject>
 #include <nucleus/tile/GpuArrayHelper.h>
 #include <nucleus/tile/types.h>
+#include <webgpu/Context.h>
 #include <webgpu/raii/BindGroup.h>
 #include <webgpu/raii/BindGroupLayout.h>
+#include <webgpu/raii/Pipeline.h>
 #include <webgpu/raii/TextureWithSampler.h>
 #include <webgpu/webgpu.h>
 
@@ -44,13 +45,13 @@ class TileMeshRenderer : public QObject {
 public:
     explicit TileMeshRenderer(uint32_t height_resolution, uint32_t ortho_resolution);
 
-    void init(WGPUDevice device);
+    void init(webgpu::Context& ctx);
 
     void draw(WGPURenderPassEncoder render_pass, const nucleus::camera::Definition& camera, const std::vector<nucleus::tile::TileBounds>& draw_tiles) const;
 
-    void set_pipeline_manager(const PipelineManager& pipeline_manager);
-
     std::unique_ptr<webgpu::raii::BindGroup> create_bind_group(const webgpu::raii::TextureView& view, const webgpu::raii::Sampler& sampler) const;
+
+    [[nodiscard]] const webgpu::raii::GenericRenderPipeline& render_tiles_pipeline() const;
 
     size_t capacity() const;
     void set_tile_limit(unsigned new_limit);
@@ -69,9 +70,7 @@ private:
     nucleus::tile::GpuArrayHelper m_loaded_height_textures;
     nucleus::tile::GpuArrayHelper m_loaded_ortho_textures;
 
-    WGPUDevice m_device = 0;
-    WGPUQueue m_queue = 0;
-    const PipelineManager* m_pipeline_manager = nullptr;
+    webgpu::Context* m_ctx = nullptr;
 
     size_t m_index_buffer_size;
     std::unique_ptr<webgpu::raii::RawBuffer<uint16_t>> m_index_buffer;
@@ -87,6 +86,7 @@ private:
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_heightmap_textures;
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_ortho_textures;
     std::unique_ptr<webgpu::raii::BindGroup> m_tile_bind_group;
+    std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_pipeline;
 };
 
 } // namespace webgpu_engine

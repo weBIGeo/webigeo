@@ -21,14 +21,15 @@
 #include <memory>
 
 #include "../Buffer.h"
-#include "../PipelineManager.h"
 #include <QObject>
 #include <glm/glm.hpp>
 #include <mutex>
 #include <nucleus/tile/GpuArrayHelper.h>
 #include <nucleus/tile/types.h>
+#include <webgpu/Context.h>
 #include <webgpu/raii/BindGroup.h>
 #include <webgpu/raii/BindGroupLayout.h>
+#include <webgpu/raii/CombinedComputePipeline.h>
 #include <webgpu/raii/TextureWithSampler.h>
 #include <webgpu/webgpu.h>
 
@@ -80,7 +81,7 @@ public:
 
     explicit CloudRenderer();
 
-    void init(WGPUDevice device);
+    void init(webgpu::Context& ctx);
 
     void resize(int w, int h);
 
@@ -91,8 +92,6 @@ public:
         uint32_t frame_number);
 
     [[nodiscard]] bool needs_redraw() const { return m_stable_frames <= static_cast<uint32_t>(shader_params.stable_frames_limit); }
-
-    void set_pipeline_manager(const PipelineManager& pipeline_manager);
 
     void set_tile_limit(unsigned new_limit);
 
@@ -166,9 +165,7 @@ private:
 
     nucleus::tile::GpuArrayHelper m_loaded_cloud_textures;
 
-    WGPUDevice m_device = {};
-    WGPUQueue m_queue = {};
-    const PipelineManager* m_pipeline_manager = nullptr;
+    webgpu::Context* m_ctx = nullptr;
 
     std::unique_ptr<Buffer<ShaderParamsRender>> m_render_shader_params_ubo;
     std::unique_ptr<Buffer<ShaderParamsUpscale>> m_upscale_shader_params_ubo;
@@ -196,6 +193,9 @@ private:
     std::unique_ptr<webgpu::raii::BindGroup> m_upscale_clouds_bind_group_a;
     std::unique_ptr<webgpu::raii::BindGroup> m_upscale_clouds_bind_group_b;
     std::unique_ptr<webgpu::raii::BindGroup> m_camera_bind_group;
+
+    std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_render_clouds_pipeline;
+    std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_upscale_clouds_pipeline;
 
     uint32_t m_stable_frames = 0;
 

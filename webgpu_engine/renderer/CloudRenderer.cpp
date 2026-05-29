@@ -22,6 +22,8 @@
 #include "nucleus/camera/Definition.h"
 #include "nucleus/srs.h"
 #include "nucleus/utils/terrain_mesh_index_generator.h"
+#include <webgpu/RenderResourceRegistry.h>
+#include <webgpu/raii/BindGroupLayout.h>
 
 using namespace webgpu_engine::clouds;
 namespace webgpu_engine {
@@ -31,10 +33,10 @@ CloudRenderer::CloudRenderer()
 {
 }
 
-void CloudRenderer::init(WGPUDevice device)
+void CloudRenderer::init(webgpu::Context& ctx)
 {
-    m_device = device;
-    m_queue = wgpuDeviceGetQueue(device);
+    m_ctx = &ctx;
+
     WGPUTextureDescriptor cloud_texture_desc {};
     cloud_texture_desc.label = WGPUStringView { .data = "cloud texture", .length = WGPU_STRLEN };
     cloud_texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_3D;
@@ -58,9 +60,9 @@ void CloudRenderer::init(WGPUDevice device)
     cloud_sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
     cloud_sampler_desc.maxAnisotropy = 1;
 
-    m_cloud_atlas_texture = std::make_unique<webgpu::raii::Texture>(m_device, cloud_texture_desc);
+    m_cloud_atlas_texture = std::make_unique<webgpu::raii::Texture>(m_ctx->device(), cloud_texture_desc);
     m_cloud_atlas_view = m_cloud_atlas_texture->create_view();
-    m_cloud_linear_sampler = std::make_unique<webgpu::raii::Sampler>(m_device, cloud_sampler_desc);
+    m_cloud_linear_sampler = std::make_unique<webgpu::raii::Sampler>(m_ctx->device(), cloud_sampler_desc);
 
     glm::dvec2 world_bounds_min = nucleus::srs::lat_long_to_world(BOUNDS_MIN);
     m_tile_coords_offset = nucleus::srs::world_xy_to_tile_id(world_bounds_min, ZOOM_MAX).coords;
@@ -68,17 +70,17 @@ void CloudRenderer::init(WGPUDevice device)
     glm::dvec2 world_bounds_max_aligned = nucleus::srs::tile_id_to_world_xy(m_tile_coords_offset + TILE_COUNTS, ZOOM_MAX);
     float world_bounds_max_z = MAX_ALTITUDE / std::cos(glm::radians(BOUNDS_MAX.x));
 
-    m_render_shader_params_ubo = std::make_unique<Buffer<ShaderParamsRender>>(m_device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
+    m_render_shader_params_ubo = std::make_unique<Buffer<ShaderParamsRender>>(m_ctx->device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
     m_render_shader_params_ubo->data.bounds_min = glm::vec4(world_bounds_min_aligned, 0.0, 0.0);
     m_render_shader_params_ubo->data.bounds_max = glm::vec4(world_bounds_max_aligned, world_bounds_max_z, 0.0);
-    m_upscale_shader_params_ubo = std::make_unique<Buffer<ShaderParamsUpscale>>(m_device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
+    m_upscale_shader_params_ubo = std::make_unique<Buffer<ShaderParamsUpscale>>(m_ctx->device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
 
     // this represents a flattened 2d lookup table
     m_cloud_tile_info_buffer
-        = std::make_unique<webgpu::raii::RawBuffer<TileInfo>>(m_device, WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst, TILE_COUNT_TOTAL);
+        = std::make_unique<webgpu::raii::RawBuffer<TileInfo>>(m_ctx->device(), WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst, TILE_COUNT_TOTAL);
     m_tile_infos.resize(TILE_COUNT_TOTAL);
 
-    m_linear_sampler = std::make_unique<webgpu::raii::Sampler>(m_device,
+    m_linear_sampler = std::make_unique<webgpu::raii::Sampler>(m_ctx->device(),
         WGPUSamplerDescriptor {
             .label = WGPUStringView { .data = "clouds upscale linear sampler", .length = WGPU_STRLEN },
             .addressModeU = WGPUAddressMode_ClampToEdge,
@@ -91,6 +93,151 @@ void CloudRenderer::init(WGPUDevice device)
             .compare = WGPUCompareFunction::WGPUCompareFunction_Undefined,
             .maxAnisotropy = 1,
         });
+
+    auto& reg = ctx.resource_registry();
+    reg.register_shader("render_clouds", "render_clouds.wgsl");
+    reg.register_shader("upscale_clouds", "upscale_clouds.wgsl");
+
+    reg.register_bind_group_layout("render_clouds", [](WGPUDevice device) {
+        WGPUBindGroupLayoutEntry shader_params_entry {};
+        shader_params_entry.binding = 0;
+        shader_params_entry.visibility = WGPUShaderStage_Compute;
+        shader_params_entry.buffer.type = WGPUBufferBindingType_Uniform;
+        shader_params_entry.buffer.minBindingSize = 0;
+
+        WGPUBindGroupLayoutEntry atlas_texture_entry {};
+        atlas_texture_entry.binding = 1;
+        atlas_texture_entry.visibility = WGPUShaderStage_Compute;
+        atlas_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
+        atlas_texture_entry.texture.viewDimension = WGPUTextureViewDimension_3D;
+
+        WGPUBindGroupLayoutEntry atlas_texture_sampler {};
+        atlas_texture_sampler.binding = 2;
+        atlas_texture_sampler.visibility = WGPUShaderStage_Compute;
+        atlas_texture_sampler.sampler.type = WGPUSamplerBindingType_Filtering;
+
+        WGPUBindGroupLayoutEntry tile_infos_entry {};
+        tile_infos_entry.binding = 3;
+        tile_infos_entry.visibility = WGPUShaderStage_Compute;
+        tile_infos_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+        tile_infos_entry.buffer.minBindingSize = 0;
+
+        WGPUBindGroupLayoutEntry color_output_entry {};
+        color_output_entry.binding = 4;
+        color_output_entry.visibility = WGPUShaderStage_Compute;
+        color_output_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
+        color_output_entry.storageTexture.format = WGPUTextureFormat_RGBA16Float;
+        color_output_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+
+        WGPUBindGroupLayoutEntry depth_output_entry {};
+        depth_output_entry.binding = 5;
+        depth_output_entry.visibility = WGPUShaderStage_Compute;
+        depth_output_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
+        depth_output_entry.storageTexture.format = WGPUTextureFormat_R32Float;
+        depth_output_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+
+        return std::make_unique<webgpu::raii::BindGroupLayout>(device,
+            std::vector<WGPUBindGroupLayoutEntry> {
+                shader_params_entry,
+                atlas_texture_entry,
+                atlas_texture_sampler,
+                tile_infos_entry,
+                color_output_entry,
+                depth_output_entry,
+            },
+            "cloud bind group");
+    });
+
+    reg.register_bind_group_layout("upscale_clouds", [](WGPUDevice device) {
+        WGPUBindGroupLayoutEntry shader_params_entry {};
+        shader_params_entry.binding = 0;
+        shader_params_entry.visibility = WGPUShaderStage_Compute;
+        shader_params_entry.buffer.type = WGPUBufferBindingType_Uniform;
+        shader_params_entry.buffer.minBindingSize = 0;
+
+        WGPUBindGroupLayoutEntry current_frame_color_texture_entry {};
+        current_frame_color_texture_entry.binding = 1;
+        current_frame_color_texture_entry.visibility = WGPUShaderStage_Compute;
+        current_frame_color_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
+        current_frame_color_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+        WGPUBindGroupLayoutEntry current_frame_depth_texture_entry {};
+        current_frame_depth_texture_entry.binding = 2;
+        current_frame_depth_texture_entry.visibility = WGPUShaderStage_Compute;
+        current_frame_depth_texture_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
+        current_frame_depth_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+        WGPUBindGroupLayoutEntry linear_sampler_entry {};
+        linear_sampler_entry.binding = 3;
+        linear_sampler_entry.visibility = WGPUShaderStage_Compute;
+        linear_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
+
+        WGPUBindGroupLayoutEntry accumulation_color_texture_r_entry {};
+        accumulation_color_texture_r_entry.binding = 4;
+        accumulation_color_texture_r_entry.visibility = WGPUShaderStage_Compute;
+        accumulation_color_texture_r_entry.texture.sampleType = WGPUTextureSampleType_Float;
+        accumulation_color_texture_r_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+        WGPUBindGroupLayoutEntry accumulation_color_texture_w_entry {};
+        accumulation_color_texture_w_entry.binding = 5;
+        accumulation_color_texture_w_entry.visibility = WGPUShaderStage_Compute;
+        accumulation_color_texture_w_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
+        accumulation_color_texture_w_entry.storageTexture.format = WGPUTextureFormat_RGBA16Float;
+        accumulation_color_texture_w_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+
+        return std::make_unique<webgpu::raii::BindGroupLayout>(device,
+            std::vector<WGPUBindGroupLayoutEntry> {
+                shader_params_entry,
+                current_frame_color_texture_entry,
+                current_frame_depth_texture_entry,
+                linear_sampler_entry,
+                accumulation_color_texture_r_entry,
+                accumulation_color_texture_w_entry,
+            },
+            "upscale clouds bind group layout");
+    });
+
+    reg.register_pipeline([this](WGPUDevice dev, const webgpu::RenderResourceRegistry& reg) {
+        glm::dvec2 bounds_min = nucleus::srs::lat_long_to_world(BOUNDS_MIN);
+        // Note: This is different from nucleus::srs::world_xy_to_tile_id because it doesn't apply the origin shift, resulting in signed coords.
+        // This calculation matches the shader.
+        double tile_size_xy = nucleus::srs::tile_width(ZOOM_MAX);
+        glm::ivec2 tile_coords_offset = glm::floor(bounds_min / tile_size_xy);
+
+        std::vector<WGPUConstantEntry> constants = {
+            WGPUConstantEntry { .key = { .data = "tile_size_xy", .length = WGPU_STRLEN }, .value = tile_size_xy },
+            WGPUConstantEntry { .key = { .data = "inv_tile_size_xy", .length = WGPU_STRLEN }, .value = 1.0 / tile_size_xy },
+            WGPUConstantEntry { .key = { .data = "tile_count_x", .length = WGPU_STRLEN }, .value = TILE_COUNTS.x },
+            WGPUConstantEntry { .key = { .data = "tile_count_y", .length = WGPU_STRLEN }, .value = TILE_COUNTS.y },
+            WGPUConstantEntry { .key = { .data = "zoom_max", .length = WGPU_STRLEN }, .value = ZOOM_MAX },
+            WGPUConstantEntry { .key = { .data = "tile_coords_offset_x", .length = WGPU_STRLEN }, .value = static_cast<double>(tile_coords_offset.x) },
+            WGPUConstantEntry { .key = { .data = "tile_coords_offset_y", .length = WGPU_STRLEN }, .value = static_cast<double>(tile_coords_offset.y) },
+            WGPUConstantEntry { .key = { .data = "atlas_bits_xy", .length = WGPU_STRLEN }, .value = ATLAS_BITS_XY },
+            WGPUConstantEntry { .key = { .data = "atlas_bits_z", .length = WGPU_STRLEN }, .value = ATLAS_BITS_Z },
+        };
+
+        WGPUComputePipelineDescriptor pipeline_desc {};
+        pipeline_desc.label = WGPUStringView { .data = "cloud render pipeline", .length = WGPU_STRLEN };
+        pipeline_desc.compute.module = reg.shader("render_clouds").handle();
+        pipeline_desc.compute.entryPoint = WGPUStringView { .data = "computeMain", .length = WGPU_STRLEN };
+        pipeline_desc.compute.constantCount = constants.size();
+        pipeline_desc.compute.constants = constants.data();
+
+        m_render_clouds_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(dev,
+            std::vector<const webgpu::raii::BindGroupLayout*> {
+                &reg.bind_group_layout("render_clouds"),
+                &reg.bind_group_layout("depth_texture"),
+                &reg.bind_group_layout("shared_config"),
+            },
+            pipeline_desc);
+    });
+
+    reg.register_pipeline([this](WGPUDevice dev, const webgpu::RenderResourceRegistry& reg) {
+        m_upscale_clouds_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(dev,
+            reg.shader("upscale_clouds"),
+            std::vector<const webgpu::raii::BindGroupLayout*> { &reg.bind_group_layout("upscale_clouds") },
+            "upscale clouds compute pipeline");
+    });
 }
 
 struct FrameJitterData {
@@ -146,7 +293,7 @@ void CloudRenderer::resize(int w, int h)
     m_upscale_shader_params_ubo->data.high_res_texel_size = 1.0f / glm::vec2(m_output_hi_resolution);
     m_upscale_shader_params_ubo->data.resolution_scale = glm::vec2(m_output_hi_resolution) / glm::vec2(m_output_lo_resolution);
 
-    m_clouds_lo_color_texture = std::make_unique<webgpu::raii::Texture>(m_device,
+    m_clouds_lo_color_texture = std::make_unique<webgpu::raii::Texture>(m_ctx->device(),
         WGPUTextureDescriptor {
             .label = WGPUStringView { .data = "clouds_lo_color", .length = WGPU_STRLEN },
             .usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding,
@@ -157,7 +304,7 @@ void CloudRenderer::resize(int w, int h)
             .sampleCount = 1,
         });
     m_clouds_lo_color_texture_view = m_clouds_lo_color_texture->create_view();
-    m_clouds_lo_depth_texture = std::make_unique<webgpu::raii::Texture>(m_device,
+    m_clouds_lo_depth_texture = std::make_unique<webgpu::raii::Texture>(m_ctx->device(),
         WGPUTextureDescriptor {
             .label = WGPUStringView { .data = "clouds_lo_depth", .length = WGPU_STRLEN },
             .usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding,
@@ -169,7 +316,7 @@ void CloudRenderer::resize(int w, int h)
         });
     m_clouds_lo_depth_texture_view = m_clouds_lo_depth_texture->create_view();
 
-    m_clouds_hi_color_texture_a = std::make_unique<webgpu::raii::Texture>(m_device,
+    m_clouds_hi_color_texture_a = std::make_unique<webgpu::raii::Texture>(m_ctx->device(),
         WGPUTextureDescriptor {
             .label = WGPUStringView { .data = "clouds_hi_color_a", .length = WGPU_STRLEN },
             .usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding,
@@ -181,20 +328,21 @@ void CloudRenderer::resize(int w, int h)
         });
     m_clouds_hi_color_texture_view_a = m_clouds_hi_color_texture_a->create_view();
 
-    m_clouds_hi_color_texture_b = std::make_unique<webgpu::raii::Texture>(m_device,
-    WGPUTextureDescriptor {
-        .label = WGPUStringView { .data = "clouds_hi_color_b", .length = WGPU_STRLEN },
-        .usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding,
-        .dimension = WGPUTextureDimension_2D,
-        .size = { .width = static_cast<uint32_t>(w), .height = static_cast<uint32_t>(h), .depthOrArrayLayers = 1 },
-        .format = WGPUTextureFormat_RGBA16Float,
-        .mipLevelCount = 1,
-        .sampleCount = 1,
-    });
+    m_clouds_hi_color_texture_b = std::make_unique<webgpu::raii::Texture>(m_ctx->device(),
+        WGPUTextureDescriptor {
+            .label = WGPUStringView { .data = "clouds_hi_color_b", .length = WGPU_STRLEN },
+            .usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding,
+            .dimension = WGPUTextureDimension_2D,
+            .size = { .width = static_cast<uint32_t>(w), .height = static_cast<uint32_t>(h), .depthOrArrayLayers = 1 },
+            .format = WGPUTextureFormat_RGBA16Float,
+            .mipLevelCount = 1,
+            .sampleCount = 1,
+        });
     m_clouds_hi_color_texture_view_b = m_clouds_hi_color_texture_b->create_view();
 
-    m_render_clouds_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device,
-        m_pipeline_manager->render_clouds_bind_group_layout(),
+    auto& reg = m_ctx->resource_registry();
+    m_render_clouds_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_ctx->device(),
+        reg.bind_group_layout("render_clouds"),
         std::initializer_list<WGPUBindGroupEntry> {
             m_render_shader_params_ubo->raw_buffer().create_bind_group_entry(0),
             m_cloud_atlas_view->create_bind_group_entry(1),
@@ -205,8 +353,8 @@ void CloudRenderer::resize(int w, int h)
         },
         "render clouds bind group");
 
-    m_upscale_clouds_bind_group_a = std::make_unique<webgpu::raii::BindGroup>(m_device,
-        m_pipeline_manager->upscale_clouds_bind_group_layout(),
+    m_upscale_clouds_bind_group_a = std::make_unique<webgpu::raii::BindGroup>(m_ctx->device(),
+        reg.bind_group_layout("upscale_clouds"),
         std::initializer_list<WGPUBindGroupEntry> {
             m_upscale_shader_params_ubo->raw_buffer().create_bind_group_entry(0),
             m_clouds_lo_color_texture_view->create_bind_group_entry(1),
@@ -217,17 +365,17 @@ void CloudRenderer::resize(int w, int h)
         },
         "upscale clouds bind group a");
 
-    m_upscale_clouds_bind_group_b = std::make_unique<webgpu::raii::BindGroup>(m_device,
-       m_pipeline_manager->upscale_clouds_bind_group_layout(),
-       std::initializer_list<WGPUBindGroupEntry> {
-           m_upscale_shader_params_ubo->raw_buffer().create_bind_group_entry(0),
-           m_clouds_lo_color_texture_view->create_bind_group_entry(1),
-           m_clouds_lo_depth_texture_view->create_bind_group_entry(2),
-           m_linear_sampler->create_bind_group_entry(3),
-           m_clouds_hi_color_texture_view_b->create_bind_group_entry(4),
-           m_clouds_hi_color_texture_view_a->create_bind_group_entry(5),
-       },
-       "upscale clouds bind group b");
+    m_upscale_clouds_bind_group_b = std::make_unique<webgpu::raii::BindGroup>(m_ctx->device(),
+        reg.bind_group_layout("upscale_clouds"),
+        std::initializer_list<WGPUBindGroupEntry> {
+            m_upscale_shader_params_ubo->raw_buffer().create_bind_group_entry(0),
+            m_clouds_lo_color_texture_view->create_bind_group_entry(1),
+            m_clouds_lo_depth_texture_view->create_bind_group_entry(2),
+            m_linear_sampler->create_bind_group_entry(3),
+            m_clouds_hi_color_texture_view_b->create_bind_group_entry(4),
+            m_clouds_hi_color_texture_view_a->create_bind_group_entry(5),
+        },
+        "upscale clouds bind group b");
 }
 
 void CloudRenderer::draw(const WGPUCommandEncoder& command_encoder, const WGPUBindGroup& depth_texture_bind_group, const WGPUBindGroup& shared_config_bind_group, const nucleus::camera::Definition& camera, uint32_t frame_number)
@@ -273,11 +421,11 @@ void CloudRenderer::draw(const WGPUCommandEncoder& command_encoder, const WGPUBi
         m_render_shader_params_ubo->data.shadow_extinction_scale = shader_params.shadow_extinction_scale;
         m_render_shader_params_ubo->data.fade_factor = shader_params.fade_factor;
         m_render_shader_params_ubo->data.powder_scale = shader_params.powder_scale;
-        m_render_shader_params_ubo->update_gpu_data(m_queue);
+        m_render_shader_params_ubo->update_gpu_data(m_ctx->queue());
 
-        m_cloud_tile_info_buffer->write(m_queue, m_tile_infos.data(), m_tile_infos.size());
+        m_cloud_tile_info_buffer->write(m_ctx->queue(), m_tile_infos.data(), m_tile_infos.size());
 
-        wgpuComputePassEncoderSetPipeline(compute_pass.handle(), m_pipeline_manager->render_clouds_pipeline().handle());
+        wgpuComputePassEncoderSetPipeline(compute_pass.handle(), m_render_clouds_pipeline->handle());
         wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, m_render_clouds_bind_group->handle(), 0, nullptr);
         wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 1, depth_texture_bind_group, 0, nullptr);
         wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 2, shared_config_bind_group, 0, nullptr);
@@ -300,9 +448,9 @@ void CloudRenderer::draw(const WGPUCommandEncoder& command_encoder, const WGPUBi
         };
         m_upscale_shader_params_ubo->data.prev_jitter = m_upscale_shader_params_ubo->data.jitter;
         m_upscale_shader_params_ubo->data.jitter = jitter_offset;
-        m_upscale_shader_params_ubo->update_gpu_data(m_queue);
+        m_upscale_shader_params_ubo->update_gpu_data(m_ctx->queue());
 
-        wgpuComputePassEncoderSetPipeline(compute_pass.handle(), m_pipeline_manager->upscale_clouds_pipeline().handle());
+        wgpuComputePassEncoderSetPipeline(compute_pass.handle(), m_upscale_clouds_pipeline->handle());
         auto bind_group = frame_number % 2 == 0 ? m_upscale_clouds_bind_group_a->handle() : m_upscale_clouds_bind_group_b->handle();
         wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, bind_group, 0, nullptr);
 
@@ -311,8 +459,6 @@ void CloudRenderer::draw(const WGPUCommandEncoder& command_encoder, const WGPUBi
 }
 
 void CloudRenderer::set_tile_limit(unsigned int num_tiles) { m_loaded_cloud_textures.set_tile_limit(num_tiles); }
-
-void CloudRenderer::set_pipeline_manager(const PipelineManager& pipeline_manager) { m_pipeline_manager = &pipeline_manager; }
 
 void CloudRenderer::update_gpu_tiles_cloud(const std::vector<nucleus::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuTexture3DTile>& new_tiles)
 {
@@ -345,7 +491,7 @@ void CloudRenderer::update_gpu_tiles_cloud(const std::vector<nucleus::tile::Id>&
         for (int i = 0; i < tile.texture->size(); ++i) {
             const auto& level = tile.texture->at(i);
             glm::uvec3 atlas_offset = { atlas_x * level.width(), atlas_y * level.height(), atlas_z * level.depth() };
-            m_cloud_atlas_texture->write(m_queue, level, atlas_offset, i);
+            m_cloud_atlas_texture->write(m_ctx->queue(), level, atlas_offset, i);
         }
 
         // convert to coords at max zoom level

@@ -20,8 +20,6 @@
 #pragma once
 
 #include "Context.h"
-#include "PipelineManager.h"
-#include "ShaderModuleManager.h"
 #include "renderer/AtmosphereRenderer.h"
 #include "renderer/TrackRenderer.h"
 #include "UniformBufferObjects.h"
@@ -64,7 +62,7 @@ public:
 
     ~Window() override;
 
-    void set_wgpu_context(WGPUInstance instance, WGPUDevice device, WGPUAdapter adapter, WGPUSurface surface, WGPUQueue queue, Context* context);
+    void set_context(Context* context);
     void initialise_gpu() override;
     void resize_framebuffer(int w, int h) override;
     void paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_encoder);
@@ -141,11 +139,6 @@ private:
     std::unique_ptr<webgpu::raii::TextureWithSampler> create_shadow_texture(uint32_t width, uint32_t height, uint32_t mip_levels);
 
 private:
-    WGPUInstance m_instance = nullptr;
-    WGPUDevice m_device = nullptr;
-    WGPUAdapter m_adapter = nullptr;
-    WGPUSurface m_surface = nullptr;
-    WGPUQueue m_queue = nullptr;
     Context* m_context = nullptr;
 
     std::unique_ptr<Buffer<uboSharedConfig>> m_shared_config_ubo;
@@ -163,6 +156,7 @@ private:
     std::unique_ptr<webgpu::Framebuffer> m_gbuffer;
 
     std::unique_ptr<AtmosphereRenderer> m_atmosphere_renderer;
+    std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_compose_pipeline;
 
     // ToDo: Swapchain should get a raii class and the size could be saved in there
     glm::vec2 m_swapchain_size = glm::vec2(0.0f);

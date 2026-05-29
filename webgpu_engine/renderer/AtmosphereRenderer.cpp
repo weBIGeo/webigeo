@@ -21,6 +21,7 @@
 
 #include <glm/glm.hpp>
 #include <webgpu/Framebuffer.h>
+#include <webgpu/RenderResourceRegistry.h>
 #include <webgpu/raii/RenderPassEncoder.h>
 
 namespace webgpu_engine {
@@ -30,24 +31,39 @@ AtmosphereRenderer::AtmosphereRenderer()
 {
 }
 
-void AtmosphereRenderer::init(WGPUDevice device) { m_device = device; }
+void AtmosphereRenderer::init(webgpu::Context& ctx)
+{
+    m_ctx = &ctx;
+
+    auto& reg = ctx.resource_registry();
+    reg.register_shader("render_atmosphere", "render_atmosphere.wgsl");
+    reg.register_pipeline([this](WGPUDevice dev, const webgpu::RenderResourceRegistry& reg) {
+        webgpu::FramebufferFormat format {};
+        format.depth_format = WGPUTextureFormat_Undefined;
+        format.color_formats.emplace_back(WGPUTextureFormat_RGBA8Unorm);
+        m_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(dev,
+            reg.shader("render_atmosphere"),
+            reg.shader("render_atmosphere"),
+            std::vector<webgpu::util::SingleVertexBufferInfo> {},
+            format,
+            std::vector<const webgpu::raii::BindGroupLayout*> { &reg.bind_group_layout("camera") });
+    });
+}
 
 void AtmosphereRenderer::resize(int /*w*/, int h)
 {
-    webgpu::FramebufferFormat format(m_pipeline_manager->render_atmosphere_pipeline().framebuffer_format());
+    webgpu::FramebufferFormat format(m_pipeline->framebuffer_format());
     format.size = glm::uvec2(1, h);
-    m_atmosphere_framebuffer = std::make_unique<webgpu::Framebuffer>(m_device, format);
+    m_atmosphere_framebuffer = std::make_unique<webgpu::Framebuffer>(m_ctx->device(), format);
 }
 
 void AtmosphereRenderer::draw(const WGPUCommandEncoder& command_encoder, const WGPUBindGroup& camera_bind_group)
 {
     std::unique_ptr<webgpu::raii::RenderPassEncoder> render_pass = m_atmosphere_framebuffer->begin_render_pass(command_encoder);
     wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 0, camera_bind_group, 0, nullptr);
-    wgpuRenderPassEncoderSetPipeline(render_pass->handle(), m_pipeline_manager->render_atmosphere_pipeline().pipeline().handle());
+    wgpuRenderPassEncoderSetPipeline(render_pass->handle(), m_pipeline->pipeline().handle());
     wgpuRenderPassEncoderDraw(render_pass->handle(), 3, 1, 0, 0);
 }
-
-void AtmosphereRenderer::set_pipeline_manager(const PipelineManager& pipeline_manager) { m_pipeline_manager = &pipeline_manager; }
 
 const webgpu::raii::TextureView* AtmosphereRenderer::result_view() const { return &m_atmosphere_framebuffer->color_texture_view(0); }
 

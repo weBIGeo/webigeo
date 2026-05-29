@@ -529,8 +529,8 @@ void NodeGraphRenderer::render_settings_panel()
     NodeRenderer* selected = find_selected_node_renderer();
 
     constexpr float panel_width = 430.0f;
-    constexpr float panel_margin = 12.0f;
-    constexpr float panel_margin_top = 51.0f;
+    constexpr float panel_margin = 11.0f;
+    constexpr float panel_margin_top = 26.0f;
     ImGui::SetNextWindowPos({ m_window_size.x - panel_width - panel_margin, panel_margin + panel_margin_top }, ImGuiCond_Always);
     ImGui::SetNextWindowSizeConstraints({ panel_width, 0 }, { panel_width, m_window_size.y - panel_margin * 2 });
     ImGui::Begin("Node Settings",

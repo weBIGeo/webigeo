@@ -18,7 +18,6 @@
 
 #pragma once
 
-#include "../PipelineManager.h"
 #include <QObject>
 #include <radix/geometry.h>
 #include <string>
@@ -39,13 +38,10 @@ public:
 
     void draw(const WGPUCommandEncoder& command_encoder);
 
-    void set_pipeline_manager(const PipelineManager& pipeline_manager);
-
     static tl::expected<radix::geometry::Aabb<2, double>, std::string> load_aabb_from_file(const std::string& file_path);
 
 private:
     WGPUDevice m_device = {};
-    const PipelineManager* m_pipeline_manager = nullptr;
 };
 
 } // namespace webgpu_engine
