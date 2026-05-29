@@ -19,7 +19,7 @@
 #############################################################################
 
 cmake_minimum_required(VERSION 3.25)
-project(alpine-renderer LANGUAGES CXX)
+project(alpine-renderer LANGUAGES C CXX)
 
 option(ALP_UNITTESTS "include unit test targets in the buildsystem" OFF)
 option(ALP_GL_ENGINE "include the gl engine in the buildsystem" OFF)
