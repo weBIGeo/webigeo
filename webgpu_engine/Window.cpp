@@ -94,7 +94,8 @@ void Window::initialise_gpu()
             });
     });
 
-    m_track_renderer = std::make_unique<TrackRenderer>(m_context->webgpu_ctx());
+    m_track_renderer = std::make_unique<TrackRenderer>();
+    m_track_renderer->init(m_context->webgpu_ctx());
 
     m_atmosphere_renderer = std::make_unique<AtmosphereRenderer>();
     m_atmosphere_renderer->init(m_context->webgpu_ctx());

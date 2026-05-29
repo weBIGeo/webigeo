@@ -25,9 +25,15 @@
 
 namespace webgpu_engine {
 
-TrackRenderer::TrackRenderer(webgpu::Context& ctx)
-    : m_ctx { &ctx }
+TrackRenderer::TrackRenderer()
+    : m_ctx { nullptr }
 {
+}
+
+void TrackRenderer::init(webgpu::Context& ctx)
+{
+    m_ctx = &ctx;
+
     auto& reg = ctx.resource_registry();
     reg.register_shader("render_lines", "render_lines.wgsl");
     reg.register_bind_group_layout("lines", [](WGPUDevice device) {

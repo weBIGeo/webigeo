@@ -39,7 +39,9 @@ public:
     };
 
 public:
-    explicit TrackRenderer(webgpu::Context& ctx);
+    explicit TrackRenderer();
+
+    void init(webgpu::Context& ctx);
 
     void add_track(const Track& track, const glm::vec4& color = { 78.0 / 255.0f, 163.0 / 255.0f, 196.0 / 255.0f, 1.0f });
     void add_world_positions(const std::vector<glm::vec4>& world_positions, const glm::vec4& color = { 1.0f, 0.0f, 0.0f, 1.0f });

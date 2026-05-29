@@ -20,6 +20,7 @@
 
 #include <QObject>
 #include <radix/geometry.h>
+#include <webgpu/Context.h>
 #include <string>
 #include <tl/expected.hpp>
 #include <webgpu/webgpu.h>
@@ -32,7 +33,7 @@ class OverlayRenderer : public QObject {
 public:
     explicit OverlayRenderer();
 
-    void init(WGPUDevice device);
+    void init(webgpu::Context& ctx);
 
     void resize(int w, int h);
 
@@ -41,7 +42,7 @@ public:
     static tl::expected<radix::geometry::Aabb<2, double>, std::string> load_aabb_from_file(const std::string& file_path);
 
 private:
-    WGPUDevice m_device = {};
+    webgpu::Context* m_ctx = nullptr;
 };
 
 } // namespace webgpu_engine

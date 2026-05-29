@@ -29,7 +29,7 @@ OverlayRenderer::OverlayRenderer()
 {
 }
 
-void OverlayRenderer::init(WGPUDevice device) { m_device = device; }
+void OverlayRenderer::init(webgpu::Context& ctx) { m_ctx = &ctx; }
 
 void OverlayRenderer::resize(int /*w*/, int /*h*/) { /* TODO: implement */ }
 
