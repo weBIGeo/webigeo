@@ -51,6 +51,7 @@ private:
     bool m_set_focus_on_text = true;
     bool m_is_active = false;
     bool m_show_no_results = false;
+    bool m_clear_input_requested = false;
 };
 
 } // namespace webgpu_app

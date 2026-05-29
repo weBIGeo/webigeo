@@ -54,6 +54,13 @@ void SearchPanel::draw()
         ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f));
         ImGui::PushItemWidth(search_text_width);
 
+        // NOTE: The following is necessary to clear some form of imgui cache which leads to
+        // reseting of the input buffer not properly displayed
+        if (m_clear_input_requested) {
+            m_clear_input_requested = false;
+            ImGui::ClearActiveID();
+        }
+
         if (m_set_focus_on_text) {
             m_set_focus_on_text = false;
             ImGui::SetKeyboardFocusHere();
@@ -115,6 +122,7 @@ void SearchPanel::select_result(const SearchResult& result)
     m_search_buffer.fill('\0');
     m_search_results.clear();
     m_show_no_results = false;
+    m_clear_input_requested = true;
     m_is_active = false;
 }
 
