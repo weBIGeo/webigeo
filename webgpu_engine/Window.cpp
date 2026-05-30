@@ -206,6 +206,7 @@ void Window::resize_framebuffer(int w, int h)
         });
 
     m_context->cloud_renderer()->resize(w, h);
+    m_context->overlay_renderer()->resize(w, h);
 
     // Do late
     recreate_compose_bind_group();
@@ -248,6 +249,14 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
             command_encoder, m_depth_texture_bind_group->handle(), m_shared_config_bind_group->handle(), m_camera, m_paint_number);
         m_needs_redraw |= m_context->cloud_renderer()->needs_redraw(); // Repaint for TAAU
     }
+
+    // render overlay textures (height lines, etc.)
+    m_context->overlay_renderer()->draw(
+        command_encoder,
+        m_gbuffer->color_texture_view(1),
+        m_gbuffer->color_texture_view(2),
+        m_shared_config_bind_group->handle(),
+        m_camera_bind_group->handle());
 
     // render geometry buffers to target framebuffer
     {
@@ -1059,6 +1068,7 @@ void Window::recreate_compose_bind_group()
                 m_shadow_texture->texture_view().create_bind_group_entry(13),
                 m_shadow_texture->sampler().create_bind_group_entry(14),
                 m_gbuffer->depth_texture_view().create_bind_group_entry(15),
+                m_context->overlay_renderer()->result_view()->create_bind_group_entry(16), // overlay renderer output (height lines, etc.)
             });
     }
 }

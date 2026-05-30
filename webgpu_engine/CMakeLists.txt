@@ -133,6 +133,8 @@ qt_add_resources(webgpu_engine "shaders"
         "${SHADER_BASE_DIR}/compute/fxaa_compute.wgsl"
         "${SHADER_BASE_DIR}/compute/iterative_simulation_compute.wgsl"
 
+        "${SHADER_BASE_DIR}/overlays/height_lines.wgsl"
+
         "${SHADER_BASE_DIR}/util/atmosphere.wgsl"
         "${SHADER_BASE_DIR}/util/snow.wgsl"
         "${SHADER_BASE_DIR}/util/tile_util.wgsl"

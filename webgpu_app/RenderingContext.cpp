@@ -28,6 +28,7 @@
 #include "nucleus/tile/setup.h"
 #include "webgpu_engine/Context.h"
 #include "webgpu_engine/renderer/CloudRenderer.h"
+#include "webgpu_engine/renderer/OverlayRenderer.h"
 #include "webgpu_engine/renderer/TileMeshRenderer.h"
 
 namespace webgpu_app {
@@ -117,6 +118,7 @@ void RenderingContext::initialize(webgpu::Context& ctx)
     m_engine_context->set_aabb_decorator(m_aabb_decorator);
     m_engine_context->set_tile_mesh_renderer(tile_mesh_renderer);
     m_engine_context->set_cloud_renderer(cloud_renderer);
+    m_engine_context->set_overlay_renderer(std::make_shared<webgpu_engine::OverlayRenderer>());
 
     connect(m_geometry_scheduler_holder.scheduler.get(),
         &nucleus::tile::GeometryScheduler::gpu_tiles_updated,

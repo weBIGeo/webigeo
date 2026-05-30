@@ -22,6 +22,7 @@
 
 #include "renderer/AtmosphereRenderer.h"
 #include "renderer/CloudRenderer.h"
+#include "renderer/OverlayRenderer.h"
 #include "renderer/TileMeshRenderer.h"
 #include "UniformBufferObjects.h"
 #include "nucleus/EngineContext.h"
@@ -46,6 +47,9 @@ public:
 
     AtmosphereRenderer* atmosphere_renderer() const;
     void set_atmosphere_renderer(std::shared_ptr<AtmosphereRenderer> new_atmosphere_renderer);
+
+    OverlayRenderer* overlay_renderer() const;
+    void set_overlay_renderer(std::shared_ptr<OverlayRenderer> new_overlay_renderer);
 
     webgpu::Context& webgpu_ctx() { return *m_webgpu_ctx_ptr; }
     void set_webgpu_ctx(webgpu::Context& ctx);
@@ -72,6 +76,7 @@ private:
     std::shared_ptr<TileMeshRenderer> m_tile_mesh_renderer;
     std::shared_ptr<CloudRenderer> m_cloud_renderer;
     std::shared_ptr<AtmosphereRenderer> m_atmosphere_renderer;
+    std::shared_ptr<OverlayRenderer> m_overlay_renderer;
     // std::shared_ptr<TextureLayer> m_ortho_layer;
 };
 

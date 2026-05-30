@@ -19,30 +19,40 @@
 #pragma once
 
 #include <QObject>
+#include <memory>
 #include <radix/geometry.h>
-#include <webgpu/Context.h>
 #include <string>
 #include <tl/expected.hpp>
+#include <webgpu/Context.h>
+#include <webgpu/raii/CombinedComputePipeline.h>
+#include <webgpu/raii/TextureWithSampler.h>
+#include <webgpu/raii/TextureView.h>
 #include <webgpu/webgpu.h>
 
 namespace webgpu_engine {
 
-// TODO: implement overlay rendering
 class OverlayRenderer : public QObject {
     Q_OBJECT
 public:
     explicit OverlayRenderer();
 
     void init(webgpu::Context& ctx);
-
     void resize(int w, int h);
 
-    void draw(const WGPUCommandEncoder& command_encoder);
+    void draw(const WGPUCommandEncoder& command_encoder,
+        const webgpu::raii::TextureView& position_view,
+        const webgpu::raii::TextureView& normal_view,
+        const WGPUBindGroup& shared_config_bg,
+        const WGPUBindGroup& camera_bg);
+
+    [[nodiscard]] const webgpu::raii::TextureView* result_view() const;
 
     static tl::expected<radix::geometry::Aabb<2, double>, std::string> load_aabb_from_file(const std::string& file_path);
 
 private:
     webgpu::Context* m_ctx = nullptr;
+    std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_pipeline;
+    std::unique_ptr<webgpu::raii::TextureWithSampler> m_output_texture;
 };
 
 } // namespace webgpu_engine

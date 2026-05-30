@@ -50,7 +50,7 @@ void Context::internal_initialise()
     reg.register_bind_group_layout("camera", [](WGPUDevice device) {
         WGPUBindGroupLayoutEntry entry {};
         entry.binding = 0;
-        entry.visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+        entry.visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment | WGPUShaderStage_Compute;
         entry.buffer.type = WGPUBufferBindingType_Uniform;
         entry.buffer.minBindingSize = 0;
         return std::make_unique<webgpu::raii::BindGroupLayout>(device, std::vector<WGPUBindGroupLayoutEntry> { entry }, "camera bind group layout");
@@ -158,6 +158,12 @@ void Context::internal_initialise()
         depth_texture_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
         depth_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
+        WGPUBindGroupLayoutEntry overlay_renderer_entry {};
+        overlay_renderer_entry.binding = 16;
+        overlay_renderer_entry.visibility = WGPUShaderStage_Fragment;
+        overlay_renderer_entry.texture.sampleType = WGPUTextureSampleType_Uint;
+        overlay_renderer_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
         return std::make_unique<webgpu::raii::BindGroupLayout>(device,
             std::vector<WGPUBindGroupLayoutEntry> {
                 albedo_entry,
@@ -176,6 +182,7 @@ void Context::internal_initialise()
                 shadow_texture_entry,
                 shadow_sampler_entry,
                 depth_texture_entry,
+                overlay_renderer_entry,
             },
             "compose bind group layout");
     });
@@ -204,6 +211,8 @@ void Context::internal_initialise()
         m_tile_mesh_renderer->init(webgpu_ctx());
     if (m_cloud_renderer)
         m_cloud_renderer->init(webgpu_ctx());
+    if (m_overlay_renderer)
+        m_overlay_renderer->init(webgpu_ctx());
 
     // if (m_ortho_layer)
     //     m_ortho_layer->init();
@@ -213,6 +222,7 @@ void Context::internal_destroy()
 {
     // this is necessary for a clean shutdown (and we want a clean shutdown for the ci integration test).
     // m_ortho_layer.reset();
+    m_overlay_renderer.reset();
     m_tile_mesh_renderer.reset();
 }
 
@@ -238,6 +248,14 @@ void Context::set_atmosphere_renderer(std::shared_ptr<AtmosphereRenderer> new_at
 {
     assert(!is_alive()); // only set before init is called.
     m_atmosphere_renderer = std::move(new_atmosphere_renderer);
+}
+
+OverlayRenderer* Context::overlay_renderer() const { return m_overlay_renderer.get(); }
+
+void Context::set_overlay_renderer(std::shared_ptr<OverlayRenderer> new_overlay_renderer)
+{
+    assert(!is_alive()); // only set before init is called.
+    m_overlay_renderer = std::move(new_overlay_renderer);
 }
 
 void Context::set_webgpu_ctx(webgpu::Context& ctx) { m_webgpu_ctx_ptr = &ctx; }
