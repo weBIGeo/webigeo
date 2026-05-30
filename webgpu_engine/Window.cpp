@@ -1068,7 +1068,8 @@ void Window::recreate_compose_bind_group()
                 m_shadow_texture->texture_view().create_bind_group_entry(13),
                 m_shadow_texture->sampler().create_bind_group_entry(14),
                 m_gbuffer->depth_texture_view().create_bind_group_entry(15),
-                m_context->overlay_renderer()->result_view()->create_bind_group_entry(16), // overlay renderer output (height lines, etc.)
+                m_context->overlay_renderer()->result_post_view()->create_bind_group_entry(16), // overlay post-shading output
+                m_context->overlay_renderer()->result_pre_view()->create_bind_group_entry(17),  // overlay pre-shading output
             });
     }
 }

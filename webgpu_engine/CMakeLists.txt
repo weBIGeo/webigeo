@@ -35,6 +35,8 @@ set(SOURCES
     renderer/TrackRenderer.h renderer/TrackRenderer.cpp
     renderer/AtmosphereRenderer.h renderer/AtmosphereRenderer.cpp
     renderer/OverlayRenderer.h renderer/OverlayRenderer.cpp
+    renderer/overlays/Overlay.h
+    renderer/overlays/HeightLinesOverlay.h renderer/overlays/HeightLinesOverlay.cpp
     Context.h Context.cpp
 
     compute/GpuTileStorage.h compute/GpuTileStorage.cpp

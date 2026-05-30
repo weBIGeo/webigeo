@@ -25,7 +25,16 @@
 @group(1) @binding(0) var<uniform> camera: camera_config;
 @group(2) @binding(0) var position_texture: texture_2d<f32>;
 @group(2) @binding(1) var normal_texture: texture_2d<u32>;
-@group(2) @binding(2) var output_texture: texture_storage_2d<r32uint, write>;
+@group(2) @binding(2) var<uniform> settings: HeightLinesSettings;
+@group(2) @binding(3) var output_texture: texture_storage_2d<r32uint, write>;
+
+struct HeightLinesSettings {
+    primary_interval:   f32,
+    secondary_interval: f32,
+    base_width:         f32,
+    minor_opacity:      f32,
+    line_color:         vec4f,
+}
 
 // Returns the blending alpha for a height line at this pixel, or 0 if no line.
 fn get_height_line_alpha(pos_ws: vec3f, normal: vec3f, dist: f32, interval: f32, base_width: f32, aa_scale: f32) -> f32 {
@@ -79,13 +88,11 @@ fn computeMain(@builtin(global_invocation_id) id: vec3u) {
 
     var out_color = vec4f(0.0);
 
-    const LINE_COLOR = vec3f(1.0);
-
-    if (bool(conf.height_lines_enabled) && dist > 0.0) {
-        let major = get_height_line_alpha(pos_ws, normal, dist, conf.height_lines_settings.x, conf.height_lines_settings.z, 1.0);
-        let minor = get_height_line_alpha(pos_ws, normal, dist, conf.height_lines_settings.y, conf.height_lines_settings.z * 0.5, 1.0);
-        let alpha = max(major, minor * 0.75) * conf.height_lines_settings.w;
-        out_color = vec4f(LINE_COLOR, alpha);
+    if (dist > 0.0) {
+        let major = get_height_line_alpha(pos_ws, normal, dist, settings.primary_interval, settings.base_width, 1.0);
+        let minor = get_height_line_alpha(pos_ws, normal, dist, settings.secondary_interval, settings.base_width * 0.5, 1.0);
+        let alpha = max(major, minor * settings.minor_opacity) * settings.line_color.a;
+        out_color = vec4f(settings.line_color.rgb, alpha);
     }
 
     textureStore(output_texture, tci, vec4u(pack4x8unorm(out_color), 0u, 0u, 0u));

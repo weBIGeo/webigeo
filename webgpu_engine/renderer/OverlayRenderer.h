@@ -18,13 +18,14 @@
 
 #pragma once
 
+#include "overlays/Overlay.h"
 #include <QObject>
 #include <memory>
 #include <radix/geometry.h>
 #include <string>
 #include <tl/expected.hpp>
+#include <vector>
 #include <webgpu/Context.h>
-#include <webgpu/raii/CombinedComputePipeline.h>
 #include <webgpu/raii/TextureWithSampler.h>
 #include <webgpu/raii/TextureView.h>
 #include <webgpu/webgpu.h>
@@ -36,6 +37,8 @@ class OverlayRenderer : public QObject {
 public:
     explicit OverlayRenderer();
 
+    void add_overlay(std::shared_ptr<Overlay> overlay);
+
     void init(webgpu::Context& ctx);
     void resize(int w, int h);
 
@@ -45,14 +48,18 @@ public:
         const WGPUBindGroup& shared_config_bg,
         const WGPUBindGroup& camera_bg);
 
-    [[nodiscard]] const webgpu::raii::TextureView* result_view() const;
+    [[nodiscard]] const webgpu::raii::TextureView* result_pre_view() const;
+    [[nodiscard]] const webgpu::raii::TextureView* result_post_view() const;
 
     static tl::expected<radix::geometry::Aabb<2, double>, std::string> load_aabb_from_file(const std::string& file_path);
 
 private:
+    std::unique_ptr<webgpu::raii::TextureWithSampler> create_output_texture(int w, int h, const char* label) const;
+
     webgpu::Context* m_ctx = nullptr;
-    std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_pipeline;
-    std::unique_ptr<webgpu::raii::TextureWithSampler> m_output_texture;
+    std::vector<std::shared_ptr<Overlay>> m_overlays; // stable-sorted by z_index ascending
+    std::unique_ptr<webgpu::raii::TextureWithSampler> m_pre_output_texture;  // z_index < 0  → pre-shading
+    std::unique_ptr<webgpu::raii::TextureWithSampler> m_post_output_texture; // z_index >= 0 → post-shading
 };
 
 } // namespace webgpu_engine

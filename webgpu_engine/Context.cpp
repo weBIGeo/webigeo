@@ -158,11 +158,17 @@ void Context::internal_initialise()
         depth_texture_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
         depth_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
-        WGPUBindGroupLayoutEntry overlay_renderer_entry {};
-        overlay_renderer_entry.binding = 16;
-        overlay_renderer_entry.visibility = WGPUShaderStage_Fragment;
-        overlay_renderer_entry.texture.sampleType = WGPUTextureSampleType_Uint;
-        overlay_renderer_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+        WGPUBindGroupLayoutEntry overlay_renderer_post_entry {};
+        overlay_renderer_post_entry.binding = 16;
+        overlay_renderer_post_entry.visibility = WGPUShaderStage_Fragment;
+        overlay_renderer_post_entry.texture.sampleType = WGPUTextureSampleType_Uint;
+        overlay_renderer_post_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+        WGPUBindGroupLayoutEntry overlay_renderer_pre_entry {};
+        overlay_renderer_pre_entry.binding = 17;
+        overlay_renderer_pre_entry.visibility = WGPUShaderStage_Fragment;
+        overlay_renderer_pre_entry.texture.sampleType = WGPUTextureSampleType_Uint;
+        overlay_renderer_pre_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         return std::make_unique<webgpu::raii::BindGroupLayout>(device,
             std::vector<WGPUBindGroupLayoutEntry> {
@@ -182,7 +188,8 @@ void Context::internal_initialise()
                 shadow_texture_entry,
                 shadow_sampler_entry,
                 depth_texture_entry,
-                overlay_renderer_entry,
+                overlay_renderer_post_entry,
+                overlay_renderer_pre_entry,
             },
             "compose bind group layout");
     });

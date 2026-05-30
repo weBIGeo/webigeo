@@ -21,9 +21,7 @@
 #include <QFile>
 #include <QString>
 #include <QTextStream>
-#include <webgpu/RenderResourceRegistry.h>
-#include <webgpu/raii/BindGroup.h>
-#include <webgpu/raii/BindGroupLayout.h>
+#include <algorithm>
 
 namespace webgpu_engine {
 
@@ -32,55 +30,24 @@ OverlayRenderer::OverlayRenderer()
 {
 }
 
+void OverlayRenderer::add_overlay(std::shared_ptr<Overlay> overlay)
+{
+    m_overlays.push_back(std::move(overlay));
+    std::stable_sort(m_overlays.begin(), m_overlays.end(),
+        [](const auto& a, const auto& b) { return a->z_index < b->z_index; });
+}
+
 void OverlayRenderer::init(webgpu::Context& ctx)
 {
     m_ctx = &ctx;
-
-    auto& reg = ctx.resource_registry();
-    reg.register_shader("height_lines_compute", "overlays/height_lines.wgsl");
-    reg.register_bind_group_layout("overlay_renderer", [](WGPUDevice device) {
-        WGPUBindGroupLayoutEntry position_entry {};
-        position_entry.binding = 0;
-        position_entry.visibility = WGPUShaderStage_Compute;
-        position_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
-        position_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
-
-        WGPUBindGroupLayoutEntry normal_entry {};
-        normal_entry.binding = 1;
-        normal_entry.visibility = WGPUShaderStage_Compute;
-        normal_entry.texture.sampleType = WGPUTextureSampleType_Uint;
-        normal_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
-
-        WGPUBindGroupLayoutEntry output_entry {};
-        output_entry.binding = 2;
-        output_entry.visibility = WGPUShaderStage_Compute;
-        output_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
-        output_entry.storageTexture.format = WGPUTextureFormat_R32Uint;
-        output_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
-
-        return std::make_unique<webgpu::raii::BindGroupLayout>(device,
-            std::vector<WGPUBindGroupLayoutEntry> { position_entry, normal_entry, output_entry },
-            "overlay renderer bind group layout");
-    });
-    reg.register_pipeline([this](WGPUDevice device, const webgpu::RenderResourceRegistry& reg) {
-        m_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(device,
-            reg.shader("height_lines_compute"),
-            std::vector<const webgpu::raii::BindGroupLayout*> {
-                &reg.bind_group_layout("shared_config"),
-                &reg.bind_group_layout("camera"),
-                &reg.bind_group_layout("overlay_renderer"),
-            },
-            "height lines compute pipeline");
-    });
+    for (auto& overlay : m_overlays)
+        overlay->init(ctx);
 }
 
-void OverlayRenderer::resize(int w, int h)
+std::unique_ptr<webgpu::raii::TextureWithSampler> OverlayRenderer::create_output_texture(int w, int h, const char* label) const
 {
-    if (!m_ctx)
-        return;
-
     WGPUTextureDescriptor texture_desc {};
-    texture_desc.label = WGPUStringView { .data = "overlay renderer output texture", .length = WGPU_STRLEN };
+    texture_desc.label = WGPUStringView { .data = label, .length = WGPU_STRLEN };
     texture_desc.dimension = WGPUTextureDimension_2D;
     texture_desc.size = { uint32_t(w), uint32_t(h), 1 };
     texture_desc.mipLevelCount = 1;
@@ -89,7 +56,7 @@ void OverlayRenderer::resize(int w, int h)
     texture_desc.usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding;
 
     WGPUSamplerDescriptor sampler_desc {};
-    sampler_desc.label = WGPUStringView { .data = "overlay renderer sampler", .length = WGPU_STRLEN };
+    sampler_desc.label = WGPUStringView { .data = label, .length = WGPU_STRLEN };
     sampler_desc.addressModeU = WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeV = WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeW = WGPUAddressMode_ClampToEdge;
@@ -101,7 +68,15 @@ void OverlayRenderer::resize(int w, int h)
     sampler_desc.compare = WGPUCompareFunction_Undefined;
     sampler_desc.maxAnisotropy = 1;
 
-    m_output_texture = std::make_unique<webgpu::raii::TextureWithSampler>(m_ctx->device(), texture_desc, sampler_desc);
+    return std::make_unique<webgpu::raii::TextureWithSampler>(m_ctx->device(), texture_desc, sampler_desc);
+}
+
+void OverlayRenderer::resize(int w, int h)
+{
+    if (!m_ctx)
+        return;
+    m_pre_output_texture = create_output_texture(w, h, "overlay pre-shading texture");
+    m_post_output_texture = create_output_texture(w, h, "overlay post-shading texture");
 }
 
 void OverlayRenderer::draw(const WGPUCommandEncoder& command_encoder,
@@ -110,32 +85,31 @@ void OverlayRenderer::draw(const WGPUCommandEncoder& command_encoder,
     const WGPUBindGroup& shared_config_bg,
     const WGPUBindGroup& camera_bg)
 {
-    webgpu::raii::BindGroup overlay_bind_group(m_ctx->device(),
-        m_ctx->resource_registry().bind_group_layout("overlay_renderer"),
-        std::vector<WGPUBindGroupEntry> {
-            position_view.create_bind_group_entry(0),
-            normal_view.create_bind_group_entry(1),
-            m_output_texture->texture_view().create_bind_group_entry(2),
-        },
-        "overlay renderer bind group");
+    const glm::uvec2 output_size(m_pre_output_texture->texture().width(), m_pre_output_texture->texture().height());
 
-    WGPUComputePassDescriptor compute_pass_desc {};
-    compute_pass_desc.label = WGPUStringView { .data = "height lines compute pass", .length = WGPU_STRLEN };
-    webgpu::raii::ComputePassEncoder compute_pass(command_encoder, compute_pass_desc);
+    // pre-shading texture (z_index < 0), ascending order
+    for (auto& overlay : m_overlays) {
+        if (overlay->z_index < 0)
+            overlay->draw(command_encoder, position_view, normal_view, shared_config_bg, camera_bg,
+                m_pre_output_texture->texture_view(), output_size);
+    }
 
-    wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, shared_config_bg, 0, nullptr);
-    wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 1, camera_bg, 0, nullptr);
-    wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 2, overlay_bind_group.handle(), 0, nullptr);
-
-    const glm::uvec3 workgroup_counts = glm::ceil(
-        glm::vec3(m_output_texture->texture().width(), m_output_texture->texture().height(), 1)
-        / glm::vec3(16.0f, 16.0f, 1.0f));
-    m_pipeline->run(compute_pass, workgroup_counts);
+    // post-shading texture (z_index >= 0), ascending order
+    for (auto& overlay : m_overlays) {
+        if (overlay->z_index >= 0)
+            overlay->draw(command_encoder, position_view, normal_view, shared_config_bg, camera_bg,
+                m_post_output_texture->texture_view(), output_size);
+    }
 }
 
-const webgpu::raii::TextureView* OverlayRenderer::result_view() const
+const webgpu::raii::TextureView* OverlayRenderer::result_pre_view() const
 {
-    return m_output_texture ? &m_output_texture->texture_view() : nullptr;
+    return m_pre_output_texture ? &m_pre_output_texture->texture_view() : nullptr;
+}
+
+const webgpu::raii::TextureView* OverlayRenderer::result_post_view() const
+{
+    return m_post_output_texture ? &m_post_output_texture->texture_view() : nullptr;
 }
 
 tl::expected<radix::geometry::Aabb<2, double>, std::string> OverlayRenderer::load_aabb_from_file(const std::string& file_path)

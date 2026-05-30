@@ -21,6 +21,7 @@
 
 #include "renderer/CloudRenderer.h"
 #include "renderer/TrackRenderer.h"
+#include "renderer/overlays/HeightLinesOverlay.h"
 #include "UniformBufferObjects.h"
 #include "compute/nodes/BufferToTextureNode.h"
 #include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
@@ -70,6 +71,8 @@ template class Buffer<CloudRenderer::ShaderParamsRender>;
 template class Buffer<CloudRenderer::ShaderParamsUpscale>;
 // TODO
 // template class UniformBuffer<uboShadowConfig>;
+
+template class Buffer<HeightLinesOverlay::Settings>;
 
 template class Buffer<int32_t>; // for n_edge_vertices
 
