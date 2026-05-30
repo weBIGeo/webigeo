@@ -39,6 +39,7 @@ public:
 
     // Register a shader by name and source path. Compiles immediately if recreate_all() was already called.
     void register_shader(const std::string& name, const std::string& source_path);
+    [[nodiscard]] bool has_shader(const std::string& name) const;
     const raii::ShaderModule& shader(const std::string& name) const;
 
     // Register a bind group layout by name and factory. Gets created immediately if recreate_all() was already called.
