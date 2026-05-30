@@ -30,6 +30,7 @@
 #include "webgpu_engine/renderer/CloudRenderer.h"
 #include "webgpu_engine/renderer/OverlayRenderer.h"
 #include "webgpu_engine/renderer/overlays/HeightLinesOverlay.h"
+#include "webgpu_engine/renderer/overlays/TextureOverlay.h"
 #include "webgpu_engine/renderer/TileMeshRenderer.h"
 
 namespace webgpu_app {
@@ -121,6 +122,12 @@ void RenderingContext::initialize(webgpu::Context& ctx)
     m_engine_context->set_cloud_renderer(cloud_renderer);
     auto overlay_renderer = std::make_shared<webgpu_engine::OverlayRenderer>();
     overlay_renderer->add_overlay(std::make_shared<webgpu_engine::HeightLinesOverlay>());
+    auto texture_overlay = std::make_shared<webgpu_engine::TextureOverlay>();
+    texture_overlay->set_aabb(
+        glm::dvec2(1759886.13923789933323860168457, 6068488.54961671307682991027832),
+        glm::dvec2(1762332.12414302304387092590332, 6070934.53452184051275253295898));
+    texture_overlay->load_image("C:/tmp/webigeo/webigeo/build/msvc-debug/export/2026-05-30T13-50-03_2/exp_trajectories_export_tex.png");
+    overlay_renderer->add_overlay(texture_overlay);
     m_engine_context->set_overlay_renderer(overlay_renderer);
 
     connect(m_geometry_scheduler_holder.scheduler.get(),

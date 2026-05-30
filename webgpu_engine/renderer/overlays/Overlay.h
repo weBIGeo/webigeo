@@ -34,6 +34,8 @@ public:
 
     virtual ~Overlay() = default;
     virtual void init(webgpu::Context& ctx) = 0;
+    // Called after recreate_all() safe to use compiled shaders
+    virtual void post_recreate_all(webgpu::Context& /*ctx*/) {}
     virtual void draw(const WGPUCommandEncoder& command_encoder,
         const webgpu::raii::TextureView& position_view,
         const webgpu::raii::TextureView& normal_view,

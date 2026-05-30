@@ -44,6 +44,12 @@ void OverlayRenderer::init(webgpu::Context& ctx)
         overlay->init(ctx);
 }
 
+void OverlayRenderer::post_recreate_all(webgpu::Context& ctx)
+{
+    for (auto& overlay : m_overlays)
+        overlay->post_recreate_all(ctx);
+}
+
 std::unique_ptr<webgpu::raii::TextureWithSampler> OverlayRenderer::create_output_texture(int w, int h, const char* label) const
 {
     WGPUTextureDescriptor texture_desc {};

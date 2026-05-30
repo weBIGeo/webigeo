@@ -40,6 +40,7 @@ public:
     void add_overlay(std::shared_ptr<Overlay> overlay);
 
     void init(webgpu::Context& ctx);
+    void post_recreate_all(webgpu::Context& ctx);
     void resize(int w, int h);
 
     void draw(const WGPUCommandEncoder& command_encoder,

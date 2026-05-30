@@ -101,6 +101,7 @@ void Window::initialise_gpu()
     m_atmosphere_renderer->init(m_context->webgpu_ctx());
 
     m_context->webgpu_ctx().resource_registry().recreate_all(m_context->webgpu_ctx().device());
+    m_context->overlay_renderer()->post_recreate_all(m_context->webgpu_ctx());
 
     create_bind_groups();
 
