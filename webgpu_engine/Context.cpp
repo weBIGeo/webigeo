@@ -161,13 +161,13 @@ void Context::internal_initialise()
         WGPUBindGroupLayoutEntry overlay_renderer_post_entry {};
         overlay_renderer_post_entry.binding = 16;
         overlay_renderer_post_entry.visibility = WGPUShaderStage_Fragment;
-        overlay_renderer_post_entry.texture.sampleType = WGPUTextureSampleType_Uint;
+        overlay_renderer_post_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
         overlay_renderer_post_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry overlay_renderer_pre_entry {};
         overlay_renderer_pre_entry.binding = 17;
         overlay_renderer_pre_entry.visibility = WGPUShaderStage_Fragment;
-        overlay_renderer_pre_entry.texture.sampleType = WGPUTextureSampleType_Uint;
+        overlay_renderer_pre_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
         overlay_renderer_pre_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         return std::make_unique<webgpu::raii::BindGroupLayout>(device,

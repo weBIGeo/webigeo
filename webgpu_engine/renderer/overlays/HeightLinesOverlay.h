@@ -22,6 +22,7 @@
 #include "webgpu_engine/Buffer.h"
 #include <memory>
 #include <webgpu/raii/CombinedComputePipeline.h>
+#include <webgpu/raii/TextureWithSampler.h>
 
 namespace webgpu_engine {
 
@@ -39,12 +40,13 @@ public:
     HeightLinesOverlay();
 
     void init(webgpu::Context& ctx) override;
+    void resize(glm::uvec2 size) override;
     void draw(const WGPUCommandEncoder& command_encoder,
         const webgpu::raii::TextureView& position_view,
         const webgpu::raii::TextureView& normal_view,
         const WGPUBindGroup& shared_config_bg,
         const WGPUBindGroup& camera_bg,
-        const webgpu::raii::TextureView& output_view,
+        webgpu::raii::TextureWithSampler& output,
         glm::uvec2 output_size) override;
 
     Settings settings;
@@ -53,6 +55,7 @@ private:
     webgpu::Context* m_ctx = nullptr;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_pipeline;
     std::unique_ptr<webgpu_engine::Buffer<Settings>> m_settings_uniform;
+    std::unique_ptr<webgpu::raii::TextureWithSampler> m_copy_texture; // prev state for compositing
 };
 
 } // namespace webgpu_engine

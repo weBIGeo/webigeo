@@ -22,7 +22,8 @@
 #include "webgpu_engine/Buffer.h"
 #include <QString>
 #include <memory>
-#include <webgpu/raii/CombinedComputePipeline.h>
+#include <webgpu/Framebuffer.h>
+#include <webgpu/raii/Pipeline.h>
 #include <webgpu/raii/TextureWithSampler.h>
 
 namespace webgpu_engine {
@@ -54,7 +55,7 @@ public:
         const webgpu::raii::TextureView& normal_view,
         const WGPUBindGroup& shared_config_bg,
         const WGPUBindGroup& camera_bg,
-        const webgpu::raii::TextureView& output_view,
+        webgpu::raii::TextureWithSampler& output,
         glm::uvec2 output_size) override;
 
 private:
@@ -75,7 +76,7 @@ private:
     glm::dvec2 m_aabb_max_d = glm::dvec2(1.0);
     QString m_image_path;
 
-    std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_pipeline;
+    std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_pipeline;
     std::unique_ptr<webgpu_engine::Buffer<GpuSettings>> m_settings_uniform;
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_overlay_texture;
 };

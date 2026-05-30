@@ -18,6 +18,7 @@
 
 #include "util/shared_config.wgsl"
 #include "util/camera_config.wgsl"
+#include "screen_pass_vert.wgsl"
 
 @group(0) @binding(0) var<uniform> conf: shared_config;
 @group(1) @binding(0) var<uniform> camera: camera_config;
@@ -25,53 +26,37 @@
 @group(2) @binding(1) var<uniform> settings: TextureOverlaySettings;
 @group(2) @binding(2) var overlay_texture: texture_2d<f32>;
 @group(2) @binding(3) var overlay_sampler: sampler;
-@group(2) @binding(4) var output_texture: texture_storage_2d<r32uint, write>;
 
 struct TextureOverlaySettings {
     aabb_min:  vec2f,
     aabb_size: vec2f, // aabb_max - aabb_min, precomputed in double precision on CPU
 }
 
-@compute @workgroup_size(16, 16, 1)
-fn computeMain(@builtin(global_invocation_id) id: vec3u) {
-    let dims = vec2u(textureDimensions(position_texture));
-    if (id.x >= dims.x || id.y >= dims.y) {
-        return;
-    }
-    let tci = id.xy;
-
+@fragment fn fragmentMain(in: VertexOut) -> @location(0) vec4f {
+    let tci = vec2i(in.position.xy);
     let pos_dist = textureLoad(position_texture, tci, 0);
     let pos_cws = pos_dist.xyz;
     let dist = length(pos_cws);
     let pos_ws = pos_cws + camera.position.xyz;
 
-    var out_color = vec4f(0.0);
+    // Compute UV and its screen-space derivatives unconditionally (uniform control flow).
+    // dpdx/dpdy must be called before any early return — WGSL requires uniform control flow.
+    // UV is well-defined for all pixels (just a linear transform); garbage values for sky
+    // pixels are discarded by the dist/AABB check below before any texture sample occurs.
+    let uv = vec2f(
+        (pos_ws.x - settings.aabb_min.x) / settings.aabb_size.x,
+        1.0 - (pos_ws.y - settings.aabb_min.y) / settings.aabb_size.y
+    );
+    let ddx_uv = dpdx(uv);
+    let ddy_uv = dpdy(uv);
 
     let aabb_max = settings.aabb_min + settings.aabb_size;
-    if (dist > 0.0 && all(pos_ws.xy >= settings.aabb_min) && all(pos_ws.xy <= aabb_max)) {
-        let uv_raw = (pos_ws.xy - settings.aabb_min) / settings.aabb_size;
-        let uv = vec2f(uv_raw.x, 1.0 - uv_raw.y);
-
-        // NOTE: Mip level is estimated analytically: (world meters per screen pixel) / (world meters per texel).
-        // pixel_world ~ dist / viewport_width. It assumes a perspective projection and ignores FOV and terrain slope.
-        // This is less accurate than the old fragment-shader approach in compose_pass.wgsl, which uses dpdx/dpdy
-        // on the UV coordinates to get exact per-pixel gradients including terrain angle and projection distortion.
-        // dpdx/dpdy are not available in compute shaders and have no equivalent in compute.
-        // The approximation only captures distance-based mip variation; oblique viewing angles are ignored.
-        let texel_world = settings.aabb_size / vec2f(textureDimensions(overlay_texture));
-        let pixel_world = dist / camera.viewport_size.x;
-        let mip = max(0.0, log2(max(pixel_world / texel_world.x, pixel_world / texel_world.y)));
-
-        // 0 = with mip, 1 = no mip (mip 0), 2 = visualize mip level
-        const MODE: u32 = 0u;
-        if (MODE == 0u) {
-            out_color = textureSampleLevel(overlay_texture, overlay_sampler, uv, mip);
-        } else if (MODE == 1u) {
-            out_color = textureSampleLevel(overlay_texture, overlay_sampler, uv, 0.0);
-        } else if (MODE == 2u) {
-            out_color = vec4f(mip / 5.0, 0.0, 1.0 - mip / 5.0, 1.0);
-        }
+    if (dist <= 0.0 || any(pos_ws.xy < settings.aabb_min) || any(pos_ws.xy > aabb_max)) {
+        return vec4f(0.0);
     }
 
-    textureStore(output_texture, tci, vec4u(pack4x8unorm(out_color), 0u, 0u, 0u));
+    let color = textureSampleGrad(overlay_texture, overlay_sampler, uv, ddx_uv, ddy_uv);
+    // Output premultiplied alpha so the render blend state (One/OneMinusSrcAlpha)
+    // correctly composites via Porter-Duff "over" onto the existing overlay texture.
+    return vec4f(color.rgb * color.a, color.a);
 }

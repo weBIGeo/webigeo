@@ -21,6 +21,7 @@
 #include <glm/glm.hpp>
 #include <webgpu/Context.h>
 #include <webgpu/raii/TextureView.h>
+#include <webgpu/raii/TextureWithSampler.h>
 #include <webgpu/webgpu.h>
 
 namespace webgpu_engine {
@@ -36,12 +37,17 @@ public:
     virtual void init(webgpu::Context& ctx) = 0;
     // Called after recreate_all() safe to use compiled shaders
     virtual void post_recreate_all(webgpu::Context& /*ctx*/) {}
+    // Called when the output texture is resized. Compute overlays override to resize their copy texture.
+    virtual void resize(glm::uvec2 /*size*/) {}
+    // output is RGBA8Unorm owned by OverlayRenderer.
+    // Compute overlays copy output.texture() → own m_copy_texture, then write to output.texture_view() as rgba8unorm storage.
+    // Render overlays begin a render pass on output.texture_view() with loadOp=Load; blend state composites on top.
     virtual void draw(const WGPUCommandEncoder& command_encoder,
         const webgpu::raii::TextureView& position_view,
         const webgpu::raii::TextureView& normal_view,
         const WGPUBindGroup& shared_config_bg,
         const WGPUBindGroup& camera_bg,
-        const webgpu::raii::TextureView& output_view,
+        webgpu::raii::TextureWithSampler& output,
         glm::uvec2 output_size) = 0;
 };
 

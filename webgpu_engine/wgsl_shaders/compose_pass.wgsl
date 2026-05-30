@@ -49,8 +49,8 @@
 @group(2) @binding(13) var cloud_shadow_texture: texture_2d<f32>;
 @group(2) @binding(14) var cloud_shadow_sampler: sampler;
 @group(2) @binding(15) var depth_texture: texture_2d<f32>;
-@group(2) @binding(16) var overlay_renderer_post_texture: texture_2d<u32>;
-@group(2) @binding(17) var overlay_renderer_pre_texture: texture_2d<u32>;
+@group(2) @binding(16) var overlay_renderer_post_texture: texture_2d<f32>;
+@group(2) @binding(17) var overlay_renderer_pre_texture: texture_2d<f32>;
 
 const CLOUD_SHADOW_AABB_MIN = vec3f(1045658.54694121, 5811660.13457852, 0.0);
 const CLOUD_SHADOW_AABB_MAX = vec3f(1937220.04485951, 6309418.06277159, 14000.0);
@@ -266,8 +266,8 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         }
 
         // Pre-shading overlay renderer output (applied to albedo before lighting)
-        let pre_overlay_color = unpack4x8unorm(textureLoad(overlay_renderer_pre_texture, tci, 0).r);
-        albedo = mix(albedo, pre_overlay_color.rgb, pre_overlay_color.a);
+        let pre_overlay_color = textureLoad(overlay_renderer_pre_texture, tci, 0);
+        albedo = albedo * (1.0 - pre_overlay_color.a) + pre_overlay_color.rgb;
 
         var shaded_color = albedo;
         if (bool(conf.phong_enabled)) {
@@ -331,8 +331,8 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
     }
 
     // Post-shading overlay renderer output
-    let post_overlay_color = unpack4x8unorm(textureLoad(overlay_renderer_post_texture, tci, 0).r);
-    out_Color = vec4f(mix(out_Color.rgb, post_overlay_color.rgb, post_overlay_color.a), out_Color.a);
+    let post_overlay_color = textureLoad(overlay_renderer_post_texture, tci, 0);
+    out_Color = vec4f(out_Color.rgb * (1.0 - post_overlay_color.a) + post_overlay_color.rgb, out_Color.a);
 
     // Clouds
     if (bool(conf.clouds_enabled)) {

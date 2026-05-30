@@ -22,6 +22,7 @@
 #include <QString>
 #include <QTextStream>
 #include <algorithm>
+#include <webgpu/raii/RenderPassEncoder.h>
 
 namespace webgpu_engine {
 
@@ -58,8 +59,9 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> OverlayRenderer::create_output
     texture_desc.size = { uint32_t(w), uint32_t(h), 1 };
     texture_desc.mipLevelCount = 1;
     texture_desc.sampleCount = 1;
-    texture_desc.format = WGPUTextureFormat_R32Uint;
-    texture_desc.usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding;
+    texture_desc.format = WGPUTextureFormat_RGBA8Unorm;
+    texture_desc.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_StorageBinding
+        | WGPUTextureUsage_CopySrc | WGPUTextureUsage_TextureBinding;
 
     WGPUSamplerDescriptor sampler_desc {};
     sampler_desc.label = WGPUStringView { .data = label, .length = WGPU_STRLEN };
@@ -83,6 +85,9 @@ void OverlayRenderer::resize(int w, int h)
         return;
     m_pre_output_texture = create_output_texture(w, h, "overlay pre-shading texture");
     m_post_output_texture = create_output_texture(w, h, "overlay post-shading texture");
+    const glm::uvec2 size(w, h);
+    for (auto& overlay : m_overlays)
+        overlay->resize(size);
 }
 
 void OverlayRenderer::draw(const WGPUCommandEncoder& command_encoder,
@@ -93,18 +98,24 @@ void OverlayRenderer::draw(const WGPUCommandEncoder& command_encoder,
 {
     const glm::uvec2 output_size(m_pre_output_texture->texture().width(), m_pre_output_texture->texture().height());
 
-    // pre-shading texture (z_index < 0), ascending order
-    for (auto& overlay : m_overlays) {
-        if (overlay->z_index < 0)
-            overlay->draw(command_encoder, position_view, normal_view, shared_config_bg, camera_bg,
-                m_pre_output_texture->texture_view(), output_size);
+    // Clear both output textures at the start of each frame
+    for (auto* tex : { m_pre_output_texture.get(), m_post_output_texture.get() }) {
+        WGPURenderPassColorAttachment clear_attachment {};
+        clear_attachment.view = tex->texture_view().handle();
+        clear_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+        clear_attachment.loadOp = WGPULoadOp_Clear;
+        clear_attachment.storeOp = WGPUStoreOp_Store;
+        clear_attachment.clearValue = { 0.0, 0.0, 0.0, 0.0 };
+        WGPURenderPassDescriptor clear_pass_desc {};
+        clear_pass_desc.colorAttachmentCount = 1;
+        clear_pass_desc.colorAttachments = &clear_attachment;
+        webgpu::raii::RenderPassEncoder clear_pass(command_encoder, clear_pass_desc);
     }
 
-    // post-shading texture (z_index >= 0), ascending order
+    // Dispatch each overlay with the appropriate bucket texture
     for (auto& overlay : m_overlays) {
-        if (overlay->z_index >= 0)
-            overlay->draw(command_encoder, position_view, normal_view, shared_config_bg, camera_bg,
-                m_post_output_texture->texture_view(), output_size);
+        auto& output = (overlay->z_index < 0) ? *m_pre_output_texture : *m_post_output_texture;
+        overlay->draw(command_encoder, position_view, normal_view, shared_config_bg, camera_bg, output, output_size);
     }
 }
 

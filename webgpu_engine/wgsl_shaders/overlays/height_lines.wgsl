@@ -26,7 +26,8 @@
 @group(2) @binding(0) var position_texture: texture_2d<f32>;
 @group(2) @binding(1) var normal_texture: texture_2d<u32>;
 @group(2) @binding(2) var<uniform> settings: HeightLinesSettings;
-@group(2) @binding(3) var output_texture: texture_storage_2d<r32uint, write>;
+@group(2) @binding(3) var output_texture: texture_storage_2d<rgba8unorm, write>;
+@group(2) @binding(4) var prev_output: texture_2d<f32>;
 
 struct HeightLinesSettings {
     primary_interval:   f32,
@@ -95,5 +96,11 @@ fn computeMain(@builtin(global_invocation_id) id: vec3u) {
         out_color = vec4f(settings.line_color.rgb, alpha);
     }
 
-    textureStore(output_texture, tci, vec4u(pack4x8unorm(out_color), 0u, 0u, 0u));
+    // Porter-Duff "over" in premultiplied alpha space:
+    //   out = src_premul + dst_premul * (1 - src_a)
+    // prev is premultiplied (either cleared to 0 or from a previous overlay).
+    let prev = textureLoad(prev_output, tci, 0);
+    let src_premul = vec4f(out_color.rgb * out_color.a, out_color.a);
+    let blended = src_premul + prev * (1.0 - out_color.a);
+    textureStore(output_texture, tci, blended);
 }

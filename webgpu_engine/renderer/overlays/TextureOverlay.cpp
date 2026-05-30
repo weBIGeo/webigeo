@@ -18,11 +18,13 @@
 
 #include "TextureOverlay.h"
 
+#include <optional>
 #include "webgpu_engine/gpu_utils.h"
 #include <nucleus/utils/image_loader.h>
 #include <webgpu/RenderResourceRegistry.h>
 #include <webgpu/raii/BindGroup.h>
 #include <webgpu/raii/BindGroupLayout.h>
+#include <webgpu/raii/RenderPassEncoder.h>
 #include <webgpu/raii/Texture.h>
 
 namespace webgpu_engine {
@@ -52,51 +54,59 @@ void TextureOverlay::init(webgpu::Context& ctx)
     m_ctx = &ctx;
 
     auto& reg = ctx.resource_registry();
-    reg.register_shader("texture_overlay_compute", "overlays/texture_overlay.wgsl");
+    reg.register_shader("texture_overlay_render", "overlays/texture_overlay.wgsl");
     reg.register_bind_group_layout("texture_overlay", [](WGPUDevice device) {
         WGPUBindGroupLayoutEntry position_entry {};
         position_entry.binding = 0;
-        position_entry.visibility = WGPUShaderStage_Compute;
+        position_entry.visibility = WGPUShaderStage_Fragment;
         position_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
         position_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry settings_entry {};
         settings_entry.binding = 1;
-        settings_entry.visibility = WGPUShaderStage_Compute;
+        settings_entry.visibility = WGPUShaderStage_Fragment;
         settings_entry.buffer.type = WGPUBufferBindingType_Uniform;
 
         WGPUBindGroupLayoutEntry overlay_texture_entry {};
         overlay_texture_entry.binding = 2;
-        overlay_texture_entry.visibility = WGPUShaderStage_Compute;
+        overlay_texture_entry.visibility = WGPUShaderStage_Fragment;
         overlay_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
         overlay_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry overlay_sampler_entry {};
         overlay_sampler_entry.binding = 3;
-        overlay_sampler_entry.visibility = WGPUShaderStage_Compute;
+        overlay_sampler_entry.visibility = WGPUShaderStage_Fragment;
         overlay_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
-
-        WGPUBindGroupLayoutEntry output_entry {};
-        output_entry.binding = 4;
-        output_entry.visibility = WGPUShaderStage_Compute;
-        output_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
-        output_entry.storageTexture.format = WGPUTextureFormat_R32Uint;
-        output_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
 
         return std::make_unique<webgpu::raii::BindGroupLayout>(device,
             std::vector<WGPUBindGroupLayoutEntry> {
-                position_entry, settings_entry, overlay_texture_entry, overlay_sampler_entry, output_entry },
+                position_entry, settings_entry, overlay_texture_entry, overlay_sampler_entry },
             "texture overlay bind group layout");
     });
     reg.register_pipeline([this](WGPUDevice device, const webgpu::RenderResourceRegistry& reg) {
-        m_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(device,
-            reg.shader("texture_overlay_compute"),
+        webgpu::FramebufferFormat format {};
+        format.depth_format = WGPUTextureFormat_Undefined;
+        format.color_formats = { WGPUTextureFormat_RGBA8Unorm };
+
+        WGPUBlendState blend {};
+        blend.color.operation = WGPUBlendOperation_Add;
+        blend.color.srcFactor = WGPUBlendFactor_One; // source is premultiplied
+        blend.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
+        blend.alpha.operation = WGPUBlendOperation_Add;
+        blend.alpha.srcFactor = WGPUBlendFactor_One;
+        blend.alpha.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
+
+        m_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(device,
+            reg.shader("texture_overlay_render"),
+            reg.shader("texture_overlay_render"),
+            std::vector<webgpu::util::SingleVertexBufferInfo> {},
+            format,
             std::vector<const webgpu::raii::BindGroupLayout*> {
                 &reg.bind_group_layout("shared_config"),
                 &reg.bind_group_layout("camera"),
                 &reg.bind_group_layout("texture_overlay"),
             },
-            "texture overlay compute pipeline");
+            std::vector<std::optional<WGPUBlendState>>{ blend });
     });
 
     m_settings_uniform = std::make_unique<webgpu_engine::Buffer<GpuSettings>>(ctx.device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
@@ -159,10 +169,10 @@ void TextureOverlay::draw(const WGPUCommandEncoder& command_encoder,
     const webgpu::raii::TextureView& /*normal_view*/,
     const WGPUBindGroup& shared_config_bg,
     const WGPUBindGroup& camera_bg,
-    const webgpu::raii::TextureView& output_view,
-    glm::uvec2 output_size)
+    webgpu::raii::TextureWithSampler& output,
+    glm::uvec2 /*output_size*/)
 {
-    if (!m_overlay_texture)
+    if (!m_overlay_texture || !m_pipeline)
         return;
 
     webgpu::raii::BindGroup bind_group(m_ctx->device(),
@@ -172,20 +182,27 @@ void TextureOverlay::draw(const WGPUCommandEncoder& command_encoder,
             m_settings_uniform->raw_buffer().create_bind_group_entry(1),
             m_overlay_texture->texture_view().create_bind_group_entry(2),
             m_overlay_texture->sampler().create_bind_group_entry(3),
-            output_view.create_bind_group_entry(4),
         },
         "texture overlay bind group");
 
-    WGPUComputePassDescriptor compute_pass_desc {};
-    compute_pass_desc.label = WGPUStringView { .data = "texture overlay compute pass", .length = WGPU_STRLEN };
-    webgpu::raii::ComputePassEncoder compute_pass(command_encoder, compute_pass_desc);
+    WGPURenderPassColorAttachment color_attachment {};
+    color_attachment.view = output.texture_view().handle();
+    color_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+    color_attachment.loadOp = WGPULoadOp_Load;
+    color_attachment.storeOp = WGPUStoreOp_Store;
 
-    wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, shared_config_bg, 0, nullptr);
-    wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 1, camera_bg, 0, nullptr);
-    wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 2, bind_group.handle(), 0, nullptr);
+    WGPURenderPassDescriptor render_pass_desc {};
+    render_pass_desc.label = WGPUStringView { .data = "texture overlay render pass", .length = WGPU_STRLEN };
+    render_pass_desc.colorAttachmentCount = 1;
+    render_pass_desc.colorAttachments = &color_attachment;
 
-    const glm::uvec3 workgroup_counts = glm::ceil(glm::vec3(float(output_size.x), float(output_size.y), 1.0f) / glm::vec3(16.0f, 16.0f, 1.0f));
-    m_pipeline->run(compute_pass, workgroup_counts);
+    webgpu::raii::RenderPassEncoder render_pass(command_encoder, render_pass_desc);
+
+    wgpuRenderPassEncoderSetPipeline(render_pass.handle(), m_pipeline->pipeline().handle());
+    wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 0, shared_config_bg, 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 1, camera_bg, 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 2, bind_group.handle(), 0, nullptr);
+    wgpuRenderPassEncoderDraw(render_pass.handle(), 3, 1, 0, 0);
 }
 
 } // namespace webgpu_engine
