@@ -36,6 +36,7 @@ void Context::internal_initialise()
     assert(m_webgpu_ctx_ptr != nullptr);
 
     auto& reg = webgpu_ctx().resource_registry();
+    reg.set_local_shader_path(ALP_RESOURCES_PREFIX);
 
     reg.register_bind_group_layout("shared_config", [](WGPUDevice device) {
         WGPUBindGroupLayoutEntry entry {};
