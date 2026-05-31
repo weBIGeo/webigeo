@@ -33,8 +33,34 @@ OverlayRenderer::OverlayRenderer()
 
 void OverlayRenderer::add_overlay(std::shared_ptr<Overlay> overlay)
 {
-    m_overlays.push_back(std::move(overlay));
-    std::stable_sort(m_overlays.begin(), m_overlays.end(),
+    // Auto-assign the highest positive z_index (always unique, always post-shading at top)
+    int max_z = 0;
+    for (const auto& o : m_overlays)
+        max_z = std::max(max_z, o->z_index);
+    overlay->z_index = max_z + 1;
+
+    if (m_ctx) {
+        overlay->init(*m_ctx);
+        if (m_post_recreate_called)
+            overlay->post_recreate_all(*m_ctx);
+        if (m_pre_output_texture)
+            overlay->resize(glm::uvec2(m_pre_output_texture->texture().width(), m_pre_output_texture->texture().height()));
+    }
+    m_overlays.push_back(std::move(overlay)); // z_index is highest → goes to back (ascending sort)
+}
+
+void OverlayRenderer::remove_overlay(size_t index)
+{
+    if (index < m_overlays.size())
+        m_overlays.erase(m_overlays.begin() + static_cast<ptrdiff_t>(index));
+}
+
+
+const std::vector<std::shared_ptr<Overlay>>& OverlayRenderer::overlays() const { return m_overlays; }
+
+void OverlayRenderer::sort_overlays()
+{
+    std::sort(m_overlays.begin(), m_overlays.end(),
         [](const auto& a, const auto& b) { return a->z_index < b->z_index; });
 }
 
@@ -47,6 +73,7 @@ void OverlayRenderer::init(webgpu::Context& ctx)
 
 void OverlayRenderer::post_recreate_all(webgpu::Context& ctx)
 {
+    m_post_recreate_called = true;
     for (auto& overlay : m_overlays)
         overlay->post_recreate_all(ctx);
 }

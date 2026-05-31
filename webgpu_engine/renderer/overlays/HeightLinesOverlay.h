@@ -41,6 +41,7 @@ public:
 
     void init(webgpu::Context& ctx) override;
     void resize(glm::uvec2 size) override;
+    void update_settings(); // upload settings to GPU after changing the settings field
     void draw(const WGPUCommandEncoder& command_encoder,
         const webgpu::raii::TextureView& position_view,
         const webgpu::raii::TextureView& normal_view,

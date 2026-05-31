@@ -36,6 +36,7 @@ public:
     struct Settings {
         FilterMode filter_mode = FilterMode::Linear;
         bool use_mipmaps = true;
+        float opacity = 1.0f;
     };
     Settings settings;
 
@@ -50,6 +51,7 @@ public:
 
     void init(webgpu::Context& ctx) override;
     void post_recreate_all(webgpu::Context& ctx) override;
+    void update_gpu_settings(); // sync aabb + opacity to GPU; call after changing settings
     void draw(const WGPUCommandEncoder& command_encoder,
         const webgpu::raii::TextureView& position_view,
         const webgpu::raii::TextureView& normal_view,
@@ -63,10 +65,11 @@ private:
     struct GpuSettings {
         glm::vec2 aabb_min  = glm::vec2(0.0f);
         glm::vec2 aabb_size = glm::vec2(1.0f); // precomputed in double on CPU
+        float opacity = 1.0f;
+        float _pad = 0.0f; // pad to 24 bytes (vec2 alignment = 8)
     };
 
     void upload_texture(webgpu::Context& ctx);
-    void update_gpu_settings();
 
     webgpu::Context* m_ctx = nullptr;
     bool m_post_recreate_called = false;

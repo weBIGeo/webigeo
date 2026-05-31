@@ -54,8 +54,12 @@ void TextureOverlay::init(webgpu::Context& ctx)
     m_ctx = &ctx;
 
     auto& reg = ctx.resource_registry();
-    reg.register_shader("texture_overlay_render", "overlays/texture_overlay.wgsl");
-    reg.register_bind_group_layout("texture_overlay", [](WGPUDevice device) {
+    // Shader and bind group layout are shared across all instances of this overlay type;
+    // only register them once (multiple instances would otherwise re-register the same name).
+    if (!reg.has_shader("texture_overlay_render"))
+        reg.register_shader("texture_overlay_render", "overlays/texture_overlay.wgsl");
+    if (!reg.has_bind_group_layout("texture_overlay"))
+        reg.register_bind_group_layout("texture_overlay", [](WGPUDevice device) {
         WGPUBindGroupLayoutEntry position_entry {};
         position_entry.binding = 0;
         position_entry.visibility = WGPUShaderStage_Fragment;
@@ -161,6 +165,7 @@ void TextureOverlay::update_gpu_settings()
 {
     m_settings_uniform->data.aabb_min  = glm::vec2(m_aabb_min_d);
     m_settings_uniform->data.aabb_size = glm::vec2(m_aabb_max_d - m_aabb_min_d);
+    m_settings_uniform->data.opacity   = settings.opacity;
     m_settings_uniform->update_gpu_data(m_ctx->queue());
 }
 

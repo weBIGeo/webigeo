@@ -48,6 +48,11 @@ if (ALP_WEBGPU_APP_ENABLE_IMGUI)
         imgui/CompassPanel.h imgui/CompassPanel.cpp
         imgui/LogoPanel.h imgui/LogoPanel.cpp
         imgui/SearchPanel.h imgui/SearchPanel.cpp
+        imgui/OverlaysPanel.h imgui/OverlaysPanel.cpp
+        imgui/overlays/OverlayImGuiRenderer.h imgui/overlays/OverlayImGuiRenderer.cpp
+        imgui/overlays/OverlayImGuiRendererFactory.h imgui/overlays/OverlayImGuiRendererFactory.cpp
+        imgui/overlays/HeightLinesOverlayImGuiRenderer.h imgui/overlays/HeightLinesOverlayImGuiRenderer.cpp
+        imgui/overlays/TextureOverlayImGuiRenderer.h imgui/overlays/TextureOverlayImGuiRenderer.cpp
         SearchService.h SearchService.cpp
     )
 endif()

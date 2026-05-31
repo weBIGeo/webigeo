@@ -34,8 +34,12 @@ void HeightLinesOverlay::init(webgpu::Context& ctx)
     m_ctx = &ctx;
 
     auto& reg = ctx.resource_registry();
-    reg.register_shader("height_lines_compute", "overlays/height_lines.wgsl");
-    reg.register_bind_group_layout("height_lines_overlay", [](WGPUDevice device) {
+    // Shader and bind group layout are shared across all instances of this overlay type;
+    // only register them once (multiple instances would otherwise re-register the same name).
+    if (!reg.has_shader("height_lines_compute"))
+        reg.register_shader("height_lines_compute", "overlays/height_lines.wgsl");
+    if (!reg.has_bind_group_layout("height_lines_overlay"))
+        reg.register_bind_group_layout("height_lines_overlay", [](WGPUDevice device) {
         WGPUBindGroupLayoutEntry position_entry {};
         position_entry.binding = 0;
         position_entry.visibility = WGPUShaderStage_Compute;
@@ -84,6 +88,14 @@ void HeightLinesOverlay::init(webgpu::Context& ctx)
     m_settings_uniform = std::make_unique<webgpu_engine::Buffer<Settings>>(ctx.device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
     m_settings_uniform->data = settings;
     m_settings_uniform->update_gpu_data(ctx.queue());
+}
+
+void HeightLinesOverlay::update_settings()
+{
+    if (!m_settings_uniform)
+        return;
+    m_settings_uniform->data = settings;
+    m_settings_uniform->update_gpu_data(m_ctx->queue());
 }
 
 void HeightLinesOverlay::resize(glm::uvec2 size)

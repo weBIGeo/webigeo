@@ -30,6 +30,8 @@
 struct TextureOverlaySettings {
     aabb_min:  vec2f,
     aabb_size: vec2f, // aabb_max - aabb_min, precomputed in double precision on CPU
+    opacity:   f32,
+    // _pad: f32, (implicit, struct size rounds to alignment of 8)
 }
 
 @fragment fn fragmentMain(in: VertexOut) -> @location(0) vec4f {
@@ -56,7 +58,8 @@ struct TextureOverlaySettings {
     }
 
     let color = textureSampleGrad(overlay_texture, overlay_sampler, uv, ddx_uv, ddy_uv);
+    let eff_a = color.a * settings.opacity;
     // Output premultiplied alpha so the render blend state (One/OneMinusSrcAlpha)
     // correctly composites via Porter-Duff "over" onto the existing overlay texture.
-    return vec4f(color.rgb * color.a, color.a);
+    return vec4f(color.rgb * eff_a, eff_a);
 }

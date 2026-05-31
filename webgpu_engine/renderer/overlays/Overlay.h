@@ -29,8 +29,7 @@ namespace webgpu_engine {
 /// Abstract base class for screen-space overlays rendered by OverlayRenderer.
 class Overlay {
 public:
-    float opacity = 1.0f;
-    // NOTE: z_index < 0 -> preshading, z_index -> postshading
+    // NOTE: z_index < 0 -> pre-shading bucket, z_index >= 0 -> post-shading bucket
     int z_index = 0;
 
     virtual ~Overlay() = default;

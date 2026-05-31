@@ -38,6 +38,11 @@ public:
     explicit OverlayRenderer();
 
     void add_overlay(std::shared_ptr<Overlay> overlay);
+    void remove_overlay(size_t index);
+    // Re-sort m_overlays by z_index after the GUI has assigned new z_indices.
+    void sort_overlays();
+
+    [[nodiscard]] const std::vector<std::shared_ptr<Overlay>>& overlays() const;
 
     void init(webgpu::Context& ctx);
     void post_recreate_all(webgpu::Context& ctx);
@@ -58,6 +63,7 @@ private:
     std::unique_ptr<webgpu::raii::TextureWithSampler> create_output_texture(int w, int h, const char* label) const;
 
     webgpu::Context* m_ctx = nullptr;
+    bool m_post_recreate_called = false;
     std::vector<std::shared_ptr<Overlay>> m_overlays; // stable-sorted by z_index ascending
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_pre_output_texture;  // z_index < 0  → pre-shading
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_post_output_texture; // z_index >= 0 → post-shading
