@@ -19,6 +19,7 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include <string>
 #include <webgpu/Context.h>
 #include <webgpu/raii/TextureView.h>
 #include <webgpu/raii/TextureWithSampler.h>
@@ -31,6 +32,9 @@ class Overlay {
 public:
     // NOTE: z_index < 0 -> pre-shading bucket, z_index >= 0 -> post-shading bucket
     int z_index = 0;
+
+    // User-configurable display name. Empty -> the UI falls back to the overlay type name.
+    std::string name;
 
     virtual ~Overlay() = default;
     virtual void init(webgpu::Context& ctx) = 0;

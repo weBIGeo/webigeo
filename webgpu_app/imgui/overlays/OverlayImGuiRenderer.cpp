@@ -18,6 +18,9 @@
 
 #include "OverlayImGuiRenderer.h"
 
+#include <cstdio>
+#include <imgui.h>
+
 namespace webgpu_app {
 
 OverlayImGuiRenderer::OverlayImGuiRenderer(webgpu_engine::Overlay& overlay)
@@ -25,9 +28,27 @@ OverlayImGuiRenderer::OverlayImGuiRenderer(webgpu_engine::Overlay& overlay)
 {
 }
 
+std::string OverlayImGuiRenderer::effective_name() const
+{
+    return m_overlay->name.empty() ? display_name() : m_overlay->name;
+}
+
 bool OverlayImGuiRenderer::render_settings()
 {
-    return render_custom_settings();
+    bool changed = false;
+
+    // General setting: configurable name (empty -> falls back to the type name).
+    char buf[128];
+    std::snprintf(buf, sizeof(buf), "%s", m_overlay->name.c_str());
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    if (ImGui::InputTextWithHint("##overlay_name", display_name().c_str(), buf, sizeof(buf))) {
+        m_overlay->name = buf;
+        changed = true;
+    }
+    ImGui::Separator();
+
+    changed |= render_custom_settings();
+    return changed;
 }
 
 } // namespace webgpu_app

@@ -30,8 +30,11 @@ public:
     explicit OverlayImGuiRenderer(webgpu_engine::Overlay& overlay);
     virtual ~OverlayImGuiRenderer() = default;
 
+    // Default/type name for this overlay kind (subclasses override).
     virtual std::string display_name() const { return "Overlay"; }
-    // Renders overlay-specific settings; returns true if redraw needed.
+    // Name shown in the list/title: the user-set name if any, otherwise display_name().
+    std::string effective_name() const;
+    // Renders the general name field followed by overlay-specific settings; returns true if redraw needed.
     // Subclasses override render_custom_settings(), not this.
     bool render_settings();
 
