@@ -28,7 +28,6 @@ namespace webgpu_engine {
 
 class HeightLinesOverlay : public Overlay {
 public:
-
     struct Settings {
         float primary_interval = 250.0f; // major contour interval in meters
         float secondary_interval = 50.0f; // minor contour interval in meters

@@ -55,13 +55,11 @@ void OverlayRenderer::remove_overlay(size_t index)
         m_overlays.erase(m_overlays.begin() + static_cast<ptrdiff_t>(index));
 }
 
-
 const std::vector<std::shared_ptr<Overlay>>& OverlayRenderer::overlays() const { return m_overlays; }
 
 void OverlayRenderer::sort_overlays()
 {
-    std::sort(m_overlays.begin(), m_overlays.end(),
-        [](const auto& a, const auto& b) { return a->z_index < b->z_index; });
+    std::sort(m_overlays.begin(), m_overlays.end(), [](const auto& a, const auto& b) { return a->z_index < b->z_index; });
 }
 
 void OverlayRenderer::init(webgpu::Context& ctx)
@@ -87,8 +85,7 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> OverlayRenderer::create_output
     texture_desc.mipLevelCount = 1;
     texture_desc.sampleCount = 1;
     texture_desc.format = WGPUTextureFormat_RGBA8Unorm;
-    texture_desc.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_StorageBinding
-        | WGPUTextureUsage_CopySrc | WGPUTextureUsage_TextureBinding;
+    texture_desc.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_StorageBinding | WGPUTextureUsage_CopySrc | WGPUTextureUsage_TextureBinding;
 
     WGPUSamplerDescriptor sampler_desc {};
     sampler_desc.label = WGPUStringView { .data = label, .length = WGPU_STRLEN };
@@ -146,15 +143,9 @@ void OverlayRenderer::draw(const WGPUCommandEncoder& command_encoder,
     }
 }
 
-const webgpu::raii::TextureView* OverlayRenderer::result_pre_view() const
-{
-    return m_pre_output_texture ? &m_pre_output_texture->texture_view() : nullptr;
-}
+const webgpu::raii::TextureView* OverlayRenderer::result_pre_view() const { return m_pre_output_texture ? &m_pre_output_texture->texture_view() : nullptr; }
 
-const webgpu::raii::TextureView* OverlayRenderer::result_post_view() const
-{
-    return m_post_output_texture ? &m_post_output_texture->texture_view() : nullptr;
-}
+const webgpu::raii::TextureView* OverlayRenderer::result_post_view() const { return m_post_output_texture ? &m_post_output_texture->texture_view() : nullptr; }
 
 tl::expected<radix::geometry::Aabb<2, double>, std::string> OverlayRenderer::load_aabb_from_file(const std::string& file_path)
 {

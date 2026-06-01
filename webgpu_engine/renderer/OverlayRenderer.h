@@ -26,8 +26,8 @@
 #include <tl/expected.hpp>
 #include <vector>
 #include <webgpu/Context.h>
-#include <webgpu/raii/TextureWithSampler.h>
 #include <webgpu/raii/TextureView.h>
+#include <webgpu/raii/TextureWithSampler.h>
 #include <webgpu/webgpu.h>
 
 namespace webgpu_engine {
@@ -65,8 +65,8 @@ private:
     webgpu::Context* m_ctx = nullptr;
     bool m_post_recreate_called = false;
     std::vector<std::shared_ptr<Overlay>> m_overlays; // stable-sorted by z_index ascending
-    std::unique_ptr<webgpu::raii::TextureWithSampler> m_pre_output_texture;  // z_index < 0  → pre-shading
-    std::unique_ptr<webgpu::raii::TextureWithSampler> m_post_output_texture; // z_index >= 0 → post-shading
+    std::unique_ptr<webgpu::raii::TextureWithSampler> m_pre_output_texture;
+    std::unique_ptr<webgpu::raii::TextureWithSampler> m_post_output_texture;
 };
 
 } // namespace webgpu_engine

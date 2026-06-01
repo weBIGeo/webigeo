@@ -18,9 +18,9 @@
 
 #include "TextureOverlay.h"
 
-#include <optional>
 #include "webgpu_engine/gpu_utils.h"
 #include <nucleus/utils/image_loader.h>
+#include <optional>
 #include <webgpu/RenderResourceRegistry.h>
 #include <webgpu/raii/BindGroup.h>
 #include <webgpu/raii/BindGroupLayout.h>
@@ -60,33 +60,32 @@ void TextureOverlay::init(webgpu::Context& ctx)
         reg.register_shader("texture_overlay_render", "overlays/texture_overlay.wgsl");
     if (!reg.has_bind_group_layout("texture_overlay"))
         reg.register_bind_group_layout("texture_overlay", [](WGPUDevice device) {
-        WGPUBindGroupLayoutEntry position_entry {};
-        position_entry.binding = 0;
-        position_entry.visibility = WGPUShaderStage_Fragment;
-        position_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
-        position_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+            WGPUBindGroupLayoutEntry position_entry {};
+            position_entry.binding = 0;
+            position_entry.visibility = WGPUShaderStage_Fragment;
+            position_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
+            position_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
-        WGPUBindGroupLayoutEntry settings_entry {};
-        settings_entry.binding = 1;
-        settings_entry.visibility = WGPUShaderStage_Fragment;
-        settings_entry.buffer.type = WGPUBufferBindingType_Uniform;
+            WGPUBindGroupLayoutEntry settings_entry {};
+            settings_entry.binding = 1;
+            settings_entry.visibility = WGPUShaderStage_Fragment;
+            settings_entry.buffer.type = WGPUBufferBindingType_Uniform;
 
-        WGPUBindGroupLayoutEntry overlay_texture_entry {};
-        overlay_texture_entry.binding = 2;
-        overlay_texture_entry.visibility = WGPUShaderStage_Fragment;
-        overlay_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
-        overlay_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+            WGPUBindGroupLayoutEntry overlay_texture_entry {};
+            overlay_texture_entry.binding = 2;
+            overlay_texture_entry.visibility = WGPUShaderStage_Fragment;
+            overlay_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
+            overlay_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
-        WGPUBindGroupLayoutEntry overlay_sampler_entry {};
-        overlay_sampler_entry.binding = 3;
-        overlay_sampler_entry.visibility = WGPUShaderStage_Fragment;
-        overlay_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
+            WGPUBindGroupLayoutEntry overlay_sampler_entry {};
+            overlay_sampler_entry.binding = 3;
+            overlay_sampler_entry.visibility = WGPUShaderStage_Fragment;
+            overlay_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
 
-        return std::make_unique<webgpu::raii::BindGroupLayout>(device,
-            std::vector<WGPUBindGroupLayoutEntry> {
-                position_entry, settings_entry, overlay_texture_entry, overlay_sampler_entry },
-            "texture overlay bind group layout");
-    });
+            return std::make_unique<webgpu::raii::BindGroupLayout>(device,
+                std::vector<WGPUBindGroupLayoutEntry> { position_entry, settings_entry, overlay_texture_entry, overlay_sampler_entry },
+                "texture overlay bind group layout");
+        });
     reg.register_pipeline([this](WGPUDevice device, const webgpu::RenderResourceRegistry& reg) {
         webgpu::FramebufferFormat format {};
         format.depth_format = WGPUTextureFormat_Undefined;
@@ -110,7 +109,7 @@ void TextureOverlay::init(webgpu::Context& ctx)
                 &reg.bind_group_layout("camera"),
                 &reg.bind_group_layout("texture_overlay"),
             },
-            std::vector<std::optional<WGPUBlendState>>{ blend });
+            std::vector<std::optional<WGPUBlendState>> { blend });
     });
 
     m_settings_uniform = std::make_unique<webgpu_engine::Buffer<GpuSettings>>(ctx.device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
@@ -163,9 +162,9 @@ void TextureOverlay::upload_texture(webgpu::Context& ctx)
 
 void TextureOverlay::update_gpu_settings()
 {
-    m_settings_uniform->data.aabb_min  = glm::vec2(m_aabb_min_d);
+    m_settings_uniform->data.aabb_min = glm::vec2(m_aabb_min_d);
     m_settings_uniform->data.aabb_size = glm::vec2(m_aabb_max_d - m_aabb_min_d);
-    m_settings_uniform->data.opacity   = settings.opacity;
+    m_settings_uniform->data.opacity = settings.opacity;
     m_settings_uniform->update_gpu_data(m_ctx->queue());
 }
 

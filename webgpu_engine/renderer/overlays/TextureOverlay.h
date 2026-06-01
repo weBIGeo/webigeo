@@ -63,7 +63,7 @@ public:
 private:
     // Internal GPU uniform — matches WGSL struct TextureOverlaySettings
     struct GpuSettings {
-        glm::vec2 aabb_min  = glm::vec2(0.0f);
+        glm::vec2 aabb_min = glm::vec2(0.0f);
         glm::vec2 aabb_size = glm::vec2(1.0f); // precomputed in double on CPU
         float opacity = 1.0f;
         float _pad = 0.0f; // pad to 24 bytes (vec2 alignment = 8)

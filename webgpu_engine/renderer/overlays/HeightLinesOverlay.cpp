@@ -40,40 +40,40 @@ void HeightLinesOverlay::init(webgpu::Context& ctx)
         reg.register_shader("height_lines_compute", "overlays/height_lines.wgsl");
     if (!reg.has_bind_group_layout("height_lines_overlay"))
         reg.register_bind_group_layout("height_lines_overlay", [](WGPUDevice device) {
-        WGPUBindGroupLayoutEntry position_entry {};
-        position_entry.binding = 0;
-        position_entry.visibility = WGPUShaderStage_Compute;
-        position_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
-        position_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+            WGPUBindGroupLayoutEntry position_entry {};
+            position_entry.binding = 0;
+            position_entry.visibility = WGPUShaderStage_Compute;
+            position_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
+            position_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
-        WGPUBindGroupLayoutEntry normal_entry {};
-        normal_entry.binding = 1;
-        normal_entry.visibility = WGPUShaderStage_Compute;
-        normal_entry.texture.sampleType = WGPUTextureSampleType_Uint;
-        normal_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+            WGPUBindGroupLayoutEntry normal_entry {};
+            normal_entry.binding = 1;
+            normal_entry.visibility = WGPUShaderStage_Compute;
+            normal_entry.texture.sampleType = WGPUTextureSampleType_Uint;
+            normal_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
-        WGPUBindGroupLayoutEntry settings_entry {};
-        settings_entry.binding = 2;
-        settings_entry.visibility = WGPUShaderStage_Compute;
-        settings_entry.buffer.type = WGPUBufferBindingType_Uniform;
+            WGPUBindGroupLayoutEntry settings_entry {};
+            settings_entry.binding = 2;
+            settings_entry.visibility = WGPUShaderStage_Compute;
+            settings_entry.buffer.type = WGPUBufferBindingType_Uniform;
 
-        WGPUBindGroupLayoutEntry output_entry {};
-        output_entry.binding = 3;
-        output_entry.visibility = WGPUShaderStage_Compute;
-        output_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
-        output_entry.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
-        output_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+            WGPUBindGroupLayoutEntry output_entry {};
+            output_entry.binding = 3;
+            output_entry.visibility = WGPUShaderStage_Compute;
+            output_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
+            output_entry.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
+            output_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
 
-        WGPUBindGroupLayoutEntry prev_output_entry {};
-        prev_output_entry.binding = 4;
-        prev_output_entry.visibility = WGPUShaderStage_Compute;
-        prev_output_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
-        prev_output_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+            WGPUBindGroupLayoutEntry prev_output_entry {};
+            prev_output_entry.binding = 4;
+            prev_output_entry.visibility = WGPUShaderStage_Compute;
+            prev_output_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
+            prev_output_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
-        return std::make_unique<webgpu::raii::BindGroupLayout>(device,
-            std::vector<WGPUBindGroupLayoutEntry> { position_entry, normal_entry, settings_entry, output_entry, prev_output_entry },
-            "height lines overlay bind group layout");
-    });
+            return std::make_unique<webgpu::raii::BindGroupLayout>(device,
+                std::vector<WGPUBindGroupLayoutEntry> { position_entry, normal_entry, settings_entry, output_entry, prev_output_entry },
+                "height lines overlay bind group layout");
+        });
     reg.register_pipeline([this](WGPUDevice device, const webgpu::RenderResourceRegistry& reg) {
         m_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(device,
             reg.shader("height_lines_compute"),
