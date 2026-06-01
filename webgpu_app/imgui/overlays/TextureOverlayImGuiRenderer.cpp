@@ -18,18 +18,94 @@
 
 #include "TextureOverlayImGuiRenderer.h"
 
+#ifdef __EMSCRIPTEN__
+#include <webgpu_app/WebInterop.h>
+#endif
+
 #include <ImGuiFileDialog.h>
+#include <QDebug>
 #include <filesystem>
 #include <imgui.h>
 
+#include "nucleus/utils/geopng_decoder.h"
 #include "webgpu_engine/renderer/OverlayRenderer.h"
 
 namespace webgpu_app {
 
+static int s_instance_counter = 0;
+
 TextureOverlayImGuiRenderer::TextureOverlayImGuiRenderer(webgpu_engine::TextureOverlay& overlay)
-    : OverlayImGuiRenderer(overlay)
+    : QObject(nullptr)
+    , OverlayImGuiRenderer(overlay)
     , m_texture_overlay(&overlay)
 {
+    const int id = s_instance_counter++;
+    m_png_tag = "textureoverlay_" + std::to_string(id) + "_png";
+    m_aabb_tag = "textureoverlay_" + std::to_string(id) + "_aabb";
+
+#ifdef __EMSCRIPTEN__
+    connect(&WebInterop::instance(), &WebInterop::file_uploaded, this, &TextureOverlayImGuiRenderer::on_file_uploaded);
+#endif
+}
+
+void TextureOverlayImGuiRenderer::on_file_uploaded(const std::string& filename, const std::string& tag)
+{
+#ifdef __EMSCRIPTEN__
+    if (tag == m_png_tag)
+        apply_image_file(filename);
+    else if (tag == m_aabb_tag)
+        apply_aabb_from_file(filename);
+#else
+    (void)filename;
+    (void)tag;
+#endif
+}
+
+void TextureOverlayImGuiRenderer::apply_image_file(const std::string& path)
+{
+    m_texture_overlay->load_image(QString::fromStdString(path));
+    m_loaded_image_path = path;
+
+#ifndef __EMSCRIPTEN__
+    const auto fspath = std::filesystem::path(path);
+    m_last_dialog_directory = fspath.parent_path().string();
+    for (const auto& candidate : nucleus::utils::geopng::possible_aabb_paths(fspath)) {
+        if (!std::filesystem::exists(candidate))
+            continue;
+        const auto result = webgpu_engine::OverlayRenderer::load_aabb_from_file(candidate.string());
+        if (result.has_value()) {
+            const auto& aabb = result.value();
+            m_aabb[0] = aabb.min.x;
+            m_aabb[1] = aabb.min.y;
+            m_aabb[2] = aabb.max.x;
+            m_aabb[3] = aabb.max.y;
+            m_texture_overlay->set_aabb(glm::dvec2(m_aabb[0], m_aabb[1]), glm::dvec2(m_aabb[2], m_aabb[3]));
+            m_texture_overlay->update_gpu_settings();
+            m_needs_redraw = true;
+            return;
+        }
+    }
+    qWarning() << "No AABB file found for" << QString::fromStdString(path);
+#endif
+
+    m_needs_redraw = true;
+}
+
+void TextureOverlayImGuiRenderer::apply_aabb_from_file(const std::string& path)
+{
+    const auto result = webgpu_engine::OverlayRenderer::load_aabb_from_file(path);
+    if (result.has_value()) {
+        const auto& aabb = result.value();
+        m_aabb[0] = aabb.min.x;
+        m_aabb[1] = aabb.min.y;
+        m_aabb[2] = aabb.max.x;
+        m_aabb[3] = aabb.max.y;
+        m_texture_overlay->set_aabb(glm::dvec2(m_aabb[0], m_aabb[1]), glm::dvec2(m_aabb[2], m_aabb[3]));
+        m_texture_overlay->update_gpu_settings();
+    } else {
+        qWarning() << "Failed to load AABB:" << QString::fromStdString(result.error());
+    }
+    m_needs_redraw = true;
 }
 
 bool TextureOverlayImGuiRenderer::render_custom_settings()
@@ -43,56 +119,51 @@ bool TextureOverlayImGuiRenderer::render_custom_settings()
     else
         ImGui::TextUnformatted(std::filesystem::path(m_loaded_image_path).filename().string().c_str());
 
-    // File open button
-    if (ImGui::Button("Load PNG...", ImVec2(-1, 0))) {
+    // Load buttons side by side
+    const float half_w = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) / 2.0f;
+#ifdef __EMSCRIPTEN__
+    if (ImGui::Button("Load PNG...", ImVec2(half_w, 0)))
+        WebInterop::instance().open_file_dialog(".png", m_png_tag);
+#else
+    if (ImGui::Button("Load PNG...", ImVec2(half_w, 0))) {
         IGFD::FileDialogConfig config;
         config.path = m_last_dialog_directory.empty() ? "." : m_last_dialog_directory;
-        ImGuiFileDialog::Instance()->OpenDialog("TextureOverlayFileDialog", "Choose Image", ".png,.*", config);
+        ImGuiFileDialog::Instance()->OpenDialog(m_png_tag.c_str(), "Choose Image", ".png,.*", config);
     }
-
-    // Handle dialog result
-    if (ImGuiFileDialog::Instance()->Display("TextureOverlayFileDialog")) {
-        if (ImGuiFileDialog::Instance()->IsOk()) {
-            const std::string filename_str = ImGuiFileDialog::Instance()->GetFilePathName();
-            const auto filename = std::filesystem::path(filename_str);
-            m_last_dialog_directory = filename.parent_path().string();
-
-            // Derive AABB file path using the same fallback logic as Window.cpp
-            auto aabb_path = filename.parent_path() / (filename.stem().string() + "_aabb.txt");
-            if (!std::filesystem::exists(aabb_path)) {
-                const std::string stem = filename.stem().string();
-                const size_t us = stem.find('_');
-                const std::string trackname = (us != std::string::npos) ? stem.substr(0, us) : stem;
-                aabb_path = filename.parent_path() / (trackname + "_aabb.txt");
-            }
-            if (!std::filesystem::exists(aabb_path))
-                aabb_path = filename.parent_path() / "aabb.txt";
-
-            if (std::filesystem::exists(aabb_path)) {
-                const auto aabb_result = webgpu_engine::OverlayRenderer::load_aabb_from_file(aabb_path.string());
-                if (aabb_result.has_value()) {
-                    const auto& aabb = aabb_result.value();
-                    m_texture_overlay->set_aabb(glm::dvec2(aabb.min.x, aabb.min.y), glm::dvec2(aabb.max.x, aabb.max.y));
-                    m_texture_overlay->load_image(QString::fromStdString(filename_str));
-                    m_loaded_image_path = filename_str;
-                    changed = true;
-                } else {
-                    ImGui::OpenPopup("AabbError");
-                }
-            } else {
-                ImGui::OpenPopup("AabbError");
-            }
-        }
+    if (ImGuiFileDialog::Instance()->Display(m_png_tag.c_str())) {
+        if (ImGuiFileDialog::Instance()->IsOk())
+            apply_image_file(ImGuiFileDialog::Instance()->GetFilePathName());
         ImGuiFileDialog::Instance()->Close();
     }
+#endif
 
-    if (ImGui::BeginPopupModal("AabbError", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::Text("No AABB file found for the selected image.");
-        ImGui::Text("Expected: <stem>_aabb.txt or aabb.txt in the same directory.");
-        if (ImGui::Button("OK"))
-            ImGui::CloseCurrentPopup();
-        ImGui::EndPopup();
+    ImGui::SameLine();
+
+#ifdef __EMSCRIPTEN__
+    if (ImGui::Button("Load AABB...", ImVec2(-1, 0)))
+        WebInterop::instance().open_file_dialog(".txt", m_aabb_tag);
+#else
+    if (ImGui::Button("Load AABB...", ImVec2(-1, 0))) {
+        IGFD::FileDialogConfig config;
+        config.path = m_last_dialog_directory.empty() ? "." : m_last_dialog_directory;
+        ImGuiFileDialog::Instance()->OpenDialog(m_aabb_tag.c_str(), "Choose AABB File", ".txt,.*", config);
     }
+    if (ImGuiFileDialog::Instance()->Display(m_aabb_tag.c_str())) {
+        if (ImGuiFileDialog::Instance()->IsOk())
+            apply_aabb_from_file(ImGuiFileDialog::Instance()->GetFilePathName());
+        ImGuiFileDialog::Instance()->Close();
+    }
+#endif
+
+    // AABB as editable vec4 (min_x, min_y, max_x, max_y)
+    ImGui::PushItemWidth(-1);
+    if (ImGui::DragScalarN("##aabb", ImGuiDataType_Double, m_aabb, 4, 0.0001f, nullptr, nullptr, "%.5f")) {
+        m_texture_overlay->set_aabb(glm::dvec2(m_aabb[0], m_aabb[1]), glm::dvec2(m_aabb[2], m_aabb[3]));
+        m_texture_overlay->update_gpu_settings();
+        changed = true;
+    }
+    ImGui::PopItemWidth();
+    ImGui::TextDisabled("AABB: min_x  min_y  max_x  max_y");
 
     ImGui::Separator();
 
@@ -110,6 +181,10 @@ bool TextureOverlayImGuiRenderer::render_custom_settings()
     ImGui::Checkbox("Use Mipmaps", &s.use_mipmaps);
     ImGui::SameLine();
     ImGui::TextDisabled("(takes effect on next image load)");
+
+    // pick up deferred redraw requests (e.g. from EMSCRIPTEN file uploads)
+    changed |= m_needs_redraw;
+    m_needs_redraw = false;
 
     return changed;
 }
