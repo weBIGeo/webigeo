@@ -37,7 +37,7 @@ TextureOverlay::TextureOverlay()
 void TextureOverlay::load_image(const QString& path)
 {
     m_image_path = path;
-    if (m_post_recreate_called)
+    if (m_is_ready)
         upload_texture(*m_ctx);
 }
 
@@ -116,9 +116,9 @@ void TextureOverlay::init(webgpu::Context& ctx)
     update_gpu_settings();
 }
 
-void TextureOverlay::post_recreate_all(webgpu::Context& ctx)
+void TextureOverlay::ready(webgpu::Context& ctx)
 {
-    m_post_recreate_called = true;
+    m_is_ready = true;
     if (!m_image_path.isEmpty())
         upload_texture(ctx);
 }

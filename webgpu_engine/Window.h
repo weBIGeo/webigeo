@@ -65,6 +65,7 @@ public:
     void set_context(Context* context);
     void initialise_gpu() override;
     void resize_framebuffer(int w, int h) override;
+    void ready();
     void paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_encoder);
     // void paint(WGPUTextureView target_color_texture, WGPUTextureView target_depth_texture, WGPUCommandEncoder encoder);
     void paint([[maybe_unused]] QOpenGLFramebufferObject* framebuffer = nullptr) override { throw std::runtime_error("Not implemented"); }
@@ -131,9 +132,6 @@ private:
     void update_compute_overlay_texture(const webgpu::raii::TextureWithSampler& texture_with_sampler);
     void update_compute_overlay_aabb(const radix::geometry::Aabb<2, double>& aabb);
 
-
-    void after_first_frame();
-
     void display_message(const std::string& message);
 
     std::unique_ptr<webgpu::raii::TextureWithSampler> create_shadow_texture(uint32_t width, uint32_t height, uint32_t mip_levels);
@@ -163,7 +161,6 @@ private:
     WGPUPresentMode m_swapchain_presentmode = WGPUPresentMode::WGPUPresentMode_Fifo;
 
     bool m_needs_redraw = true;
-    bool m_first_paint = true;
     bool m_is_first_pipeline_run = true;
     uint32_t m_paint_number = 0;
     std::string m_last_dialog_directory = ".";

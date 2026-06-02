@@ -1,6 +1,7 @@
 /*****************************************************************************
  * weBIGeo
  * Copyright (C) 2026 Gerald Kimmersdorfer
+ * Copyright (C) 2025 Patrick Komon
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +18,12 @@
  *****************************************************************************/
 
 #include "geopng_decoder.h"
+
+#include <QFile>
+#include <QString>
+#include <QTextStream>
+#include <array>
+#include <format>
 
 namespace nucleus::utils::geopng {
 
@@ -37,6 +44,37 @@ std::vector<std::filesystem::path> possible_aabb_paths(const std::filesystem::pa
 
     candidates.push_back(dir / "aabb.txt");
     return candidates;
+}
+
+tl::expected<radix::geometry::Aabb<2, double>, std::string> load_aabb_from_file(const std::filesystem::path& file_path)
+{
+    const std::string path_str = file_path.string();
+
+    QFile aabb_file(QString::fromStdString(path_str));
+    if (!aabb_file.open(QIODevice::ReadOnly)) {
+        return tl::make_unexpected(std::format("Failed to open file {}", path_str));
+    }
+    QTextStream file_contents(&aabb_file);
+
+    std::array<float, 4> contents;
+    bool float_conversion_ok = false;
+    for (size_t i = 0; i < contents.size(); i++) {
+        QString line = file_contents.readLine();
+        contents[i] = line.toFloat(&float_conversion_ok);
+        if (!float_conversion_ok) {
+            return tl::make_unexpected(std::format("Failed to parse file {}: Could not convert \"{}\" to float", path_str, line.toStdString()));
+        }
+    }
+
+    if (contents[0] >= contents[2]) {
+        return tl::make_unexpected(std::format("Failed to parse file {}: x_min ({}) must not be >= x_max ({})", path_str, contents[0], contents[2]));
+    }
+
+    if (contents[1] >= contents[3]) {
+        return tl::make_unexpected(std::format("Failed to parse file {}: y_min ({}) must not be >= y_max ({})", path_str, contents[1], contents[3]));
+    }
+
+    return radix::geometry::Aabb<2, double> { { contents[0], contents[1] }, { contents[2], contents[3] } };
 }
 
 } // namespace nucleus::utils::geopng

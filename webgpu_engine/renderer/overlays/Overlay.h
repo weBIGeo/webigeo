@@ -38,8 +38,9 @@ public:
 
     virtual ~Overlay() = default;
     virtual void init(webgpu::Context& ctx) = 0;
-    // Called after recreate_all() safe to use compiled shaders
-    virtual void post_recreate_all(webgpu::Context& /*ctx*/) {}
+    // Called once all shared GPU resources (compiled shaders, pipelines, bind group layouts)
+    // have been created. From here on it is safe to use them and to upload GPU data (e.g. textures).
+    virtual void ready(webgpu::Context& /*ctx*/) {}
     // Called when the output texture is resized. Compute overlays override to resize their copy texture.
     virtual void resize(glm::uvec2 /*size*/) {}
     // output is RGBA8Unorm owned by OverlayRenderer.

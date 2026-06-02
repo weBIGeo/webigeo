@@ -1,6 +1,7 @@
 /*****************************************************************************
  * weBIGeo
  * Copyright (C) 2026 Gerald Kimmersdorfer
+ * Copyright (C) 2025 Patrick Komon
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,9 +19,6 @@
 
 #include "OverlayRenderer.h"
 
-#include <QFile>
-#include <QString>
-#include <QTextStream>
 #include <algorithm>
 #include <webgpu/raii/RenderPassEncoder.h>
 
@@ -41,8 +39,8 @@ void OverlayRenderer::add_overlay(std::shared_ptr<Overlay> overlay)
 
     if (m_ctx) {
         overlay->init(*m_ctx);
-        if (m_post_recreate_called)
-            overlay->post_recreate_all(*m_ctx);
+        if (m_is_ready)
+            overlay->ready(*m_ctx);
         if (m_pre_output_texture)
             overlay->resize(glm::uvec2(m_pre_output_texture->texture().width(), m_pre_output_texture->texture().height()));
     }
@@ -69,11 +67,11 @@ void OverlayRenderer::init(webgpu::Context& ctx)
         overlay->init(ctx);
 }
 
-void OverlayRenderer::post_recreate_all(webgpu::Context& ctx)
+void OverlayRenderer::ready(webgpu::Context& ctx)
 {
-    m_post_recreate_called = true;
+    m_is_ready = true;
     for (auto& overlay : m_overlays)
-        overlay->post_recreate_all(ctx);
+        overlay->ready(ctx);
 }
 
 std::unique_ptr<webgpu::raii::TextureWithSampler> OverlayRenderer::create_output_texture(int w, int h, const char* label) const
@@ -146,41 +144,5 @@ void OverlayRenderer::draw(const WGPUCommandEncoder& command_encoder,
 const webgpu::raii::TextureView* OverlayRenderer::result_pre_view() const { return m_pre_output_texture ? &m_pre_output_texture->texture_view() : nullptr; }
 
 const webgpu::raii::TextureView* OverlayRenderer::result_post_view() const { return m_post_output_texture ? &m_post_output_texture->texture_view() : nullptr; }
-
-tl::expected<radix::geometry::Aabb<2, double>, std::string> OverlayRenderer::load_aabb_from_file(const std::string& file_path)
-{
-    QFile aabb_file(QString::fromStdString(file_path));
-    if (!aabb_file.open(QIODevice::ReadOnly)) {
-        return tl::make_unexpected(std::format("Failed to open file {}", file_path));
-    }
-    QTextStream file_contents(&aabb_file);
-
-    // parse extent file (very barebones rn, in the future we want to use geotiff anyway)
-    // extent file contains the aabb of the aabb region (in world coordinates) the image overlay texture is associated with
-    // each line contains exactly one floating point number (. as separator) with the following meaning:
-    //   min_x
-    //   min_y
-    //   max_x
-    //   max_y
-    std::array<float, 4> contents;
-    bool float_conversion_ok = false;
-    for (size_t i = 0; i < contents.size(); i++) {
-        QString line = file_contents.readLine();
-        contents[i] = line.toFloat(&float_conversion_ok);
-        if (!float_conversion_ok) {
-            return tl::make_unexpected(std::format("Failed to parse file {}: Could not convert \"{}\" to float", file_path, line.toStdString()));
-        }
-    }
-
-    if (contents[0] >= contents[2]) {
-        return tl::make_unexpected(std::format("Failed to parse file {}: x_min ({}) must not be >= x_max ({})", file_path, contents[0], contents[2]));
-    }
-
-    if (contents[1] >= contents[3]) {
-        return tl::make_unexpected(std::format("Failed to parse file {}: y_min ({}) must not be >= y_max ({})", file_path, contents[1], contents[3]));
-    }
-
-    return radix::geometry::Aabb<2, double> { { contents[0], contents[1] }, { contents[2], contents[3] } };
-}
 
 } // namespace webgpu_engine

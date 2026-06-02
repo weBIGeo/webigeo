@@ -28,7 +28,6 @@
 #include <imgui.h>
 
 #include "nucleus/utils/geopng_decoder.h"
-#include "webgpu_engine/renderer/OverlayRenderer.h"
 
 namespace webgpu_app {
 
@@ -48,18 +47,15 @@ TextureOverlayImGuiRenderer::TextureOverlayImGuiRenderer(webgpu_engine::TextureO
 #endif
 }
 
+#ifdef __EMSCRIPTEN__
 void TextureOverlayImGuiRenderer::on_file_uploaded(const std::string& filename, const std::string& tag)
 {
-#ifdef __EMSCRIPTEN__
     if (tag == m_png_tag)
         apply_image_file(filename);
     else if (tag == m_aabb_tag)
         apply_aabb_from_file(filename);
-#else
-    (void)filename;
-    (void)tag;
-#endif
 }
+#endif
 
 void TextureOverlayImGuiRenderer::apply_image_file(const std::string& path)
 {
@@ -72,7 +68,7 @@ void TextureOverlayImGuiRenderer::apply_image_file(const std::string& path)
     for (const auto& candidate : nucleus::utils::geopng::possible_aabb_paths(fspath)) {
         if (!std::filesystem::exists(candidate))
             continue;
-        const auto result = webgpu_engine::OverlayRenderer::load_aabb_from_file(candidate.string());
+        const auto result = nucleus::utils::geopng::load_aabb_from_file(candidate);
         if (result.has_value()) {
             const auto& aabb = result.value();
             m_aabb[0] = aabb.min.x;
@@ -85,7 +81,7 @@ void TextureOverlayImGuiRenderer::apply_image_file(const std::string& path)
             return;
         }
     }
-    qWarning() << "No AABB file found for" << QString::fromStdString(path);
+    qWarning() << "No sidecart AABB file found for" << QString::fromStdString(path);
 #endif
 
     m_needs_redraw = true;
@@ -93,7 +89,7 @@ void TextureOverlayImGuiRenderer::apply_image_file(const std::string& path)
 
 void TextureOverlayImGuiRenderer::apply_aabb_from_file(const std::string& path)
 {
-    const auto result = webgpu_engine::OverlayRenderer::load_aabb_from_file(path);
+    const auto result = nucleus::utils::geopng::load_aabb_from_file(path);
     if (result.has_value()) {
         const auto& aabb = result.value();
         m_aabb[0] = aabb.min.x;
@@ -119,13 +115,12 @@ bool TextureOverlayImGuiRenderer::render_custom_settings()
     else
         ImGui::TextUnformatted(std::filesystem::path(m_loaded_image_path).filename().string().c_str());
 
-    // Load buttons side by side
-    const float half_w = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) / 2.0f;
+    const float full_w = ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x;
 #ifdef __EMSCRIPTEN__
-    if (ImGui::Button("Load PNG...", ImVec2(half_w, 0)))
+    if (ImGui::Button("Load PNG...", ImVec2(full_w * 0.666f, 0)))
         WebInterop::instance().open_file_dialog(".png", m_png_tag);
 #else
-    if (ImGui::Button("Load PNG...", ImVec2(half_w, 0))) {
+    if (ImGui::Button("Load PNG...", ImVec2(full_w * 0.666f, 0))) {
         IGFD::FileDialogConfig config;
         config.path = m_last_dialog_directory.empty() ? "." : m_last_dialog_directory;
         ImGuiFileDialog::Instance()->OpenDialog(m_png_tag.c_str(), "Choose Image", ".png,.*", config);
@@ -175,14 +170,13 @@ bool TextureOverlayImGuiRenderer::render_custom_settings()
     const char* filter_items[] = { "Nearest", "Linear" };
     int filter_idx = (s.filter_mode == webgpu_engine::TextureOverlay::FilterMode::Linear) ? 1 : 0;
     if (ImGui::Combo("Filter Mode", &filter_idx, filter_items, 2))
-        s.filter_mode = (filter_idx == 1) ? webgpu_engine::TextureOverlay::FilterMode::Linear
-                                          : webgpu_engine::TextureOverlay::FilterMode::Nearest;
+        s.filter_mode = (filter_idx == 1) ? webgpu_engine::TextureOverlay::FilterMode::Linear : webgpu_engine::TextureOverlay::FilterMode::Nearest;
 
     ImGui::Checkbox("Use Mipmaps", &s.use_mipmaps);
     ImGui::SameLine();
     ImGui::TextDisabled("(takes effect on next image load)");
 
-    // pick up deferred redraw requests (e.g. from EMSCRIPTEN file uploads)
+    // pick up deferred redraw requests
     changed |= m_needs_redraw;
     m_needs_redraw = false;
 

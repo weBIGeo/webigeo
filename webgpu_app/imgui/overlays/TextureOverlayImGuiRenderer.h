@@ -33,8 +33,10 @@ public:
     std::string display_name() const override { return "Texture Overlay"; }
     bool render_custom_settings() override;
 
+#ifdef __EMSCRIPTEN__
 private slots:
     void on_file_uploaded(const std::string& filename, const std::string& tag);
+#endif
 
 private:
     void apply_image_file(const std::string& path);

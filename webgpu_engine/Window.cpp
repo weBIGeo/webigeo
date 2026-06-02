@@ -24,6 +24,7 @@
 #include "gpu_utils.h"
 #include "nucleus/tile/drawing.h"
 #include "nucleus/track/GPX.h"
+#include "nucleus/utils/geopng_decoder.h"
 #include "nucleus/utils/image_loader.h"
 #include "renderer/OverlayRenderer.h"
 #include "webgpu/raii/RenderPassEncoder.h"
@@ -101,7 +102,6 @@ void Window::initialise_gpu()
     m_atmosphere_renderer->init(m_context->webgpu_ctx());
 
     m_context->webgpu_ctx().resource_registry().recreate_all(m_context->webgpu_ctx().device());
-    m_context->overlay_renderer()->post_recreate_all(m_context->webgpu_ctx());
 
     create_bind_groups();
 
@@ -275,10 +275,6 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
             command_encoder, *m_shared_config_bind_group, *m_camera_bind_group, *m_depth_texture_bind_group, framebuffer->color_texture_view(0));
     }
 
-    if (m_first_paint) {
-        after_first_frame();
-    }
-    m_first_paint = false;
     m_paint_number++;
 }
 
@@ -933,7 +929,7 @@ bool Window::update_image_overlay_aabb(const radix::geometry::Aabb<2, double>& a
 void Window::update_image_overlay_aabb_and_focus(const std::string& aabb_file_path)
 {
     // TODO: OverlayRenderer should be in charge of overlay related code
-    const auto aabb = OverlayRenderer::load_aabb_from_file(aabb_file_path).value();
+    const auto aabb = nucleus::utils::geopng::load_aabb_from_file(aabb_file_path).value();
 
     bool update_successful = update_image_overlay_aabb(aabb);
     if (!update_successful) {
@@ -971,8 +967,10 @@ void Window::update_compute_overlay_aabb(const radix::geometry::Aabb<2, double>&
     m_compute_overlay_settings_uniform_buffer->update_gpu_data(m_context->webgpu_ctx().queue());
 }
 
-void Window::after_first_frame()
+void Window::ready()
 {
+    m_context->overlay_renderer()->ready(m_context->webgpu_ctx());
+
 #if defined(QT_DEBUG)
     load_track_and_focus(DEFAULT_GPX_TRACK_PATH);
     // m_compute_graph->run();

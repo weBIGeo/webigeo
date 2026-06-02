@@ -21,9 +21,6 @@
 #include "overlays/Overlay.h"
 #include <QObject>
 #include <memory>
-#include <radix/geometry.h>
-#include <string>
-#include <tl/expected.hpp>
 #include <vector>
 #include <webgpu/Context.h>
 #include <webgpu/raii/TextureView.h>
@@ -45,7 +42,8 @@ public:
     [[nodiscard]] const std::vector<std::shared_ptr<Overlay>>& overlays() const;
 
     void init(webgpu::Context& ctx);
-    void post_recreate_all(webgpu::Context& ctx);
+    // Called once after all GPU resources are created (and the initial setup is done).
+    void ready(webgpu::Context& ctx);
     void resize(int w, int h);
 
     void draw(const WGPUCommandEncoder& command_encoder,
@@ -57,13 +55,11 @@ public:
     [[nodiscard]] const webgpu::raii::TextureView* result_pre_view() const;
     [[nodiscard]] const webgpu::raii::TextureView* result_post_view() const;
 
-    static tl::expected<radix::geometry::Aabb<2, double>, std::string> load_aabb_from_file(const std::string& file_path);
-
 private:
     std::unique_ptr<webgpu::raii::TextureWithSampler> create_output_texture(int w, int h, const char* label) const;
 
     webgpu::Context* m_ctx = nullptr;
-    bool m_post_recreate_called = false;
+    bool m_is_ready = false;
     std::vector<std::shared_ptr<Overlay>> m_overlays; // stable-sorted by z_index ascending
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_pre_output_texture;
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_post_output_texture;

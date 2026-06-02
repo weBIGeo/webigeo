@@ -42,15 +42,14 @@ public:
 
     TextureOverlay();
 
-    // Load an RGBA image from disk. Can be called before or after GPU init;
-    // if called after post_recreate_all() the texture is uploaded immediately.
+    // Load an RGBA image from disk.
     void load_image(const QString& path);
 
     // Set the world-space AABB in double precision. Can be called at any time.
     void set_aabb(glm::dvec2 min, glm::dvec2 max);
 
     void init(webgpu::Context& ctx) override;
-    void post_recreate_all(webgpu::Context& ctx) override;
+    void ready(webgpu::Context& ctx) override;
     void update_gpu_settings(); // sync aabb + opacity to GPU; call after changing settings
     void draw(const WGPUCommandEncoder& command_encoder,
         const webgpu::raii::TextureView& position_view,
@@ -72,7 +71,7 @@ private:
     void upload_texture(webgpu::Context& ctx);
 
     webgpu::Context* m_ctx = nullptr;
-    bool m_post_recreate_called = false;
+    bool m_is_ready = false;
 
     // Pending state — stored before GPU is ready
     glm::dvec2 m_aabb_min_d = glm::dvec2(0.0);

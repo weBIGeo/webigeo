@@ -395,6 +395,8 @@ void TerrainRenderer::start() {
     this->on_window_resize(m_viewport_size.x, m_viewport_size.y);
     m_initialized = true;
 
+    m_webgpu_window->ready();
+
 #if defined(__EMSCRIPTEN__)
     emscripten_set_main_loop_arg(
         [](void* userData) {
