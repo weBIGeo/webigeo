@@ -22,6 +22,8 @@
 #include "webgpu_engine/Buffer.h"
 #include <QString>
 #include <memory>
+#include <nucleus/Raster.h>
+#include <radix/geometry.h>
 #include <webgpu/Framebuffer.h>
 #include <webgpu/raii/Pipeline.h>
 #include <webgpu/raii/TextureWithSampler.h>
@@ -32,11 +34,12 @@ class TextureOverlay : public Overlay {
 public:
     enum class FilterMode { Nearest, Linear };
 
-    // Outward-facing settings (affects sampler on next load_image call)
+    // Outward-facing, user-tweakable settings.
     struct Settings {
-        FilterMode filter_mode = FilterMode::Linear;
-        bool use_mipmaps = true;
+        radix::geometry::Aabb<2, double> aabb = { { 0.0, 0.0 }, { 1.0, 1.0 } }; // world-space extent
         float opacity = 1.0f;
+        FilterMode filter_mode = FilterMode::Linear; // filter_mode/use_mipmaps take effect on next load_image
+        bool use_mipmaps = true;
     };
     Settings settings;
 
@@ -45,12 +48,9 @@ public:
     // Load an RGBA image from disk.
     void load_image(const QString& path);
 
-    // Set the world-space AABB in double precision. Can be called at any time.
-    void set_aabb(glm::dvec2 min, glm::dvec2 max);
-
     void init(webgpu::Context& ctx) override;
     void ready(webgpu::Context& ctx) override;
-    void update_gpu_settings(); // sync aabb + opacity to GPU; call after changing settings
+    void update_gpu_settings(); 
     void draw(const WGPUCommandEncoder& command_encoder,
         const webgpu::raii::TextureView& position_view,
         const webgpu::raii::TextureView& normal_view,
@@ -60,7 +60,7 @@ public:
         glm::uvec2 output_size) override;
 
 private:
-    // Internal GPU uniform — matches WGSL struct TextureOverlaySettings
+    // Internal GPU uniform
     struct GpuSettings {
         glm::vec2 aabb_min = glm::vec2(0.0f);
         glm::vec2 aabb_size = glm::vec2(1.0f); // precomputed in double on CPU
@@ -68,15 +68,10 @@ private:
         float _pad = 0.0f; // pad to 24 bytes (vec2 alignment = 8)
     };
 
-    void upload_texture(webgpu::Context& ctx);
+    void upload_texture(webgpu::Context& ctx, const nucleus::Raster<glm::u8vec4>& image);
 
     webgpu::Context* m_ctx = nullptr;
     bool m_is_ready = false;
-
-    // Pending state — stored before GPU is ready
-    glm::dvec2 m_aabb_min_d = glm::dvec2(0.0);
-    glm::dvec2 m_aabb_max_d = glm::dvec2(1.0);
-    QString m_image_path;
 
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_pipeline;
     std::unique_ptr<webgpu_engine::Buffer<GpuSettings>> m_settings_uniform;

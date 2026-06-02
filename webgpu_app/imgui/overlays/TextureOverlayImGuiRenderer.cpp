@@ -70,12 +70,7 @@ void TextureOverlayImGuiRenderer::apply_image_file(const std::string& path)
             continue;
         const auto result = nucleus::utils::geopng::load_aabb_from_file(candidate);
         if (result.has_value()) {
-            const auto& aabb = result.value();
-            m_aabb[0] = aabb.min.x;
-            m_aabb[1] = aabb.min.y;
-            m_aabb[2] = aabb.max.x;
-            m_aabb[3] = aabb.max.y;
-            m_texture_overlay->set_aabb(glm::dvec2(m_aabb[0], m_aabb[1]), glm::dvec2(m_aabb[2], m_aabb[3]));
+            m_texture_overlay->settings.aabb = result.value();
             m_texture_overlay->update_gpu_settings();
             m_needs_redraw = true;
             return;
@@ -91,12 +86,7 @@ void TextureOverlayImGuiRenderer::apply_aabb_from_file(const std::string& path)
 {
     const auto result = nucleus::utils::geopng::load_aabb_from_file(path);
     if (result.has_value()) {
-        const auto& aabb = result.value();
-        m_aabb[0] = aabb.min.x;
-        m_aabb[1] = aabb.min.y;
-        m_aabb[2] = aabb.max.x;
-        m_aabb[3] = aabb.max.y;
-        m_texture_overlay->set_aabb(glm::dvec2(m_aabb[0], m_aabb[1]), glm::dvec2(m_aabb[2], m_aabb[3]));
+        m_texture_overlay->settings.aabb = result.value();
         m_texture_overlay->update_gpu_settings();
     } else {
         qWarning() << "Failed to load AABB:" << QString::fromStdString(result.error());
@@ -150,10 +140,10 @@ bool TextureOverlayImGuiRenderer::render_custom_settings()
     }
 #endif
 
-    // AABB as editable vec4 (min_x, min_y, max_x, max_y)
+    // AABB as editable vec4 (min_x, min_y, max_x, max_y) — Aabb is { dvec2 min; dvec2 max; },
+    // i.e. 4 contiguous doubles, so we can edit it in place.
     ImGui::PushItemWidth(-1);
-    if (ImGui::DragScalarN("##aabb", ImGuiDataType_Double, m_aabb, 4, 0.0001f, nullptr, nullptr, "%.5f")) {
-        m_texture_overlay->set_aabb(glm::dvec2(m_aabb[0], m_aabb[1]), glm::dvec2(m_aabb[2], m_aabb[3]));
+    if (ImGui::DragScalarN("##aabb", ImGuiDataType_Double, &s.aabb.min.x, 4, 0.0001f, nullptr, nullptr, "%.5f")) {
         m_texture_overlay->update_gpu_settings();
         changed = true;
     }

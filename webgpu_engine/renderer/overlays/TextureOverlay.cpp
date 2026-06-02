@@ -36,17 +36,8 @@ TextureOverlay::TextureOverlay()
 
 void TextureOverlay::load_image(const QString& path)
 {
-    m_image_path = path;
-    if (m_is_ready)
-        upload_texture(*m_ctx);
-}
-
-void TextureOverlay::set_aabb(glm::dvec2 min, glm::dvec2 max)
-{
-    m_aabb_min_d = min;
-    m_aabb_max_d = max;
-    if (m_settings_uniform)
-        update_gpu_settings();
+    assert(m_is_ready && "load_image must be called after ready()");
+    upload_texture(*m_ctx, nucleus::utils::image_loader::rgba8(path).value());
 }
 
 void TextureOverlay::init(webgpu::Context& ctx)
@@ -119,13 +110,10 @@ void TextureOverlay::init(webgpu::Context& ctx)
 void TextureOverlay::ready(webgpu::Context& ctx)
 {
     m_is_ready = true;
-    if (!m_image_path.isEmpty())
-        upload_texture(ctx);
 }
 
-void TextureOverlay::upload_texture(webgpu::Context& ctx)
+void TextureOverlay::upload_texture(webgpu::Context& ctx, const nucleus::Raster<glm::u8vec4>& image)
 {
-    const auto image = nucleus::utils::image_loader::rgba8(m_image_path).value();
     const bool mipmaps = settings.use_mipmaps;
     const auto mip_levels = mipmaps ? webgpu::raii::Texture::max_mip_level_count(glm::uvec2(image.width(), image.height())) : 1u;
 
@@ -162,8 +150,8 @@ void TextureOverlay::upload_texture(webgpu::Context& ctx)
 
 void TextureOverlay::update_gpu_settings()
 {
-    m_settings_uniform->data.aabb_min = glm::vec2(m_aabb_min_d);
-    m_settings_uniform->data.aabb_size = glm::vec2(m_aabb_max_d - m_aabb_min_d);
+    m_settings_uniform->data.aabb_min = glm::vec2(settings.aabb.min);
+    m_settings_uniform->data.aabb_size = glm::vec2(settings.aabb.size());
     m_settings_uniform->data.opacity = settings.opacity;
     m_settings_uniform->update_gpu_data(m_ctx->queue());
 }

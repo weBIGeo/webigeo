@@ -45,7 +45,6 @@ private:
     webgpu_engine::TextureOverlay* m_texture_overlay;
     std::string m_last_dialog_directory;
     std::string m_loaded_image_path;
-    double m_aabb[4] = { 0.0, 0.0, 1.0, 1.0 };
     bool m_needs_redraw = false;
     std::string m_png_tag;
     std::string m_aabb_tag;
