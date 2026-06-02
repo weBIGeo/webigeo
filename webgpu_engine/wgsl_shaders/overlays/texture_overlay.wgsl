@@ -38,7 +38,7 @@ struct TextureOverlaySettings {
     encoded_float_range: vec2f,  // offset 32  (encoding format range, from ENCODED_FLOAT_RANGE_MIN/MAX)
 }
 
-@fragmentfn fragmentMain(in: VertexOut) -> @location(0) vec4f {
+@fragment fn fragmentMain(in: VertexOut) -> @location(0) vec4f {
     let tci = vec2i(in.position.xy);
     let pos_dist = textureLoad(position_texture, tci, 0);
     let pos_cws = pos_dist.xyz;
@@ -64,8 +64,8 @@ struct TextureOverlaySettings {
     let sample = textureSampleGrad(overlay_texture, overlay_sampler, uv, ddx_uv, ddy_uv);
 
     if settings.mode == 1u {
-        // EncodedFloat: RGBA encodes a u32 via (r<<24|g<<16|b<<8|a), mapped from
-        // U32_ENCODING_RANGE_VALIDATION to settings.float_decode_range.
+        // EncodedFloat: RGBA encodes a u32 via (r<<24|g<<16|b<<8|a), decoded over
+        // settings.encoded_float_range, then normalized to settings.float_decode_range.
         let rgba_u8 = vec4u(sample * 255.0);
         let packed = (rgba_u8.r << 24u) | (rgba_u8.g << 16u) | (rgba_u8.b << 8u) | rgba_u8.a;
         let value = u32_to_range(packed, settings.encoded_float_range);
