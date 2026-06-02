@@ -52,10 +52,8 @@ class Window : public nucleus::AbstractRenderWindow, public nucleus::camera::Abs
     Q_OBJECT
 public:
     enum class ComputePipelineType {
-        NORMALS = 0,
         SNOW = 1,
         AVALANCHE_TRAJECTORIES = 2,
-        RELEASE_POINTS = 3,
         ITERATIVE_SIMULATION = 4,
     };
 

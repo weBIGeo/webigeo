@@ -440,12 +440,10 @@ void Window::paint_compute_pipeline_gui()
             update_settings_and_rerun_pipeline();
         }
 
-        static int overlays_current_item = 2;
+        static int overlays_current_item = 1;
         const std::vector<std::pair<std::string, ComputePipelineType>> overlays = {
-            { "Normals", ComputePipelineType::NORMALS },
             { "Snow", ComputePipelineType::SNOW },
             { "Avalanche trajectories", ComputePipelineType::AVALANCHE_TRAJECTORIES },
-            { "Release points", ComputePipelineType::RELEASE_POINTS },
             { "Iterative simulation (WIP)", ComputePipelineType::ITERATIVE_SIMULATION },
         };
         const char* current_item_label = overlays[overlays_current_item].first.c_str();
@@ -532,15 +530,11 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, 
     if (auto overlay = m_compute_result_overlay.lock())
         overlay->link_texture(nullptr);
 
-    if (pipeline_type == ComputePipelineType::NORMALS) {
-        m_compute_graph = compute::nodes::NodeGraph::create_normal_compute_graph(m_context->webgpu_ctx());
-    } else if (pipeline_type == ComputePipelineType::SNOW) {
+    if (pipeline_type == ComputePipelineType::SNOW) {
         m_compute_graph = compute::nodes::NodeGraph::create_snow_compute_graph(m_context->webgpu_ctx());
     } else if (pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
         m_compute_graph = compute::nodes::NodeGraph::create_trajectories_with_export_compute_graph(m_context->webgpu_ctx());
         m_compute_graph->set_enabled_for_nodes_with_name("export", false);
-    } else if (pipeline_type == ComputePipelineType::RELEASE_POINTS) {
-        m_compute_graph = compute::nodes::NodeGraph::create_release_points_compute_graph(m_context->webgpu_ctx());
     } else if (pipeline_type == ComputePipelineType::ITERATIVE_SIMULATION) {
         m_compute_graph = compute::nodes::NodeGraph::create_iterative_simulation_compute_graph(m_context->webgpu_ctx());
     }

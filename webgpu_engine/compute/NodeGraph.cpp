@@ -265,24 +265,6 @@ static void add_overlay_node(NodeGraph& node_graph, const std::string& texture_n
     overlay_node->input_socket("region aabb").connect(node_graph.get_node("select_tiles_node").output_socket("region aabb"));
 }
 
-std::unique_ptr<NodeGraph> NodeGraph::create_normal_compute_graph(webgpu::Context& ctx)
-{
-    auto node_graph = create_normal_compute_graph_unconnected(ctx);
-    node_graph->set_name("normal_compute_graph");
-    add_overlay_node(*node_graph, "normals_node", "normal texture");
-    node_graph->connect_node_signals_and_slots();
-    return node_graph;
-}
-
-std::unique_ptr<NodeGraph> NodeGraph::create_release_points_compute_graph(webgpu::Context& ctx)
-{
-    auto node_graph = create_release_points_compute_graph_unconnected(ctx);
-    node_graph->set_name("release_points_compute_graph");
-    add_overlay_node(*node_graph, "release_points_node", "release point texture");
-    node_graph->connect_node_signals_and_slots();
-    return node_graph;
-}
-
 std::unique_ptr<NodeGraph> NodeGraph::create_snow_compute_graph(webgpu::Context& ctx)
 {
     auto node_graph = create_normal_compute_graph_unconnected(ctx);
