@@ -26,17 +26,27 @@
 
 namespace webgpu_engine {
 
-class HeightLinesOverlay : public Overlay {
+// Displays the per-tile debug data that render_tiles.wgsl packs into GBuffer slot 3, selected
+// by `settings.mode`. Because that data lives in a single shared GBuffer attachment (one mode
+// per frame), only one TileDebugOverlay may exist at a time. The selected mode is forwarded to
+// shared_config.m_overlay_mode by the Window so render_tiles knows what to pack; this overlay
+// itself only unpacks slot 3 and composites it.
+class TileDebugOverlay : public Overlay {
 public:
-    struct Settings {
-        float primary_interval = 250.0f; // major contour interval in meters
-        float secondary_interval = 50.0f; // minor contour interval in meters
-        float base_width = 2.0f; // line base width
-        float minor_opacity = 0.75f; // minor line opacity relative to major
-        glm::vec4 line_color = glm::vec4(1.0f, 1.0f, 1.0f, 0.3f); // color of the height lines
+    // Values must match the overlay_mode branches in render_tiles.wgsl.
+    enum class Mode : int {
+        Normals = 1,
+        Tiles = 2,
+        Zoomlevel = 3,
+        VertexId = 4,
     };
 
-    HeightLinesOverlay();
+    struct Settings {
+        int mode = static_cast<int>(Mode::Normals); // consumed CPU-side (forwarded to shared_config)
+        float strength = 1.0f; // uploaded to the GPU settings uniform
+    };
+
+    TileDebugOverlay();
 
     void init(webgpu::Context& ctx) override;
     void resize(glm::uvec2 size) override;
@@ -53,9 +63,14 @@ public:
     Settings settings;
 
 private:
+    // GPU layout of the settings uniform (only the GPU-relevant subset of Settings).
+    struct GpuSettings {
+        float strength = 1.0f;
+    };
+
     webgpu::Context* m_ctx = nullptr;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_pipeline;
-    std::unique_ptr<webgpu_engine::Buffer<Settings>> m_settings_uniform;
+    std::unique_ptr<webgpu_engine::Buffer<GpuSettings>> m_settings_uniform;
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_copy_texture; // prev state for compositing
 };
 

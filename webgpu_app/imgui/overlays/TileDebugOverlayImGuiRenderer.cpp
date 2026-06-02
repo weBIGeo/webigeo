@@ -16,27 +16,37 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "OverlayImGuiRendererFactory.h"
-
-#include "HeightLinesOverlayImGuiRenderer.h"
-#include "TextureOverlayImGuiRenderer.h"
 #include "TileDebugOverlayImGuiRenderer.h"
 
-#include <webgpu_engine/renderer/overlays/HeightLinesOverlay.h>
-#include <webgpu_engine/renderer/overlays/TextureOverlay.h>
-#include <webgpu_engine/renderer/overlays/TileDebugOverlay.h>
+#include <imgui.h>
 
 namespace webgpu_app {
 
-std::unique_ptr<OverlayImGuiRenderer> OverlayImGuiRendererFactory::create(webgpu_engine::Overlay& overlay)
+TileDebugOverlayImGuiRenderer::TileDebugOverlayImGuiRenderer(webgpu_engine::TileDebugOverlay& overlay)
+    : OverlayImGuiRenderer(overlay)
+    , m_tile_debug_overlay(&overlay)
 {
-    if (auto* o = dynamic_cast<webgpu_engine::HeightLinesOverlay*>(&overlay))
-        return std::make_unique<HeightLinesOverlayImGuiRenderer>(*o);
-    if (auto* o = dynamic_cast<webgpu_engine::TextureOverlay*>(&overlay))
-        return std::make_unique<TextureOverlayImGuiRenderer>(*o);
-    if (auto* o = dynamic_cast<webgpu_engine::TileDebugOverlay*>(&overlay))
-        return std::make_unique<TileDebugOverlayImGuiRenderer>(*o);
-    return std::make_unique<OverlayImGuiRenderer>(overlay);
+}
+
+bool TileDebugOverlayImGuiRenderer::render_custom_settings()
+{
+    auto& s = m_tile_debug_overlay->settings;
+    bool changed = false;
+
+    // Combo order must match TileDebugOverlay::Mode (1..4); the selected index maps to mode = index + 1.
+    static const char* mode_items[] = { "Normals", "Tiles", "Zoomlevel", "Vertex-ID" };
+    int current = s.mode - 1;
+    if (ImGui::Combo("Mode", &current, mode_items, IM_ARRAYSIZE(mode_items))) {
+        s.mode = current + 1; // forwarded to shared_config by the Window each frame
+        changed = true;
+    }
+
+    if (ImGui::SliderFloat("Strength", &s.strength, 0.0f, 1.0f)) {
+        m_tile_debug_overlay->update_settings();
+        changed = true;
+    }
+
+    return changed;
 }
 
 } // namespace webgpu_app

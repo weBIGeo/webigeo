@@ -16,27 +16,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "OverlayImGuiRendererFactory.h"
+#pragma once
 
-#include "HeightLinesOverlayImGuiRenderer.h"
-#include "TextureOverlayImGuiRenderer.h"
-#include "TileDebugOverlayImGuiRenderer.h"
-
-#include <webgpu_engine/renderer/overlays/HeightLinesOverlay.h>
-#include <webgpu_engine/renderer/overlays/TextureOverlay.h>
+#include "OverlayImGuiRenderer.h"
 #include <webgpu_engine/renderer/overlays/TileDebugOverlay.h>
 
 namespace webgpu_app {
 
-std::unique_ptr<OverlayImGuiRenderer> OverlayImGuiRendererFactory::create(webgpu_engine::Overlay& overlay)
-{
-    if (auto* o = dynamic_cast<webgpu_engine::HeightLinesOverlay*>(&overlay))
-        return std::make_unique<HeightLinesOverlayImGuiRenderer>(*o);
-    if (auto* o = dynamic_cast<webgpu_engine::TextureOverlay*>(&overlay))
-        return std::make_unique<TextureOverlayImGuiRenderer>(*o);
-    if (auto* o = dynamic_cast<webgpu_engine::TileDebugOverlay*>(&overlay))
-        return std::make_unique<TileDebugOverlayImGuiRenderer>(*o);
-    return std::make_unique<OverlayImGuiRenderer>(overlay);
-}
+class TileDebugOverlayImGuiRenderer : public OverlayImGuiRenderer {
+public:
+    explicit TileDebugOverlayImGuiRenderer(webgpu_engine::TileDebugOverlay& overlay);
+
+    std::string display_name() const override { return "Tile Debug"; }
+    bool render_custom_settings() override;
+
+private:
+    webgpu_engine::TileDebugOverlay* m_tile_debug_overlay;
+};
 
 } // namespace webgpu_app

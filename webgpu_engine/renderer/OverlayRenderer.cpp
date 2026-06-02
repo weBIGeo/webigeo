@@ -115,6 +115,7 @@ void OverlayRenderer::resize(int w, int h)
 void OverlayRenderer::draw(const WGPUCommandEncoder& command_encoder,
     const webgpu::raii::TextureView& position_view,
     const webgpu::raii::TextureView& normal_view,
+    const webgpu::raii::TextureView& overlay_view,
     const WGPUBindGroup& shared_config_bg,
     const WGPUBindGroup& camera_bg)
 {
@@ -137,7 +138,7 @@ void OverlayRenderer::draw(const WGPUCommandEncoder& command_encoder,
     // Dispatch each overlay with the appropriate bucket texture
     for (auto& overlay : m_overlays) {
         auto& output = (overlay->z_index < 0) ? *m_pre_output_texture : *m_post_output_texture;
-        overlay->draw(command_encoder, position_view, normal_view, shared_config_bg, camera_bg, output, output_size);
+        overlay->draw(command_encoder, position_view, normal_view, overlay_view, shared_config_bg, camera_bg, output, output_size);
     }
 }
 

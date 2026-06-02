@@ -189,27 +189,6 @@ fn fragmentMain(vertex_out: VertexOut) -> @location(0) vec4f {
             //}
         }
 
-        // NOTE: PRESHADING OVERLAY ONLY APPLIED ON TILES NOT ON BACKGROUND!!!
-        if !bool(conf.overlay_postshading_enabled) {
-            var overlay_color = vec4f(0.0);
-            if conf.overlay_mode == 100u {
-                overlay_color = vec4f(normal * 0.5 + 0.5, 1.0);
-            } else if conf.overlay_mode == 101u {
-                //TODO implement
-                //overlay_color = overlay_steepness(normal, dist);
-            } else if conf.overlay_mode == 102u {
-                //TODO implement
-                //overlay_color = vec4f(amb_occlusion, amb_occlusion, amb_occlusion, 1.0);
-            } else if conf.overlay_mode == 103u {
-                //TODO implement
-                //overlay_color = vec4(color_from_id_hash(uint(sampled_shadow_layer)), 1.0);
-            } else if (conf.overlay_mode >= 1u) || (conf.overlay_mode <= 99u) {
-                overlay_color = unpack4x8unorm(textureLoad(overlay_texture, tci, 0).r);
-            }
-            overlay_color.a *= conf.overlay_strength;
-            albedo = mix(albedo, overlay_color.rgb, overlay_color.a);
-        }
-
         // Pre-shading overlay renderer output (applied to albedo before lighting)
         let pre_overlay_color = textureLoad(overlay_renderer_pre_texture, tci, 0);
         albedo = albedo * (1.0 - pre_overlay_color.a) + pre_overlay_color.rgb;
@@ -233,26 +212,6 @@ fn fragmentMain(vertex_out: VertexOut) -> @location(0) vec4f {
         } else {
             out_Color = vec4(1.0);
         }
-    }
-
-    if bool(conf.overlay_postshading_enabled) {
-        var overlay_color = vec4f(0.0);
-        if conf.overlay_mode == 100u {
-            overlay_color = vec4f(normal * 0.5 + 0.5, 1.0);
-        } else if conf.overlay_mode == 101u {
-            //TODO implement
-            //overlay_color = overlay_steepness(normal, dist);
-        } else if conf.overlay_mode == 102u {
-            //TODO implement
-            //overlay_color = vec4f(amb_occlusion, amb_occlusion, amb_occlusion, 1.0);
-        } else if conf.overlay_mode == 103u {
-            //TODO implement
-            //overlay_color = vec4(color_from_id_hash(uint(sampled_shadow_layer)), 1.0);
-        } else if (conf.overlay_mode >= 1u) || (conf.overlay_mode <= 99u) {
-            overlay_color = unpack4x8unorm(textureLoad(overlay_texture, tci, 0).r);
-        }
-        overlay_color.a *= conf.overlay_strength;
-        out_Color = vec4(mix(out_Color.rgb, overlay_color.rgb, overlay_color.a), out_Color.a);
     }
 
     // Post-shading overlay renderer output

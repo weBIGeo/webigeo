@@ -231,8 +231,7 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
         frag_out.normal_enc = octNormalEncode2u16(normal);
     }
 
-    // HANDLE OVERLAYS (and mix it with the albedo color) THAT CAN JUST BE DONE IN THIS STAGE
-    // NOTE: Performancewise its generally better to handle overlays in the compose step! (overdraw)
+    // HANDLE DEBUG OVERLAYS THAT CAN JUST BE DONE IN THIS STAGE
     var overlay_color = vec4f(0.0);
     if (config.overlay_mode > 0u && config.overlay_mode < 100u) {
         if (config.overlay_mode == 1) {

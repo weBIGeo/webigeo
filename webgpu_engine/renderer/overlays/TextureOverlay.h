@@ -70,6 +70,7 @@ public:
     void draw(const WGPUCommandEncoder& command_encoder,
         const webgpu::raii::TextureView& position_view,
         const webgpu::raii::TextureView& normal_view,
+        const webgpu::raii::TextureView& overlay_view,
         const WGPUBindGroup& shared_config_bg,
         const WGPUBindGroup& camera_bg,
         webgpu::raii::TextureWithSampler& output,

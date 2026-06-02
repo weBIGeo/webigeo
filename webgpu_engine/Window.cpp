@@ -29,6 +29,7 @@
 #include "nucleus/utils/image_loader.h"
 #include "renderer/OverlayRenderer.h"
 #include "renderer/overlays/TextureOverlay.h"
+#include "renderer/overlays/TileDebugOverlay.h"
 #include "webgpu/raii/RenderPassEncoder.h"
 #include "webgpu_engine/Context.h"
 #include <ktx.h>
@@ -209,6 +210,18 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
 {
     m_needs_redraw = false;
 
+    // The TileDebugOverlay (if present) selects which per-tile debug data render_tiles.wgsl packs
+    // into GBuffer slot 3. Forward its mode to shared_config before the tile pass; 0 = nothing packed.
+    // Only one TileDebugOverlay can exist, so the first match wins.
+    uint32_t tile_debug_mode = 0;
+    for (const auto& overlay : m_context->overlay_renderer()->overlays()) {
+        if (auto* tile_debug = dynamic_cast<TileDebugOverlay*>(overlay.get())) {
+            tile_debug_mode = static_cast<uint32_t>(tile_debug->settings.mode);
+            break;
+        }
+    }
+    m_context->shared_config().m_overlay_mode = tile_debug_mode;
+
     // ToDo only update on change?
     m_shared_config_ubo->data = m_context->shared_config();
     m_shared_config_ubo->update_gpu_data(m_context->webgpu_ctx().queue());
@@ -237,10 +250,11 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         m_needs_redraw |= m_context->cloud_renderer()->needs_redraw(); // Repaint for TAAU
     }
 
-    // render overlay textures (height lines, etc.)
+    // render overlay textures (height lines, tile debug, etc.)
     m_context->overlay_renderer()->draw(command_encoder,
         m_gbuffer->color_texture_view(1),
         m_gbuffer->color_texture_view(2),
+        m_gbuffer->color_texture_view(3),
         m_shared_config_bind_group->handle(),
         m_camera_bind_group->handle());
 
@@ -271,39 +285,8 @@ void Window::paint_gui()
         m_needs_redraw = true;
     }
     {
-        static int currentItem = 0;
-        static const std::vector<std::pair<std::string, int>> overlays = { { "None", 0 },
-            { "Normals", 1 },
-            { "Tiles", 2 },
-            { "Zoomlevel", 3 },
-            { "Vertex-ID", 4 },
-            { "Vertex Height-Sample", 5 },
-            { "Decoded Normals", 100 },
-            { "Steepness", 101 },
-            { "SSAO Buffer", 102 },
-            { "Shadow Cascades", 103 } };
-        const char* currentItemLabel = overlays[currentItem].first.c_str();
-        if (ImGui::BeginCombo("Overlay", currentItemLabel)) {
-            for (size_t i = 0; i < overlays.size(); i++) {
-                bool isSelected = ((size_t)currentItem == i);
-                if (ImGui::Selectable(overlays[i].first.c_str(), isSelected)) {
-                    currentItem = int(i);
-                    m_needs_redraw = true;
-                }
-                if (isSelected)
-                    ImGui::SetItemDefaultFocus();
-            }
-            ImGui::EndCombo();
-        }
-        m_context->shared_config().m_overlay_mode = overlays[currentItem].second;
-        if (m_context->shared_config().m_overlay_mode > 0) {
-            m_needs_redraw |= ImGui::SliderFloat("Overlay Strength", &m_context->shared_config().m_overlay_strength, 0.0f, 1.0f);
-        }
-
-        m_needs_redraw |= ImGui::Checkbox("Overlay Post Shading", (bool*)&m_context->shared_config().m_overlay_postshading_enabled);
-
-        ImGui::Separator();
-
+        // Tile-debug overlays (Normals/Tiles/Zoomlevel/Vertex-ID) now live in the Overlays panel
+        // as a TileDebugOverlay; the compose-stage overlays (Decoded Normals/Steepness/...) were removed.
         m_needs_redraw |= ImGui::Checkbox("Phong Shading", (bool*)&m_context->shared_config().m_phong_enabled);
         m_needs_redraw |= ImGui::Checkbox("Atmosphere", (bool*)&m_context->shared_config().m_atmosphere_enabled);
         m_needs_redraw |= ImGui::Checkbox("Clouds", (bool*)&m_context->shared_config().m_clouds_enabled);
@@ -329,23 +312,6 @@ void Window::paint_gui()
                     m_needs_redraw = true;
                     update_compute_pipeline_settings();
                 }
-            }
-        }
-
-        m_needs_redraw |= ImGui::Checkbox("Heightlines", (bool*)&m_context->shared_config().m_height_lines_enabled);
-        if (m_context->shared_config().m_height_lines_enabled) {
-            ImGui::SameLine();
-            if (ImGui::CollapsingHeader("###Height Lines", ImGuiTreeNodeFlags_DefaultOpen)) {
-                float& primary = m_context->shared_config().m_height_lines_settings.x;
-                float& secondary = m_context->shared_config().m_height_lines_settings.y;
-                float ratio = primary / secondary;
-                if (ImGui::DragFloat("Primary Interval", &primary, 1.0f, 5.0f, 1000.0f, "%.2f m")) {
-                    m_needs_redraw = true;
-                    secondary = primary / ratio;
-                }
-                m_needs_redraw |= ImGui::DragFloat("Secondary Interval", &secondary, 1.0f, 1.0f, 1000.0f, "%.2f m");
-                m_needs_redraw |= ImGui::DragFloat("Base Line Width", &m_context->shared_config().m_height_lines_settings.z, 0.01f, 0.1f, 5.0f, "%.2f");
-                m_needs_redraw |= ImGui::DragFloat("Darkening Factor", &m_context->shared_config().m_height_lines_settings.w, 0.01f, 0.0f, 1.0f, "%.2f");
             }
         }
     }

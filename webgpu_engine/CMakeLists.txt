@@ -38,6 +38,7 @@ set(SOURCES
     renderer/overlays/Overlay.h
     renderer/overlays/HeightLinesOverlay.h renderer/overlays/HeightLinesOverlay.cpp
     renderer/overlays/TextureOverlay.h renderer/overlays/TextureOverlay.cpp
+    renderer/overlays/TileDebugOverlay.h renderer/overlays/TileDebugOverlay.cpp
     Context.h Context.cpp
 
     compute/GpuTileStorage.h compute/GpuTileStorage.cpp
@@ -140,6 +141,7 @@ qt_add_resources(webgpu_engine "shaders"
 
         "${SHADER_BASE_DIR}/overlays/height_lines.wgsl"
         "${SHADER_BASE_DIR}/overlays/texture_overlay.wgsl"
+        "${SHADER_BASE_DIR}/overlays/gbuffer_debug.wgsl"
 
         "${SHADER_BASE_DIR}/util/atmosphere.wgsl"
         "${SHADER_BASE_DIR}/util/snow.wgsl"

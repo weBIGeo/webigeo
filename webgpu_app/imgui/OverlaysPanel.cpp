@@ -28,6 +28,7 @@
 #include "webgpu_engine/renderer/OverlayRenderer.h"
 #include "webgpu_engine/renderer/overlays/HeightLinesOverlay.h"
 #include "webgpu_engine/renderer/overlays/TextureOverlay.h"
+#include "webgpu_engine/renderer/overlays/TileDebugOverlay.h"
 
 namespace webgpu_app {
 
@@ -106,22 +107,36 @@ void OverlaysPanel::draw_panel()
         return;
 
     // --- Add controls (top) ---
-    const char* add_items[] = { "Height Lines", "Texture Overlay" };
+    enum AddType { ADD_HEIGHT_LINES = 0, ADD_TEXTURE_OVERLAY = 1, ADD_TILE_DEBUG = 2 };
+    const char* add_items[] = { "Height Lines", "Texture Overlay", "Tile Debug" };
+
+    // Only one TileDebugOverlay may exist (it owns the single shared GBuffer overlay slot).
+    bool tile_debug_exists = false;
+    for (const auto& o : m_overlay_renderer->overlays())
+        if (dynamic_cast<webgpu_engine::TileDebugOverlay*>(o.get()))
+            tile_debug_exists = true;
+
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 36);
-    ImGui::Combo("##add_type", &m_add_type_index, add_items, 2);
+    ImGui::Combo("##add_type", &m_add_type_index, add_items, IM_ARRAYSIZE(add_items));
     ImGui::SameLine();
+
+    const bool add_disabled = (m_add_type_index == ADD_TILE_DEBUG && tile_debug_exists);
+    ImGui::BeginDisabled(add_disabled);
     if (ImGui::Button(ICON_FA_PLUS)) {
         std::shared_ptr<webgpu_engine::Overlay> new_overlay;
-        if (m_add_type_index == 0)
+        if (m_add_type_index == ADD_HEIGHT_LINES)
             new_overlay = std::make_shared<webgpu_engine::HeightLinesOverlay>();
-        else
+        else if (m_add_type_index == ADD_TEXTURE_OVERLAY)
             new_overlay = std::make_shared<webgpu_engine::TextureOverlay>();
+        else
+            new_overlay = std::make_shared<webgpu_engine::TileDebugOverlay>();
         // add_overlay() auto-assigns the topmost z_index
         m_overlay_renderer->add_overlay(new_overlay);
         rebuild_renderers();
         m_selected_engine_idx = static_cast<int>(m_overlay_renderer->overlays().size()) - 1;
         m_context->request_redraw();
     }
+    ImGui::EndDisabled();
 
     ImGui::Separator();
 

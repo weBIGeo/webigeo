@@ -31,6 +31,7 @@
 #include "renderer/TrackRenderer.h"
 #include "renderer/overlays/HeightLinesOverlay.h"
 #include "renderer/overlays/TextureOverlay.h"
+#include "renderer/overlays/TileDebugOverlay.h"
 
 namespace webgpu_engine {
 
@@ -87,6 +88,7 @@ template class Buffer<CloudRenderer::ShaderParamsUpscale>;
 
 template class Buffer<HeightLinesOverlay::Settings>;
 template class Buffer<TextureOverlay::GpuSettings>;
+template class Buffer<TileDebugOverlay::GpuSettings>;
 
 template class Buffer<int32_t>; // for n_edge_vertices
 
