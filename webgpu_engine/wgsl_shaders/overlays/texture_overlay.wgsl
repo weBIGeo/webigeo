@@ -30,11 +30,12 @@
 @group(2) @binding(3) var overlay_sampler: sampler;
 
 struct TextureOverlaySettings {
-    aabb_min:           vec2f,  // offset  0
-    aabb_size:          vec2f,  // offset  8  (aabb_max - aabb_min, precomputed in double on CPU)
-    opacity:            f32,    // offset 16
-    mode:               u32,    // offset 20  (0 = AlphaBlend, 1 = EncodedFloat)
-    float_decode_range: vec2f,  // offset 24  (lower, upper bound for EncodedFloat)
+    aabb_min:             vec2f,  // offset  0
+    aabb_size:            vec2f,  // offset  8  (aabb_max - aabb_min, precomputed in double on CPU)
+    opacity:              f32,    // offset 16
+    mode:                 u32,    // offset 20  (0 = AlphaBlend, 1 = EncodedFloat)
+    float_decode_range:   vec2f,  // offset 24  (user visualization range: lower, upper)
+    encoded_float_range:  vec2f,  // offset 32  (encoding format range, from ENCODED_FLOAT_RANGE_MIN/MAX)
 }
 
 @fragment fn fragmentMain(in: VertexOut) -> @location(0) vec4f {
@@ -67,7 +68,7 @@ struct TextureOverlaySettings {
         // U32_ENCODING_RANGE_VALIDATION to settings.float_decode_range.
         let rgba_u8 = vec4u(sample * 255.0);
         let packed = (rgba_u8.r << 24u) | (rgba_u8.g << 16u) | (rgba_u8.b << 8u) | rgba_u8.a;
-        let value = u32_to_range(packed, U32_ENCODING_RANGE_VALIDATION);
+        let value = u32_to_range(packed, settings.encoded_float_range);
         let t = (value - settings.float_decode_range.x) / (settings.float_decode_range.y - settings.float_decode_range.x);
         if t <= 0.0 || t >= 1.0 { return vec4f(0.0); }
         let rgb = vec3f(1.0 - t, 0.0, 0.0) * settings.opacity;

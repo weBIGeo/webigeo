@@ -19,11 +19,15 @@
 
 #include "geopng_decoder.h"
 
+#include "image_writer.h"
 #include <QFile>
 #include <QString>
 #include <QTextStream>
+#include <algorithm>
 #include <array>
+#include <cstdint>
 #include <format>
+#include <limits>
 
 namespace nucleus::utils::geopng {
 
@@ -75,6 +79,45 @@ tl::expected<radix::geometry::Aabb<2, double>, std::string> load_aabb_from_file(
     }
 
     return radix::geometry::Aabb<2, double> { { contents[0], contents[1] }, { contents[2], contents[3] } };
+}
+
+void write_encoded_float_png(const Raster<float>& data, const QString& filename)
+{
+    constexpr float range = ENCODED_FLOAT_RANGE_MAX - ENCODED_FLOAT_RANGE_MIN;
+    Raster<glm::u8vec4> out(glm::uvec2(data.width(), data.height()));
+    for (size_t i = 0; i < data.buffer().size(); ++i) {
+        const float clamped = std::clamp(data.buffer()[i], ENCODED_FLOAT_RANGE_MIN, ENCODED_FLOAT_RANGE_MAX);
+        const uint32_t packed = static_cast<uint32_t>((clamped - ENCODED_FLOAT_RANGE_MIN) / range * static_cast<double>(std::numeric_limits<uint32_t>::max()));
+        out.buffer()[i] = glm::u8vec4((packed >> 24) & 0xFF, (packed >> 16) & 0xFF, (packed >> 8) & 0xFF, packed & 0xFF);
+    }
+    image_writer::rgba8_as_png(out, filename);
+}
+
+glm::vec2 scan_encoded_float_range(const Raster<glm::u8vec4>& image, bool& likely_encoded_float)
+{
+    constexpr float range = ENCODED_FLOAT_RANGE_MAX - ENCODED_FLOAT_RANGE_MIN;
+    float min_val = std::numeric_limits<float>::max();
+    float max_val = std::numeric_limits<float>::lowest();
+    size_t zero_count = 0;
+
+    for (const glm::u8vec4& px : image) {
+        const uint32_t packed = (uint32_t(px.x) << 24) | (uint32_t(px.y) << 16) | (uint32_t(px.z) << 8) | uint32_t(px.w);
+        if (packed == 0)
+            continue;
+        const float value = ENCODED_FLOAT_RANGE_MIN + (float(packed) / float(std::numeric_limits<uint32_t>::max())) * range;
+        if (std::abs(value) < 0.01f)
+            ++zero_count;
+        min_val = std::min(min_val, value);
+        max_val = std::max(max_val, value);
+    }
+
+    const size_t total = image.buffer().size();
+    const bool has_range = min_val <= max_val;
+    const bool many_zeros = total > 0 && float(zero_count) / float(total) >= 0.01f;
+    const bool same_sign = has_range && (min_val >= 0.0f || max_val <= 0.0f);
+    likely_encoded_float = many_zeros || same_sign;
+
+    return has_range ? glm::vec2(min_val, max_val) : glm::vec2(ENCODED_FLOAT_RANGE_MIN, ENCODED_FLOAT_RANGE_MAX);
 }
 
 } // namespace nucleus::utils::geopng

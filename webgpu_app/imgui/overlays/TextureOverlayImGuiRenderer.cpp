@@ -28,6 +28,7 @@
 #include <imgui.h>
 
 #include "nucleus/utils/geopng_decoder.h"
+#include <nucleus/utils/image_loader.h>
 
 namespace webgpu_app {
 
@@ -59,26 +60,42 @@ void TextureOverlayImGuiRenderer::on_file_uploaded(const std::string& filename, 
 
 void TextureOverlayImGuiRenderer::apply_image_file(const std::string& path)
 {
-    m_texture_overlay->load_image(QString::fromStdString(path));
+    const auto qpath = QString::fromStdString(path);
+
+    if (const auto image = nucleus::utils::image_loader::rgba8(qpath)) {
+        bool likely_encoded = false;
+        m_texture_overlay->settings.float_decode_range = nucleus::utils::geopng::scan_encoded_float_range(*image, likely_encoded);
+        if (likely_encoded) {
+            m_texture_overlay->settings.mode = webgpu_engine::TextureOverlay::Mode::EncodedFloat;
+            m_texture_overlay->settings.filter_mode = webgpu_engine::TextureOverlay::FilterMode::Nearest;
+        } else {
+            m_texture_overlay->settings.mode = webgpu_engine::TextureOverlay::Mode::AlphaBlend;
+            m_texture_overlay->settings.filter_mode = webgpu_engine::TextureOverlay::FilterMode::Linear;
+        }
+    }
+
+    m_texture_overlay->load_image(qpath);
     m_loaded_image_path = path;
 
 #ifndef __EMSCRIPTEN__
     const auto fspath = std::filesystem::path(path);
     m_last_dialog_directory = fspath.parent_path().string();
+    bool aabb_found = false;
     for (const auto& candidate : nucleus::utils::geopng::possible_aabb_paths(fspath)) {
         if (!std::filesystem::exists(candidate))
             continue;
         const auto result = nucleus::utils::geopng::load_aabb_from_file(candidate);
         if (result.has_value()) {
             m_texture_overlay->settings.aabb = result.value();
-            m_texture_overlay->update_gpu_settings();
-            m_needs_redraw = true;
-            return;
+            aabb_found = true;
+            break;
         }
     }
-    qWarning() << "No sidecart AABB file found for" << QString::fromStdString(path);
+    if (!aabb_found)
+        qWarning() << "No sidecar AABB file found for" << qpath;
 #endif
 
+    m_texture_overlay->update_gpu_settings();
     m_needs_redraw = true;
 }
 
@@ -160,8 +177,7 @@ bool TextureOverlayImGuiRenderer::render_custom_settings()
     const char* mode_items[] = { "Alpha-Blend", "Encoded Float" };
     int mode_idx = (s.mode == webgpu_engine::TextureOverlay::Mode::EncodedFloat) ? 1 : 0;
     if (ImGui::Combo("Mode", &mode_idx, mode_items, 2)) {
-        s.mode = (mode_idx == 1) ? webgpu_engine::TextureOverlay::Mode::EncodedFloat
-                                 : webgpu_engine::TextureOverlay::Mode::AlphaBlend;
+        s.mode = (mode_idx == 1) ? webgpu_engine::TextureOverlay::Mode::EncodedFloat : webgpu_engine::TextureOverlay::Mode::AlphaBlend;
         m_texture_overlay->update_gpu_settings();
         changed = true;
     }

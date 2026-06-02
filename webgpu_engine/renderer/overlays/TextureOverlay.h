@@ -69,8 +69,9 @@ private:
         glm::vec2 aabb_size = glm::vec2(1.0f);                 // offset  8
         float opacity = 1.0f;                                   // offset 16
         uint32_t mode = 0u;                                     // offset 20  (0=AlphaBlend, 1=EncodedFloat)
-        glm::vec2 float_decode_range = glm::vec2(0.0f, 20.0f); // offset 24
-    };                                                          // total  32 bytes
+        glm::vec2 float_decode_range = glm::vec2(0.0f, 20.0f); // offset 24  (user visualization range)
+        glm::vec2 encoded_float_range;                          // offset 32  (encoding format range)
+    };                                                          // total  40 bytes
 
     void upload_texture(webgpu::Context& ctx, const nucleus::Raster<glm::u8vec4>& image);
 

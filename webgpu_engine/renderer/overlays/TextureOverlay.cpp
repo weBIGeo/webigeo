@@ -19,6 +19,7 @@
 #include "TextureOverlay.h"
 
 #include "webgpu_engine/gpu_utils.h"
+#include <nucleus/utils/geopng_decoder.h>
 #include <nucleus/utils/image_loader.h>
 #include <optional>
 #include <webgpu/RenderResourceRegistry.h>
@@ -155,6 +156,7 @@ void TextureOverlay::update_gpu_settings()
     m_settings_uniform->data.opacity = settings.opacity;
     m_settings_uniform->data.mode = static_cast<uint32_t>(settings.mode);
     m_settings_uniform->data.float_decode_range = settings.float_decode_range;
+    m_settings_uniform->data.encoded_float_range = glm::vec2(nucleus::utils::geopng::ENCODED_FLOAT_RANGE_MIN, nucleus::utils::geopng::ENCODED_FLOAT_RANGE_MAX);
     m_settings_uniform->update_gpu_data(m_ctx->queue());
 }
 

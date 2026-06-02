@@ -118,7 +118,7 @@ fn calculate_illumination(
 fn decode_rgba_to_normalized_value(rgba: vec4<f32>) -> f32 {
     let rgba_u8: vec4<u32> = vec4<u32>(rgba * 255.0);
     let packed_value: u32 = (rgba_u8.r << 24) | (rgba_u8.g << 16) | (rgba_u8.b << 8) | rgba_u8.a;
-    return u32_to_range(packed_value, U32_ENCODING_RANGE_VALIDATION);
+    return u32_to_range(packed_value, vec2f(-10000.0, 10000.0));
 }
 
 fn get_cloud_shadow_occlusion(world_pos: vec3f) -> f32 {
