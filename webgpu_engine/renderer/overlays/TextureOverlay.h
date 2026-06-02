@@ -33,11 +33,14 @@ namespace webgpu_engine {
 class TextureOverlay : public Overlay {
 public:
     enum class FilterMode { Nearest, Linear };
+    enum class Mode { AlphaBlend, EncodedFloat };
 
     // Outward-facing, user-tweakable settings.
     struct Settings {
         radix::geometry::Aabb<2, double> aabb = { { 0.0, 0.0 }, { 1.0, 1.0 } }; // world-space extent
         float opacity = 1.0f;
+        Mode mode = Mode::AlphaBlend;
+        glm::vec2 float_decode_range = glm::vec2(0.0f, 20.0f); // [lower, upper] for EncodedFloat mode
         FilterMode filter_mode = FilterMode::Linear; // filter_mode/use_mipmaps take effect on next load_image
         bool use_mipmaps = true;
     };
@@ -60,13 +63,14 @@ public:
         glm::uvec2 output_size) override;
 
 private:
-    // Internal GPU uniform
+    // Internal GPU uniform — must match WGSL struct TextureOverlaySettings layout exactly
     struct GpuSettings {
-        glm::vec2 aabb_min = glm::vec2(0.0f);
-        glm::vec2 aabb_size = glm::vec2(1.0f); // precomputed in double on CPU
-        float opacity = 1.0f;
-        float _pad = 0.0f; // pad to 24 bytes (vec2 alignment = 8)
-    };
+        glm::vec2 aabb_min = glm::vec2(0.0f);                  // offset  0
+        glm::vec2 aabb_size = glm::vec2(1.0f);                 // offset  8
+        float opacity = 1.0f;                                   // offset 16
+        uint32_t mode = 0u;                                     // offset 20  (0=AlphaBlend, 1=EncodedFloat)
+        glm::vec2 float_decode_range = glm::vec2(0.0f, 20.0f); // offset 24
+    };                                                          // total  32 bytes
 
     void upload_texture(webgpu::Context& ctx, const nucleus::Raster<glm::u8vec4>& image);
 

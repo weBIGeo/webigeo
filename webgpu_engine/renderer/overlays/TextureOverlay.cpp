@@ -153,6 +153,8 @@ void TextureOverlay::update_gpu_settings()
     m_settings_uniform->data.aabb_min = glm::vec2(settings.aabb.min);
     m_settings_uniform->data.aabb_size = glm::vec2(settings.aabb.size());
     m_settings_uniform->data.opacity = settings.opacity;
+    m_settings_uniform->data.mode = static_cast<uint32_t>(settings.mode);
+    m_settings_uniform->data.float_decode_range = settings.float_decode_range;
     m_settings_uniform->update_gpu_data(m_ctx->queue());
 }
 

@@ -19,6 +19,7 @@
 
 #include "util/shared_config.wgsl"
 #include "util/camera_config.wgsl"
+#include "util/encoder.wgsl"
 #include "screen_pass_vert.wgsl"
 
 @group(0) @binding(0) var<uniform> conf: shared_config;
@@ -29,10 +30,11 @@
 @group(2) @binding(3) var overlay_sampler: sampler;
 
 struct TextureOverlaySettings {
-    aabb_min:  vec2f,
-    aabb_size: vec2f, // aabb_max - aabb_min, precomputed in double precision on CPU
-    opacity:   f32,
-    // _pad: f32, (implicit, struct size rounds to alignment of 8)
+    aabb_min:           vec2f,  // offset  0
+    aabb_size:          vec2f,  // offset  8  (aabb_max - aabb_min, precomputed in double on CPU)
+    opacity:            f32,    // offset 16
+    mode:               u32,    // offset 20  (0 = AlphaBlend, 1 = EncodedFloat)
+    float_decode_range: vec2f,  // offset 24  (lower, upper bound for EncodedFloat)
 }
 
 @fragment fn fragmentMain(in: VertexOut) -> @location(0) vec4f {
@@ -58,9 +60,21 @@ struct TextureOverlaySettings {
         return vec4f(0.0);
     }
 
-    let color = textureSampleGrad(overlay_texture, overlay_sampler, uv, ddx_uv, ddy_uv);
-    let eff_a = color.a * settings.opacity;
-    // Output premultiplied alpha so the render blend state (One/OneMinusSrcAlpha)
-    // correctly composites via Porter-Duff "over" onto the existing overlay texture.
-    return vec4f(color.rgb * eff_a, eff_a);
+    let sample = textureSampleGrad(overlay_texture, overlay_sampler, uv, ddx_uv, ddy_uv);
+
+    if settings.mode == 1u {
+        // EncodedFloat: RGBA encodes a u32 via (r<<24|g<<16|b<<8|a), mapped from
+        // U32_ENCODING_RANGE_VALIDATION to settings.float_decode_range.
+        let rgba_u8 = vec4u(sample * 255.0);
+        let packed = (rgba_u8.r << 24u) | (rgba_u8.g << 16u) | (rgba_u8.b << 8u) | rgba_u8.a;
+        let value = u32_to_range(packed, U32_ENCODING_RANGE_VALIDATION);
+        let t = (value - settings.float_decode_range.x) / (settings.float_decode_range.y - settings.float_decode_range.x);
+        if t <= 0.0 || t >= 1.0 { return vec4f(0.0); }
+        let rgb = vec3f(1.0 - t, 0.0, 0.0) * settings.opacity;
+        return vec4f(rgb, settings.opacity);
+    }
+
+    // AlphaBlend (mode == 0): standard premultiplied-alpha composite.
+    let eff_a = sample.a * settings.opacity;
+    return vec4f(sample.rgb * eff_a, eff_a);
 }

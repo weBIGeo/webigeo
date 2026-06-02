@@ -157,6 +157,22 @@ bool TextureOverlayImGuiRenderer::render_custom_settings()
         changed = true;
     }
 
+    const char* mode_items[] = { "Alpha-Blend", "Encoded Float" };
+    int mode_idx = (s.mode == webgpu_engine::TextureOverlay::Mode::EncodedFloat) ? 1 : 0;
+    if (ImGui::Combo("Mode", &mode_idx, mode_items, 2)) {
+        s.mode = (mode_idx == 1) ? webgpu_engine::TextureOverlay::Mode::EncodedFloat
+                                 : webgpu_engine::TextureOverlay::Mode::AlphaBlend;
+        m_texture_overlay->update_gpu_settings();
+        changed = true;
+    }
+
+    if (s.mode == webgpu_engine::TextureOverlay::Mode::EncodedFloat) {
+        if (ImGui::DragFloat2("Float Range", &s.float_decode_range.x, 1.0f, -10000.0f, 10000.0f, "%.1f")) {
+            m_texture_overlay->update_gpu_settings();
+            changed = true;
+        }
+    }
+
     const char* filter_items[] = { "Nearest", "Linear" };
     int filter_idx = (s.filter_mode == webgpu_engine::TextureOverlay::FilterMode::Linear) ? 1 : 0;
     if (ImGui::Combo("Filter Mode", &filter_idx, filter_items, 2))
