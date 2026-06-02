@@ -105,13 +105,6 @@ void Window::initialise_gpu()
 
     create_bind_groups();
 
-    m_image_overlay_settings_uniform_buffer
-        = std::make_unique<Buffer<ImageOverlaySettings>>(m_context->webgpu_ctx().device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
-    m_image_overlay_settings_uniform_buffer->data.aabb_min = glm::fvec2(0);
-    m_image_overlay_settings_uniform_buffer->data.aabb_max = glm::fvec2(0);
-    m_image_overlay_settings_uniform_buffer->update_gpu_data(m_context->webgpu_ctx().queue());
-    m_image_overlay_texture = create_overlay_texture(1, 1);
-
     m_compute_overlay_settings_uniform_buffer
         = std::make_unique<Buffer<ImageOverlaySettings>>(m_context->webgpu_ctx().device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
     m_compute_overlay_settings_uniform_buffer->data.aabb_min = glm::fvec2(0);
@@ -361,94 +354,6 @@ void Window::paint_gui()
                 m_needs_redraw |= ImGui::DragFloat("Secondary Interval", &secondary, 1.0f, 1.0f, 1000.0f, "%.2f m");
                 m_needs_redraw |= ImGui::DragFloat("Base Line Width", &m_context->shared_config().m_height_lines_settings.z, 0.01f, 0.1f, 5.0f, "%.2f");
                 m_needs_redraw |= ImGui::DragFloat("Darkening Factor", &m_context->shared_config().m_height_lines_settings.w, 0.01f, 0.0f, 1.0f, "%.2f");
-            }
-        }
-    }
-
-    if (ImGui::CollapsingHeader("Image overlay")) {
-        if (ImGui::Button("Open overlay image file ...", ImVec2(350, 0))) {
-#ifdef __EMSCRIPTEN__
-            WebInterop::instance().open_file_dialog(".png", "overlay_png");
-#else
-            IGFD::FileDialogConfig config;
-            config.path = m_last_dialog_directory;
-            ImGuiFileDialog::Instance()->OpenDialog("OverlayImageFileDialog", "Choose File", ".png,.*", config);
-#endif
-        }
-
-#ifndef __EMSCRIPTEN__
-        if (ImGuiFileDialog::Instance()->Display("OverlayImageFileDialog")) {
-            if (ImGuiFileDialog::Instance()->IsOk()) { // action if OK
-                std::string filename_str = ImGuiFileDialog::Instance()->GetFilePathName();
-                auto filename = std::filesystem::path(filename_str);
-
-                // Construct the default AABB file path
-                auto aabb_filepath = filename.parent_path() / (filename.stem().string() + "_aabb.txt");
-
-                // If the default AABB file does not exist, try with the trackname
-                if (!std::filesystem::exists(aabb_filepath)) {
-                    // Extract trackname from the filename until the first '_'
-                    std::string filename_stem = filename.stem().string();
-                    size_t underscore_pos = filename_stem.find('_');
-                    std::string trackname = (underscore_pos != std::string::npos) ? filename_stem.substr(0, underscore_pos) // Before the first '_'
-                                                                                  : filename_stem; // Entire stem if no '_'
-
-                    // Construct the new AABB file path using trackname
-                    aabb_filepath = filename.parent_path() / (trackname + "_aabb.txt");
-                }
-
-                // if trackname aabb does not exist, try just aabb.txt
-                if (!std::filesystem::exists(aabb_filepath)) {
-                    aabb_filepath = filename.parent_path() / "aabb.txt";
-                }
-
-                // If the AABB file exists, call the appropriate functions
-                if (std::filesystem::exists(aabb_filepath)) {
-                    m_last_dialog_directory = filename.parent_path().string();
-                    update_image_overlay_texture(filename_str);
-                    update_image_overlay_aabb_and_focus(aabb_filepath.string());
-                    m_needs_redraw = true;
-                } else {
-                    qCritical() << "No AABB file found for image overlay.";
-                }
-            }
-            ImGuiFileDialog::Instance()->Close();
-        }
-#endif
-
-#ifdef __EMSCRIPTEN__
-        // NOTE: In the web we can't check the filesystem for the aabb file so the user has to open it separately
-        if (ImGui::Button("Open overlay aabb file ...", ImVec2(350, 0))) {
-            WebInterop::instance().open_file_dialog(".txt", "overlay_aabb_txt");
-        }
-#endif
-        if (ImGui::SliderFloat("Strength##image overlay", &m_image_overlay_settings_uniform_buffer->data.alpha, 0.0f, 1.0f, "%.2f")) {
-            m_image_overlay_settings_uniform_buffer->update_gpu_data(m_context->webgpu_ctx().queue());
-            m_needs_redraw = true;
-        }
-
-        if (ImGui::Combo("Mode##image overlay", (int*)&(m_image_overlay_settings_uniform_buffer->data.mode), "Alpha-Blend\0Encoded Float\0")) {
-            m_image_overlay_settings_uniform_buffer->update_gpu_data(m_context->webgpu_ctx().queue());
-            m_needs_redraw = true;
-        }
-
-        if (ImGui::Checkbox("Linear Interpolation##image overlay", &m_image_overlay_linear_interpolation)) {
-            if (!m_image_overlay_texture_path.empty()) {
-                update_image_overlay_texture(m_image_overlay_texture_path);
-                m_image_overlay_settings_uniform_buffer->update_gpu_data(m_context->webgpu_ctx().queue());
-            }
-            m_needs_redraw = true;
-        }
-
-        if (m_image_overlay_settings_uniform_buffer->data.mode == 1) {
-            if (ImGui::DragFloatRange2("Float Map Range",
-                    &m_image_overlay_settings_uniform_buffer->data.float_decoding_lower_bound,
-                    &m_image_overlay_settings_uniform_buffer->data.float_decoding_upper_bound,
-                    1.0f,
-                    -10000,
-                    10000)) {
-                m_image_overlay_settings_uniform_buffer->update_gpu_data(m_context->webgpu_ctx().queue());
-                m_needs_redraw = true;
             }
         }
     }
@@ -809,10 +714,6 @@ void Window::file_upload_handler(const std::string& filename, const std::string&
 {
     if (tag == "track") {
         load_track_and_focus(filename);
-    } else if (tag == "overlay_png") {
-        update_image_overlay_texture(filename);
-    } else if (tag == "overlay_aabb_txt") {
-        update_image_overlay_aabb_and_focus(filename);
     } else {
         qWarning() << "Unknown file upload tag: " << QString::fromStdString(tag);
     }
@@ -872,52 +773,6 @@ void Window::focus_region_2d(const radix::geometry::Aabb<2, double>& aabb)
     nucleus::camera::Definition new_camera_definition = { glm::dvec3 { pos.x, pos.y, std::max(size_x, size_y) }, { pos.x, pos.y, 0 } };
     new_camera_definition.set_viewport_size(m_camera.viewport_size());
     emit set_camera_definition_requested(new_camera_definition);
-}
-
-void Window::update_image_overlay_texture(const std::string& image_file_path)
-{
-    m_image_overlay_texture_path = image_file_path;
-    nucleus::Raster<glm::u8vec4> image = nucleus::utils::image_loader::rgba8(QString::fromStdString(image_file_path)).value();
-    m_image_overlay_texture = create_overlay_texture(image.width(), image.height(), m_image_overlay_linear_interpolation);
-    m_image_overlay_texture->texture().write(m_context->webgpu_ctx().queue(), image);
-    m_image_overlay_settings_uniform_buffer->data.texture_size = glm::uvec2(image.width(), image.height());
-    compute_mipmaps_for_texture(m_context->webgpu_ctx(), &m_image_overlay_texture->texture());
-
-    recreate_compose_bind_group();
-}
-
-bool Window::update_image_overlay_aabb(const radix::geometry::Aabb<2, double>& aabb)
-{
-    // TODO: OverlayRenderer should be in charge of overlay related code
-    // Make sure the aabb actually changed
-    glm::fvec2 new_min = glm::fvec2 { aabb.min.x, aabb.min.y };
-    glm::fvec2 new_max = glm::fvec2 { aabb.max.x, aabb.max.y };
-    if (new_min == m_image_overlay_settings_uniform_buffer->data.aabb_min && new_max == m_image_overlay_settings_uniform_buffer->data.aabb_max) {
-        return false;
-    }
-
-    m_image_overlay_settings_uniform_buffer->data.aabb_min = new_min;
-    m_image_overlay_settings_uniform_buffer->data.aabb_max = new_max;
-    m_image_overlay_settings_uniform_buffer->update_gpu_data(m_context->webgpu_ctx().queue());
-
-    qDebug() << "updated image overlay aabb to [" << m_image_overlay_settings_uniform_buffer->data.aabb_min.x << ", "
-             << m_image_overlay_settings_uniform_buffer->data.aabb_min.y << "] [" << m_image_overlay_settings_uniform_buffer->data.aabb_max.x << ", "
-             << m_image_overlay_settings_uniform_buffer->data.aabb_max.y << "]";
-
-    return true;
-}
-
-void Window::update_image_overlay_aabb_and_focus(const std::string& aabb_file_path)
-{
-    // TODO: OverlayRenderer should be in charge of overlay related code
-    const auto aabb = nucleus::utils::geopng::load_aabb_from_file(aabb_file_path).value();
-
-    bool update_successful = update_image_overlay_aabb(aabb);
-    if (!update_successful) {
-        return;
-    }
-
-    focus_region_2d(aabb);
 }
 
 void Window::clear_compute_overlay()
@@ -1025,8 +880,8 @@ void Window::recreate_compose_bind_group()
         = m_compute_overlay_texture_view != nullptr ? *m_compute_overlay_texture_view : m_compute_overlay_dummy_texture->texture_view();
     const webgpu::raii::Sampler& compute_overlay_sampler
         = m_compute_overlay_sampler != nullptr ? *m_compute_overlay_sampler : m_compute_overlay_dummy_texture->sampler();
-    WGPUBindGroupEntry compute_overlay_texture_entry = compute_overlay_texture_view.create_bind_group_entry(9);
-    WGPUBindGroupEntry compute_overlay_sampler_entry = compute_overlay_sampler.create_bind_group_entry(10);
+    WGPUBindGroupEntry compute_overlay_texture_entry = compute_overlay_texture_view.create_bind_group_entry(6);
+    WGPUBindGroupEntry compute_overlay_sampler_entry = compute_overlay_sampler.create_bind_group_entry(7);
 
     for (int i = 0; i < 2; ++i) {
         m_compose_bind_groups[i] = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
@@ -1037,19 +892,16 @@ void Window::recreate_compose_bind_group()
                 m_gbuffer->color_texture_view(2).create_bind_group_entry(2), // normal texture
                 m_atmosphere_renderer->result_view()->create_bind_group_entry(3), // atmosphere texture
                 m_gbuffer->color_texture_view(3).create_bind_group_entry(4), // overlay texture
-                m_image_overlay_settings_uniform_buffer->raw_buffer().create_bind_group_entry(5), // image overlay aabb
-                m_image_overlay_texture->texture_view().create_bind_group_entry(6), // image overlay texture (in uv space)
-                m_image_overlay_texture->sampler().create_bind_group_entry(7), // image overlay sampler
-                m_compute_overlay_settings_uniform_buffer->raw_buffer().create_bind_group_entry(8), // compute overlay aabb
-                compute_overlay_texture_entry, // compute overlay texture (in uv space)
+                m_compute_overlay_settings_uniform_buffer->raw_buffer().create_bind_group_entry(5), // compute overlay settings
+                compute_overlay_texture_entry, // compute overlay texture
                 compute_overlay_sampler_entry, // compute overlay sampler
-                m_context->cloud_renderer()->result_color_view(i)->create_bind_group_entry(11),
-                m_context->cloud_renderer()->result_depth_view()->create_bind_group_entry(12),
-                m_shadow_texture->texture_view().create_bind_group_entry(13),
-                m_shadow_texture->sampler().create_bind_group_entry(14),
-                m_gbuffer->depth_texture_view().create_bind_group_entry(15),
-                m_context->overlay_renderer()->result_post_view()->create_bind_group_entry(16), // overlay post-shading output
-                m_context->overlay_renderer()->result_pre_view()->create_bind_group_entry(17),  // overlay pre-shading output
+                m_context->cloud_renderer()->result_color_view(i)->create_bind_group_entry(8),
+                m_context->cloud_renderer()->result_depth_view()->create_bind_group_entry(9),
+                m_shadow_texture->texture_view().create_bind_group_entry(10),
+                m_shadow_texture->sampler().create_bind_group_entry(11),
+                m_gbuffer->depth_texture_view().create_bind_group_entry(12),
+                m_context->overlay_renderer()->result_post_view()->create_bind_group_entry(13), // overlay post-shading output
+                m_context->overlay_renderer()->result_pre_view()->create_bind_group_entry(14),  // overlay pre-shading output
             });
     }
 }

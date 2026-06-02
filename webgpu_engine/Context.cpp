@@ -96,76 +96,60 @@ void Context::internal_initialise()
         overlay_entry.texture.sampleType = WGPUTextureSampleType_Uint;
         overlay_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
-        WGPUBindGroupLayoutEntry image_overlay_region_entry {};
-        image_overlay_region_entry.binding = 5;
-        image_overlay_region_entry.visibility = WGPUShaderStage_Fragment;
-        image_overlay_region_entry.buffer.type = WGPUBufferBindingType_Uniform;
-
-        WGPUBindGroupLayoutEntry image_overlay_texture_entry {};
-        image_overlay_texture_entry.binding = 6;
-        image_overlay_texture_entry.visibility = WGPUShaderStage_Fragment;
-        image_overlay_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
-        image_overlay_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
-
-        WGPUBindGroupLayoutEntry image_overlay_sampler_entry {};
-        image_overlay_sampler_entry.binding = 7;
-        image_overlay_sampler_entry.visibility = WGPUShaderStage_Fragment;
-        image_overlay_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
-
         WGPUBindGroupLayoutEntry compute_overlay_region_entry {};
-        compute_overlay_region_entry.binding = 8;
+        compute_overlay_region_entry.binding = 5;
         compute_overlay_region_entry.visibility = WGPUShaderStage_Fragment;
         compute_overlay_region_entry.buffer.type = WGPUBufferBindingType_Uniform;
 
         WGPUBindGroupLayoutEntry compute_overlay_texture_entry {};
-        compute_overlay_texture_entry.binding = 9;
+        compute_overlay_texture_entry.binding = 6;
         compute_overlay_texture_entry.visibility = WGPUShaderStage_Fragment;
         compute_overlay_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
         compute_overlay_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry compute_overlay_sampler_entry {};
-        compute_overlay_sampler_entry.binding = 10;
+        compute_overlay_sampler_entry.binding = 7;
         compute_overlay_sampler_entry.visibility = WGPUShaderStage_Fragment;
         compute_overlay_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
 
         WGPUBindGroupLayoutEntry clouds_texture_entry {};
-        clouds_texture_entry.binding = 11;
+        clouds_texture_entry.binding = 8;
         clouds_texture_entry.visibility = WGPUShaderStage_Fragment;
         clouds_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
         clouds_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry clouds_depth_entry {};
-        clouds_depth_entry.binding = 12;
+        clouds_depth_entry.binding = 9;
         clouds_depth_entry.visibility = WGPUShaderStage_Fragment;
         clouds_depth_entry.storageTexture.access = WGPUStorageTextureAccess_ReadOnly;
         clouds_depth_entry.storageTexture.format = WGPUTextureFormat_R32Float;
         clouds_depth_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry shadow_texture_entry {};
-        shadow_texture_entry.binding = 13;
+        shadow_texture_entry.binding = 10;
         shadow_texture_entry.visibility = WGPUShaderStage_Fragment;
         shadow_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
         shadow_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry shadow_sampler_entry {};
-        shadow_sampler_entry.binding = 14;
+        shadow_sampler_entry.binding = 11;
         shadow_sampler_entry.visibility = WGPUShaderStage_Fragment;
         shadow_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
 
         WGPUBindGroupLayoutEntry depth_texture_entry {};
-        depth_texture_entry.binding = 15;
+        depth_texture_entry.binding = 12;
         depth_texture_entry.visibility = WGPUShaderStage_Fragment;
         depth_texture_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
         depth_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry overlay_renderer_post_entry {};
-        overlay_renderer_post_entry.binding = 16;
+        overlay_renderer_post_entry.binding = 13;
         overlay_renderer_post_entry.visibility = WGPUShaderStage_Fragment;
         overlay_renderer_post_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
         overlay_renderer_post_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry overlay_renderer_pre_entry {};
-        overlay_renderer_pre_entry.binding = 17;
+        overlay_renderer_pre_entry.binding = 14;
         overlay_renderer_pre_entry.visibility = WGPUShaderStage_Fragment;
         overlay_renderer_pre_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
         overlay_renderer_pre_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
@@ -177,9 +161,6 @@ void Context::internal_initialise()
                 normal_entry,
                 atmosphere_entry,
                 overlay_entry,
-                image_overlay_region_entry,
-                image_overlay_texture_entry,
-                image_overlay_sampler_entry,
                 compute_overlay_region_entry,
                 compute_overlay_texture_entry,
                 compute_overlay_sampler_entry,

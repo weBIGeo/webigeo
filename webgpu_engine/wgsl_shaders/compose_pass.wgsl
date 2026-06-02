@@ -36,21 +36,17 @@
 @group(2) @binding(3) var atmosphere_texture : texture_2d<f32>;
 @group(2) @binding(4) var overlay_texture : texture_2d<u32>;
 
-@group(2) @binding(5) var<uniform> image_overlay_settings: ImageOverlaySettings;
-@group(2) @binding(6) var image_overlay_texture: texture_2d<f32>;
-@group(2) @binding(7) var image_overlay_sampler: sampler;
+@group(2) @binding(5) var<uniform> compute_overlay_settings: ImageOverlaySettings;
+@group(2) @binding(6) var compute_overlay_texture: texture_2d<f32>;
+@group(2) @binding(7) var compute_overlay_sampler: sampler;
 
-@group(2) @binding(8) var<uniform> compute_overlay_settings: ImageOverlaySettings;
-@group(2) @binding(9) var compute_overlay_texture: texture_2d<f32>;
-@group(2) @binding(10) var compute_overlay_sampler: sampler;
-
-@group(2) @binding(11) var clouds_texture: texture_2d<f32>;
-@group(2) @binding(12) var clouds_depth_texture: texture_storage_2d<r32float, read>;
-@group(2) @binding(13) var cloud_shadow_texture: texture_2d<f32>;
-@group(2) @binding(14) var cloud_shadow_sampler: sampler;
-@group(2) @binding(15) var depth_texture: texture_2d<f32>;
-@group(2) @binding(16) var overlay_renderer_post_texture: texture_2d<f32>;
-@group(2) @binding(17) var overlay_renderer_pre_texture: texture_2d<f32>;
+@group(2) @binding(8) var clouds_texture: texture_2d<f32>;
+@group(2) @binding(9) var clouds_depth_texture: texture_storage_2d<r32float, read>;
+@group(2) @binding(10) var cloud_shadow_texture: texture_2d<f32>;
+@group(2) @binding(11) var cloud_shadow_sampler: sampler;
+@group(2) @binding(12) var depth_texture: texture_2d<f32>;
+@group(2) @binding(13) var overlay_renderer_post_texture: texture_2d<f32>;
+@group(2) @binding(14) var overlay_renderer_pre_texture: texture_2d<f32>;
 
 const CLOUD_SHADOW_AABB_MIN = vec3f(1045658.54694121, 5811660.13457852, 0.0);
 const CLOUD_SHADOW_AABB_MAX = vec3f(1937220.04485951, 6309418.06277159, 14000.0);
@@ -115,12 +111,6 @@ fn calculate_illumination(
     return ambientIllumination + diffAndSpecIllumination * (1.0 - shadow_term);
 }
 
-fn decode_rgba_to_normalized_value(rgba: vec4<f32>) -> f32 {
-    let rgba_u8: vec4<u32> = vec4<u32>(rgba * 255.0);
-    let packed_value: u32 = (rgba_u8.r << 24) | (rgba_u8.g << 16) | (rgba_u8.b << 8) | rgba_u8.a;
-    return u32_to_range(packed_value, vec2f(-10000.0, 10000.0));
-}
-
 fn get_cloud_shadow_occlusion(world_pos: vec3f) -> f32 {
     const SHADOW_BIAS = 0.05;
     const ESM_CONSTANT = 4.0;
@@ -176,20 +166,6 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
 
     var out_Color = vec4f(0.0);
     let atmospheric_color = textureLoad(atmosphere_texture, vec2u(0,tci.y), 0).rgb;
-
-    // sampling from texture needs to happen in uniform control flow, therefore this is outside the if
-    // later, the sampled value is only used if we are in the overlay region (specified in image overlay settings uniform)
-    var image_overlay_color = vec4f(0.0);
-    {
-        // TODO: calculate size in double on CPU. Maybe gonna fix alignment issue
-        let image_overlay_uv = (pos_ws.xy - image_overlay_settings.aabb_min) / (image_overlay_settings.aabb_max - image_overlay_settings.aabb_min);
-        
-        let image_overlay_uv_px = image_overlay_uv * image_overlay_settings.texture_size;
-        let dx: vec2<f32> = dpdx(image_overlay_uv_px);
-        let dy: vec2<f32> = dpdy(image_overlay_uv_px);
-        var mip_level: f32 = max(0.0, log2(max(length(dx), length(dy))));
-        image_overlay_color = textureSampleLevel(image_overlay_texture, image_overlay_sampler, vec2f(image_overlay_uv.x, 1 - image_overlay_uv.y), mip_level);
-    }
 
     var compute_overlay_color = vec4f(0.0);
     {
@@ -292,19 +268,6 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
     }
 
 
-
-    if (dist > 0.0 && all(pos_ws.xy >= image_overlay_settings.aabb_min) && all(pos_ws.xy <= image_overlay_settings.aabb_max)) {
-        if (image_overlay_settings.mode == 0u) {
-            out_Color = vec4f(mix(out_Color.rgb, image_overlay_color.rgb, image_overlay_color.a * image_overlay_settings.alpha), out_Color.a);
-        } else if (image_overlay_settings.mode == 1u) {
-            let decoded_float_value = decode_rgba_to_normalized_value(image_overlay_color.rgba);
-            let encoded_float_value = (decoded_float_value - image_overlay_settings.float_decoding_lower_bound) / (image_overlay_settings.float_decoding_upper_bound - image_overlay_settings.float_decoding_lower_bound);
-            if (encoded_float_value > 0.0 && encoded_float_value < 1.0) {
-                let overlay_color = vec3(1.0 - encoded_float_value, 0, 0) ;
-                out_Color = vec4f(mix(out_Color.rgb, overlay_color , image_overlay_settings.alpha), out_Color.a);
-            }  
-        }
-    }
 
     if (bool(conf.overlay_postshading_enabled)) {
         var overlay_color = vec4f(0.0);

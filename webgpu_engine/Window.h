@@ -124,10 +124,6 @@ private:
     void update_settings_and_rerun_pipeline(const std::string& entry_node = "");
 
     std::unique_ptr<webgpu::raii::TextureWithSampler> create_overlay_texture(unsigned int width, unsigned int height, bool linear_interpolation = true);
-    void update_image_overlay_texture(const std::string& image_file_path);
-    bool update_image_overlay_aabb(const radix::geometry::Aabb<2, double>& aabb);
-    void update_image_overlay_aabb_and_focus(const std::string& aabb_file_path);
-
     void clear_compute_overlay();
     void update_compute_overlay_texture(const webgpu::raii::TextureWithSampler& texture_with_sampler);
     void update_compute_overlay_aabb(const radix::geometry::Aabb<2, double>& aabb);
@@ -175,11 +171,6 @@ private:
     uint32_t m_compute_zoomlevel = 15;
     bool m_is_region_selected = false;
     GuiErrorState m_gui_error_state;
-
-    std::unique_ptr<webgpu::raii::TextureWithSampler> m_image_overlay_texture;
-    std::unique_ptr<Buffer<ImageOverlaySettings>> m_image_overlay_settings_uniform_buffer;
-    std::string m_image_overlay_texture_path;
-    bool m_image_overlay_linear_interpolation = true;
 
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_compute_overlay_dummy_texture;
     std::unique_ptr<Buffer<ImageOverlaySettings>> m_compute_overlay_settings_uniform_buffer;
