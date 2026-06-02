@@ -27,50 +27,35 @@
 
 #include "screen_pass_vert.wgsl"
 
-@group(0) @binding(0) var<uniform> conf : shared_config;
-@group(1) @binding(0) var<uniform> camera : camera_config;
+@group(0) @binding(0) var<uniform> conf: shared_config;
+@group(1) @binding(0) var<uniform> camera: camera_config;
 
-@group(2) @binding(0) var albedo_texture : texture_2d<u32>;
-@group(2) @binding(1) var position_texture : texture_2d<f32>;
-@group(2) @binding(2) var normal_texture : texture_2d<u32>;
-@group(2) @binding(3) var atmosphere_texture : texture_2d<f32>;
-@group(2) @binding(4) var overlay_texture : texture_2d<u32>;
+@group(2) @binding(0) var albedo_texture: texture_2d<u32>;
+@group(2) @binding(1) var position_texture: texture_2d<f32>;
+@group(2) @binding(2) var normal_texture: texture_2d<u32>;
+@group(2) @binding(3) var atmosphere_texture: texture_2d<f32>;
+@group(2) @binding(4) var overlay_texture: texture_2d<u32>;
 
-@group(2) @binding(5) var<uniform> compute_overlay_settings: ImageOverlaySettings;
-@group(2) @binding(6) var compute_overlay_texture: texture_2d<f32>;
-@group(2) @binding(7) var compute_overlay_sampler: sampler;
-
-@group(2) @binding(8) var clouds_texture: texture_2d<f32>;
-@group(2) @binding(9) var clouds_depth_texture: texture_storage_2d<r32float, read>;
-@group(2) @binding(10) var cloud_shadow_texture: texture_2d<f32>;
-@group(2) @binding(11) var cloud_shadow_sampler: sampler;
-@group(2) @binding(12) var depth_texture: texture_2d<f32>;
-@group(2) @binding(13) var overlay_renderer_post_texture: texture_2d<f32>;
-@group(2) @binding(14) var overlay_renderer_pre_texture: texture_2d<f32>;
+@group(2) @binding(5) var clouds_texture: texture_2d<f32>;
+@group(2) @binding(6) var clouds_depth_texture: texture_storage_2d<r32float, read>;
+@group(2) @binding(7) var cloud_shadow_texture: texture_2d<f32>;
+@group(2) @binding(8) var cloud_shadow_sampler: sampler;
+@group(2) @binding(9) var depth_texture: texture_2d<f32>;
+@group(2) @binding(10) var overlay_renderer_post_texture: texture_2d<f32>;
+@group(2) @binding(11) var overlay_renderer_pre_texture: texture_2d<f32>;
 
 const CLOUD_SHADOW_AABB_MIN = vec3f(1045658.54694121, 5811660.13457852, 0.0);
 const CLOUD_SHADOW_AABB_MAX = vec3f(1937220.04485951, 6309418.06277159, 14000.0);
-
-struct ImageOverlaySettings {
-    aabb_min: vec2f,
-    aabb_max: vec2f,
-    alpha: f32,
-    mode: u32, // 0: overlay, 1: encoded float
-    float_decoding_lower_bound: f32,
-    float_decoding_upper_bound: f32,
-    texture_size: vec2<f32>,
-    padding: vec2<f32>
-}
 
 // Calculates the diffuse and specular illumination contribution for the given
 // parameters according to the Blinn-Phong lighting model.
 // All parameters must be normalized.
 fn calc_blinn_phong_contribution(
-    toLight: vec3<f32>, 
-    toEye: vec3<f32>, 
-    normal: vec3<f32>, 
-    diffFactor: vec3<f32>, 
-    specFactor: vec3<f32>, 
+    toLight: vec3<f32>,
+    toEye: vec3<f32>,
+    normal: vec3<f32>,
+    diffFactor: vec3<f32>,
+    specFactor: vec3<f32>,
     specShininess: f32
 ) -> vec3<f32> {
     let nDotL: f32 = max(0.0, dot(normal, toLight)); // Lambertian coefficient
@@ -84,15 +69,15 @@ fn calc_blinn_phong_contribution(
 
 // Calculates the Blinn-Phong illumination for the given fragment
 fn calculate_illumination(
-    albedo: vec3<f32>, 
-    eyePos: vec3<f32>, 
-    fragPos: vec3<f32>, 
-    fragNorm: vec3<f32>, 
-    dirLight: vec4<f32>, 
-    ambLight: vec4<f32>, 
-    dirDirection: vec3<f32>, 
-    material: vec4<f32>, 
-    ao: f32, 
+    albedo: vec3<f32>,
+    eyePos: vec3<f32>,
+    fragPos: vec3<f32>,
+    fragNorm: vec3<f32>,
+    dirLight: vec4<f32>,
+    ambLight: vec4<f32>,
+    dirDirection: vec3<f32>,
+    material: vec4<f32>,
+    ao: f32,
     shadow_term: f32
 ) -> vec3<f32> {
     let dirColor: vec3<f32> = dirLight.rgb * dirLight.a;
@@ -131,8 +116,8 @@ fn get_cloud_shadow_occlusion(world_pos: vec3f) -> f32 {
     // factor from 0.0 (in shadow) to 1.0 (lit)
     let shadow_factor = clamp(receiver_val / shadow_map_val, 0.0, 1.0);
 
-    if (world_pos.x < CLOUD_SHADOW_AABB_MIN.x || world_pos.x > CLOUD_SHADOW_AABB_MAX.x ||
-        world_pos.y < CLOUD_SHADOW_AABB_MIN.y || world_pos.y > CLOUD_SHADOW_AABB_MAX.y) {
+    if world_pos.x < CLOUD_SHADOW_AABB_MIN.x || world_pos.x > CLOUD_SHADOW_AABB_MAX.x ||
+        world_pos.y < CLOUD_SHADOW_AABB_MIN.y || world_pos.y > CLOUD_SHADOW_AABB_MAX.y {
         return 0.0;
     }
 
@@ -140,8 +125,8 @@ fn get_cloud_shadow_occlusion(world_pos: vec3f) -> f32 {
 }
 
 @fragment
-fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
-    let tci : vec2<u32> = vec2u(vertex_out.texcoords * camera.viewport_size);
+fn fragmentMain(vertex_out: VertexOut) -> @location(0) vec4f {
+    let tci: vec2<u32> = vec2u(vertex_out.texcoords * camera.viewport_size);
 
     var albedo: vec3f = unpack4x8unorm(textureLoad(albedo_texture, tci, 0).r).xyz;
     let pos_dist = textureLoad(position_texture, tci, 0);
@@ -152,35 +137,23 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
     let tile_dist = pos_dist.w;
 
     let normal = octNormalDecode2u16(encoded_normal);
-    
+
     var amb_occlusion = 1.0;
     /* TODO: Implement ambient occlusion
     if (bool(conf.ssao_enabled)) {
         amb_occlusion = texture(texin_ssao, texcoords).r;
     }*/
-    
+
     let sampled_shadow_layer: i32 = -1;
-    
+
     let origin = camera.position.xyz;
     let pos_ws = pos_cws + origin;
 
     var out_Color = vec4f(0.0);
-    let atmospheric_color = textureLoad(atmosphere_texture, vec2u(0,tci.y), 0).rgb;
-
-    var compute_overlay_color = vec4f(0.0);
-    {
-        // TODO: calculate size in double on CPU. Maybe gonna fix alignment issue
-        let compute_overlay_uv = (pos_ws.xy - compute_overlay_settings.aabb_min) / (compute_overlay_settings.aabb_max - compute_overlay_settings.aabb_min);
-        
-        let compute_overlay_uv_px = compute_overlay_uv * compute_overlay_settings.texture_size;
-        let dx: vec2<f32> = dpdx(compute_overlay_uv_px);
-        let dy: vec2<f32> = dpdy(compute_overlay_uv_px);
-        var mip_level: f32 = max(0.0, log2(max(length(dx), length(dy))));
-        compute_overlay_color = textureSampleLevel(compute_overlay_texture, compute_overlay_sampler, vec2f(compute_overlay_uv.x, 1.0 - compute_overlay_uv.y), mip_level);
-    }
+    let atmospheric_color = textureLoad(atmosphere_texture, vec2u(0, tci.y), 0).rgb;
 
     var cloud_shadow = 0.0;
-    if (bool(conf.clouds_enabled)) {
+    if bool(conf.clouds_enabled) {
         // must be called from uniform control flow :(
         let cloud_shadow_raw = get_cloud_shadow_occlusion(pos_ws);
 
@@ -189,7 +162,7 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
     }
 
     // Don't do shading if not visible anyway and also don't for pixels where there is no geometry (depth==0.0)
-    if (dist > 0.0) {
+    if dist > 0.0 {
         let ray_direction = pos_cws / dist;
         var material_light_response = conf.material_light_response;
 
@@ -204,11 +177,11 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
             shadow_term = csm_shadow_term(vec4(pos_cws, 1.0), normal, sampled_shadow_layer);
         }*/
 
-        if (bool(conf.snow_settings_angle.x)) {
+        if bool(conf.snow_settings_angle.x) {
             // note: for now we use fragment snow with overlays (trajectories on top of fragment snow)
             //   for precomputed snow, we would want to disable fragment shader snow in the area where overlay tiles are available
             //   for this behavior, comment in the following if  
-            
+
             //if (tile_dist >= 0.0f) { // -1 if snow is already calculated in tile stage
             let overlay_color: vec4f = overlay_snow(normal, pos_ws, conf.snow_settings_angle, conf.snow_settings_alt);
             material_light_response.z += conf.snow_settings_alt.w * overlay_color.a;
@@ -217,28 +190,24 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         }
 
         // NOTE: PRESHADING OVERLAY ONLY APPLIED ON TILES NOT ON BACKGROUND!!!
-        if (!bool(conf.overlay_postshading_enabled)) {
+        if !bool(conf.overlay_postshading_enabled) {
             var overlay_color = vec4f(0.0);
-            if (conf.overlay_mode == 100u) {
+            if conf.overlay_mode == 100u {
                 overlay_color = vec4f(normal * 0.5 + 0.5, 1.0);
-            } else if (conf.overlay_mode == 101u) {
+            } else if conf.overlay_mode == 101u {
                 //TODO implement
                 //overlay_color = overlay_steepness(normal, dist);
-            } else if (conf.overlay_mode == 102u) {
+            } else if conf.overlay_mode == 102u {
                 //TODO implement
                 //overlay_color = vec4f(amb_occlusion, amb_occlusion, amb_occlusion, 1.0);
-            } else if (conf.overlay_mode == 103u) {
+            } else if conf.overlay_mode == 103u {
                 //TODO implement
                 //overlay_color = vec4(color_from_id_hash(uint(sampled_shadow_layer)), 1.0);
-            } else if ((conf.overlay_mode >= 1u) || (conf.overlay_mode <= 99u)) {
+            } else if (conf.overlay_mode >= 1u) || (conf.overlay_mode <= 99u) {
                 overlay_color = unpack4x8unorm(textureLoad(overlay_texture, tci, 0).r);
             }
             overlay_color.a *= conf.overlay_strength;
             albedo = mix(albedo, overlay_color.rgb, overlay_color.a);
-
-            if (dist > 0.0 && all(pos_ws.xy >= compute_overlay_settings.aabb_min) && all(pos_ws.xy <= compute_overlay_settings.aabb_max)) {
-                albedo = mix(albedo.rgb, compute_overlay_color.rgb, compute_overlay_color.a * compute_overlay_settings.alpha);
-            }
         }
 
         // Pre-shading overlay renderer output (applied to albedo before lighting)
@@ -246,51 +215,44 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         albedo = albedo * (1.0 - pre_overlay_color.a) + pre_overlay_color.rgb;
 
         var shaded_color = albedo;
-        if (bool(conf.phong_enabled)) {
+        if bool(conf.phong_enabled) {
             shaded_color = calculate_illumination(shaded_color, origin, pos_ws, normal, conf.sun_light, conf.amb_light, conf.sun_light_dir.xyz, material_light_response, amb_occlusion, shadow_term);
         }
-        if (bool(conf.atmosphere_enabled)) {
+        if bool(conf.atmosphere_enabled) {
             shaded_color = calculate_atmospheric_light(origin / 1000.0, ray_direction, dist / 1000.0, shaded_color, 10);
         }
         shaded_color = max(vec3(0.0), shaded_color);
-        if (dist > 0 && bool(conf.atmosphere_enabled)) {
+        if dist > 0 && bool(conf.atmosphere_enabled) {
             let atmosphere_blend = calculate_falloff(dist, 300000.0, 600000.0);
             shaded_color = mix(atmospheric_color, shaded_color, atmosphere_blend);
         }
         out_Color = vec4(shaded_color, 1.0);
     } else {
-        if (bool(conf.atmosphere_enabled)) {
+        if bool(conf.atmosphere_enabled) {
             out_Color = vec4(atmospheric_color, 1.0);
         } else {
             out_Color = vec4(1.0);
         }
-        
     }
 
-
-
-    if (bool(conf.overlay_postshading_enabled)) {
+    if bool(conf.overlay_postshading_enabled) {
         var overlay_color = vec4f(0.0);
-        if (conf.overlay_mode == 100u) {
+        if conf.overlay_mode == 100u {
             overlay_color = vec4f(normal * 0.5 + 0.5, 1.0);
-        } else if (conf.overlay_mode == 101u) {
+        } else if conf.overlay_mode == 101u {
             //TODO implement
             //overlay_color = overlay_steepness(normal, dist);
-        } else if (conf.overlay_mode == 102u) {
+        } else if conf.overlay_mode == 102u {
             //TODO implement
             //overlay_color = vec4f(amb_occlusion, amb_occlusion, amb_occlusion, 1.0);
-        } else if (conf.overlay_mode == 103u) {
+        } else if conf.overlay_mode == 103u {
             //TODO implement
             //overlay_color = vec4(color_from_id_hash(uint(sampled_shadow_layer)), 1.0);
-        } else if ((conf.overlay_mode >= 1u) || (conf.overlay_mode <= 99u)) {
+        } else if (conf.overlay_mode >= 1u) || (conf.overlay_mode <= 99u) {
             overlay_color = unpack4x8unorm(textureLoad(overlay_texture, tci, 0).r);
         }
         overlay_color.a *= conf.overlay_strength;
         out_Color = vec4(mix(out_Color.rgb, overlay_color.rgb, overlay_color.a), out_Color.a);
-
-        if (dist > 0.0 && all(pos_ws.xy >= compute_overlay_settings.aabb_min) && all(pos_ws.xy <= compute_overlay_settings.aabb_max)) {
-            out_Color = vec4(mix(out_Color.rgb, compute_overlay_color.rgb, compute_overlay_color.a * compute_overlay_settings.alpha), out_Color.a);
-        }
     }
 
     // Post-shading overlay renderer output
@@ -298,9 +260,9 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
     out_Color = vec4f(out_Color.rgb * (1.0 - post_overlay_color.a) + post_overlay_color.rgb, out_Color.a);
 
     // Clouds
-    if (bool(conf.clouds_enabled)) {
+    if bool(conf.clouds_enabled) {
         let clouds_color = textureLoad(clouds_texture, tci, 0);
-        let clouds_depth = textureLoad(clouds_depth_texture, tci/2).x;
+        let clouds_depth = textureLoad(clouds_depth_texture, tci / 2).x;
 
         // convert transmittance to alpha
         let raw_alpha = 1.0 - clouds_color.a;
@@ -309,7 +271,7 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         var tonemapped_rgb = straight_rgb / (straight_rgb + 1.0);
 
         // atmosphere
-        if (clouds_depth > 0.0 && bool(conf.atmosphere_enabled)) {
+        if clouds_depth > 0.0 && bool(conf.atmosphere_enabled) {
             let atmosphere_blend = calculate_falloff(clouds_depth, 300000.0, 600000.0);
             tonemapped_rgb = mix(atmospheric_color, tonemapped_rgb, atmosphere_blend);
         }

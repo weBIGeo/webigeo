@@ -30,15 +30,15 @@
 @group(2) @binding(3) var overlay_sampler: sampler;
 
 struct TextureOverlaySettings {
-    aabb_min:             vec2f,  // offset  0
-    aabb_size:            vec2f,  // offset  8  (aabb_max - aabb_min, precomputed in double on CPU)
-    opacity:              f32,    // offset 16
-    mode:                 u32,    // offset 20  (0 = AlphaBlend, 1 = EncodedFloat)
-    float_decode_range:   vec2f,  // offset 24  (user visualization range: lower, upper)
-    encoded_float_range:  vec2f,  // offset 32  (encoding format range, from ENCODED_FLOAT_RANGE_MIN/MAX)
+    aabb_min: vec2f,  // offset  0
+    aabb_size: vec2f,  // offset  8  (aabb_max - aabb_min, precomputed in double on CPU)
+    opacity: f32,    // offset 16
+    mode: u32,    // offset 20  (0 = AlphaBlend, 1 = EncodedFloat)
+    float_decode_range: vec2f,  // offset 24  (user visualization range: lower, upper)
+    encoded_float_range: vec2f,  // offset 32  (encoding format range, from ENCODED_FLOAT_RANGE_MIN/MAX)
 }
 
-@fragment fn fragmentMain(in: VertexOut) -> @location(0) vec4f {
+@fragmentfn fragmentMain(in: VertexOut) -> @location(0) vec4f {
     let tci = vec2i(in.position.xy);
     let pos_dist = textureLoad(position_texture, tci, 0);
     let pos_cws = pos_dist.xyz;
@@ -57,7 +57,7 @@ struct TextureOverlaySettings {
     let ddy_uv = dpdy(uv);
 
     let aabb_max = settings.aabb_min + settings.aabb_size;
-    if (dist <= 0.0 || any(pos_ws.xy < settings.aabb_min) || any(pos_ws.xy > aabb_max)) {
+    if dist <= 0.0 || any(pos_ws.xy < settings.aabb_min) || any(pos_ws.xy > aabb_max) {
         return vec4f(0.0);
     }
 

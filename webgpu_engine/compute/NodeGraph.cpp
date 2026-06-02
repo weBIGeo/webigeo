@@ -30,6 +30,7 @@
 #include "nodes/ExportNode.h"
 #include "nodes/IterativeSimulationNode.h"
 #include "nodes/LoadTextureNode.h"
+#include "nodes/OverlayNode.h"
 #include "nodes/RequestTilesNode.h"
 #include "nodes/SelectTilesNode.h"
 #include "nodes/UpsampleTexturesNode.h"
@@ -254,10 +255,21 @@ static std::unique_ptr<NodeGraph> create_trajectories_compute_graph_unconnected(
     return node_graph;
 }
 
+// Adds a terminal OverlayNode that forwards the given result texture (+ the selected
+// region aabb) to a consumer. The consuming callback is injected later by the app;
+// without it the node is a harmless no-op.
+static void add_overlay_node(NodeGraph& node_graph, const std::string& texture_node, const std::string& texture_socket)
+{
+    Node* overlay_node = node_graph.add_node("overlay_node", std::make_unique<OverlayNode>());
+    overlay_node->input_socket("texture").connect(node_graph.get_node(texture_node).output_socket(texture_socket));
+    overlay_node->input_socket("region aabb").connect(node_graph.get_node("select_tiles_node").output_socket("region aabb"));
+}
+
 std::unique_ptr<NodeGraph> NodeGraph::create_normal_compute_graph(webgpu::Context& ctx)
 {
     auto node_graph = create_normal_compute_graph_unconnected(ctx);
     node_graph->set_name("normal_compute_graph");
+    add_overlay_node(*node_graph, "normals_node", "normal texture");
     node_graph->connect_node_signals_and_slots();
     return node_graph;
 }
@@ -266,6 +278,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_release_points_compute_graph(webgpu
 {
     auto node_graph = create_release_points_compute_graph_unconnected(ctx);
     node_graph->set_name("release_points_compute_graph");
+    add_overlay_node(*node_graph, "release_points_node", "release point texture");
     node_graph->connect_node_signals_and_slots();
     return node_graph;
 }
@@ -281,6 +294,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_snow_compute_graph(webgpu::Context&
     snow_compute_node->input_socket("height texture").connect(node_graph->get_node("height_decode_node").output_socket("decoded texture"));
     snow_compute_node->input_socket("normal texture").connect(node_graph->get_node("normals_node").output_socket("normal texture"));
 
+    add_overlay_node(*node_graph, "snow_node", "snow texture");
     node_graph->connect_node_signals_and_slots();
 
     return node_graph;
@@ -290,6 +304,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_trajectories_compute_grap
 {
     auto node_graph = create_trajectories_compute_graph_unconnected(ctx);
     node_graph->set_name("avalanche_trajectories_compute_graph");
+    add_overlay_node(*node_graph, "buffer_to_texture_node", "texture");
     node_graph->connect_node_signals_and_slots();
     return node_graph;
 }
@@ -356,6 +371,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_with_export_compute_gr
     l5_export_node->input_socket("buffer").connect(trajectories_node.output_socket("layer5_altitudeDifference"));
     l5_export_node->input_socket("dimensions").connect(trajectories_node.output_socket("raster dimensions"));
 
+    add_overlay_node(*node_graph, "buffer_to_texture_node", "texture");
     node_graph->connect_node_signals_and_slots();
 
     return node_graph;
@@ -385,6 +401,7 @@ std::unique_ptr<NodeGraph> NodeGraph::create_iterative_simulation_compute_graph(
     flowpy_node->input_socket("height texture").connect(node_graph->get_node("height_decode_node").output_socket("decoded texture"));
     flowpy_node->input_socket("release point texture").connect(node_graph->get_node("release_points_node").output_socket("release point texture"));
 
+    add_overlay_node(*node_graph, "flowpy", "texture");
     node_graph->connect_node_signals_and_slots();
     return node_graph;
 }

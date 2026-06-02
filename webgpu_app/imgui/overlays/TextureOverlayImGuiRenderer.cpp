@@ -116,46 +116,53 @@ bool TextureOverlayImGuiRenderer::render_custom_settings()
     auto& s = m_texture_overlay->settings;
     bool changed = false;
 
-    // Image path display
-    if (m_loaded_image_path.empty())
-        ImGui::TextDisabled("No image loaded");
-    else
-        ImGui::TextUnformatted(std::filesystem::path(m_loaded_image_path).filename().string().c_str());
+    // When a texture is linked directly (e.g. a compute OverlayNode in link mode) the overlay
+    // samples that GPU texture as-is, so the file-loading UI and the sampler settings below
+    // (filter mode / mipmaps) don't apply and are hidden.
+    const bool linked = m_texture_overlay->is_linked();
 
-    const float full_w = ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x;
+    if (!linked) {
+        // Image path display
+        if (m_loaded_image_path.empty())
+            ImGui::TextDisabled("No image loaded");
+        else
+            ImGui::TextUnformatted(std::filesystem::path(m_loaded_image_path).filename().string().c_str());
+
+        const float full_w = ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x;
 #ifdef __EMSCRIPTEN__
-    if (ImGui::Button("Load PNG...", ImVec2(full_w * 0.666f, 0)))
-        WebInterop::instance().open_file_dialog(".png", m_png_tag);
+        if (ImGui::Button("Load PNG...", ImVec2(full_w * 0.666f, 0)))
+            WebInterop::instance().open_file_dialog(".png", m_png_tag);
 #else
-    if (ImGui::Button("Load PNG...", ImVec2(full_w * 0.666f, 0))) {
-        IGFD::FileDialogConfig config;
-        config.path = m_last_dialog_directory.empty() ? "." : m_last_dialog_directory;
-        ImGuiFileDialog::Instance()->OpenDialog(m_png_tag.c_str(), "Choose Image", ".png,.*", config);
-    }
-    if (ImGuiFileDialog::Instance()->Display(m_png_tag.c_str())) {
-        if (ImGuiFileDialog::Instance()->IsOk())
-            apply_image_file(ImGuiFileDialog::Instance()->GetFilePathName());
-        ImGuiFileDialog::Instance()->Close();
-    }
+        if (ImGui::Button("Load PNG...", ImVec2(full_w * 0.666f, 0))) {
+            IGFD::FileDialogConfig config;
+            config.path = m_last_dialog_directory.empty() ? "." : m_last_dialog_directory;
+            ImGuiFileDialog::Instance()->OpenDialog(m_png_tag.c_str(), "Choose Image", ".png,.*", config);
+        }
+        if (ImGuiFileDialog::Instance()->Display(m_png_tag.c_str())) {
+            if (ImGuiFileDialog::Instance()->IsOk())
+                apply_image_file(ImGuiFileDialog::Instance()->GetFilePathName());
+            ImGuiFileDialog::Instance()->Close();
+        }
 #endif
 
-    ImGui::SameLine();
+        ImGui::SameLine();
 
 #ifdef __EMSCRIPTEN__
-    if (ImGui::Button("Load AABB...", ImVec2(-1, 0)))
-        WebInterop::instance().open_file_dialog(".txt", m_aabb_tag);
+        if (ImGui::Button("Load AABB...", ImVec2(-1, 0)))
+            WebInterop::instance().open_file_dialog(".txt", m_aabb_tag);
 #else
-    if (ImGui::Button("Load AABB...", ImVec2(-1, 0))) {
-        IGFD::FileDialogConfig config;
-        config.path = m_last_dialog_directory.empty() ? "." : m_last_dialog_directory;
-        ImGuiFileDialog::Instance()->OpenDialog(m_aabb_tag.c_str(), "Choose AABB File", ".txt,.*", config);
-    }
-    if (ImGuiFileDialog::Instance()->Display(m_aabb_tag.c_str())) {
-        if (ImGuiFileDialog::Instance()->IsOk())
-            apply_aabb_from_file(ImGuiFileDialog::Instance()->GetFilePathName());
-        ImGuiFileDialog::Instance()->Close();
-    }
+        if (ImGui::Button("Load AABB...", ImVec2(-1, 0))) {
+            IGFD::FileDialogConfig config;
+            config.path = m_last_dialog_directory.empty() ? "." : m_last_dialog_directory;
+            ImGuiFileDialog::Instance()->OpenDialog(m_aabb_tag.c_str(), "Choose AABB File", ".txt,.*", config);
+        }
+        if (ImGuiFileDialog::Instance()->Display(m_aabb_tag.c_str())) {
+            if (ImGuiFileDialog::Instance()->IsOk())
+                apply_aabb_from_file(ImGuiFileDialog::Instance()->GetFilePathName());
+            ImGuiFileDialog::Instance()->Close();
+        }
 #endif
+    }
 
     // AABB as editable vec4 (min_x, min_y, max_x, max_y) — Aabb is { dvec2 min; dvec2 max; },
     // i.e. 4 contiguous doubles, so we can edit it in place.
@@ -189,14 +196,16 @@ bool TextureOverlayImGuiRenderer::render_custom_settings()
         }
     }
 
-    const char* filter_items[] = { "Nearest", "Linear" };
-    int filter_idx = (s.filter_mode == webgpu_engine::TextureOverlay::FilterMode::Linear) ? 1 : 0;
-    if (ImGui::Combo("Filter Mode", &filter_idx, filter_items, 2))
-        s.filter_mode = (filter_idx == 1) ? webgpu_engine::TextureOverlay::FilterMode::Linear : webgpu_engine::TextureOverlay::FilterMode::Nearest;
+    if (!linked) {
+        const char* filter_items[] = { "Nearest", "Linear" };
+        int filter_idx = (s.filter_mode == webgpu_engine::TextureOverlay::FilterMode::Linear) ? 1 : 0;
+        if (ImGui::Combo("Filter Mode", &filter_idx, filter_items, 2))
+            s.filter_mode = (filter_idx == 1) ? webgpu_engine::TextureOverlay::FilterMode::Linear : webgpu_engine::TextureOverlay::FilterMode::Nearest;
 
-    ImGui::Checkbox("Use Mipmaps", &s.use_mipmaps);
-    ImGui::SameLine();
-    ImGui::TextDisabled("(takes effect on next image load)");
+        ImGui::Checkbox("Use Mipmaps", &s.use_mipmaps);
+        ImGui::SameLine();
+        ImGui::TextDisabled("(takes effect on next image load)");
+    }
 
     // pick up deferred redraw requests
     changed |= m_needs_redraw;

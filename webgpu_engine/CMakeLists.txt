@@ -54,6 +54,7 @@ set(SOURCES
     compute/nodes/ComputeAvalancheTrajectoriesNode.h compute/nodes/ComputeAvalancheTrajectoriesNode.cpp
     compute/nodes/ExportNode.h compute/nodes/ExportNode.cpp
     compute/nodes/BufferToTextureNode.h compute/nodes/BufferToTextureNode.cpp
+    compute/nodes/OverlayNode.h compute/nodes/OverlayNode.cpp
     compute/nodes/ComputeReleasePointsNode.h compute/nodes/ComputeReleasePointsNode.cpp
     compute/nodes/TileStitchNode.h compute/nodes/TileStitchNode.cpp
     compute/nodes/HeightDecodeNode.h compute/nodes/HeightDecodeNode.cpp
@@ -69,6 +70,7 @@ if (ALP_WEBGPU_APP_ENABLE_IMGUI)
         compute/imgui/nodes/NodeRenderer.h compute/imgui/nodes/NodeRenderer.cpp
         compute/imgui/nodes/NodeRendererFactory.h compute/imgui/nodes/NodeRendererFactory.cpp
         compute/imgui/nodes/ExportNodeRenderer.h compute/imgui/nodes/ExportNodeRenderer.cpp
+        compute/imgui/nodes/OverlayNodeRenderer.h compute/imgui/nodes/OverlayNodeRenderer.cpp
         compute/imgui/nodes/BufferToTextureNodeRenderer.h compute/imgui/nodes/BufferToTextureNodeRenderer.cpp
         compute/imgui/nodes/ComputeAvalancheTrajectoriesNodeRenderer.h compute/imgui/nodes/ComputeAvalancheTrajectoriesNodeRenderer.cpp
         compute/imgui/nodes/ComputeReleasePointsNodeRenderer.h compute/imgui/nodes/ComputeReleasePointsNodeRenderer.cpp

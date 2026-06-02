@@ -19,10 +19,6 @@
 
 #include "Buffer.h"
 
-#include "renderer/CloudRenderer.h"
-#include "renderer/TrackRenderer.h"
-#include "renderer/overlays/HeightLinesOverlay.h"
-#include "renderer/overlays/TextureOverlay.h"
 #include "UniformBufferObjects.h"
 #include "compute/nodes/BufferToTextureNode.h"
 #include "compute/nodes/ComputeAvalancheTrajectoriesNode.h"
@@ -31,6 +27,10 @@
 #include "compute/nodes/ComputeSnowNode.h"
 #include "compute/nodes/HeightDecodeNode.h"
 #include "compute/nodes/IterativeSimulationNode.h"
+#include "renderer/CloudRenderer.h"
+#include "renderer/TrackRenderer.h"
+#include "renderer/overlays/HeightLinesOverlay.h"
+#include "renderer/overlays/TextureOverlay.h"
 
 namespace webgpu_engine {
 
@@ -40,11 +40,20 @@ Buffer<T>::Buffer(WGPUDevice device, WGPUBufferUsage flags)
 {
 }
 
-template <typename T> void Buffer<T>::update_gpu_data(WGPUQueue queue) { m_raw_buffer.write(queue, &data, 1, 0); }
+template <typename T>
+void Buffer<T>::update_gpu_data(WGPUQueue queue)
+{
+    m_raw_buffer.write(queue, &data, 1, 0);
+}
 
-template <typename T> QString Buffer<T>::data_as_string() { return ubo_as_string(data); }
+template <typename T>
+QString Buffer<T>::data_as_string()
+{
+    return ubo_as_string(data);
+}
 
-template <typename T> bool Buffer<T>::data_from_string(const QString& base64String)
+template <typename T>
+bool Buffer<T>::data_from_string(const QString& base64String)
 {
     bool result = true;
     auto newData = ubo_from_string<T>(base64String, &result);
@@ -53,7 +62,11 @@ template <typename T> bool Buffer<T>::data_from_string(const QString& base64Stri
     return result;
 }
 
-template <typename T> const webgpu::raii::RawBuffer<T>& Buffer<T>::raw_buffer() const { return m_raw_buffer; }
+template <typename T>
+const webgpu::raii::RawBuffer<T>& Buffer<T>::raw_buffer() const
+{
+    return m_raw_buffer;
+}
 
 // IMPORTANT: All possible Template Classes need to be defined here:
 template class Buffer<uboSharedConfig>;
@@ -67,7 +80,6 @@ template class Buffer<compute::nodes::BufferToTextureNode::BufferToTextureSettin
 template class Buffer<compute::nodes::IterativeSimulationNode::IterativeSimulationSettingsUniform>;
 template class Buffer<compute::nodes::HeightDecodeNode::HeightDecodeSettingsUniform>;
 template class Buffer<TrackRenderer::LineConfig>;
-template class Buffer<ImageOverlaySettings>;
 template class Buffer<CloudRenderer::ShaderParamsRender>;
 template class Buffer<CloudRenderer::ShaderParamsUpscale>;
 // TODO

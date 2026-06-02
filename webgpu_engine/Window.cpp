@@ -20,6 +20,7 @@
  *****************************************************************************/
 
 #include "Window.h"
+#include "compute/nodes/OverlayNode.h"
 #include "compute/nodes/SelectTilesNode.h"
 #include "gpu_utils.h"
 #include "nucleus/tile/drawing.h"
@@ -27,6 +28,7 @@
 #include "nucleus/utils/geopng_decoder.h"
 #include "nucleus/utils/image_loader.h"
 #include "renderer/OverlayRenderer.h"
+#include "renderer/overlays/TextureOverlay.h"
 #include "webgpu/raii/RenderPassEncoder.h"
 #include "webgpu_engine/Context.h"
 #include <ktx.h>
@@ -104,15 +106,6 @@ void Window::initialise_gpu()
     m_context->webgpu_ctx().resource_registry().recreate_all(m_context->webgpu_ctx().device());
 
     create_bind_groups();
-
-    m_compute_overlay_settings_uniform_buffer
-        = std::make_unique<Buffer<ImageOverlaySettings>>(m_context->webgpu_ctx().device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
-    m_compute_overlay_settings_uniform_buffer->data.aabb_min = glm::fvec2(0);
-    m_compute_overlay_settings_uniform_buffer->data.aabb_max = glm::fvec2(0);
-    m_compute_overlay_settings_uniform_buffer->data.mode = 0u;
-    m_compute_overlay_settings_uniform_buffer->data.alpha = 1.0f;
-    m_compute_overlay_settings_uniform_buffer->update_gpu_data(m_context->webgpu_ctx().queue());
-    m_compute_overlay_dummy_texture = create_overlay_texture(1, 1);
 
     m_shadow_texture = create_shadow_texture(1, 1, 1);
 
@@ -245,8 +238,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
     }
 
     // render overlay textures (height lines, etc.)
-    m_context->overlay_renderer()->draw(
-        command_encoder,
+    m_context->overlay_renderer()->draw(command_encoder,
         m_gbuffer->color_texture_view(1),
         m_gbuffer->color_texture_view(2),
         m_shared_config_bind_group->handle(),
@@ -441,11 +433,6 @@ void Window::paint_compute_pipeline_gui()
         }
         ImGui::PopStyleColor(1);
 
-        if (ImGui::SliderFloat("Strength##compute overlay", &m_compute_overlay_settings_uniform_buffer->data.alpha, 0.0f, 1.0f, "%.2f")) {
-            m_compute_overlay_settings_uniform_buffer->update_gpu_data(m_context->webgpu_ctx().queue());
-            m_needs_redraw = true;
-        }
-
         const uint32_t min_zoomlevel = 1;
         const uint32_t max_zoomlevel = 18;
         ImGui::SliderScalar("Zoom level", ImGuiDataType_U32, &m_compute_zoomlevel, &min_zoomlevel, &max_zoomlevel, "%u");
@@ -539,6 +526,12 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, 
     qDebug() << "setting new compute pipeline " << static_cast<int>(pipeline_type);
     m_active_compute_pipeline_type = pipeline_type;
 
+    // In link mode the overlay borrows a texture owned by the (about-to-be-replaced) graph;
+    // unlink it so draw() doesn't reference a destroyed texture until the new graph runs.
+    // (No-op in copy mode, where the overlay owns its texture and keeps showing the last result.)
+    if (auto overlay = m_compute_result_overlay.lock())
+        overlay->link_texture(nullptr);
+
     if (pipeline_type == ComputePipelineType::NORMALS) {
         m_compute_graph = compute::nodes::NodeGraph::create_normal_compute_graph(m_context->webgpu_ctx());
     } else if (pipeline_type == ComputePipelineType::SNOW) {
@@ -555,7 +548,6 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, 
     update_compute_pipeline_settings();
 
     connect(m_compute_graph.get(), &compute::nodes::NodeGraph::run_completed, this, [this](compute::GraphRunContext) { request_redraw(); });
-    connect(m_compute_graph.get(), &compute::nodes::NodeGraph::run_completed, this, [this](compute::GraphRunContext) { on_pipeline_run_completed(); });
 
     connect(m_compute_graph.get(), &compute::nodes::NodeGraph::run_failed, this, [this](compute::nodes::GraphRunFailureInfo info) {
         qWarning() << "graph run failed. " << info.node_name() << ": " << info.node_run_failure_info().message();
@@ -563,11 +555,38 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, 
         this->display_message(message);
     });
 
+    // The graph's OverlayNode pushes its result texture + aabb here; we forward it to a
+    // TextureOverlay managed by the OverlayRenderer (visible/editable in the OverlaysPanel).
+    if (m_compute_graph->exists_node("overlay_node")) {
+        auto& overlay_node = m_compute_graph->get_node_as<compute::nodes::OverlayNode>("overlay_node");
+        overlay_node.set_update_func([this](const webgpu::raii::TextureWithSampler* texture, const radix::geometry::Aabb<2, double>& aabb, bool copy) {
+            auto overlay = m_compute_result_overlay.lock();
+            if (!overlay) { // first run, or the user deleted it from the panel -> (re)create
+                overlay = std::make_shared<TextureOverlay>();
+                overlay->name = "Compute Result";
+                m_context->overlay_renderer()->add_overlay(overlay);
+                m_compute_result_overlay = overlay;
+            }
+            // TODO: the stitch node ignores the last col/row; trim the aabb to match. This
+            // correction should eventually move into the stitch node's "region aabb" output.
+            radix::geometry::Aabb<2, double> trimmed = aabb;
+            trimmed.max -= glm::dvec2(nucleus::srs::tile_width(18) / 65, nucleus::srs::tile_height(18) / 65);
+            overlay->settings.aabb = trimmed;
+            if (texture) {
+                if (copy)
+                    overlay->load_texture(*texture);
+                else
+                    overlay->link_texture(texture);
+            }
+            overlay->update_gpu_settings();
+            request_redraw();
+        });
+    }
+
     if (should_recreate_compose_bind_group) {
         // we usually need to recreate the compose bind group, because it might have now-outdated texture bindings from the last (now-destroyed) pipeline
         // however, we dont want this to happen when initializing, because at that point we dont have a gbuffer yet (which is required for creating the bind
         // group)
-        clear_compute_overlay();
         recreate_compose_bind_group();
     }
 
@@ -605,38 +624,6 @@ void Window::update_settings_and_rerun_pipeline(const std::string& entry_node)
     } else {
         qWarning() << "No region selected. Please load track.";
     }
-}
-
-std::unique_ptr<webgpu::raii::TextureWithSampler> Window::create_overlay_texture(unsigned int width, unsigned int height, bool linear_interpolation)
-{
-    // TODO: OverlayRenderer should be in charge of overlay related code
-    WGPUTextureDescriptor texture_desc {};
-    texture_desc.label = WGPUStringView { .data = "image overlay texture", .length = WGPU_STRLEN };
-    texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
-    texture_desc.size = { uint32_t(width), uint32_t(height), uint32_t(1) };
-    texture_desc.mipLevelCount = webgpu::raii::Texture::max_mip_level_count(glm::uvec2(width, height));
-    texture_desc.sampleCount = 1;
-    texture_desc.format = WGPUTextureFormat::WGPUTextureFormat_RGBA8Unorm;
-    texture_desc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_StorageBinding;
-
-    WGPUSamplerDescriptor sampler_desc {};
-    sampler_desc.label = WGPUStringView { .data = "image overlay sampler", .length = WGPU_STRLEN };
-    sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    const auto filter_mode = linear_interpolation ? WGPUFilterMode::WGPUFilterMode_Linear : WGPUFilterMode::WGPUFilterMode_Nearest;
-    const auto mipmap_mode = linear_interpolation ? WGPUMipmapFilterMode::WGPUMipmapFilterMode_Linear : WGPUMipmapFilterMode::WGPUMipmapFilterMode_Nearest;
-    sampler_desc.magFilter = filter_mode;
-    sampler_desc.minFilter = filter_mode;
-    sampler_desc.mipmapFilter = mipmap_mode;
-    sampler_desc.lodMinClamp = 0.0f;
-    sampler_desc.lodMaxClamp = 1.0f;
-    sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
-    sampler_desc.maxAnisotropy = 1;
-
-    auto texture = std::make_unique<webgpu::raii::TextureWithSampler>(m_context->webgpu_ctx().device(), texture_desc, sampler_desc);
-
-    return texture;
 }
 
 void Window::set_max_zoom_level(uint32_t max_zoom_level) { m_max_zoom_level = max_zoom_level; }
@@ -775,34 +762,6 @@ void Window::focus_region_2d(const radix::geometry::Aabb<2, double>& aabb)
     emit set_camera_definition_requested(new_camera_definition);
 }
 
-void Window::clear_compute_overlay()
-{
-    // TODO: OverlayRenderer should be in charge of overlay related code
-    m_compute_overlay_texture_view = nullptr;
-    m_compute_overlay_sampler = nullptr;
-    recreate_compose_bind_group();
-}
-
-void Window::update_compute_overlay_texture(const webgpu::raii::TextureWithSampler& texture_with_sampler)
-{
-    // TODO: OverlayRenderer should be in charge of overlay related code
-    m_compute_overlay_texture_view = &texture_with_sampler.texture_view();
-    m_compute_overlay_sampler = &texture_with_sampler.sampler();
-    m_compute_overlay_settings_uniform_buffer->data.texture_size = glm::uvec2(texture_with_sampler.texture().width(), texture_with_sampler.texture().height());
-
-    compute_mipmaps_for_texture(m_context->webgpu_ctx(), &texture_with_sampler.texture());
-    // update in following update_compute_overlay_aabb
-    recreate_compose_bind_group();
-}
-
-void Window::update_compute_overlay_aabb(const radix::geometry::Aabb<2, double>& aabb)
-{
-    // TODO: OverlayRenderer should be in charge of overlay related code
-    m_compute_overlay_settings_uniform_buffer->data.aabb_min = glm::fvec2(aabb.min);
-    m_compute_overlay_settings_uniform_buffer->data.aabb_max = glm::fvec2(aabb.max);
-    m_compute_overlay_settings_uniform_buffer->update_gpu_data(m_context->webgpu_ctx().queue());
-}
-
 void Window::ready()
 {
     m_context->overlay_renderer()->ready(m_context->webgpu_ctx());
@@ -819,39 +778,6 @@ void Window::reload_shaders()
     recreate_compose_bind_group();
     qDebug() << "reloading shaders done";
     request_redraw();
-}
-
-void Window::on_pipeline_run_completed()
-{
-    // update compute overlay texture and aabb with compute pipeline outputs
-    if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS || m_active_compute_pipeline_type == ComputePipelineType::SNOW
-        || m_active_compute_pipeline_type == ComputePipelineType::RELEASE_POINTS
-        || m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES
-        || m_active_compute_pipeline_type == ComputePipelineType::ITERATIVE_SIMULATION) {
-
-        const webgpu::raii::TextureWithSampler* texture = nullptr;
-        if (m_active_compute_pipeline_type == ComputePipelineType::NORMALS) {
-            texture = std::get<const webgpu::raii::TextureWithSampler*>(m_compute_graph->get_node("normals_node").output_socket("normal texture").get_data());
-        } else if (m_active_compute_pipeline_type == ComputePipelineType::SNOW) {
-            texture = std::get<const webgpu::raii::TextureWithSampler*>(m_compute_graph->get_node("snow_node").output_socket("snow texture").get_data());
-        } else if (m_active_compute_pipeline_type == ComputePipelineType::RELEASE_POINTS) {
-            texture = std::get<const webgpu::raii::TextureWithSampler*>(
-                m_compute_graph->get_node("release_points_node").output_socket("release point texture").get_data());
-        } else if (m_active_compute_pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
-            texture
-                = std::get<const webgpu::raii::TextureWithSampler*>(m_compute_graph->get_node("buffer_to_texture_node").output_socket("texture").get_data());
-        } else if (m_active_compute_pipeline_type == ComputePipelineType::ITERATIVE_SIMULATION) {
-            texture = std::get<const webgpu::raii::TextureWithSampler*>(m_compute_graph->get_node("flowpy").output_socket("texture").get_data());
-        }
-        assert(texture != nullptr);
-        update_compute_overlay_texture(*texture);
-
-        auto& select_tiles_node = m_compute_graph->get_node_as<compute::nodes::SelectTilesNode&>("select_tiles_node");
-        radix::geometry::Aabb<2, double> selected_aabb
-            = *std::get<const radix::geometry::Aabb<2, double>*>(select_tiles_node.output_socket("region aabb").get_data());
-        selected_aabb.max -= glm::dvec2(nucleus::srs::tile_width(18) / 65, nucleus::srs::tile_height(18) / 65); // stitch node ignores last col/row
-        update_compute_overlay_aabb(selected_aabb);
-    }
 }
 
 void Window::create_buffers()
@@ -875,14 +801,6 @@ void Window::create_bind_groups()
 
 void Window::recreate_compose_bind_group()
 {
-    // default bindings - we need to bind something, in case compute graph not finished yet (or has been cleared)
-    const webgpu::raii::TextureView& compute_overlay_texture_view
-        = m_compute_overlay_texture_view != nullptr ? *m_compute_overlay_texture_view : m_compute_overlay_dummy_texture->texture_view();
-    const webgpu::raii::Sampler& compute_overlay_sampler
-        = m_compute_overlay_sampler != nullptr ? *m_compute_overlay_sampler : m_compute_overlay_dummy_texture->sampler();
-    WGPUBindGroupEntry compute_overlay_texture_entry = compute_overlay_texture_view.create_bind_group_entry(6);
-    WGPUBindGroupEntry compute_overlay_sampler_entry = compute_overlay_sampler.create_bind_group_entry(7);
-
     for (int i = 0; i < 2; ++i) {
         m_compose_bind_groups[i] = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
             m_context->webgpu_ctx().resource_registry().bind_group_layout("compose"),
@@ -892,16 +810,13 @@ void Window::recreate_compose_bind_group()
                 m_gbuffer->color_texture_view(2).create_bind_group_entry(2), // normal texture
                 m_atmosphere_renderer->result_view()->create_bind_group_entry(3), // atmosphere texture
                 m_gbuffer->color_texture_view(3).create_bind_group_entry(4), // overlay texture
-                m_compute_overlay_settings_uniform_buffer->raw_buffer().create_bind_group_entry(5), // compute overlay settings
-                compute_overlay_texture_entry, // compute overlay texture
-                compute_overlay_sampler_entry, // compute overlay sampler
-                m_context->cloud_renderer()->result_color_view(i)->create_bind_group_entry(8),
-                m_context->cloud_renderer()->result_depth_view()->create_bind_group_entry(9),
-                m_shadow_texture->texture_view().create_bind_group_entry(10),
-                m_shadow_texture->sampler().create_bind_group_entry(11),
-                m_gbuffer->depth_texture_view().create_bind_group_entry(12),
-                m_context->overlay_renderer()->result_post_view()->create_bind_group_entry(13), // overlay post-shading output
-                m_context->overlay_renderer()->result_pre_view()->create_bind_group_entry(14),  // overlay pre-shading output
+                m_context->cloud_renderer()->result_color_view(i)->create_bind_group_entry(5),
+                m_context->cloud_renderer()->result_depth_view()->create_bind_group_entry(6),
+                m_shadow_texture->texture_view().create_bind_group_entry(7),
+                m_shadow_texture->sampler().create_bind_group_entry(8),
+                m_gbuffer->depth_texture_view().create_bind_group_entry(9),
+                m_context->overlay_renderer()->result_post_view()->create_bind_group_entry(10), // overlay post-shading output
+                m_context->overlay_renderer()->result_pre_view()->create_bind_group_entry(11), // overlay pre-shading output
             });
     }
 }

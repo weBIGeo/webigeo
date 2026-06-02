@@ -18,19 +18,21 @@
 
 #include "NodeRendererFactory.h"
 
+#include "../../nodes/BufferToTextureNode.h"
+#include "../../nodes/ComputeAvalancheTrajectoriesNode.h"
+#include "../../nodes/ComputeReleasePointsNode.h"
+#include "../../nodes/ComputeSnowNode.h"
+#include "../../nodes/ExportNode.h"
+#include "../../nodes/OverlayNode.h"
+#include "../../nodes/RequestTilesNode.h"
 #include "BufferToTextureNodeRenderer.h"
 #include "ComputeAvalancheTrajectoriesNodeRenderer.h"
 #include "ComputeReleasePointsNodeRenderer.h"
 #include "ComputeSnowNodeRenderer.h"
 #include "ExportNodeRenderer.h"
 #include "NodeRenderer.h"
+#include "OverlayNodeRenderer.h"
 #include "RequestTilesNodeRenderer.h"
-#include "../../nodes/BufferToTextureNode.h"
-#include "../../nodes/ComputeAvalancheTrajectoriesNode.h"
-#include "../../nodes/ComputeReleasePointsNode.h"
-#include "../../nodes/ComputeSnowNode.h"
-#include "../../nodes/ExportNode.h"
-#include "../../nodes/RequestTilesNode.h"
 
 namespace webgpu_engine::compute {
 
@@ -38,6 +40,8 @@ std::unique_ptr<NodeRenderer> NodeRendererFactory::create(const std::string& nam
 {
     if (auto* n = dynamic_cast<nodes::ExportNode*>(&node))
         return std::make_unique<ExportNodeRenderer>(name, *n);
+    if (auto* n = dynamic_cast<nodes::OverlayNode*>(&node))
+        return std::make_unique<OverlayNodeRenderer>(name, *n);
     if (auto* n = dynamic_cast<nodes::BufferToTextureNode*>(&node))
         return std::make_unique<BufferToTextureNodeRenderer>(name, *n);
     if (auto* n = dynamic_cast<nodes::ComputeAvalancheTrajectoriesNode*>(&node))

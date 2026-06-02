@@ -20,9 +20,9 @@
 #pragma once
 
 #include "Context.h"
+#include "UniformBufferObjects.h"
 #include "renderer/AtmosphereRenderer.h"
 #include "renderer/TrackRenderer.h"
-#include "UniformBufferObjects.h"
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
 #include "compute/imgui/NodeGraphRenderer.h"
 #endif
@@ -38,6 +38,8 @@
 class QOpenGLFramebufferObject;
 
 namespace webgpu_engine {
+
+class TextureOverlay;
 
 #define DEFAULT_GPX_TRACK_PATH ":/gpx/breite_ries.gpx"
 
@@ -81,7 +83,6 @@ public:
     void paint_gui();
     void paint_compute_pipeline_gui();
 
-
     void set_max_zoom_level(uint32_t max_zoom_level);
 
 public slots:
@@ -94,7 +95,6 @@ public slots:
     void focus_region_3d(const radix::geometry::Aabb3d& aabb);
     void focus_region_2d(const radix::geometry::Aabb<2, double>& aabb);
     void reload_shaders();
-    void on_pipeline_run_completed();
     void on_shadow_texture_updated(const QByteArray& data);
 
 private slots:
@@ -122,11 +122,6 @@ private:
     void create_and_set_compute_pipeline(ComputePipelineType pipeline_type, bool should_recreate_compose_bind_group = true);
     void update_compute_pipeline_settings();
     void update_settings_and_rerun_pipeline(const std::string& entry_node = "");
-
-    std::unique_ptr<webgpu::raii::TextureWithSampler> create_overlay_texture(unsigned int width, unsigned int height, bool linear_interpolation = true);
-    void clear_compute_overlay();
-    void update_compute_overlay_texture(const webgpu::raii::TextureWithSampler& texture_with_sampler);
-    void update_compute_overlay_aabb(const radix::geometry::Aabb<2, double>& aabb);
 
     void display_message(const std::string& message);
 
@@ -172,11 +167,9 @@ private:
     bool m_is_region_selected = false;
     GuiErrorState m_gui_error_state;
 
-    std::unique_ptr<webgpu::raii::TextureWithSampler> m_compute_overlay_dummy_texture;
-    std::unique_ptr<Buffer<ImageOverlaySettings>> m_compute_overlay_settings_uniform_buffer;
-
-    const webgpu::raii::TextureView* m_compute_overlay_texture_view = nullptr; // will be set to correct texture view after pipeline run completion
-    const webgpu::raii::Sampler* m_compute_overlay_sampler = nullptr; // will be set to correct sampler after pipeline run completion
+    // TextureOverlay (owned by the OverlayRenderer) that displays the compute graph's result,
+    // driven by the graph's OverlayNode. weak: the user may delete it via the OverlaysPanel.
+    std::weak_ptr<TextureOverlay> m_compute_result_overlay;
 
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_shadow_texture;
 
@@ -184,8 +177,6 @@ private:
     std::unique_ptr<compute::NodeGraphRenderer> m_node_graph_renderer;
     bool m_should_render_node_graph = false;
 #endif
-
-
 };
 
 } // namespace webgpu_engine

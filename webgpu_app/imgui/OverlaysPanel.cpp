@@ -97,6 +97,11 @@ void OverlaysPanel::draw_panel()
     if (!m_overlay_renderer)
         return;
 
+    // Overlays can be added/removed outside the panel (e.g. by a compute OverlayNode);
+    // resync our per-overlay renderer list when the count diverges.
+    if (m_renderers.size() != m_overlay_renderer->overlays().size())
+        rebuild_renderers();
+
     if (!ImGui::CollapsingHeader(ICON_FA_LAYER_GROUP "  Overlays"))
         return;
 
