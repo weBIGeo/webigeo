@@ -28,7 +28,6 @@
 #include "nucleus/utils/image_loader.h"
 #include "renderer/OverlayRenderer.h"
 #include "renderer/overlays/TextureOverlay.h"
-#include "renderer/overlays/TileDebugOverlay.h"
 #include "webgpu/raii/RenderPassEncoder.h"
 #include "webgpu_engine/Context.h"
 #include <ktx.h>
@@ -196,18 +195,6 @@ std::unique_ptr<webgpu::raii::RenderPassEncoder> begin_render_pass(
 void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_encoder)
 {
     m_needs_redraw = false;
-
-    // The TileDebugOverlay (if present) selects which per-tile debug data render_tiles.wgsl packs
-    // into GBuffer slot 3. Forward its mode to shared_config before the tile pass; 0 = nothing packed.
-    // Only one TileDebugOverlay can exist, so the first match wins.
-    uint32_t tile_debug_mode = 0;
-    for (const auto& overlay : m_context->overlay_renderer()->overlays()) {
-        if (auto* tile_debug = dynamic_cast<TileDebugOverlay*>(overlay.get())) {
-            tile_debug_mode = static_cast<uint32_t>(tile_debug->settings.mode);
-            break;
-        }
-    }
-    m_context->shared_config().m_overlay_mode = tile_debug_mode;
 
     // ToDo only update on change?
     m_shared_config_ubo->data = m_context->shared_config();

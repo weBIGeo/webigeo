@@ -38,7 +38,7 @@ public:
 
     HeightLinesOverlay();
 
-    void init(webgpu::Context& ctx) override;
+    void init(Context& ctx) override;
     void update_settings();
     void draw(const WGPUCommandEncoder& command_encoder,
         const webgpu::raii::TextureView& position_view,

@@ -19,6 +19,7 @@
 
 #include "OverlayRenderer.h"
 
+#include "webgpu_engine/Context.h"
 #include <algorithm>
 #include <webgpu/raii/RenderPassEncoder.h>
 
@@ -40,7 +41,7 @@ void OverlayRenderer::add_overlay(std::shared_ptr<Overlay> overlay)
     if (m_ctx) {
         overlay->init(*m_ctx);
         if (m_is_ready)
-            overlay->ready(*m_ctx);
+            overlay->ready(m_ctx->webgpu_ctx());
     }
     m_overlays.push_back(std::move(overlay));
     rebucket();
@@ -70,7 +71,7 @@ void OverlayRenderer::rebucket()
         (overlay->z_index < 0 ? m_pre_overlays : m_post_overlays).push_back(overlay.get());
 }
 
-void OverlayRenderer::init(webgpu::Context& ctx)
+void OverlayRenderer::init(Context& ctx)
 {
     m_ctx = &ctx;
     for (auto& overlay : m_overlays)
@@ -108,7 +109,7 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> OverlayRenderer::create_output
     sampler_desc.compare = WGPUCompareFunction_Undefined;
     sampler_desc.maxAnisotropy = 1;
 
-    return std::make_unique<webgpu::raii::TextureWithSampler>(m_ctx->device(), texture_desc, sampler_desc);
+    return std::make_unique<webgpu::raii::TextureWithSampler>(m_ctx->webgpu_ctx().device(), texture_desc, sampler_desc);
 }
 
 void OverlayRenderer::resize(int w, int h)

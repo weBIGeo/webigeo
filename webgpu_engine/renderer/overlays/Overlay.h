@@ -27,6 +27,8 @@
 
 namespace webgpu_engine {
 
+class Context;
+
 /// Abstract base class for screen-space overlays rendered by OverlayRenderer.
 class Overlay {
 public:
@@ -38,7 +40,8 @@ public:
 
     virtual ~Overlay() = default;
     // Initialization code for GPU Ressources goes here. Needs to be called after creation.
-    virtual void init(webgpu::Context& ctx) = 0;
+    // Receives the engine Context (exposes both webgpu_ctx() and shared_config()).
+    virtual void init(Context& ctx) = 0;
     // Called once all shared GPU resources (compiled shaders, pipelines, bind group layouts)
     // have been created. From here on it is safe to use them and to upload GPU data.
     virtual void ready(webgpu::Context& /*ctx*/) { }

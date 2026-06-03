@@ -44,8 +44,11 @@ public:
     };
 
     TileDebugOverlay();
+    ~TileDebugOverlay() override;
 
-    void init(webgpu::Context& ctx) override;
+    void init(Context& ctx) override;
+    // Pushes settings to the GPU and the selected debug mode into shared_config (consumed by the tile pass).
+    // Call from the frontend whenever settings change.
     void update_settings();
     void draw(const WGPUCommandEncoder& command_encoder,
         const webgpu::raii::TextureView& position_view,
@@ -65,6 +68,7 @@ private:
     };
 
     webgpu::Context* m_ctx = nullptr;
+    Context* m_engine_ctx = nullptr; // for shared_config access (overlay_mode)
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_pipeline;
     std::unique_ptr<webgpu_engine::Buffer<GpuSettings>> m_settings_uniform;
 };

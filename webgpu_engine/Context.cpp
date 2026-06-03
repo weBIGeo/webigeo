@@ -181,7 +181,7 @@ void Context::internal_initialise()
     if (m_cloud_renderer)
         m_cloud_renderer->init(webgpu_ctx());
     if (m_overlay_renderer)
-        m_overlay_renderer->init(webgpu_ctx());
+        m_overlay_renderer->init(*this);
     if (m_track_renderer)
         m_track_renderer->init(webgpu_ctx());
     // if (m_ortho_layer)

@@ -30,6 +30,8 @@
 
 namespace webgpu_engine {
 
+class Context;
+
 class OverlayRenderer : public QObject {
     Q_OBJECT
 public:
@@ -43,7 +45,7 @@ public:
 
     [[nodiscard]] const std::vector<std::shared_ptr<Overlay>>& overlays() const;
 
-    void init(webgpu::Context& ctx);
+    void init(Context& ctx);
     // Called once after all GPU resources are created (and the initial setup is done).
     void ready(webgpu::Context& ctx);
     void resize(int w, int h);
@@ -76,7 +78,7 @@ private:
         const WGPUBindGroup& camera_bg,
         glm::uvec2 output_size);
 
-    webgpu::Context* m_ctx = nullptr;
+    Context* m_ctx = nullptr;
     bool m_is_ready = false;
     std::vector<std::shared_ptr<Overlay>> m_overlays; // owning; sorted by z_index ascending
     // Per-bucket, non-owning views into m_overlays (non-canonical, rebuilt by rebucket()), iterated directly by draw().

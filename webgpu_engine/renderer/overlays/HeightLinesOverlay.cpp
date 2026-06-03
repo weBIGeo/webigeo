@@ -18,6 +18,7 @@
 
 #include "HeightLinesOverlay.h"
 
+#include "webgpu_engine/Context.h"
 #include <webgpu/RenderResourceRegistry.h>
 #include <webgpu/raii/BindGroup.h>
 #include <webgpu/raii/BindGroupLayout.h>
@@ -29,8 +30,9 @@ HeightLinesOverlay::HeightLinesOverlay()
 {
 }
 
-void HeightLinesOverlay::init(webgpu::Context& ctx)
+void HeightLinesOverlay::init(Context& context)
 {
+    webgpu::Context& ctx = context.webgpu_ctx();
     m_ctx = &ctx;
 
     auto& reg = ctx.resource_registry();

@@ -19,6 +19,7 @@
 
 #include "TextureOverlay.h"
 
+#include "webgpu_engine/Context.h"
 #include "webgpu_engine/gpu_utils.h"
 #include <nucleus/utils/geopng_decoder.h>
 #include <nucleus/utils/image_loader.h>
@@ -71,8 +72,9 @@ void TextureOverlay::load_texture(const webgpu::raii::TextureWithSampler& source
         compute_mipmaps_for_texture(*m_ctx, &m_overlay_texture->texture());
 }
 
-void TextureOverlay::init(webgpu::Context& ctx)
+void TextureOverlay::init(Context& context)
 {
+    webgpu::Context& ctx = context.webgpu_ctx();
     m_ctx = &ctx;
 
     auto& reg = ctx.resource_registry();

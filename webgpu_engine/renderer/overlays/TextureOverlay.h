@@ -57,7 +57,7 @@ public:
     void link_texture(const webgpu::raii::TextureWithSampler* texture);
     [[nodiscard]] bool is_linked() const { return m_linked_texture != nullptr; }
 
-    void init(webgpu::Context& ctx) override;
+    void init(Context& ctx) override;
     void ready(webgpu::Context& ctx) override;
     void update_gpu_settings();
     void draw(const WGPUCommandEncoder& command_encoder,
