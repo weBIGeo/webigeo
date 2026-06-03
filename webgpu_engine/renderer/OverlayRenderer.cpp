@@ -31,7 +31,7 @@ OverlayRenderer::OverlayRenderer()
 
 void OverlayRenderer::add_overlay(std::shared_ptr<Overlay> overlay)
 {
-    // Auto-assign the highest positive z_index (always unique, always post-shading at top)
+    // Auto-assign the highest positive z_index
     int max_z = 0;
     for (const auto& o : m_overlays)
         max_z = std::max(max_z, o->z_index);
@@ -42,7 +42,7 @@ void OverlayRenderer::add_overlay(std::shared_ptr<Overlay> overlay)
         if (m_is_ready)
             overlay->ready(*m_ctx);
     }
-    m_overlays.push_back(std::move(overlay)); // z_index is highest → goes to back (ascending sort)
+    m_overlays.push_back(std::move(overlay));
     rebucket();
 }
 
@@ -67,7 +67,7 @@ void OverlayRenderer::rebucket()
     m_pre_overlays.clear();
     m_post_overlays.clear();
     for (const auto& overlay : m_overlays)
-        (overlay->z_index < 0 ? m_pre_overlays : m_post_overlays).push_back(overlay);
+        (overlay->z_index < 0 ? m_pre_overlays : m_post_overlays).push_back(overlay.get());
 }
 
 void OverlayRenderer::init(webgpu::Context& ctx)
@@ -133,16 +133,20 @@ void OverlayRenderer::draw(const WGPUCommandEncoder& command_encoder,
     draw_bucket(command_encoder, m_post_overlays, m_post, position_view, normal_view, overlay_view, shared_config_bg, camera_bg, output_size);
 }
 
-void OverlayRenderer::draw_bucket(const WGPUCommandEncoder& command_encoder, const std::vector<std::shared_ptr<Overlay>>& bucket, TexturePair& tex,
-    const webgpu::raii::TextureView& position_view, const webgpu::raii::TextureView& normal_view, const webgpu::raii::TextureView& overlay_view,
-    const WGPUBindGroup& shared_config_bg, const WGPUBindGroup& camera_bg, glm::uvec2 output_size)
+void OverlayRenderer::draw_bucket(const WGPUCommandEncoder& command_encoder,
+    const std::vector<Overlay*>& bucket,
+    TexturePair& tex,
+    const webgpu::raii::TextureView& position_view,
+    const webgpu::raii::TextureView& normal_view,
+    const webgpu::raii::TextureView& overlay_view,
+    const WGPUBindGroup& shared_config_bg,
+    const WGPUBindGroup& camera_bg,
+    glm::uvec2 output_size)
 {
-    // Start on T[N % 2] so the final write lands on index 0 for any overlay count N (each overlay
-    // flips current->other, and (N%2 + N) is always even). Index 0 is the persistent result slot.
+    // Start on T[N % 2] so the final write lands on index 0
     int current = static_cast<int>(bucket.size() % 2);
 
-    // Clear the start texture every frame: overlay 0 reads it as its background and composites over it,
-    // so stale content would ghost. (For an empty bucket the cleared texture is simply the result.)
+    // Clear the start texture
     WGPURenderPassColorAttachment clear_attachment {};
     clear_attachment.view = tex[static_cast<size_t>(current)]->texture_view().handle();
     clear_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
@@ -152,15 +156,23 @@ void OverlayRenderer::draw_bucket(const WGPUCommandEncoder& command_encoder, con
     WGPURenderPassDescriptor clear_pass_desc {};
     clear_pass_desc.colorAttachmentCount = 1;
     clear_pass_desc.colorAttachments = &clear_attachment;
-    { webgpu::raii::RenderPassEncoder clear_pass(command_encoder, clear_pass_desc); }
+    {
+        webgpu::raii::RenderPassEncoder clear_pass(command_encoder, clear_pass_desc);
+    }
 
     for (auto& overlay : bucket) {
         const int target = current ^ 1;
-        overlay->draw(command_encoder, position_view, normal_view, overlay_view, shared_config_bg, camera_bg,
-            *tex[static_cast<size_t>(current)], *tex[static_cast<size_t>(target)], output_size);
+        overlay->draw(command_encoder,
+            position_view,
+            normal_view,
+            overlay_view,
+            shared_config_bg,
+            camera_bg,
+            *tex[static_cast<size_t>(current)],
+            *tex[static_cast<size_t>(target)],
+            output_size);
         current = target;
     }
-    // Result is now guaranteed to be in index 0.
 }
 
 const webgpu::raii::TextureView* OverlayRenderer::result_pre_view() const { return m_pre[0] ? &m_pre[0]->texture_view() : nullptr; }

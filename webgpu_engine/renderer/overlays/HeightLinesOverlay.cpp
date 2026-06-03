@@ -34,8 +34,6 @@ void HeightLinesOverlay::init(webgpu::Context& ctx)
     m_ctx = &ctx;
 
     auto& reg = ctx.resource_registry();
-    // Shader and bind group layout are shared across all instances of this overlay type;
-    // only register them once (multiple instances would otherwise re-register the same name).
     if (!reg.has_shader("height_lines_compute"))
         reg.register_shader("height_lines_compute", "overlays/height_lines.wgsl");
     if (!reg.has_bind_group_layout("height_lines_overlay"))
@@ -111,8 +109,6 @@ void HeightLinesOverlay::draw(const WGPUCommandEncoder& command_encoder,
     if (!m_pipeline)
         return;
 
-    // Ping-pong: read the previous overlay state from current_input (binding 4), write the composited
-    // result into target_output (binding 3). The shader writes every pixel (passthrough where empty).
     webgpu::raii::BindGroup bind_group(m_ctx->device(),
         m_ctx->resource_registry().bind_group_layout("height_lines_overlay"),
         std::vector<WGPUBindGroupEntry> {

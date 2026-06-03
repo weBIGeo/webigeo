@@ -58,7 +58,7 @@ void TextureOverlay::load_texture(const webgpu::raii::TextureWithSampler& source
     m_linked_texture = nullptr; // owned source takes over
     create_texture(*m_ctx, uint32_t(source.texture().width()), uint32_t(source.texture().height()));
 
-    // GPU->GPU copy of mip 0 into our own texture (one-off command submission).
+    // GPU -> GPU copy of mip 0 into our own texture
     WGPUCommandEncoderDescriptor encoder_desc {};
     webgpu::raii::CommandEncoder encoder(m_ctx->device(), encoder_desc);
     source.texture().copy_to_texture(encoder.handle(), 0, m_overlay_texture->texture(), 0);
@@ -76,8 +76,6 @@ void TextureOverlay::init(webgpu::Context& ctx)
     m_ctx = &ctx;
 
     auto& reg = ctx.resource_registry();
-    // Shader and bind group layout are shared across all instances of this overlay type;
-    // only register them once (multiple instances would otherwise re-register the same name).
     if (!reg.has_shader("texture_overlay_render"))
         reg.register_shader("texture_overlay_render", "overlays/texture_overlay.wgsl");
     if (!reg.has_bind_group_layout("texture_overlay"))
@@ -104,7 +102,6 @@ void TextureOverlay::init(webgpu::Context& ctx)
             overlay_sampler_entry.visibility = WGPUShaderStage_Fragment;
             overlay_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
 
-            // Ping-pong background (previous overlay state) sampled via textureLoad — no sampler needed.
             WGPUBindGroupLayoutEntry background_entry {};
             background_entry.binding = 4;
             background_entry.visibility = WGPUShaderStage_Fragment;
@@ -120,8 +117,6 @@ void TextureOverlay::init(webgpu::Context& ctx)
         format.depth_format = WGPUTextureFormat_Undefined;
         format.color_formats = { WGPUTextureFormat_RGBA8Unorm };
 
-        // No blend state: the fullscreen pass writes every pixel and composites over the ping-pong
-        // background in-shader (premultiplied "over"), matching the compute overlays.
         m_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(device,
             reg.shader("texture_overlay_render"),
             reg.shader("texture_overlay_render"),
@@ -195,12 +190,11 @@ void TextureOverlay::draw(const WGPUCommandEncoder& command_encoder,
     webgpu::raii::TextureWithSampler& target_output,
     glm::uvec2 /*output_size*/)
 {
-    // A linked (external) texture takes precedence over the owned one.
+    // A linked (external) texture takes priority over the owned one.
     const webgpu::raii::TextureWithSampler* tex = m_linked_texture ? m_linked_texture : m_overlay_texture.get();
     if (!tex || !m_pipeline)
         return;
 
-    // Ping-pong: sample the previous overlay state from current_input (binding 4) and composite in-shader.
     webgpu::raii::BindGroup bind_group(m_ctx->device(),
         m_ctx->resource_registry().bind_group_layout("texture_overlay"),
         std::vector<WGPUBindGroupEntry> {
@@ -212,8 +206,7 @@ void TextureOverlay::draw(const WGPUCommandEncoder& command_encoder,
         },
         "texture overlay bind group");
 
-    // The fullscreen triangle writes every pixel, so loadOp=Clear (the background is read from
-    // current_input as a sampled texture, not from the attachment).
+    // The fullscreen triangle writes every pixel, so loadOp doesnt matter (clear=fastest)
     WGPURenderPassColorAttachment color_attachment {};
     color_attachment.view = target_output.texture_view().handle();
     color_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;

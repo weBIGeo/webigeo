@@ -33,21 +33,19 @@ public:
     // NOTE: z_index < 0 -> pre-shading bucket, z_index >= 0 -> post-shading bucket
     int z_index = 0;
 
-    // User-configurable display name. Empty -> the UI falls back to the overlay type name.
+    // User-configurable display name
     std::string name;
 
     virtual ~Overlay() = default;
+    // Initialization code for GPU Ressources goes here. Needs to be called after creation.
     virtual void init(webgpu::Context& ctx) = 0;
     // Called once all shared GPU resources (compiled shaders, pipelines, bind group layouts)
-    // have been created. From here on it is safe to use them and to upload GPU data (e.g. textures).
-    virtual void ready(webgpu::Context& /*ctx*/) {}
-    // Ping-pong contract (OverlayRenderer owns both textures, RGBA8Unorm, distinct):
+    // have been created. From here on it is safe to use them and to upload GPU data.
+    virtual void ready(webgpu::Context& /*ctx*/) { }
+    // IMPORTANT: Ping-pong contract (OverlayRenderer owns both textures, RGBA8Unorm, distinct):
     //   read the previous overlay state from current_input, write the composited result to target_output,
-    //   and write EVERY pixel — real output where the overlay draws, passthrough (current_input) everywhere
-    //   else. Skipping a pixel drops the background there.
-    // Compute overlays sample current_input and textureStore() into target_output as rgba8unorm storage.
-    // Render overlays sample current_input in the fragment shader and composite in-shader (no blend state),
-    // rendering a fullscreen triangle into target_output (which covers every pixel).
+    //   and write EVERY pixel. Skipping a pixel leaves color in undefined state!
+    //   Use man
     virtual void draw(const WGPUCommandEncoder& command_encoder,
         const webgpu::raii::TextureView& position_view,
         const webgpu::raii::TextureView& normal_view,

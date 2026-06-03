@@ -35,8 +35,6 @@ void TileDebugOverlay::init(webgpu::Context& ctx)
     m_ctx = &ctx;
 
     auto& reg = ctx.resource_registry();
-    // Shader and bind group layout are shared across all instances of this overlay type;
-    // only register them once (multiple instances would otherwise re-register the same name).
     if (!reg.has_shader("gbuffer_debug_compute"))
         reg.register_shader("gbuffer_debug_compute", "overlays/gbuffer_debug.wgsl");
     if (!reg.has_bind_group_layout("tile_debug_overlay"))
@@ -104,8 +102,6 @@ void TileDebugOverlay::draw(const WGPUCommandEncoder& command_encoder,
     if (!m_pipeline)
         return;
 
-    // Ping-pong: read the previous overlay state from current_input (binding 3), write the composited
-    // result into target_output (binding 2). The shader writes every pixel (passthrough where empty).
     webgpu::raii::BindGroup bind_group(m_ctx->device(),
         m_ctx->resource_registry().bind_group_layout("tile_debug_overlay"),
         std::vector<WGPUBindGroupEntry> {

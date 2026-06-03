@@ -27,11 +27,7 @@
 
 namespace webgpu_engine {
 
-// Displays the per-tile debug data that render_tiles.wgsl packs into GBuffer slot 3, selected
-// by `settings.mode`. Because that data lives in a single shared GBuffer attachment (one mode
-// per frame), only one TileDebugOverlay may exist at a time. The selected mode is forwarded to
-// shared_config.m_overlay_mode by the Window so render_tiles knows what to pack; this overlay
-// itself only unpacks slot 3 and composites it.
+// Displays the per-tile debug data that render_tiles.wgsl packs into GBuffer slot 3.
 class TileDebugOverlay : public Overlay {
 public:
     // Values must match the overlay_mode branches in render_tiles.wgsl.
@@ -44,13 +40,13 @@ public:
 
     struct Settings {
         int mode = static_cast<int>(Mode::Normals); // consumed CPU-side (forwarded to shared_config)
-        float strength = 1.0f; // uploaded to the GPU settings uniform
+        float strength = 1.0f;
     };
 
     TileDebugOverlay();
 
     void init(webgpu::Context& ctx) override;
-    void update_settings(); // upload settings to GPU after changing the settings field
+    void update_settings();
     void draw(const WGPUCommandEncoder& command_encoder,
         const webgpu::raii::TextureView& position_view,
         const webgpu::raii::TextureView& normal_view,
@@ -64,7 +60,6 @@ public:
     Settings settings;
 
 private:
-    // GPU layout of the settings uniform (only the GPU-relevant subset of Settings).
     struct GpuSettings {
         float strength = 1.0f;
     };

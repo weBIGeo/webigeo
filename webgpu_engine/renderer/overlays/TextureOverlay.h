@@ -34,8 +34,6 @@ class TextureOverlay : public Overlay {
 public:
     enum class FilterMode { Nearest, Linear };
     enum class Mode { AlphaBlend, EncodedFloat };
-
-    // Outward-facing, user-tweakable settings.
     struct Settings {
         radix::geometry::Aabb<2, double> aabb = { { 0.0, 0.0 }, { 1.0, 1.0 } }; // world-space extent
         float opacity = 1.0f;
@@ -48,20 +46,15 @@ public:
 
     TextureOverlay();
 
-    // Load an RGBA8 image from disk into the overlay's own texture.
+    // Load an RGBA8 image from disk into the overlays own texture.
     void load_image(const QString& path);
 
-    // Copy an external RGBA8 GPU texture (e.g. a compute node output) into the overlay's
-    // own texture (with mipmaps per settings). The source is only read during this call,
-    // so the overlay does not depend on its lifetime afterwards.
+    // Copy an external GPU texture into the overlays own texture.
     void load_texture(const webgpu::raii::TextureWithSampler& source);
 
-    // Link an external GPU texture directly (non-owning): the overlay samples it through
-    // the source's own sampler. The caller must keep it alive while linked; pass nullptr
-    // to unlink. While linked, settings.filter_mode/use_mipmaps have no effect.
+    // Link an external GPU texture directly (non-owning). The caller must keep it alive while linked.
+    // pass nullptr to unlink. While linked, settings.filter_mode/use_mipmaps have no effect.
     void link_texture(const webgpu::raii::TextureWithSampler* texture);
-
-    // True while a linked (external) texture is in use rather than the overlay's own one.
     [[nodiscard]] bool is_linked() const { return m_linked_texture != nullptr; }
 
     void init(webgpu::Context& ctx) override;
@@ -78,17 +71,15 @@ public:
         glm::uvec2 output_size) override;
 
 private:
-    // Internal GPU uniform — must match WGSL struct TextureOverlaySettings layout exactly
     struct GpuSettings {
-        glm::vec2 aabb_min = glm::vec2(0.0f); // offset  0
-        glm::vec2 aabb_size = glm::vec2(1.0f); // offset  8
-        float opacity = 1.0f; // offset 16
-        uint32_t mode = 0u; // offset 20  (0=AlphaBlend, 1=EncodedFloat)
-        glm::vec2 float_decode_range = glm::vec2(0.0f, 20.0f); // offset 24  (user visualization range)
-        glm::vec2 encoded_float_range; // offset 32  (encoding format range)
-    }; // total  40 bytes
+        glm::vec2 aabb_min = glm::vec2(0.0f);
+        glm::vec2 aabb_size = glm::vec2(1.0f);
+        float opacity = 1.0f;
+        uint32_t mode = 0u; // (0=AlphaBlend, 1=EncodedFloat)
+        glm::vec2 float_decode_range = glm::vec2(0.0f, 20.0f); // user visualization range
+        glm::vec2 encoded_float_range; // encoding format range (defined in geopng module)
+    };
 
-    // (Re)creates m_overlay_texture sized w*h (RGBA8, mip levels + sampler per settings).
     void create_texture(webgpu::Context& ctx, uint32_t width, uint32_t height);
 
     webgpu::Context* m_ctx = nullptr;
@@ -97,7 +88,7 @@ private:
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_pipeline;
     std::unique_ptr<webgpu_engine::Buffer<GpuSettings>> m_settings_uniform;
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_overlay_texture; // owned source (load_image/load_texture)
-    const webgpu::raii::TextureWithSampler* m_linked_texture = nullptr; // borrowed source; takes precedence while set
+    const webgpu::raii::TextureWithSampler* m_linked_texture = nullptr; // borrowed source (link_texture)
 };
 
 } // namespace webgpu_engine
