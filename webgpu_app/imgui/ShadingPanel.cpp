@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "IlluminationPanel.h"
+#include "ShadingPanel.h"
 
 #include <IconsFontAwesome5.h>
 #include <imgui.h>
@@ -26,16 +26,19 @@
 
 namespace webgpu_app {
 
-IlluminationPanel::IlluminationPanel(webgpu_engine::Context* context)
+ShadingPanel::ShadingPanel(webgpu_engine::Context* context)
     : m_context(context)
 {
 }
 
-void IlluminationPanel::draw_panel()
+void ShadingPanel::draw_panel()
 {
-    if (ImGui::CollapsingHeader(ICON_FA_SUN "  Illumination")) {
+    if (ImGui::CollapsingHeader(ICON_FA_SUN "  Shading")) {
         auto& cfg = m_context->shared_config();
-        bool changed = ImGui::ColorEdit3("Light Color", (float*)&cfg.m_sun_light);
+
+        bool changed = ImGui::Combo("Normal Mode", (int*)&cfg.m_normal_mode, "None\0Flat\0Smooth\0\0");
+        ImGui::Separator();
+        changed |= ImGui::ColorEdit3("Light Color", (float*)&cfg.m_sun_light);
         changed |= ImGui::SliderFloat("Light Intensity", &cfg.m_sun_light.w, 0.0f, 10.0f);
         changed |= ImGui::DragFloat3("Light Direction", (float*)&cfg.m_sun_light_dir, 0.01f, -1.0f, 1.0f);
         ImGui::Separator();

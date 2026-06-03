@@ -277,9 +277,6 @@ void Window::paint_gui()
 {
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
 
-    if (ImGui::Combo("Normal Mode", (int*)&m_context->shared_config().m_normal_mode, "None\0Flat\0Smooth\0\0")) {
-        m_needs_redraw = true;
-    }
     {
         // Tile-debug overlays (Normals/Tiles/Zoomlevel/Vertex-ID) now live in the Overlays panel
         // as a TileDebugOverlay; the compose-stage overlays (Decoded Normals/Steepness/...) were removed.

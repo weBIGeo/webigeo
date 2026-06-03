@@ -26,9 +26,9 @@ class Context;
 
 namespace webgpu_app {
 
-class IlluminationPanel : public ImGuiPanel {
+class ShadingPanel : public ImGuiPanel {
 public:
-    explicit IlluminationPanel(webgpu_engine::Context* context);
+    explicit ShadingPanel(webgpu_engine::Context* context);
     void draw_panel() override;
 
 private:

@@ -42,7 +42,7 @@ if (ALP_WEBGPU_APP_ENABLE_IMGUI)
         imgui/CameraPanel.h imgui/CameraPanel.cpp
         imgui/AppPanel.h imgui/AppPanel.cpp
         imgui/CloudPanel.h imgui/CloudPanel.cpp
-        imgui/IlluminationPanel.h imgui/IlluminationPanel.cpp
+        imgui/ShadingPanel.h imgui/ShadingPanel.cpp
         imgui/EnginePanel.h imgui/EnginePanel.cpp
         imgui/AboutPanel.h imgui/AboutPanel.cpp
         imgui/CompassPanel.h imgui/CompassPanel.cpp

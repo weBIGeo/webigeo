@@ -32,10 +32,10 @@
 #include "imgui/CloudPanel.h"
 #include "imgui/CompassPanel.h"
 #include "imgui/EnginePanel.h"
-#include "imgui/IlluminationPanel.h"
 #include "imgui/LogoPanel.h"
 #include "imgui/OverlaysPanel.h"
 #include "imgui/SearchPanel.h"
+#include "imgui/ShadingPanel.h"
 #include "imgui/TimingPanel.h"
 #include "imgui/TrackPanel.h"
 #include <IconsFontAwesome5.h>
@@ -93,7 +93,7 @@ void ImGuiManager::init(
     m_panels.push_back(std::make_unique<CameraPanel>(m_terrain_renderer));
     m_panels.push_back(std::make_unique<AppPanel>(m_terrain_renderer));
     m_panels.push_back(std::make_unique<CloudPanel>(rc->clouds_manager(), engine_ctx->cloud_renderer()));
-    m_panels.push_back(std::make_unique<IlluminationPanel>(engine_ctx));
+    m_panels.push_back(std::make_unique<ShadingPanel>(engine_ctx));
     m_panels.push_back(std::make_unique<OverlaysPanel>(engine_ctx));
     m_panels.push_back(std::make_unique<TrackPanel>(engine_ctx));
     m_panels.push_back(std::make_unique<EnginePanel>(m_terrain_renderer));
