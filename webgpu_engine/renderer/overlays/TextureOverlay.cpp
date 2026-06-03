@@ -1,6 +1,7 @@
 /*****************************************************************************
  * weBIGeo
  * Copyright (C) 2026 Gerald Kimmersdorfer
+ * Copyright (C) 2024 Patrick Komon
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -103,8 +104,15 @@ void TextureOverlay::init(webgpu::Context& ctx)
             overlay_sampler_entry.visibility = WGPUShaderStage_Fragment;
             overlay_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
 
+            // Ping-pong background (previous overlay state) sampled via textureLoad — no sampler needed.
+            WGPUBindGroupLayoutEntry background_entry {};
+            background_entry.binding = 4;
+            background_entry.visibility = WGPUShaderStage_Fragment;
+            background_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
+            background_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
             return std::make_unique<webgpu::raii::BindGroupLayout>(device,
-                std::vector<WGPUBindGroupLayoutEntry> { position_entry, settings_entry, overlay_texture_entry, overlay_sampler_entry },
+                std::vector<WGPUBindGroupLayoutEntry> { position_entry, settings_entry, overlay_texture_entry, overlay_sampler_entry, background_entry },
                 "texture overlay bind group layout");
         });
     reg.register_pipeline([this](WGPUDevice device, const webgpu::RenderResourceRegistry& reg) {
@@ -112,14 +120,8 @@ void TextureOverlay::init(webgpu::Context& ctx)
         format.depth_format = WGPUTextureFormat_Undefined;
         format.color_formats = { WGPUTextureFormat_RGBA8Unorm };
 
-        WGPUBlendState blend {};
-        blend.color.operation = WGPUBlendOperation_Add;
-        blend.color.srcFactor = WGPUBlendFactor_One; // source is premultiplied
-        blend.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
-        blend.alpha.operation = WGPUBlendOperation_Add;
-        blend.alpha.srcFactor = WGPUBlendFactor_One;
-        blend.alpha.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
-
+        // No blend state: the fullscreen pass writes every pixel and composites over the ping-pong
+        // background in-shader (premultiplied "over"), matching the compute overlays.
         m_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(device,
             reg.shader("texture_overlay_render"),
             reg.shader("texture_overlay_render"),
@@ -129,8 +131,7 @@ void TextureOverlay::init(webgpu::Context& ctx)
                 &reg.bind_group_layout("shared_config"),
                 &reg.bind_group_layout("camera"),
                 &reg.bind_group_layout("texture_overlay"),
-            },
-            std::vector<std::optional<WGPUBlendState>> { blend });
+            });
     });
 
     m_settings_uniform = std::make_unique<webgpu_engine::Buffer<GpuSettings>>(ctx.device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
@@ -190,7 +191,8 @@ void TextureOverlay::draw(const WGPUCommandEncoder& command_encoder,
     const webgpu::raii::TextureView& /*overlay_view*/,
     const WGPUBindGroup& shared_config_bg,
     const WGPUBindGroup& camera_bg,
-    webgpu::raii::TextureWithSampler& output,
+    const webgpu::raii::TextureWithSampler& current_input,
+    webgpu::raii::TextureWithSampler& target_output,
     glm::uvec2 /*output_size*/)
 {
     // A linked (external) texture takes precedence over the owned one.
@@ -198,6 +200,7 @@ void TextureOverlay::draw(const WGPUCommandEncoder& command_encoder,
     if (!tex || !m_pipeline)
         return;
 
+    // Ping-pong: sample the previous overlay state from current_input (binding 4) and composite in-shader.
     webgpu::raii::BindGroup bind_group(m_ctx->device(),
         m_ctx->resource_registry().bind_group_layout("texture_overlay"),
         std::vector<WGPUBindGroupEntry> {
@@ -205,14 +208,18 @@ void TextureOverlay::draw(const WGPUCommandEncoder& command_encoder,
             m_settings_uniform->raw_buffer().create_bind_group_entry(1),
             tex->texture_view().create_bind_group_entry(2),
             tex->sampler().create_bind_group_entry(3),
+            current_input.texture_view().create_bind_group_entry(4),
         },
         "texture overlay bind group");
 
+    // The fullscreen triangle writes every pixel, so loadOp=Clear (the background is read from
+    // current_input as a sampled texture, not from the attachment).
     WGPURenderPassColorAttachment color_attachment {};
-    color_attachment.view = output.texture_view().handle();
+    color_attachment.view = target_output.texture_view().handle();
     color_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
-    color_attachment.loadOp = WGPULoadOp_Load;
+    color_attachment.loadOp = WGPULoadOp_Clear;
     color_attachment.storeOp = WGPUStoreOp_Store;
+    color_attachment.clearValue = { 0.0, 0.0, 0.0, 0.0 };
 
     WGPURenderPassDescriptor render_pass_desc {};
     render_pass_desc.label = WGPUStringView { .data = "texture overlay render pass", .length = WGPU_STRLEN };

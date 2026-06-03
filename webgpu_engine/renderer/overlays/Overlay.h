@@ -41,18 +41,21 @@ public:
     // Called once all shared GPU resources (compiled shaders, pipelines, bind group layouts)
     // have been created. From here on it is safe to use them and to upload GPU data (e.g. textures).
     virtual void ready(webgpu::Context& /*ctx*/) {}
-    // Called when the output texture is resized. Compute overlays override to resize their copy texture.
-    virtual void resize(glm::uvec2 /*size*/) {}
-    // output is RGBA8Unorm owned by OverlayRenderer.
-    // Compute overlays copy output.texture() → own m_copy_texture, then write to output.texture_view() as rgba8unorm storage.
-    // Render overlays begin a render pass on output.texture_view() with loadOp=Load; blend state composites on top.
+    // Ping-pong contract (OverlayRenderer owns both textures, RGBA8Unorm, distinct):
+    //   read the previous overlay state from current_input, write the composited result to target_output,
+    //   and write EVERY pixel — real output where the overlay draws, passthrough (current_input) everywhere
+    //   else. Skipping a pixel drops the background there.
+    // Compute overlays sample current_input and textureStore() into target_output as rgba8unorm storage.
+    // Render overlays sample current_input in the fragment shader and composite in-shader (no blend state),
+    // rendering a fullscreen triangle into target_output (which covers every pixel).
     virtual void draw(const WGPUCommandEncoder& command_encoder,
         const webgpu::raii::TextureView& position_view,
         const webgpu::raii::TextureView& normal_view,
         const webgpu::raii::TextureView& overlay_view, // GBuffer slot 3 (packed tile-debug data)
         const WGPUBindGroup& shared_config_bg,
         const WGPUBindGroup& camera_bg,
-        webgpu::raii::TextureWithSampler& output,
+        const webgpu::raii::TextureWithSampler& current_input,
+        webgpu::raii::TextureWithSampler& target_output,
         glm::uvec2 output_size) = 0;
 };
 

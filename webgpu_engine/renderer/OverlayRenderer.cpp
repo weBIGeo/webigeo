@@ -41,16 +41,17 @@ void OverlayRenderer::add_overlay(std::shared_ptr<Overlay> overlay)
         overlay->init(*m_ctx);
         if (m_is_ready)
             overlay->ready(*m_ctx);
-        if (m_pre_output_texture)
-            overlay->resize(glm::uvec2(m_pre_output_texture->texture().width(), m_pre_output_texture->texture().height()));
     }
     m_overlays.push_back(std::move(overlay)); // z_index is highest → goes to back (ascending sort)
+    rebucket();
 }
 
 void OverlayRenderer::remove_overlay(size_t index)
 {
-    if (index < m_overlays.size())
+    if (index < m_overlays.size()) {
         m_overlays.erase(m_overlays.begin() + static_cast<ptrdiff_t>(index));
+        rebucket();
+    }
 }
 
 const std::vector<std::shared_ptr<Overlay>>& OverlayRenderer::overlays() const { return m_overlays; }
@@ -58,6 +59,15 @@ const std::vector<std::shared_ptr<Overlay>>& OverlayRenderer::overlays() const {
 void OverlayRenderer::sort_overlays()
 {
     std::sort(m_overlays.begin(), m_overlays.end(), [](const auto& a, const auto& b) { return a->z_index < b->z_index; });
+    rebucket();
+}
+
+void OverlayRenderer::rebucket()
+{
+    m_pre_overlays.clear();
+    m_post_overlays.clear();
+    for (const auto& overlay : m_overlays)
+        (overlay->z_index < 0 ? m_pre_overlays : m_post_overlays).push_back(overlay);
 }
 
 void OverlayRenderer::init(webgpu::Context& ctx)
@@ -105,11 +115,10 @@ void OverlayRenderer::resize(int w, int h)
 {
     if (!m_ctx)
         return;
-    m_pre_output_texture = create_output_texture(w, h, "overlay pre-shading texture");
-    m_post_output_texture = create_output_texture(w, h, "overlay post-shading texture");
-    const glm::uvec2 size(w, h);
-    for (auto& overlay : m_overlays)
-        overlay->resize(size);
+    m_pre[0] = create_output_texture(w, h, "overlay pre-shading texture 0");
+    m_pre[1] = create_output_texture(w, h, "overlay pre-shading texture 1");
+    m_post[0] = create_output_texture(w, h, "overlay post-shading texture 0");
+    m_post[1] = create_output_texture(w, h, "overlay post-shading texture 1");
 }
 
 void OverlayRenderer::draw(const WGPUCommandEncoder& command_encoder,
@@ -119,31 +128,43 @@ void OverlayRenderer::draw(const WGPUCommandEncoder& command_encoder,
     const WGPUBindGroup& shared_config_bg,
     const WGPUBindGroup& camera_bg)
 {
-    const glm::uvec2 output_size(m_pre_output_texture->texture().width(), m_pre_output_texture->texture().height());
-
-    // Clear both output textures at the start of each frame
-    for (auto* tex : { m_pre_output_texture.get(), m_post_output_texture.get() }) {
-        WGPURenderPassColorAttachment clear_attachment {};
-        clear_attachment.view = tex->texture_view().handle();
-        clear_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
-        clear_attachment.loadOp = WGPULoadOp_Clear;
-        clear_attachment.storeOp = WGPUStoreOp_Store;
-        clear_attachment.clearValue = { 0.0, 0.0, 0.0, 0.0 };
-        WGPURenderPassDescriptor clear_pass_desc {};
-        clear_pass_desc.colorAttachmentCount = 1;
-        clear_pass_desc.colorAttachments = &clear_attachment;
-        webgpu::raii::RenderPassEncoder clear_pass(command_encoder, clear_pass_desc);
-    }
-
-    // Dispatch each overlay with the appropriate bucket texture
-    for (auto& overlay : m_overlays) {
-        auto& output = (overlay->z_index < 0) ? *m_pre_output_texture : *m_post_output_texture;
-        overlay->draw(command_encoder, position_view, normal_view, overlay_view, shared_config_bg, camera_bg, output, output_size);
-    }
+    const glm::uvec2 output_size(m_pre[0]->texture().width(), m_pre[0]->texture().height());
+    draw_bucket(command_encoder, m_pre_overlays, m_pre, position_view, normal_view, overlay_view, shared_config_bg, camera_bg, output_size);
+    draw_bucket(command_encoder, m_post_overlays, m_post, position_view, normal_view, overlay_view, shared_config_bg, camera_bg, output_size);
 }
 
-const webgpu::raii::TextureView* OverlayRenderer::result_pre_view() const { return m_pre_output_texture ? &m_pre_output_texture->texture_view() : nullptr; }
+void OverlayRenderer::draw_bucket(const WGPUCommandEncoder& command_encoder, const std::vector<std::shared_ptr<Overlay>>& bucket, TexturePair& tex,
+    const webgpu::raii::TextureView& position_view, const webgpu::raii::TextureView& normal_view, const webgpu::raii::TextureView& overlay_view,
+    const WGPUBindGroup& shared_config_bg, const WGPUBindGroup& camera_bg, glm::uvec2 output_size)
+{
+    // Start on T[N % 2] so the final write lands on index 0 for any overlay count N (each overlay
+    // flips current->other, and (N%2 + N) is always even). Index 0 is the persistent result slot.
+    int current = static_cast<int>(bucket.size() % 2);
 
-const webgpu::raii::TextureView* OverlayRenderer::result_post_view() const { return m_post_output_texture ? &m_post_output_texture->texture_view() : nullptr; }
+    // Clear the start texture every frame: overlay 0 reads it as its background and composites over it,
+    // so stale content would ghost. (For an empty bucket the cleared texture is simply the result.)
+    WGPURenderPassColorAttachment clear_attachment {};
+    clear_attachment.view = tex[static_cast<size_t>(current)]->texture_view().handle();
+    clear_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+    clear_attachment.loadOp = WGPULoadOp_Clear;
+    clear_attachment.storeOp = WGPUStoreOp_Store;
+    clear_attachment.clearValue = { 0.0, 0.0, 0.0, 0.0 };
+    WGPURenderPassDescriptor clear_pass_desc {};
+    clear_pass_desc.colorAttachmentCount = 1;
+    clear_pass_desc.colorAttachments = &clear_attachment;
+    { webgpu::raii::RenderPassEncoder clear_pass(command_encoder, clear_pass_desc); }
+
+    for (auto& overlay : bucket) {
+        const int target = current ^ 1;
+        overlay->draw(command_encoder, position_view, normal_view, overlay_view, shared_config_bg, camera_bg,
+            *tex[static_cast<size_t>(current)], *tex[static_cast<size_t>(target)], output_size);
+        current = target;
+    }
+    // Result is now guaranteed to be in index 0.
+}
+
+const webgpu::raii::TextureView* OverlayRenderer::result_pre_view() const { return m_pre[0] ? &m_pre[0]->texture_view() : nullptr; }
+
+const webgpu::raii::TextureView* OverlayRenderer::result_post_view() const { return m_post[0] ? &m_post[0]->texture_view() : nullptr; }
 
 } // namespace webgpu_engine

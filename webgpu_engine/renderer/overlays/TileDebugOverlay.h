@@ -1,6 +1,7 @@
 /*****************************************************************************
  * weBIGeo
  * Copyright (C) 2026 Gerald Kimmersdorfer
+ * Copyright (C) 2024 Patrick Komon
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -49,7 +50,6 @@ public:
     TileDebugOverlay();
 
     void init(webgpu::Context& ctx) override;
-    void resize(glm::uvec2 size) override;
     void update_settings(); // upload settings to GPU after changing the settings field
     void draw(const WGPUCommandEncoder& command_encoder,
         const webgpu::raii::TextureView& position_view,
@@ -57,7 +57,8 @@ public:
         const webgpu::raii::TextureView& overlay_view,
         const WGPUBindGroup& shared_config_bg,
         const WGPUBindGroup& camera_bg,
-        webgpu::raii::TextureWithSampler& output,
+        const webgpu::raii::TextureWithSampler& current_input,
+        webgpu::raii::TextureWithSampler& target_output,
         glm::uvec2 output_size) override;
 
     Settings settings;
@@ -71,7 +72,6 @@ private:
     webgpu::Context* m_ctx = nullptr;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_pipeline;
     std::unique_ptr<webgpu_engine::Buffer<GpuSettings>> m_settings_uniform;
-    std::unique_ptr<webgpu::raii::TextureWithSampler> m_copy_texture; // prev state for compositing
 };
 
 } // namespace webgpu_engine

@@ -20,6 +20,7 @@
 
 #include "overlays/Overlay.h"
 #include <QObject>
+#include <array>
 #include <memory>
 #include <vector>
 #include <webgpu/Context.h>
@@ -57,13 +58,28 @@ public:
     [[nodiscard]] const webgpu::raii::TextureView* result_post_view() const;
 
 private:
+    using TexturePair = std::array<std::unique_ptr<webgpu::raii::TextureWithSampler>, 2>;
+
     std::unique_ptr<webgpu::raii::TextureWithSampler> create_output_texture(int w, int h, const char* label) const;
+    // Refill m_pre_overlays / m_post_overlays from m_overlays (z_index < 0 -> pre, else post),
+    // preserving order. Call after any change to the overlay set or its z_indices.
+    void rebucket();
+    // Render one bucket into its ping-pong pair: each overlay reads "current", writes "other", swap.
+    void draw_bucket(const WGPUCommandEncoder& command_encoder, const std::vector<std::shared_ptr<Overlay>>& bucket, TexturePair& tex,
+        const webgpu::raii::TextureView& position_view, const webgpu::raii::TextureView& normal_view, const webgpu::raii::TextureView& overlay_view,
+        const WGPUBindGroup& shared_config_bg, const WGPUBindGroup& camera_bg, glm::uvec2 output_size);
 
     webgpu::Context* m_ctx = nullptr;
     bool m_is_ready = false;
-    std::vector<std::shared_ptr<Overlay>> m_overlays; // stable-sorted by z_index ascending
-    std::unique_ptr<webgpu::raii::TextureWithSampler> m_pre_output_texture;
-    std::unique_ptr<webgpu::raii::TextureWithSampler> m_post_output_texture;
+    std::vector<std::shared_ptr<Overlay>> m_overlays; // canonical, owning; stable-sorted by z_index ascending
+    // Per-bucket views into m_overlays (non-canonical, rebuilt by rebucket()), iterated directly by draw().
+    std::vector<std::shared_ptr<Overlay>> m_pre_overlays; // z_index < 0
+    std::vector<std::shared_ptr<Overlay>> m_post_overlays; // z_index >= 0
+    // Ping-pong textures per bucket. Index 0 is the persistent "result" slot the compose bind group
+    // samples; the per-frame start texture is chosen by overlay-count parity so the final write always
+    // lands on index 0 (see draw_bucket()), keeping result_*_view() stable across frames.
+    TexturePair m_pre;
+    TexturePair m_post;
 };
 
 } // namespace webgpu_engine

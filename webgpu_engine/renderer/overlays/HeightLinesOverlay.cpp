@@ -98,72 +98,29 @@ void HeightLinesOverlay::update_settings()
     m_settings_uniform->update_gpu_data(m_ctx->queue());
 }
 
-void HeightLinesOverlay::resize(glm::uvec2 size)
-{
-    if (!m_ctx)
-        return;
-
-    WGPUTextureDescriptor texture_desc {};
-    texture_desc.label = WGPUStringView { .data = "height lines copy texture", .length = WGPU_STRLEN };
-    texture_desc.dimension = WGPUTextureDimension_2D;
-    texture_desc.size = { size.x, size.y, 1 };
-    texture_desc.mipLevelCount = 1;
-    texture_desc.sampleCount = 1;
-    texture_desc.format = WGPUTextureFormat_RGBA8Unorm;
-    texture_desc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
-
-    WGPUSamplerDescriptor sampler_desc {};
-    sampler_desc.label = WGPUStringView { .data = "height lines copy sampler", .length = WGPU_STRLEN };
-    sampler_desc.addressModeU = WGPUAddressMode_ClampToEdge;
-    sampler_desc.addressModeV = WGPUAddressMode_ClampToEdge;
-    sampler_desc.addressModeW = WGPUAddressMode_ClampToEdge;
-    sampler_desc.magFilter = WGPUFilterMode_Nearest;
-    sampler_desc.minFilter = WGPUFilterMode_Nearest;
-    sampler_desc.mipmapFilter = WGPUMipmapFilterMode_Nearest;
-    sampler_desc.lodMinClamp = 0.0f;
-    sampler_desc.lodMaxClamp = 1.0f;
-    sampler_desc.compare = WGPUCompareFunction_Undefined;
-    sampler_desc.maxAnisotropy = 1;
-
-    m_copy_texture = std::make_unique<webgpu::raii::TextureWithSampler>(m_ctx->device(), texture_desc, sampler_desc);
-}
-
 void HeightLinesOverlay::draw(const WGPUCommandEncoder& command_encoder,
     const webgpu::raii::TextureView& position_view,
     const webgpu::raii::TextureView& normal_view,
     const webgpu::raii::TextureView& /*overlay_view*/,
     const WGPUBindGroup& shared_config_bg,
     const WGPUBindGroup& camera_bg,
-    webgpu::raii::TextureWithSampler& output,
+    const webgpu::raii::TextureWithSampler& current_input,
+    webgpu::raii::TextureWithSampler& target_output,
     glm::uvec2 output_size)
 {
-    if (!m_copy_texture)
+    if (!m_pipeline)
         return;
 
-    // Copy current output → copy texture so the shader can read the previous overlay state
-    WGPUTexelCopyTextureInfo src {};
-    src.texture = output.texture().handle();
-    src.mipLevel = 0;
-    src.origin = { 0, 0, 0 };
-    src.aspect = WGPUTextureAspect_All;
-
-    WGPUTexelCopyTextureInfo dst {};
-    dst.texture = m_copy_texture->texture().handle();
-    dst.mipLevel = 0;
-    dst.origin = { 0, 0, 0 };
-    dst.aspect = WGPUTextureAspect_All;
-
-    WGPUExtent3D extent { output_size.x, output_size.y, 1 };
-    wgpuCommandEncoderCopyTextureToTexture(command_encoder, &src, &dst, &extent);
-
+    // Ping-pong: read the previous overlay state from current_input (binding 4), write the composited
+    // result into target_output (binding 3). The shader writes every pixel (passthrough where empty).
     webgpu::raii::BindGroup bind_group(m_ctx->device(),
         m_ctx->resource_registry().bind_group_layout("height_lines_overlay"),
         std::vector<WGPUBindGroupEntry> {
             position_view.create_bind_group_entry(0),
             normal_view.create_bind_group_entry(1),
             m_settings_uniform->raw_buffer().create_bind_group_entry(2),
-            output.texture_view().create_bind_group_entry(3),
-            m_copy_texture->texture_view().create_bind_group_entry(4),
+            target_output.texture_view().create_bind_group_entry(3),
+            current_input.texture_view().create_bind_group_entry(4),
         },
         "height lines overlay bind group");
 

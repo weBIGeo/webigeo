@@ -28,6 +28,7 @@
 @group(2) @binding(1) var<uniform> settings: TextureOverlaySettings;
 @group(2) @binding(2) var overlay_texture: texture_2d<f32>;
 @group(2) @binding(3) var overlay_sampler: sampler;
+@group(2) @binding(4) var background: texture_2d<f32>;  // ping-pong: previous overlay state (premultiplied)
 
 struct TextureOverlaySettings {
     aabb_min: vec2f,  // offset  0
@@ -56,26 +57,32 @@ struct TextureOverlaySettings {
     let ddx_uv = dpdx(uv);
     let ddy_uv = dpdy(uv);
 
+    // Compute this overlay's own (premultiplied) contribution. src stays transparent for pixels the
+    // overlay doesn't cover (sky, outside AABB, or out-of-range encoded value). textureSampleGrad uses
+    // explicit gradients, so it is allowed inside non-uniform control flow.
+    var src = vec4f(0.0);
     let aabb_max = settings.aabb_min + settings.aabb_size;
-    if dist <= 0.0 || any(pos_ws.xy < settings.aabb_min) || any(pos_ws.xy > aabb_max) {
-        return vec4f(0.0);
+    if !(dist <= 0.0 || any(pos_ws.xy < settings.aabb_min) || any(pos_ws.xy > aabb_max)) {
+        let sample = textureSampleGrad(overlay_texture, overlay_sampler, uv, ddx_uv, ddy_uv);
+        if settings.mode == 1u {
+            // EncodedFloat: RGBA encodes a u32 via (r<<24|g<<16|b<<8|a), decoded over
+            // settings.encoded_float_range, then normalized to settings.float_decode_range.
+            let rgba_u8 = vec4u(sample * 255.0);
+            let packed = (rgba_u8.r << 24u) | (rgba_u8.g << 16u) | (rgba_u8.b << 8u) | rgba_u8.a;
+            let value = u32_to_range(packed, settings.encoded_float_range);
+            let t = (value - settings.float_decode_range.x) / (settings.float_decode_range.y - settings.float_decode_range.x);
+            if t > 0.0 && t < 1.0 {
+                src = vec4f(vec3f(1.0 - t, 0.0, 0.0) * settings.opacity, settings.opacity);
+            }
+        } else {
+            // AlphaBlend (mode == 0): premultiplied-alpha.
+            let eff_a = sample.a * settings.opacity;
+            src = vec4f(sample.rgb * eff_a, eff_a);
+        }
     }
 
-    let sample = textureSampleGrad(overlay_texture, overlay_sampler, uv, ddx_uv, ddy_uv);
-
-    if settings.mode == 1u {
-        // EncodedFloat: RGBA encodes a u32 via (r<<24|g<<16|b<<8|a), decoded over
-        // settings.encoded_float_range, then normalized to settings.float_decode_range.
-        let rgba_u8 = vec4u(sample * 255.0);
-        let packed = (rgba_u8.r << 24u) | (rgba_u8.g << 16u) | (rgba_u8.b << 8u) | rgba_u8.a;
-        let value = u32_to_range(packed, settings.encoded_float_range);
-        let t = (value - settings.float_decode_range.x) / (settings.float_decode_range.y - settings.float_decode_range.x);
-        if t <= 0.0 || t >= 1.0 { return vec4f(0.0); }
-        let rgb = vec3f(1.0 - t, 0.0, 0.0) * settings.opacity;
-        return vec4f(rgb, settings.opacity);
-    }
-
-    // AlphaBlend (mode == 0): standard premultiplied-alpha composite.
-    let eff_a = sample.a * settings.opacity;
-    return vec4f(sample.rgb * eff_a, eff_a);
+    // Ping-pong contract: write every pixel. Composite src over the previous overlay state
+    // (premultiplied "over"), matching the compute overlays.
+    let bg = textureLoad(background, tci, 0);
+    return vec4f(src.rgb + bg.rgb * (1.0 - src.a), src.a + bg.a * (1.0 - src.a));
 }

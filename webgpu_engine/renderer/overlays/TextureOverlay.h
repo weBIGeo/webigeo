@@ -73,7 +73,8 @@ public:
         const webgpu::raii::TextureView& overlay_view,
         const WGPUBindGroup& shared_config_bg,
         const WGPUBindGroup& camera_bg,
-        webgpu::raii::TextureWithSampler& output,
+        const webgpu::raii::TextureWithSampler& current_input,
+        webgpu::raii::TextureWithSampler& target_output,
         glm::uvec2 output_size) override;
 
 private:
