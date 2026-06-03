@@ -22,7 +22,6 @@
 #include "Context.h"
 #include "UniformBufferObjects.h"
 #include "renderer/AtmosphereRenderer.h"
-#include "renderer/TrackRenderer.h"
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
 #include "compute/imgui/NodeGraphRenderer.h"
 #endif
@@ -30,7 +29,6 @@
 #include "nucleus/AbstractRenderWindow.h"
 #include "nucleus/camera/AbstractDepthTester.h"
 #include "nucleus/camera/Controller.h"
-#include "nucleus/track/GPX.h"
 #include "nucleus/utils/ColourTexture.h"
 #include <webgpu/raii/BindGroup.h>
 #include <webgpu/webgpu.h>
@@ -40,8 +38,6 @@ class QOpenGLFramebufferObject;
 namespace webgpu_engine {
 
 class TextureOverlay;
-
-#define DEFAULT_GPX_TRACK_PATH ":/gpx/breite_ries.gpx"
 
 struct GuiErrorState {
     bool should_open_modal = false;
@@ -89,7 +85,7 @@ public slots:
     void pick_value(const glm::dvec2& screen_space_coordinate) override;
 
     void request_redraw();
-    void load_track_and_focus(const std::string& path);
+    void on_track_loaded(const radix::geometry::Aabb3d& world_aabb);
     void focus_region_3d(const radix::geometry::Aabb3d& aabb);
     void focus_region_2d(const radix::geometry::Aabb<2, double>& aabb);
     void reload_shaders();
@@ -116,7 +112,6 @@ private:
     // buffer anymore. May actually increase performance as we don't need to fill the seperate buffer.
     glm::vec4 synchronous_position_readback(const glm::dvec2& normalised_device_coordinates);
 
-    void select_last_loaded_track_region();
     void create_and_set_compute_pipeline(ComputePipelineType pipeline_type, bool should_recreate_compose_bind_group = true);
     void update_compute_pipeline_settings();
     void update_settings_and_rerun_pipeline(const std::string& entry_node = "");
@@ -152,9 +147,6 @@ private:
     bool m_needs_redraw = true;
     bool m_is_first_pipeline_run = true;
     uint32_t m_paint_number = 0;
-    std::string m_last_dialog_directory = ".";
-
-    std::unique_ptr<TrackRenderer> m_track_renderer;
 
     std::unique_ptr<compute::nodes::NodeGraph> m_compute_graph;
     ComputePipelineType m_active_compute_pipeline_type;

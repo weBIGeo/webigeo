@@ -24,7 +24,6 @@
 #include "compute/nodes/SelectTilesNode.h"
 #include "gpu_utils.h"
 #include "nucleus/tile/drawing.h"
-#include "nucleus/track/GPX.h"
 #include "nucleus/utils/geopng_decoder.h"
 #include "nucleus/utils/image_loader.h"
 #include "renderer/OverlayRenderer.h"
@@ -71,6 +70,7 @@ void Window::set_context(Context* context)
 {
     m_context = context;
     connect(m_context, &Context::redraw_requested, this, &Window::request_redraw);
+    connect(m_context->track_renderer(), &TrackRenderer::track_loaded, this, &Window::on_track_loaded);
 }
 
 void Window::initialise_gpu()
@@ -97,9 +97,6 @@ void Window::initialise_gpu()
                 &reg.bind_group_layout("compose"),
             });
     });
-
-    m_track_renderer = std::make_unique<TrackRenderer>();
-    m_track_renderer->init(m_context->webgpu_ctx());
 
     m_atmosphere_renderer = std::make_unique<AtmosphereRenderer>();
     m_atmosphere_renderer->init(m_context->webgpu_ctx());
@@ -270,7 +267,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
 
     // render lines to color buffer
     if (m_context->shared_config().m_track_render_mode > 0) {
-        m_track_renderer->render(
+        m_context->track_renderer()->render(
             command_encoder, *m_shared_config_bind_group, *m_camera_bind_group, *m_depth_texture_bind_group, framebuffer->color_texture_view(0));
     }
 
@@ -315,40 +312,6 @@ void Window::paint_gui()
             }
         }
     }
-
-    if (ImGui::CollapsingHeader("Track", ImGuiTreeNodeFlags_DefaultOpen)) {
-        if (ImGui::Button("Open GPX file ...", ImVec2(250, 0))) {
-#ifdef __EMSCRIPTEN__
-            WebInterop::instance().open_file_dialog(".gpx", "track");
-#else
-            IGFD::FileDialogConfig config;
-            config.path = m_last_dialog_directory;
-            ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".gpx,.*", config);
-#endif
-        }
-        ImGui::SameLine();
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(106 / 255.0f, 112 / 255.0f, 115 / 255.0f, 1.00f));
-        if (ImGui::Button("Open Preset ...", ImVec2(100, 0))) {
-            load_track_and_focus(DEFAULT_GPX_TRACK_PATH);
-        }
-        ImGui::PopStyleColor(1);
-
-        const char* items = "none\0without depth test\0with depth test\0semi-transparent\0";
-        if (ImGui::Combo("Line render mode", (int*)&(m_context->shared_config().m_track_render_mode), items)) {
-            m_needs_redraw = true;
-        }
-    }
-
-#ifndef __EMSCRIPTEN__
-    if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey")) {
-        if (ImGuiFileDialog::Instance()->IsOk()) { // action if OK
-            std::string file_path = ImGuiFileDialog::Instance()->GetFilePathName();
-            m_last_dialog_directory = std::filesystem::path(file_path).parent_path().string();
-            load_track_and_focus(file_path);
-        }
-        ImGuiFileDialog::Instance()->Close();
-    }
-#endif
 
     paint_compute_pipeline_gui();
 
@@ -660,28 +623,17 @@ void Window::request_redraw() { m_needs_redraw = true; }
 void Window::file_upload_handler(const std::string& filename, const std::string& tag)
 {
     if (tag == "track") {
-        load_track_and_focus(filename);
+        m_context->track_renderer()->load_track(filename);
     } else {
         qWarning() << "Unknown file upload tag: " << QString::fromStdString(tag);
     }
 }
 
-void Window::load_track_and_focus(const std::string& path)
+void Window::on_track_loaded(const radix::geometry::Aabb3d& world_aabb)
 {
-    std::vector<glm::dvec3> points;
+    focus_region_3d(world_aabb);
 
-    std::unique_ptr<nucleus::track::Gpx> gpx_track = nucleus::track::parse(QString::fromStdString(path));
-    for (const auto& segment : gpx_track->track) {
-        points.reserve(points.size() + segment.size());
-        for (const auto& point : segment) {
-            points.push_back({ point.latitude, point.longitude, point.elevation });
-        }
-    }
-    m_track_renderer->add_track(points);
-
-    const auto track_aabb = nucleus::track::compute_world_aabb(*gpx_track);
-    focus_region_3d(track_aabb);
-
+    // Auto-enable track rendering on first load (regardless of which entry point triggered it).
     if (m_context->shared_config().m_track_render_mode == 0) {
         m_context->shared_config().m_track_render_mode = 1;
     }
@@ -691,35 +643,16 @@ void Window::load_track_and_focus(const std::string& path)
 
 void Window::focus_region_3d(const radix::geometry::Aabb3d& aabb)
 {
-
-    // add debug axis
-    /*std::vector<glm::vec4> x_axis = { glm::vec4(aabb.min, 1), glm::vec4(aabb.max.x, aabb.min.y, aabb.min.z, 1) };
-    std::vector<glm::vec4> y_axis = { glm::vec4(aabb.min, 1), glm::vec4(aabb.min.x, aabb.max.y, aabb.min.z, 1) };
-    std::vector<glm::vec4> z_axis = { glm::vec4(aabb.min, 1), glm::vec4(aabb.min.x, aabb.min.y, aabb.max.z, 1) };
-    m_track_renderer->add_world_positions(x_axis, { 1.0f, 0.0f, 0.0f, 1.0f });
-    m_track_renderer->add_world_positions(y_axis, { 0.0f, 1.0f, 0.0f, 1.0f });
-    m_track_renderer->add_world_positions(z_axis, { 0.0f, 0.0f, 1.0f, 1.0f });*/
-
-    const auto aabb_size = aabb.size();
-
-    nucleus::camera::Definition new_camera_definition = { aabb.centre() + glm::dvec3 { 0, 0, std::max(aabb_size.x, aabb_size.y) }, aabb.centre() };
-    new_camera_definition.set_viewport_size(m_camera.viewport_size());
-
     m_is_region_selected = true;
     m_selected_region = aabb;
     update_compute_pipeline_settings();
 
-    emit set_camera_definition_requested(new_camera_definition);
+    emit set_camera_definition_requested(nucleus::camera::Definition::looking_down_at_aabb(aabb, m_camera.viewport_size()));
 }
 
 void Window::focus_region_2d(const radix::geometry::Aabb<2, double>& aabb)
 {
-    glm::dvec2 pos = glm::dvec2(aabb.min + aabb.max) / 2.0;
-    auto size_x = aabb.max.x - aabb.min.x;
-    auto size_y = aabb.max.y - aabb.min.y;
-    nucleus::camera::Definition new_camera_definition = { glm::dvec3 { pos.x, pos.y, std::max(size_x, size_y) }, { pos.x, pos.y, 0 } };
-    new_camera_definition.set_viewport_size(m_camera.viewport_size());
-    emit set_camera_definition_requested(new_camera_definition);
+    emit set_camera_definition_requested(nucleus::camera::Definition::looking_down_at_aabb(aabb, m_camera.viewport_size()));
 }
 
 void Window::ready()
@@ -727,7 +660,7 @@ void Window::ready()
     m_context->overlay_renderer()->ready(m_context->webgpu_ctx());
 
 #if defined(QT_DEBUG)
-    load_track_and_focus(DEFAULT_GPX_TRACK_PATH);
+    m_context->track_renderer()->load_track(TrackRenderer::DEFAULT_GPX_TRACK_PATH);
     // m_compute_graph->run();
 #endif
 }

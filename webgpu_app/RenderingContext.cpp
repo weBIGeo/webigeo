@@ -122,6 +122,8 @@ void RenderingContext::initialize(webgpu::Context& ctx)
     m_engine_context->set_cloud_renderer(cloud_renderer);
     auto overlay_renderer = std::make_shared<webgpu_engine::OverlayRenderer>();
     m_engine_context->set_overlay_renderer(overlay_renderer);
+    auto track_renderer = std::make_shared<webgpu_engine::TrackRenderer>();
+    m_engine_context->set_track_renderer(track_renderer);
 
     connect(m_geometry_scheduler_holder.scheduler.get(),
         &nucleus::tile::GeometryScheduler::gpu_tiles_updated,

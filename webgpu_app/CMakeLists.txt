@@ -49,6 +49,7 @@ if (ALP_WEBGPU_APP_ENABLE_IMGUI)
         imgui/LogoPanel.h imgui/LogoPanel.cpp
         imgui/SearchPanel.h imgui/SearchPanel.cpp
         imgui/OverlaysPanel.h imgui/OverlaysPanel.cpp
+        imgui/TrackPanel.h imgui/TrackPanel.cpp
         imgui/overlays/OverlayImGuiRenderer.h imgui/overlays/OverlayImGuiRenderer.cpp
         imgui/overlays/OverlayImGuiRendererFactory.h imgui/overlays/OverlayImGuiRendererFactory.cpp
         imgui/overlays/HeightLinesOverlayImGuiRenderer.h imgui/overlays/HeightLinesOverlayImGuiRenderer.cpp

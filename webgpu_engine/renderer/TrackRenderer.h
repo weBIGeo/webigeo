@@ -21,8 +21,11 @@
 #include "../Buffer.h"
 #include "webgpu/raii/BindGroup.h"
 #include "webgpu/raii/RawBuffer.h"
+#include <QObject>
 #include <glm/glm.hpp>
 #include <memory>
+#include <radix/geometry.h>
+#include <string>
 #include <vector>
 #include <webgpu/Context.h>
 #include <webgpu/raii/Pipeline.h>
@@ -32,22 +35,32 @@ namespace webgpu_engine {
 using Coordinates = glm::dvec3;
 using Track = std::vector<Coordinates>;
 
-class TrackRenderer {
+class TrackRenderer : public QObject {
+    Q_OBJECT
 public:
     struct LineConfig {
         glm::vec4 line_color = { 1.0f, 0.0, 0.0, 1.0f };
     };
+
+    // Built-in preset track, loadable from the GUI ("Open Preset ...") and the QT_DEBUG auto-load.
+    static constexpr const char* DEFAULT_GPX_TRACK_PATH = ":/gpx/breite_ries.gpx";
 
 public:
     explicit TrackRenderer();
 
     void init(webgpu::Context& ctx);
 
+    // Parses a GPX file, adds its track, and emits track_loaded() with the track's world-space AABB.
+    void load_track(const std::string& path);
+
     void add_track(const Track& track, const glm::vec4& color = { 78.0 / 255.0f, 163.0 / 255.0f, 196.0 / 255.0f, 1.0f });
     void add_world_positions(const std::vector<glm::vec4>& world_positions, const glm::vec4& color = { 1.0f, 0.0f, 0.0f, 1.0f });
 
     void render(WGPUCommandEncoder command_encoder, const webgpu::raii::BindGroup& shared_config, const webgpu::raii::BindGroup& camera_config,
         const webgpu::raii::BindGroup& depth_texture, const webgpu::raii::TextureView& color_texture);
+
+signals:
+    void track_loaded(const radix::geometry::Aabb3d& world_aabb);
 
 private:
     webgpu::Context* m_ctx;

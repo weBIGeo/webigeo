@@ -37,6 +37,7 @@
 #include "imgui/OverlaysPanel.h"
 #include "imgui/SearchPanel.h"
 #include "imgui/TimingPanel.h"
+#include "imgui/TrackPanel.h"
 #include <IconsFontAwesome5.h>
 #include <imgui_internal.h>
 #include <imnodes.h>
@@ -94,6 +95,7 @@ void ImGuiManager::init(
     m_panels.push_back(std::make_unique<CloudPanel>(rc->clouds_manager(), engine_ctx->cloud_renderer()));
     m_panels.push_back(std::make_unique<IlluminationPanel>(engine_ctx));
     m_panels.push_back(std::make_unique<OverlaysPanel>(engine_ctx));
+    m_panels.push_back(std::make_unique<TrackPanel>(engine_ctx));
     m_panels.push_back(std::make_unique<EnginePanel>(m_terrain_renderer));
 
     connect(&search_panel, &SearchPanel::search_requested, rc->search_service(), &SearchService::search);

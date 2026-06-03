@@ -19,6 +19,8 @@
 #include "TrackRenderer.h"
 
 #include "nucleus/srs.h"
+#include "nucleus/track/GPX.h"
+#include <QString>
 #include <webgpu/RenderResourceRegistry.h>
 #include <webgpu/raii/BindGroupLayout.h>
 #include <webgpu/raii/PipelineLayout.h>
@@ -26,8 +28,25 @@
 namespace webgpu_engine {
 
 TrackRenderer::TrackRenderer()
-    : m_ctx { nullptr }
+    : QObject { nullptr }
+    , m_ctx { nullptr }
 {
+}
+
+void TrackRenderer::load_track(const std::string& path)
+{
+    std::unique_ptr<nucleus::track::Gpx> gpx_track = nucleus::track::parse(QString::fromStdString(path));
+
+    std::vector<glm::dvec3> points;
+    for (const auto& segment : gpx_track->track) {
+        points.reserve(points.size() + segment.size());
+        for (const auto& point : segment) {
+            points.push_back({ point.latitude, point.longitude, point.elevation });
+        }
+    }
+    add_track(points);
+
+    emit track_loaded(nucleus::track::compute_world_aabb(*gpx_track));
 }
 
 void TrackRenderer::init(webgpu::Context& ctx)
