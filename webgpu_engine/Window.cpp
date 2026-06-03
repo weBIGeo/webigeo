@@ -98,8 +98,7 @@ void Window::initialise_gpu()
             });
     });
 
-    m_atmosphere_renderer = std::make_unique<AtmosphereRenderer>();
-    m_atmosphere_renderer->init(m_context->webgpu_ctx());
+    m_context->atmosphere_renderer()->init(m_context->webgpu_ctx());
 
     m_context->webgpu_ctx().resource_registry().recreate_all(m_context->webgpu_ctx().device());
 
@@ -182,7 +181,7 @@ void Window::resize_framebuffer(int w, int h)
     m_gbuffer_format.size = glm::uvec2 { w, h };
     m_gbuffer = std::make_unique<webgpu::Framebuffer>(m_context->webgpu_ctx().device(), m_gbuffer_format);
 
-    m_atmosphere_renderer->resize(w, h);
+    m_context->atmosphere_renderer()->resize(w, h);
 
     m_depth_texture_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
         m_context->webgpu_ctx().resource_registry().bind_group_layout("depth_texture"),
@@ -224,7 +223,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
     m_shared_config_ubo->update_gpu_data(m_context->webgpu_ctx().queue());
 
     // render atmosphere to color buffer
-    m_atmosphere_renderer->draw(command_encoder, m_camera_bind_group->handle());
+    m_context->atmosphere_renderer()->draw(command_encoder, m_camera_bind_group->handle());
 
     // render tiles to geometry buffers
     {
@@ -701,7 +700,7 @@ void Window::recreate_compose_bind_group()
                 m_gbuffer->color_texture_view(0).create_bind_group_entry(0), // albedo texture
                 m_gbuffer->color_texture_view(1).create_bind_group_entry(1), // position texture
                 m_gbuffer->color_texture_view(2).create_bind_group_entry(2), // normal texture
-                m_atmosphere_renderer->result_view()->create_bind_group_entry(3), // atmosphere texture
+                m_context->atmosphere_renderer()->result_view()->create_bind_group_entry(3), // atmosphere texture
                 m_gbuffer->color_texture_view(3).create_bind_group_entry(4), // overlay texture
                 m_context->cloud_renderer()->result_color_view(i)->create_bind_group_entry(5),
                 m_context->cloud_renderer()->result_depth_view()->create_bind_group_entry(6),

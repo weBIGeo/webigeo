@@ -25,6 +25,7 @@
 #include <filesystem>
 #endif
 
+#include <IconsFontAwesome5.h>
 #include <imgui.h>
 
 #include "webgpu_engine/Context.h"
@@ -40,7 +41,7 @@ TrackPanel::TrackPanel(webgpu_engine::Context* context)
 
 void TrackPanel::draw_panel()
 {
-    if (ImGui::CollapsingHeader("Track", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (ImGui::CollapsingHeader(ICON_FA_ROUTE "  Track", ImGuiTreeNodeFlags_DefaultOpen)) {
         if (ImGui::Button("Open GPX file ...", ImVec2(250, 0))) {
 #ifdef __EMSCRIPTEN__
             WebInterop::instance().open_file_dialog(".gpx", "track");

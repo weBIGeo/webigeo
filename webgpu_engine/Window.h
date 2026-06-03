@@ -21,7 +21,6 @@
 
 #include "Context.h"
 #include "UniformBufferObjects.h"
-#include "renderer/AtmosphereRenderer.h"
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
 #include "compute/imgui/NodeGraphRenderer.h"
 #endif
@@ -137,7 +136,6 @@ private:
     webgpu::FramebufferFormat m_gbuffer_format;
     std::unique_ptr<webgpu::Framebuffer> m_gbuffer;
 
-    std::unique_ptr<AtmosphereRenderer> m_atmosphere_renderer;
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_compose_pipeline;
 
     // ToDo: Swapchain should get a raii class and the size could be saved in there
