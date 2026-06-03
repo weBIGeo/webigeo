@@ -90,9 +90,6 @@ public slots:
     void reload_shaders();
     void on_shadow_texture_updated(const QByteArray& data);
 
-private slots:
-    void file_upload_handler(const std::string& filename, const std::string& tag);
-
 signals:
     void set_camera_definition_requested(nucleus::camera::Definition definition);
 

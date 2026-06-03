@@ -29,9 +29,15 @@ class TrackRenderer;
 namespace webgpu_app {
 
 class TrackPanel : public ImGuiPanel {
+    Q_OBJECT
 public:
     explicit TrackPanel(webgpu_engine::Context* context);
     void draw_panel() override;
+
+#ifdef __EMSCRIPTEN__
+private slots:
+    void on_file_uploaded(const std::string& filename, const std::string& tag);
+#endif
 
 private:
     webgpu_engine::Context* m_context;

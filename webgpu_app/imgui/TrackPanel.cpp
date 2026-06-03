@@ -37,7 +37,18 @@ TrackPanel::TrackPanel(webgpu_engine::Context* context)
     : m_context(context)
     , m_track_renderer(context->track_renderer())
 {
+#ifdef __EMSCRIPTEN__
+    connect(&WebInterop::instance(), &WebInterop::file_uploaded, this, &TrackPanel::on_file_uploaded);
+#endif
 }
+
+#ifdef __EMSCRIPTEN__
+void TrackPanel::on_file_uploaded(const std::string& filename, const std::string& tag)
+{
+    if (tag == "track")
+        m_track_renderer->load_track(filename);
+}
+#endif
 
 void TrackPanel::draw_panel()
 {

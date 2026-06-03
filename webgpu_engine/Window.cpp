@@ -35,10 +35,6 @@
 #include <webgpu/RenderResourceRegistry.h>
 #include <webgpu/util/VertexBufferInfo.h>
 
-#ifdef __EMSCRIPTEN__
-#include <emscripten/emscripten.h>
-#include <webgpu_app/WebInterop.h>
-#endif
 #include <webgpu/webgpu.h>
 
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
@@ -54,12 +50,7 @@
 
 namespace webgpu_engine {
 
-Window::Window()
-{
-#ifdef __EMSCRIPTEN__
-    connect(&WebInterop::instance(), &WebInterop::file_uploaded, this, &Window::file_upload_handler);
-#endif
-}
+Window::Window() { }
 
 Window::~Window()
 {
@@ -615,15 +606,6 @@ void Window::pick_value([[maybe_unused]] const glm::dvec2& screen_space_coordina
 }
 
 void Window::request_redraw() { m_needs_redraw = true; }
-
-void Window::file_upload_handler(const std::string& filename, const std::string& tag)
-{
-    if (tag == "track") {
-        m_context->track_renderer()->load_track(filename);
-    } else {
-        qWarning() << "Unknown file upload tag: " << QString::fromStdString(tag);
-    }
-}
 
 void Window::on_track_loaded(const radix::geometry::Aabb3d& world_aabb)
 {
