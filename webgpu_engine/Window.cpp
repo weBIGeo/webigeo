@@ -69,7 +69,6 @@ void Window::initialise_gpu()
 
     create_buffers();
 
-    // Register all remaining shaders/layouts/pipelines before recreate_all()
     auto& reg = m_context->webgpu_ctx().resource_registry();
     reg.register_shader("compose_pass", "compose_pass.wgsl");
     reg.register_pipeline([this](WGPUDevice dev, const webgpu::RenderResourceRegistry& reg) {
@@ -261,30 +260,6 @@ void Window::paint_gui()
         m_needs_redraw |= ImGui::Checkbox("Phong Shading", (bool*)&m_context->shared_config().m_phong_enabled);
         m_needs_redraw |= ImGui::Checkbox("Atmosphere", (bool*)&m_context->shared_config().m_atmosphere_enabled);
         m_needs_redraw |= ImGui::Checkbox("Clouds", (bool*)&m_context->shared_config().m_clouds_enabled);
-
-        bool snow_on = (m_context->shared_config().m_snow_settings_angle.x == 1.0f);
-        if (ImGui::Checkbox("Snow", &snow_on)) {
-            m_needs_redraw = true;
-            m_context->shared_config().m_snow_settings_angle.x = (snow_on ? 1.0f : 0.0f);
-        }
-        if (snow_on) {
-            ImGui::SameLine();
-            if (ImGui::CollapsingHeader("###Snow Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
-                auto& snow_settings_angle = m_context->shared_config().m_snow_settings_angle;
-                bool changed = ImGui::DragFloatRange2(
-                    "Angle limit", &snow_settings_angle.y, &snow_settings_angle.z, 0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp);
-                changed |= ImGui::SliderFloat("Angle blend", &snow_settings_angle.w, 0.0f, 90.0f, "%.1f°");
-                changed |= ImGui::SliderFloat("Altitude limit", &m_context->shared_config().m_snow_settings_alt.x, 0.0f, 4000.0f, "%.1fm");
-                changed |= ImGui::SliderFloat("Altitude variation", &m_context->shared_config().m_snow_settings_alt.y, 0.0f, 1000.0f, "%.1f°");
-                changed |= ImGui::SliderFloat("Altitude blend", &m_context->shared_config().m_snow_settings_alt.z, 0.0f, 1000.0f);
-                changed |= ImGui::SliderFloat("Specular", &m_context->shared_config().m_snow_settings_alt.w, 0.0f, 5.0f);
-
-                if (changed) {
-                    m_needs_redraw = true;
-                    update_compute_pipeline_settings();
-                }
-            }
-        }
     }
 
     paint_compute_pipeline_gui();

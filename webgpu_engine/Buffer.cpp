@@ -30,6 +30,7 @@
 #include "renderer/CloudRenderer.h"
 #include "renderer/TrackRenderer.h"
 #include "renderer/overlays/HeightLinesOverlay.h"
+#include "renderer/overlays/ScreenSpaceSnowOverlay.h"
 #include "renderer/overlays/TextureOverlay.h"
 #include "renderer/overlays/TileDebugOverlay.h"
 
@@ -87,6 +88,7 @@ template class Buffer<CloudRenderer::ShaderParamsUpscale>;
 // template class UniformBuffer<uboShadowConfig>;
 
 template class Buffer<HeightLinesOverlay::Settings>;
+template class Buffer<ScreenSpaceSnowOverlay::Settings>;
 template class Buffer<TextureOverlay::GpuSettings>;
 template class Buffer<TileDebugOverlay::GpuSettings>;
 

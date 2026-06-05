@@ -19,10 +19,12 @@
 #include "OverlayImGuiRendererFactory.h"
 
 #include "HeightLinesOverlayImGuiRenderer.h"
+#include "ScreenSpaceSnowOverlayImGuiRenderer.h"
 #include "TextureOverlayImGuiRenderer.h"
 #include "TileDebugOverlayImGuiRenderer.h"
 
 #include <webgpu_engine/renderer/overlays/HeightLinesOverlay.h>
+#include <webgpu_engine/renderer/overlays/ScreenSpaceSnowOverlay.h>
 #include <webgpu_engine/renderer/overlays/TextureOverlay.h>
 #include <webgpu_engine/renderer/overlays/TileDebugOverlay.h>
 
@@ -32,6 +34,8 @@ std::unique_ptr<OverlayImGuiRenderer> OverlayImGuiRendererFactory::create(webgpu
 {
     if (auto* o = dynamic_cast<webgpu_engine::HeightLinesOverlay*>(&overlay))
         return std::make_unique<HeightLinesOverlayImGuiRenderer>(*o);
+    if (auto* o = dynamic_cast<webgpu_engine::ScreenSpaceSnowOverlay*>(&overlay))
+        return std::make_unique<ScreenSpaceSnowOverlayImGuiRenderer>(*o);
     if (auto* o = dynamic_cast<webgpu_engine::TextureOverlay*>(&overlay))
         return std::make_unique<TextureOverlayImGuiRenderer>(*o);
     if (auto* o = dynamic_cast<webgpu_engine::TileDebugOverlay*>(&overlay))

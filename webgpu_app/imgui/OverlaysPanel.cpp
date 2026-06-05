@@ -27,6 +27,7 @@
 #include "webgpu_engine/Context.h"
 #include "webgpu_engine/renderer/OverlayRenderer.h"
 #include "webgpu_engine/renderer/overlays/HeightLinesOverlay.h"
+#include "webgpu_engine/renderer/overlays/ScreenSpaceSnowOverlay.h"
 #include "webgpu_engine/renderer/overlays/TextureOverlay.h"
 #include "webgpu_engine/renderer/overlays/TileDebugOverlay.h"
 
@@ -107,8 +108,8 @@ void OverlaysPanel::draw_panel()
         return;
 
     // --- Add controls (top) ---
-    enum AddType { ADD_HEIGHT_LINES = 0, ADD_TEXTURE_OVERLAY = 1, ADD_TILE_DEBUG = 2 };
-    const char* add_items[] = { "Height Lines", "Texture Overlay", "Tile Debug" };
+    enum AddType { ADD_HEIGHT_LINES = 0, ADD_TEXTURE_OVERLAY = 1, ADD_TILE_DEBUG = 2, ADD_SCREEN_SPACE_SNOW = 3 };
+    const char* add_items[] = { "Height Lines", "Texture Overlay", "Tile Debug", "Screen-Space Snow" };
 
     // Only one TileDebugOverlay may exist (it owns the single shared GBuffer overlay slot).
     bool tile_debug_exists = false;
@@ -128,6 +129,8 @@ void OverlaysPanel::draw_panel()
             new_overlay = std::make_shared<webgpu_engine::HeightLinesOverlay>();
         else if (m_add_type_index == ADD_TEXTURE_OVERLAY)
             new_overlay = std::make_shared<webgpu_engine::TextureOverlay>();
+        else if (m_add_type_index == ADD_SCREEN_SPACE_SNOW)
+            new_overlay = std::make_shared<webgpu_engine::ScreenSpaceSnowOverlay>();
         else
             new_overlay = std::make_shared<webgpu_engine::TileDebugOverlay>();
         // add_overlay() auto-assigns the topmost z_index
