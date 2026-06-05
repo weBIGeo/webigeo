@@ -18,6 +18,7 @@
 
 #include "ShadingPanel.h"
 
+#include "../ImGuiManager.h"
 #include <IconsFontAwesome5.h>
 #include <imgui.h>
 #include <glm/glm.hpp>
@@ -31,8 +32,18 @@ ShadingPanel::ShadingPanel(webgpu_engine::Context* context)
 {
 }
 
+void ShadingPanel::draw()
+{
+    auto& cfg = m_context->shared_config();
+    if (ImGuiManager::FloatingToggleButton("ToggleShadingButton", ICON_FA_SUN, "Shading", &cfg.m_shading_enabled))
+        m_context->request_redraw();
+}
+
 void ShadingPanel::draw_panel()
 {
+    if (!m_context->shared_config().m_shading_enabled)
+        return;
+
     if (ImGui::CollapsingHeader(ICON_FA_SUN "  Shading")) {
         auto& cfg = m_context->shared_config();
 

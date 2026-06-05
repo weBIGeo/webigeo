@@ -1,7 +1,6 @@
 /*****************************************************************************
  * weBIGeo
  * Copyright (C) 2026 Gerald Kimmersdorfer
- * Copyright (C) 2026 Wendelin Muth
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,27 +21,18 @@
 #include "ImGuiPanel.h"
 
 namespace webgpu_engine {
-class CloudRenderer;
 class Context;
 }
 
 namespace webgpu_app {
 
-namespace clouds {
-class Manager;
-}
-
-class CloudPanel : public ImGuiPanel {
+class AtmospherePanel : public ImGuiPanel {
 public:
-    CloudPanel(webgpu_engine::Context* context, clouds::Manager* clouds_manager, webgpu_engine::CloudRenderer* cloud_renderer);
-
+    explicit AtmospherePanel(webgpu_engine::Context* context);
     void draw() override;
-    void draw_panel() override;
 
 private:
     webgpu_engine::Context* m_context;
-    clouds::Manager* m_clouds_manager;
-    webgpu_engine::CloudRenderer* m_cloud_renderer;
 };
 
 } // namespace webgpu_app

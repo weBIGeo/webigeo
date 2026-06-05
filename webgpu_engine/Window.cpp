@@ -254,14 +254,6 @@ void Window::paint_gui()
 {
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
 
-    {
-        // Tile-debug overlays (Normals/Tiles/Zoomlevel/Vertex-ID) now live in the Overlays panel
-        // as a TileDebugOverlay; the compose-stage overlays (Decoded Normals/Steepness/...) were removed.
-        m_needs_redraw |= ImGui::Checkbox("Shading", (bool*)&m_context->shared_config().m_shading_enabled);
-        m_needs_redraw |= ImGui::Checkbox("Atmosphere", (bool*)&m_context->shared_config().m_atmosphere_enabled);
-        m_needs_redraw |= ImGui::Checkbox("Clouds", (bool*)&m_context->shared_config().m_clouds_enabled);
-    }
-
     paint_compute_pipeline_gui();
 
     if (m_gui_error_state.should_open_modal) {
@@ -340,7 +332,7 @@ void Window::paint_compute_pipeline_gui()
     }
 
     {
-        ImVec2 button_pos(10, ImGui::GetIO().DisplaySize.y - 48 * 2 - 40 - 10);
+        ImVec2 button_pos(10 + 58, ImGui::GetIO().DisplaySize.y - 48 * 2 - 40 - 10);
         ImGui::SetNextWindowPos(button_pos, ImGuiCond_Always);
         ImGui::SetNextWindowBgAlpha(0.5f);
         ImGui::SetNextWindowSize(ImVec2(48, 48));

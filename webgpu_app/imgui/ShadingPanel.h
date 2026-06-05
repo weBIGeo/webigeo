@@ -29,6 +29,7 @@ namespace webgpu_app {
 class ShadingPanel : public ImGuiPanel {
 public:
     explicit ShadingPanel(webgpu_engine::Context* context);
+    void draw() override;
     void draw_panel() override;
 
 private:

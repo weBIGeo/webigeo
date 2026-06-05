@@ -1,7 +1,6 @@
 /*****************************************************************************
  * weBIGeo
  * Copyright (C) 2026 Gerald Kimmersdorfer
- * Copyright (C) 2026 Wendelin Muth
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,32 +16,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#pragma once
+#include "AtmospherePanel.h"
 
-#include "ImGuiPanel.h"
+#include "../ImGuiManager.h"
+#include <IconsFontAwesome5.h>
 
-namespace webgpu_engine {
-class CloudRenderer;
-class Context;
-}
+#include "webgpu_engine/Context.h"
 
 namespace webgpu_app {
 
-namespace clouds {
-class Manager;
+AtmospherePanel::AtmospherePanel(webgpu_engine::Context* context)
+    : m_context(context)
+{
 }
 
-class CloudPanel : public ImGuiPanel {
-public:
-    CloudPanel(webgpu_engine::Context* context, clouds::Manager* clouds_manager, webgpu_engine::CloudRenderer* cloud_renderer);
-
-    void draw() override;
-    void draw_panel() override;
-
-private:
-    webgpu_engine::Context* m_context;
-    clouds::Manager* m_clouds_manager;
-    webgpu_engine::CloudRenderer* m_cloud_renderer;
-};
+void AtmospherePanel::draw()
+{
+    auto& cfg = m_context->shared_config();
+    if (ImGuiManager::FloatingToggleButton("ToggleAtmosphereButton", ICON_FA_GLOBE, "Atmosphere", &cfg.m_atmosphere_enabled))
+        m_context->request_redraw();
+}
 
 } // namespace webgpu_app
