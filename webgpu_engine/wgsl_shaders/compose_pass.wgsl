@@ -58,11 +58,11 @@ diffFactor : vec3 < f32>,
 specFactor : vec3 < f32>,
 specShininess : f32
 ) -> vec3 < f32> {
-    let nDotL : f32 = max(0.0, dot(normal, toLight));/Lambertian coefficient
+    let nDotL : f32 = max(0.0, dot(normal, toLight)); //Lambertian coefficient
     let h : vec3 < f32> = normalize(toLight + toEye);
     let nDotH : f32 = max(0.0, dot(normal, h));
     let specPower : f32 = pow(nDotH, specShininess);
-    let diffuse : vec3 < f32> = diffFactor * nDotL;omponent-wise product
+    let diffuse : vec3 < f32> = diffFactor * nDotL; //Component-wise product
     let specular : vec3 < f32> = specFactor * specPower;
     return diffuse + specular;
 }
