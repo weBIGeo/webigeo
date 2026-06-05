@@ -18,12 +18,12 @@
 
 #include "OverlayNodeRenderer.h"
 
-#include "../../nodes/OverlayNode.h"
+#include "overlay/OverlayRenderNode.h"
 #include <imgui.h>
 
 namespace webgpu_engine::compute {
 
-OverlayNodeRenderer::OverlayNodeRenderer(const std::string& name, nodes::OverlayNode& node)
+OverlayNodeRenderer::OverlayNodeRenderer(const std::string& name, nodes::OverlayRenderNode& node)
     : NodeRenderer(name, node)
     , m_node(&node)
 {

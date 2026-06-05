@@ -19,8 +19,11 @@
 
 #include "OverlayRenderer.h"
 
+#include "OverlayRenderNode.h"
+#include "compute/NodeRegistry.h"
 #include "webgpu_engine/Context.h"
 #include <algorithm>
+#include <memory>
 #include <webgpu/raii/RenderPassEncoder.h>
 
 namespace webgpu_engine {
@@ -74,6 +77,13 @@ void OverlayRenderer::rebucket()
 void OverlayRenderer::init(Context& ctx)
 {
     m_ctx = &ctx;
+
+    // Register our renderer-aware terminal node so compute graph builders can create it by type-name
+    // without the compute core depending on the renderer. The factory captures the (long-lived) engine
+    // Context and ignores the webgpu::Context the registry passes for core nodes.
+    compute::NodeRegistry::instance().register_node(
+        "OverlayRenderNode", [&ctx](webgpu::Context&) { return std::make_unique<compute::nodes::OverlayRenderNode>(ctx); });
+
     for (auto& overlay : m_overlays)
         overlay->init(ctx);
 }

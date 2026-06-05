@@ -23,8 +23,8 @@
 #include "../../nodes/ComputeReleasePointsNode.h"
 #include "../../nodes/ComputeSnowNode.h"
 #include "../../nodes/ExportNode.h"
-#include "../../nodes/OverlayNode.h"
 #include "../../nodes/RequestTilesNode.h"
+#include "overlay/OverlayRenderNode.h"
 #include "BufferToTextureNodeRenderer.h"
 #include "ComputeAvalancheTrajectoriesNodeRenderer.h"
 #include "ComputeReleasePointsNodeRenderer.h"
@@ -40,7 +40,7 @@ std::unique_ptr<NodeRenderer> NodeRendererFactory::create(const std::string& nam
 {
     if (auto* n = dynamic_cast<nodes::ExportNode*>(&node))
         return std::make_unique<ExportNodeRenderer>(name, *n);
-    if (auto* n = dynamic_cast<nodes::OverlayNode*>(&node))
+    if (auto* n = dynamic_cast<nodes::OverlayRenderNode*>(&node))
         return std::make_unique<OverlayNodeRenderer>(name, *n);
     if (auto* n = dynamic_cast<nodes::BufferToTextureNode*>(&node))
         return std::make_unique<BufferToTextureNodeRenderer>(name, *n);

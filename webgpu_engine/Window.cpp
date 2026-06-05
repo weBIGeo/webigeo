@@ -20,14 +20,12 @@
  *****************************************************************************/
 
 #include "Window.h"
-#include "compute/nodes/OverlayNode.h"
 #include "compute/nodes/SelectTilesNode.h"
 #include "gpu_utils.h"
 #include "nucleus/tile/drawing.h"
 #include "nucleus/utils/geopng_decoder.h"
 #include "nucleus/utils/image_loader.h"
 #include "overlay/OverlayRenderer.h"
-#include "overlay/TextureOverlay.h"
 #include "webgpu/raii/RenderPassEncoder.h"
 #include "webgpu_engine/Context.h"
 #include <ktx.h>
@@ -394,11 +392,8 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, 
     qDebug() << "setting new compute pipeline " << static_cast<int>(pipeline_type);
     m_active_compute_pipeline_type = pipeline_type;
 
-    // In link mode the overlay borrows a texture owned by the (about-to-be-replaced) graph;
-    // unlink it so draw() doesn't reference a destroyed texture until the new graph runs.
-    // (No-op in copy mode, where the overlay owns its texture and keeps showing the last result.)
-    if (auto overlay = m_compute_result_overlay.lock())
-        overlay->link_texture(nullptr);
+    // Replacing m_compute_graph destroys the old graph (and its OverlayRenderNode), whose destructor
+    // unlinks the "Compute Result" overlay's borrowed texture so draw() never samples a freed texture.
 
     if (pipeline_type == ComputePipelineType::SNOW) {
         m_compute_graph = compute::nodes::NodeGraph::create_snow_compute_graph(m_context->webgpu_ctx());
@@ -418,34 +413,6 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, 
         std::string message = "Execution of pipeline failed.\n\nNode \"" + info.node_name() + "\" reported \"" + info.node_run_failure_info().message() + "\"";
         this->display_message(message);
     });
-
-    // The graph's OverlayNode pushes its result texture + aabb here; we forward it to a
-    // TextureOverlay managed by the OverlayRenderer (visible/editable in the OverlaysPanel).
-    if (m_compute_graph->exists_node("overlay_node")) {
-        auto& overlay_node = m_compute_graph->get_node_as<compute::nodes::OverlayNode>("overlay_node");
-        overlay_node.set_update_func([this](const webgpu::raii::TextureWithSampler* texture, const radix::geometry::Aabb<2, double>& aabb, bool copy) {
-            auto overlay = m_compute_result_overlay.lock();
-            if (!overlay) { // first run, or the user deleted it from the panel -> (re)create
-                overlay = std::make_shared<TextureOverlay>();
-                overlay->name = "Compute Result";
-                m_context->overlay_renderer()->add_overlay(overlay);
-                m_compute_result_overlay = overlay;
-            }
-            // TODO: the stitch node ignores the last col/row; trim the aabb to match. This
-            // correction should eventually move into the stitch node's "region aabb" output.
-            radix::geometry::Aabb<2, double> trimmed = aabb;
-            trimmed.max -= glm::dvec2(nucleus::srs::tile_width(18) / 65, nucleus::srs::tile_height(18) / 65);
-            overlay->settings.aabb = trimmed;
-            if (texture) {
-                if (copy)
-                    overlay->load_texture(*texture);
-                else
-                    overlay->link_texture(texture);
-            }
-            overlay->update_gpu_settings();
-            request_redraw();
-        });
-    }
 
     if (should_recreate_compose_bind_group) {
         // we usually need to recreate the compose bind group, because it might have now-outdated texture bindings from the last (now-destroyed) pipeline

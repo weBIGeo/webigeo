@@ -27,6 +27,11 @@
 
 namespace webgpu_engine::compute::nodes {
 
+TileStitchNode::TileStitchNode(webgpu::Context& ctx)
+    : TileStitchNode(ctx, StitchSettings {})
+{
+}
+
 webgpu_engine::compute::nodes::TileStitchNode::TileStitchNode(webgpu::Context& ctx, StitchSettings settings)
     : Node(
           {

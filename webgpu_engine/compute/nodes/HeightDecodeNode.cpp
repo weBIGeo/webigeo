@@ -24,6 +24,11 @@ namespace webgpu_engine::compute::nodes {
 
 glm::uvec3 HeightDecodeNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
 
+HeightDecodeNode::HeightDecodeNode(webgpu::Context& ctx)
+    : HeightDecodeNode(ctx, HeightDecodeSettings {})
+{
+}
+
 webgpu_engine::compute::nodes::HeightDecodeNode::HeightDecodeNode(webgpu::Context& ctx, HeightDecodeSettings settings)
     : Node(
           {

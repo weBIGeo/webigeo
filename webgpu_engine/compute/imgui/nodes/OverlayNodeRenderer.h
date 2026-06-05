@@ -21,19 +21,19 @@
 #include "NodeRenderer.h"
 
 namespace webgpu_engine::compute::nodes {
-class OverlayNode;
+class OverlayRenderNode;
 }
 
 namespace webgpu_engine::compute {
 
 class OverlayNodeRenderer : public NodeRenderer {
 public:
-    OverlayNodeRenderer(const std::string& name, nodes::OverlayNode& node);
+    OverlayNodeRenderer(const std::string& name, nodes::OverlayRenderNode& node);
     bool has_settings() const override { return true; }
     void render_settings_content() override;
 
 private:
-    nodes::OverlayNode* m_node;
+    nodes::OverlayRenderNode* m_node;
 };
 
 } // namespace webgpu_engine::compute

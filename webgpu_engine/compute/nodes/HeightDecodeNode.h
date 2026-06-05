@@ -43,6 +43,7 @@ public:
         glm::vec2 aabb_max;
     };
 
+    explicit HeightDecodeNode(webgpu::Context& ctx); // default-configured; for the NodeRegistry
     HeightDecodeNode(webgpu::Context& ctx, HeightDecodeSettings settings);
 
 public slots:

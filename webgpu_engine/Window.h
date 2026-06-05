@@ -36,8 +36,6 @@ class QOpenGLFramebufferObject;
 
 namespace webgpu_engine {
 
-class TextureOverlay;
-
 struct GuiErrorState {
     bool should_open_modal = false;
     std::string text = "";
@@ -151,10 +149,6 @@ private:
     uint32_t m_compute_zoomlevel = 15;
     bool m_is_region_selected = false;
     GuiErrorState m_gui_error_state;
-
-    // TextureOverlay (owned by the OverlayRenderer) that displays the compute graph's result,
-    // driven by the graph's OverlayNode. weak: the user may delete it via the OverlaysPanel.
-    std::weak_ptr<TextureOverlay> m_compute_result_overlay;
 
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_shadow_texture;
 

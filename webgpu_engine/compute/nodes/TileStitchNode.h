@@ -33,10 +33,10 @@ public:
 
     struct StitchSettings {
         // The size of the input tiles (65x65?)
-        glm::uvec2 tile_size;
+        glm::uvec2 tile_size = glm::uvec2(65);
 
         // If true, the right and bottom 1px wide edge will be ignored when stitching
-        bool tile_has_border;
+        bool tile_has_border = true;
 
         // For slippyMap tiles this has to be set to true as y starts from the bottom
         bool stitch_inverted_y = true;
@@ -49,6 +49,7 @@ public:
         WGPUTextureUsage texture_usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
     };
 
+    explicit TileStitchNode(webgpu::Context& ctx); // default-configured; for the NodeRegistry
     TileStitchNode(webgpu::Context& ctx, StitchSettings settings);
 
 public slots:

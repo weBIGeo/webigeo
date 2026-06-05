@@ -18,38 +18,37 @@
 
 #pragma once
 
-#include "Node.h"
-#include <functional>
+#include "compute/nodes/Node.h"
+#include <memory>
 #include <radix/geometry.h>
 #include <webgpu/raii/TextureWithSampler.h>
 
+namespace webgpu_engine {
+class Context;
+class TextureOverlay;
+}
+
 namespace webgpu_engine::compute::nodes {
 
-// Terminal node that hands the graph's result texture + world-space aabb to a
-// consumer (typically a TextureOverlay in the render app) via an injected callback.
-//
-// The node deliberately knows nothing about the rendering layer: the callback only
-// uses compute-layer types, so the compute target carries no dependency on the
-// renderer. An unset callback makes run a no-op (e.g. a headless compute app).
-class OverlayNode : public Node {
+// Terminal node that forwards the graph's result texture (+ region aabb) to a "Compute Result"
+// TextureOverlay managed by the OverlayRenderer. Unlike a generic compute node it knows the rendering
+// layer (it lives there): the OverlayRenderer registers it with the NodeRegistry and the graph builders
+// create it by type-name, so the compute core keeps no dependency on the renderer.
+class OverlayRenderNode : public Node {
     Q_OBJECT
 
 public:
-    NODE_TYPE_NAME(OverlayNode)
+    NODE_TYPE_NAME(OverlayRenderNode)
 
     struct OverlaySettings {
         // false: link the source texture directly (non-owning).
-        // true: copy the source into the consumer's own texture (requires CopySrc on the source).
+        // true: copy the source into the overlay's own texture (requires CopySrc on the source).
         bool copy = false;
     };
 
-    // copy == true asks the consumer to copy the texture; false asks it to link it.
-    using UpdateFunc = std::function<void(const webgpu::raii::TextureWithSampler* texture, const radix::geometry::Aabb<2, double>& aabb, bool copy)>;
-
-    OverlayNode();
-    explicit OverlayNode(const OverlaySettings& settings);
-
-    void set_update_func(UpdateFunc func) { m_update_func = std::move(func); }
+    explicit OverlayRenderNode(Context& context);
+    OverlayRenderNode(Context& context, const OverlaySettings& settings);
+    ~OverlayRenderNode() override;
 
     void set_settings(const OverlaySettings& settings) { m_settings = settings; }
     const OverlaySettings& get_settings() const { return m_settings; }
@@ -58,8 +57,9 @@ public slots:
     void run_impl() override;
 
 private:
-    UpdateFunc m_update_func;
+    Context* m_context;
     OverlaySettings m_settings;
+    std::weak_ptr<TextureOverlay> m_result_overlay; // weak: the user may delete it via the OverlaysPanel
 };
 
 } // namespace webgpu_engine::compute::nodes

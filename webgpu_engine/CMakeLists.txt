@@ -40,6 +40,7 @@ set(SOURCES
     overlay/ScreenSpaceSnowOverlay.h overlay/ScreenSpaceSnowOverlay.cpp
     overlay/TextureOverlay.h overlay/TextureOverlay.cpp
     overlay/TileDebugOverlay.h overlay/TileDebugOverlay.cpp
+    overlay/OverlayRenderNode.h overlay/OverlayRenderNode.cpp
     Context.h Context.cpp
 
     compute/GpuTileStorage.h compute/GpuTileStorage.cpp
@@ -51,12 +52,12 @@ set(SOURCES
     compute/nodes/ComputeNormalsNode.h compute/nodes/ComputeNormalsNode.cpp
     compute/GraphRunContext.h
     compute/NodeGraph.h compute/NodeGraph.cpp
+    compute/NodeRegistry.h compute/NodeRegistry.cpp
     compute/nodes/ComputeSnowNode.h compute/nodes/ComputeSnowNode.cpp
     compute/nodes/UpsampleTexturesNode.h compute/nodes/UpsampleTexturesNode.cpp
     compute/nodes/ComputeAvalancheTrajectoriesNode.h compute/nodes/ComputeAvalancheTrajectoriesNode.cpp
     compute/nodes/ExportNode.h compute/nodes/ExportNode.cpp
     compute/nodes/BufferToTextureNode.h compute/nodes/BufferToTextureNode.cpp
-    compute/nodes/OverlayNode.h compute/nodes/OverlayNode.cpp
     compute/nodes/ComputeReleasePointsNode.h compute/nodes/ComputeReleasePointsNode.cpp
     compute/nodes/TileStitchNode.h compute/nodes/TileStitchNode.cpp
     compute/nodes/HeightDecodeNode.h compute/nodes/HeightDecodeNode.cpp
