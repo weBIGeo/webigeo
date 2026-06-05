@@ -20,11 +20,11 @@
 
 #pragma once
 
-#include "renderer/AtmosphereRenderer.h"
-#include "renderer/CloudRenderer.h"
-#include "renderer/OverlayRenderer.h"
-#include "renderer/TileMeshRenderer.h"
-#include "renderer/TrackRenderer.h"
+#include "atmosphere/AtmosphereRenderer.h"
+#include "cloud/CloudRenderer.h"
+#include "overlay/OverlayRenderer.h"
+#include "tile_mesh/TileMeshRenderer.h"
+#include "track/TrackRenderer.h"
 #include "UniformBufferObjects.h"
 #include "nucleus/EngineContext.h"
 #include "nucleus/track/Manager.h"

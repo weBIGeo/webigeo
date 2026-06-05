@@ -27,11 +27,11 @@
 #include "nucleus/tile/TileLoadService.h"
 #include "nucleus/tile/setup.h"
 #include "webgpu_engine/Context.h"
-#include "webgpu_engine/renderer/CloudRenderer.h"
-#include "webgpu_engine/renderer/OverlayRenderer.h"
-#include "webgpu_engine/renderer/overlays/HeightLinesOverlay.h"
-#include "webgpu_engine/renderer/overlays/TextureOverlay.h"
-#include "webgpu_engine/renderer/TileMeshRenderer.h"
+#include "webgpu_engine/cloud/CloudRenderer.h"
+#include "webgpu_engine/overlay/OverlayRenderer.h"
+#include "webgpu_engine/overlay/HeightLinesOverlay.h"
+#include "webgpu_engine/overlay/TextureOverlay.h"
+#include "webgpu_engine/tile_mesh/TileMeshRenderer.h"
 
 namespace webgpu_app {
 

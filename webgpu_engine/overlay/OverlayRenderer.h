@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "overlays/Overlay.h"
+#include "Overlay.h"
 #include <QObject>
 #include <array>
 #include <memory>

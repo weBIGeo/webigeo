@@ -29,7 +29,7 @@
 #include <imgui.h>
 
 #include "webgpu_engine/Context.h"
-#include "webgpu_engine/renderer/TrackRenderer.h"
+#include "webgpu_engine/track/TrackRenderer.h"
 
 namespace webgpu_app {
 

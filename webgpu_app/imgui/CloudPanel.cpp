@@ -25,7 +25,7 @@
 
 #include "../CloudsManager.h"
 #include "webgpu_engine/Context.h"
-#include "webgpu_engine/renderer/CloudRenderer.h"
+#include "webgpu_engine/cloud/CloudRenderer.h"
 
 namespace webgpu_app {
 

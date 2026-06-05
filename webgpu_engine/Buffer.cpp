@@ -27,12 +27,12 @@
 #include "compute/nodes/ComputeSnowNode.h"
 #include "compute/nodes/HeightDecodeNode.h"
 #include "compute/nodes/IterativeSimulationNode.h"
-#include "renderer/CloudRenderer.h"
-#include "renderer/TrackRenderer.h"
-#include "renderer/overlays/HeightLinesOverlay.h"
-#include "renderer/overlays/ScreenSpaceSnowOverlay.h"
-#include "renderer/overlays/TextureOverlay.h"
-#include "renderer/overlays/TileDebugOverlay.h"
+#include "cloud/CloudRenderer.h"
+#include "track/TrackRenderer.h"
+#include "overlay/HeightLinesOverlay.h"
+#include "overlay/ScreenSpaceSnowOverlay.h"
+#include "overlay/TextureOverlay.h"
+#include "overlay/TileDebugOverlay.h"
 
 namespace webgpu_engine {
 

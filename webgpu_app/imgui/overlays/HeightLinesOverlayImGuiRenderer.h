@@ -19,7 +19,7 @@
 #pragma once
 
 #include "OverlayImGuiRenderer.h"
-#include <webgpu_engine/renderer/overlays/HeightLinesOverlay.h>
+#include <webgpu_engine/overlay/HeightLinesOverlay.h>
 
 namespace webgpu_app {
 

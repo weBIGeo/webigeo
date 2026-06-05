@@ -21,7 +21,7 @@
 #include "OverlayImGuiRenderer.h"
 #include <QObject>
 #include <string>
-#include <webgpu_engine/renderer/overlays/TextureOverlay.h>
+#include <webgpu_engine/overlay/TextureOverlay.h>
 
 namespace webgpu_app {
 

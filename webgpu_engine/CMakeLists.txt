@@ -30,16 +30,16 @@ set(SOURCES
     gpu_utils.h gpu_utils.cpp
     UniformBufferObjects.h
     Buffer.h Buffer.cpp
-    renderer/TileMeshRenderer.h renderer/TileMeshRenderer.cpp
-    renderer/CloudRenderer.h renderer/CloudRenderer.cpp
-    renderer/TrackRenderer.h renderer/TrackRenderer.cpp
-    renderer/AtmosphereRenderer.h renderer/AtmosphereRenderer.cpp
-    renderer/OverlayRenderer.h renderer/OverlayRenderer.cpp
-    renderer/overlays/Overlay.h
-    renderer/overlays/HeightLinesOverlay.h renderer/overlays/HeightLinesOverlay.cpp
-    renderer/overlays/ScreenSpaceSnowOverlay.h renderer/overlays/ScreenSpaceSnowOverlay.cpp
-    renderer/overlays/TextureOverlay.h renderer/overlays/TextureOverlay.cpp
-    renderer/overlays/TileDebugOverlay.h renderer/overlays/TileDebugOverlay.cpp
+    tile_mesh/TileMeshRenderer.h tile_mesh/TileMeshRenderer.cpp
+    cloud/CloudRenderer.h cloud/CloudRenderer.cpp
+    track/TrackRenderer.h track/TrackRenderer.cpp
+    atmosphere/AtmosphereRenderer.h atmosphere/AtmosphereRenderer.cpp
+    overlay/OverlayRenderer.h overlay/OverlayRenderer.cpp
+    overlay/Overlay.h
+    overlay/HeightLinesOverlay.h overlay/HeightLinesOverlay.cpp
+    overlay/ScreenSpaceSnowOverlay.h overlay/ScreenSpaceSnowOverlay.cpp
+    overlay/TextureOverlay.h overlay/TextureOverlay.cpp
+    overlay/TileDebugOverlay.h overlay/TileDebugOverlay.cpp
     Context.h Context.cpp
 
     compute/GpuTileStorage.h compute/GpuTileStorage.cpp

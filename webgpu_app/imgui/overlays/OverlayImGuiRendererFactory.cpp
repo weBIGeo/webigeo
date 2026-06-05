@@ -23,10 +23,10 @@
 #include "TextureOverlayImGuiRenderer.h"
 #include "TileDebugOverlayImGuiRenderer.h"
 
-#include <webgpu_engine/renderer/overlays/HeightLinesOverlay.h>
-#include <webgpu_engine/renderer/overlays/ScreenSpaceSnowOverlay.h>
-#include <webgpu_engine/renderer/overlays/TextureOverlay.h>
-#include <webgpu_engine/renderer/overlays/TileDebugOverlay.h>
+#include <webgpu_engine/overlay/HeightLinesOverlay.h>
+#include <webgpu_engine/overlay/ScreenSpaceSnowOverlay.h>
+#include <webgpu_engine/overlay/TextureOverlay.h>
+#include <webgpu_engine/overlay/TileDebugOverlay.h>
 
 namespace webgpu_app {
 

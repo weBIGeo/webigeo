@@ -19,7 +19,7 @@
 #pragma once
 
 #include "OverlayImGuiRenderer.h"
-#include <webgpu_engine/renderer/overlays/TileDebugOverlay.h>
+#include <webgpu_engine/overlay/TileDebugOverlay.h>
 
 namespace webgpu_app {
 

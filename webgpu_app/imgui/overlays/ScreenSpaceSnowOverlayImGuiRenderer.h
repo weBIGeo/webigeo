@@ -19,7 +19,7 @@
 #pragma once
 
 #include "OverlayImGuiRenderer.h"
-#include <webgpu_engine/renderer/overlays/ScreenSpaceSnowOverlay.h>
+#include <webgpu_engine/overlay/ScreenSpaceSnowOverlay.h>
 
 namespace webgpu_app {
 

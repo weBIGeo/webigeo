@@ -26,8 +26,8 @@
 #include "nucleus/tile/drawing.h"
 #include "nucleus/utils/geopng_decoder.h"
 #include "nucleus/utils/image_loader.h"
-#include "renderer/OverlayRenderer.h"
-#include "renderer/overlays/TextureOverlay.h"
+#include "overlay/OverlayRenderer.h"
+#include "overlay/TextureOverlay.h"
 #include "webgpu/raii/RenderPassEncoder.h"
 #include "webgpu_engine/Context.h"
 #include <ktx.h>
