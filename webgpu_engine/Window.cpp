@@ -257,7 +257,7 @@ void Window::paint_gui()
     {
         // Tile-debug overlays (Normals/Tiles/Zoomlevel/Vertex-ID) now live in the Overlays panel
         // as a TileDebugOverlay; the compose-stage overlays (Decoded Normals/Steepness/...) were removed.
-        m_needs_redraw |= ImGui::Checkbox("Phong Shading", (bool*)&m_context->shared_config().m_phong_enabled);
+        m_needs_redraw |= ImGui::Checkbox("Shading", (bool*)&m_context->shared_config().m_shading_enabled);
         m_needs_redraw |= ImGui::Checkbox("Atmosphere", (bool*)&m_context->shared_config().m_atmosphere_enabled);
         m_needs_redraw |= ImGui::Checkbox("Clouds", (bool*)&m_context->shared_config().m_clouds_enabled);
     }

@@ -19,7 +19,6 @@
 
 #pragma once
 
-#include <QString>
 #include <webgpu/raii/RawBuffer.h>
 #include <webgpu/webgpu.h>
 #include <webgpu/webgpu_interface.hpp>
@@ -34,12 +33,6 @@ public:
 
     // Refills the GPU Buffer
     void update_gpu_data(WGPUQueue queue);
-
-    // Returns String representation of buffer data (Base64)
-    QString data_as_string();
-
-    // Loads the given base 64 encoded string as the buffer data
-    bool data_from_string(const QString& base64String);
 
     const webgpu::raii::RawBuffer<T>& raw_buffer() const;
 

@@ -28,7 +28,7 @@ project(alpine-renderer-webgpu_engine LANGUAGES C CXX)
 set(SOURCES
     Window.h Window.cpp
     gpu_utils.h gpu_utils.cpp
-    UniformBufferObjects.h UniformBufferObjects.cpp
+    UniformBufferObjects.h
     Buffer.h Buffer.cpp
     renderer/TileMeshRenderer.h renderer/TileMeshRenderer.cpp
     renderer/CloudRenderer.h renderer/CloudRenderer.cpp

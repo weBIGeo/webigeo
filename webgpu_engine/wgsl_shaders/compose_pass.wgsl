@@ -185,7 +185,7 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         albedo = albedo * (1.0 - pre_overlay_color.a) + pre_overlay_color.rgb;
 
         var shaded_color = albedo;
-        if bool(conf.phong_enabled)
+        if bool(conf.shading_enabled)
         {
             shaded_color = calculate_illumination(shaded_color, origin, pos_ws, normal, conf.sun_light, conf.amb_light, conf.sun_light_dir.xyz, material_light_response, amb_occlusion, shadow_term);
         }

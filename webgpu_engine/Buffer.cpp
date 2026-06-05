@@ -49,22 +49,6 @@ void Buffer<T>::update_gpu_data(WGPUQueue queue)
 }
 
 template <typename T>
-QString Buffer<T>::data_as_string()
-{
-    return ubo_as_string(data);
-}
-
-template <typename T>
-bool Buffer<T>::data_from_string(const QString& base64String)
-{
-    bool result = true;
-    auto newData = ubo_from_string<T>(base64String, &result);
-    if (result)
-        data = newData;
-    return result;
-}
-
-template <typename T>
 const webgpu::raii::RawBuffer<T>& Buffer<T>::raw_buffer() const
 {
     return m_raw_buffer;
