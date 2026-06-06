@@ -35,7 +35,10 @@ void RenderResourceRegistry::set_local_shader_path(const std::string& path) { m_
 
 void RenderResourceRegistry::register_shader(const std::string& name, const std::string& source_path)
 {
-    assert(m_shader_index.find(name) == m_shader_index.end());
+    // Named shaders are a shared, app-lifetime cache: multiple node instances (and successive
+    // node graphs) legitimately register the same name. Treat re-registration as a no-op.
+    if (has_shader(name))
+        return;
     m_shader_index[name] = m_shaders.size();
     m_shaders.push_back({ source_path, nullptr });
     if (m_device != nullptr)
@@ -53,7 +56,9 @@ const raii::ShaderModule& RenderResourceRegistry::shader(const std::string& name
 
 void RenderResourceRegistry::register_bind_group_layout(const std::string& name, std::function<std::unique_ptr<raii::BindGroupLayout>(WGPUDevice)> factory)
 {
-    assert(m_layout_index.find(name) == m_layout_index.end());
+    // See register_shader: layouts are a shared, app-lifetime cache keyed by name.
+    if (has_bind_group_layout(name))
+        return;
     m_layout_index[name] = m_layouts.size();
     m_layouts.push_back({ name, factory, nullptr });
     if (m_device != nullptr)

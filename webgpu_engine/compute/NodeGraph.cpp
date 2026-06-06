@@ -275,6 +275,22 @@ static void add_overlay_node(NodeGraph& node_graph, webgpu::Context& ctx, const 
     overlay_node->input_socket("region aabb").connect(node_graph.get_node("select_tiles_node").output_socket("region aabb"));
 }
 
+std::unique_ptr<NodeGraph> NodeGraph::create_preset(ComputePipelineType type, webgpu::Context& ctx)
+{
+    switch (type) {
+    case ComputePipelineType::Snow:
+        return create_snow_compute_graph(ctx);
+    case ComputePipelineType::AvalancheTrajectories: {
+        auto graph = create_trajectories_with_export_compute_graph(ctx);
+        graph->set_enabled_for_nodes_with_name("export", false);
+        return graph;
+    }
+    case ComputePipelineType::IterativeSimulation:
+        return create_iterative_simulation_compute_graph(ctx);
+    }
+    return nullptr;
+}
+
 std::unique_ptr<NodeGraph> NodeGraph::create_snow_compute_graph(webgpu::Context& ctx)
 {
     auto node_graph = create_normal_compute_graph_unconnected(ctx);

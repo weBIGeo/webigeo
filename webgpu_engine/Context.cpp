@@ -20,6 +20,7 @@
 
 #include "Context.h"
 
+#include "compute/NodeGraph.h"
 #include <webgpu/raii/BindGroupLayout.h>
 
 namespace webgpu_engine {
@@ -237,6 +238,10 @@ void Context::set_track_renderer(std::shared_ptr<TrackRenderer> new_track_render
     assert(!is_alive()); // only set before init is called.
     m_track_renderer = std::move(new_track_renderer);
 }
+
+compute::nodes::NodeGraph* Context::compute_graph() const { return m_compute_graph.get(); }
+
+void Context::set_compute_graph(std::unique_ptr<compute::nodes::NodeGraph> graph) { m_compute_graph = std::move(graph); }
 
 void Context::set_webgpu_ctx(webgpu::Context& ctx) { m_webgpu_ctx_ptr = &ctx; }
 

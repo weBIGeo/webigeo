@@ -91,7 +91,9 @@ void Window::initialise_gpu()
 
     m_shadow_texture = create_shadow_texture(1, 1, 1);
 
-    create_and_set_compute_pipeline(ComputePipelineType::AVALANCHE_TRAJECTORIES, false);
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
+    m_node_graph_renderer = std::make_unique<compute::NodeGraphRenderer>(*m_context);
+#endif
 
     qInfo() << "gpu_ready_changed";
     // emit gpu_ready_changed(true); //TODO remove/find replacement
@@ -249,102 +251,8 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
 void Window::paint_gui()
 {
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-
-    paint_compute_pipeline_gui();
-
-    if (m_gui_error_state.should_open_modal) {
-        ImGui::OpenPopup("Error");
-        m_gui_error_state.should_open_modal = false;
-    }
-
-    // Always center this window when appearing
-    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-
-    if (ImGui::BeginPopupModal("Error", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-
-        ImGui::PushTextWrapPos(30.0f * ImGui::GetFontSize());
-        ImGui::Text("%s", m_gui_error_state.text.c_str());
-        ImGui::PopTextWrapPos();
-
-        ImGui::Separator();
-        if (ImGui::Button("OK", ImVec2(120, 0))) {
-            ImGui::CloseCurrentPopup();
-        }
-        ImGui::EndPopup();
-    }
-
-#endif
-}
-
-void Window::paint_compute_pipeline_gui()
-{
-#if ALP_WEBGPU_APP_ENABLE_IMGUI
-    if (ImGui::CollapsingHeader("Compute pipeline", ImGuiTreeNodeFlags_DefaultOpen)) {
-
-        if (ImGui::Button("Run", ImVec2(250, 0))) {
-            update_settings_and_rerun_pipeline();
-        }
-
-        ImGui::SameLine();
-
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(150 / 255.0f, 10 / 255.0f, 10 / 255.0f, 1.00f));
-        if (ImGui::Button("Clear", ImVec2(100, 0))) {
-            create_and_set_compute_pipeline(m_active_compute_pipeline_type);
-            m_needs_redraw = true;
-        }
-        ImGui::PopStyleColor(1);
-
-        static int overlays_current_item = 1;
-        const std::vector<std::pair<std::string, ComputePipelineType>> overlays = {
-            { "Snow", ComputePipelineType::SNOW },
-            { "Avalanche trajectories", ComputePipelineType::AVALANCHE_TRAJECTORIES },
-            { "Iterative simulation (WIP)", ComputePipelineType::ITERATIVE_SIMULATION },
-        };
-        const char* current_item_label = overlays[overlays_current_item].first.c_str();
-        if (ImGui::BeginCombo("Type", current_item_label)) {
-            for (size_t i = 0; i < overlays.size(); i++) {
-                bool is_selected = ((size_t)overlays_current_item == i);
-                if (ImGui::Selectable(overlays[i].first.c_str(), is_selected)) {
-                    overlays_current_item = int(i);
-                    create_and_set_compute_pipeline(overlays[i].second);
-                }
-                if (is_selected)
-                    ImGui::SetItemDefaultFocus();
-            }
-            ImGui::EndCombo();
-        }
-    }
-
-    {
-        ImVec2 button_pos(10 + 58, ImGui::GetIO().DisplaySize.y - 48 * 2 - 40 - 10);
-        ImGui::SetNextWindowPos(button_pos, ImGuiCond_Always);
-        ImGui::SetNextWindowBgAlpha(0.5f);
-        ImGui::SetNextWindowSize(ImVec2(48, 48));
-
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-
-        ImGui::Begin("ToggleGraphRenderWindow", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize);
-        ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
-
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // fully transparent
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.0f, 0.0f, 0.0f, 0.2f)); // black with alpha 0.2
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.0f, 0.0f, 0.0f, 0.2f)); // same for active
-
-        if (ImGui::Button(ICON_FA_NETWORK_WIRED "###ToggleGraphRenderer", ImVec2(48, 48))) {
-            m_should_render_node_graph = !m_should_render_node_graph;
-        }
-
-        ImGui::PopStyleColor(3);
-        ImGui::End();
-        ImGui::PopStyleVar();
-    }
-
-    // render node graph
-    if (m_should_render_node_graph) {
+    if (m_node_graph_renderer)
         m_node_graph_renderer->render();
-    }
-
 #endif
 }
 
@@ -374,67 +282,7 @@ glm::vec4 Window::synchronous_position_readback(const glm::dvec2& ndc)
     return m_last_position_readback;
 }
 
-void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, bool should_recreate_compose_bind_group)
-{
-    qDebug() << "setting new compute pipeline " << static_cast<int>(pipeline_type);
-    m_active_compute_pipeline_type = pipeline_type;
-
-    // Replacing m_compute_graph destroys the old graph (and its OverlayRenderNode), whose destructor
-    // unlinks the "Compute Result" overlay's borrowed texture so draw() never samples a freed texture.
-
-    if (pipeline_type == ComputePipelineType::SNOW) {
-        m_compute_graph = compute::nodes::NodeGraph::create_snow_compute_graph(m_context->webgpu_ctx());
-    } else if (pipeline_type == ComputePipelineType::AVALANCHE_TRAJECTORIES) {
-        m_compute_graph = compute::nodes::NodeGraph::create_trajectories_with_export_compute_graph(m_context->webgpu_ctx());
-        m_compute_graph->set_enabled_for_nodes_with_name("export", false);
-    } else if (pipeline_type == ComputePipelineType::ITERATIVE_SIMULATION) {
-        m_compute_graph = compute::nodes::NodeGraph::create_iterative_simulation_compute_graph(m_context->webgpu_ctx());
-    }
-
-    connect(m_compute_graph.get(), &compute::nodes::NodeGraph::run_completed, this, [this](compute::GraphRunContext) { request_redraw(); });
-
-    connect(m_compute_graph.get(), &compute::nodes::NodeGraph::run_failed, this, [this](compute::nodes::GraphRunFailureInfo info) {
-        qWarning() << "graph run failed. " << info.node_name() << ": " << info.node_run_failure_info().message();
-        std::string message = "Execution of pipeline failed.\n\nNode \"" + info.node_name() + "\" reported \"" + info.node_run_failure_info().message() + "\"";
-        this->display_message(message);
-    });
-
-    if (should_recreate_compose_bind_group) {
-        // we usually need to recreate the compose bind group, because it might have now-outdated texture bindings from the last (now-destroyed) pipeline
-        // however, we dont want this to happen when initializing, because at that point we dont have a gbuffer yet (which is required for creating the bind
-        // group)
-        recreate_compose_bind_group();
-    }
-
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-    m_node_graph_renderer = std::make_unique<compute::NodeGraphRenderer>();
-    m_node_graph_renderer->init(*m_compute_graph.get());
-#endif
-
-    m_is_first_pipeline_run = true;
-}
-
-void Window::update_settings_and_rerun_pipeline(const std::string& entry_node)
-{
-    if (!entry_node.empty() && !m_is_first_pipeline_run) {
-        if (m_compute_graph->exists_node(entry_node)) {
-            m_compute_graph->get_node_as<compute::nodes::Node>(entry_node).rerun();
-        } else {
-            qCritical() << "Entry node" << entry_node << "does not exist.";
-        }
-    } else {
-        m_is_first_pipeline_run = false;
-        m_compute_graph->run();
-    }
-}
-
 void Window::set_max_zoom_level(uint32_t max_zoom_level) { m_max_zoom_level = max_zoom_level; }
-
-void Window::display_message(const std::string& message)
-{
-    m_gui_error_state.text = message;
-    m_gui_error_state.should_open_modal = true;
-}
 
 float Window::depth([[maybe_unused]] const glm::dvec2& normalised_device_coordinates)
 {

@@ -36,20 +36,8 @@ class QOpenGLFramebufferObject;
 
 namespace webgpu_engine {
 
-struct GuiErrorState {
-    bool should_open_modal = false;
-    std::string text = "";
-};
-
 class Window : public nucleus::AbstractRenderWindow, public nucleus::camera::AbstractDepthTester {
     Q_OBJECT
-public:
-    enum class ComputePipelineType {
-        SNOW = 1,
-        AVALANCHE_TRAJECTORIES = 2,
-        ITERATIVE_SIMULATION = 4,
-    };
-
 public:
     Window();
 
@@ -72,7 +60,6 @@ public:
 
     void update_required_gpu_limits(WGPULimits& limits, const WGPULimits& supported_limits);
     void paint_gui();
-    void paint_compute_pipeline_gui();
 
     void set_max_zoom_level(uint32_t max_zoom_level);
 
@@ -104,11 +91,6 @@ private:
     // buffer anymore. May actually increase performance as we don't need to fill the seperate buffer.
     glm::vec4 synchronous_position_readback(const glm::dvec2& normalised_device_coordinates);
 
-    void create_and_set_compute_pipeline(ComputePipelineType pipeline_type, bool should_recreate_compose_bind_group = true);
-    void update_settings_and_rerun_pipeline(const std::string& entry_node = "");
-
-    void display_message(const std::string& message);
-
     std::unique_ptr<webgpu::raii::TextureWithSampler> create_shadow_texture(uint32_t width, uint32_t height, uint32_t mip_levels);
 
 private:
@@ -135,18 +117,12 @@ private:
     WGPUPresentMode m_swapchain_presentmode = WGPUPresentMode::WGPUPresentMode_Fifo;
 
     bool m_needs_redraw = true;
-    bool m_is_first_pipeline_run = true;
     uint32_t m_paint_number = 0;
-
-    std::unique_ptr<compute::nodes::NodeGraph> m_compute_graph;
-    ComputePipelineType m_active_compute_pipeline_type;
-    GuiErrorState m_gui_error_state;
 
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_shadow_texture;
 
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     std::unique_ptr<compute::NodeGraphRenderer> m_node_graph_renderer;
-    bool m_should_render_node_graph = false;
 #endif
 };
 

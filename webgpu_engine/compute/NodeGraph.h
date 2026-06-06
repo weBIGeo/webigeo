@@ -89,6 +89,10 @@ signals:
     void run_failed(GraphRunFailureInfo info);
 
 public:
+    enum class ComputePipelineType { Snow, AvalancheTrajectories, IterativeSimulation };
+
+    static std::unique_ptr<NodeGraph> create_preset(ComputePipelineType type, webgpu::Context& ctx);
+
     static std::unique_ptr<NodeGraph> create_snow_compute_graph(webgpu::Context& ctx);
     static std::unique_ptr<NodeGraph> create_avalanche_trajectories_compute_graph(webgpu::Context& ctx);
     static std::unique_ptr<NodeGraph> create_trajectories_with_export_compute_graph(webgpu::Context& ctx);

@@ -21,12 +21,17 @@
 
 #include <imgui.h>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 #include "nodes/NodeRenderer.h"
 #include "../NodeGraph.h"
+
+namespace webgpu_engine {
+class Context;
+}
 
 namespace webgpu_engine::compute::nodes {
 class InputSocket;
@@ -39,15 +44,42 @@ class NodeRenderer;
 
 class NodeGraphRenderer {
 public:
-    NodeGraphRenderer() = default;
+    // Builds and loads a default pipeline preset into the given context's compute graph.
+    explicit NodeGraphRenderer(webgpu_engine::Context& context);
 
-    void init(nodes::NodeGraph& node_graph);
     void render();
 
     enum class GraphRenderingMode { Default, Transparent, White, WhiteOpaque };
 
 private:
+    // (Re)builds the node renderers for the currently loaded graph.
+    void init(nodes::NodeGraph& node_graph);
+
+    // Builds the graph for the preset, stores it in the context, wires run/error signals, and inits.
+    void load_preset(nodes::NodeGraph::ComputePipelineType type);
+
+    struct PipelinePreset {
+        std::string name;
+        nodes::NodeGraph::ComputePipelineType type;
+    };
+
+    void render_toggle_button();
+    void render_error_modal();
+
+    webgpu_engine::Context* m_context = nullptr;
     nodes::NodeGraph* m_node_graph = nullptr;
+
+    std::vector<PipelinePreset> m_presets;
+    nodes::NodeGraph::ComputePipelineType m_active_preset = nodes::NodeGraph::ComputePipelineType::AvalancheTrajectories;
+    std::optional<nodes::NodeGraph::ComputePipelineType> m_pending_preset;
+
+    bool m_editor_visible = false;
+
+    struct ErrorModalState {
+        bool should_open = false;
+        std::string text;
+    };
+    ErrorModalState m_error_state;
 
     ImVec2 m_window_size = ImVec2(0, 0);
     std::string m_window_title;

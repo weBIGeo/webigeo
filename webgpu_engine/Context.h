@@ -32,6 +32,10 @@
 
 namespace webgpu_engine {
 
+namespace compute::nodes {
+class NodeGraph;
+}
+
 class Context : public nucleus::EngineContext {
     Q_OBJECT
 public:
@@ -54,6 +58,9 @@ public:
 
     TrackRenderer* track_renderer() const;
     void set_track_renderer(std::shared_ptr<TrackRenderer> new_track_renderer);
+
+    compute::nodes::NodeGraph* compute_graph() const;
+    void set_compute_graph(std::unique_ptr<compute::nodes::NodeGraph> graph);
 
     webgpu::Context& webgpu_ctx() { return *m_webgpu_ctx_ptr; }
     void set_webgpu_ctx(webgpu::Context& ctx);
@@ -82,6 +89,7 @@ private:
     std::shared_ptr<AtmosphereRenderer> m_atmosphere_renderer;
     std::shared_ptr<OverlayRenderer> m_overlay_renderer;
     std::shared_ptr<TrackRenderer> m_track_renderer;
+    std::unique_ptr<compute::nodes::NodeGraph> m_compute_graph;
     // std::shared_ptr<TextureLayer> m_ortho_layer;
 };
 

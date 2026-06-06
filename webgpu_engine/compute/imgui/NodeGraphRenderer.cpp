@@ -19,9 +19,11 @@
 
 #include "NodeGraphRenderer.h"
 
+#include "../../Context.h"
 #include "nodes/NodeRendererFactory.h"
 #include <IconsFontAwesome5.h>
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <imnodes.h>
 #include <qDebug>
 
@@ -39,6 +41,34 @@ static float easeOutElastic(float x)
         return 1.0f;
 
     return powf(2.0f, -10.0f * x) * sinf((x * 10.0f - 0.75f) * c4) + 1.0f;
+}
+
+NodeGraphRenderer::NodeGraphRenderer(webgpu_engine::Context& context)
+    : m_context(&context)
+    , m_presets({
+          { "Snow", nodes::NodeGraph::ComputePipelineType::Snow },
+          { "Avalanche trajectories", nodes::NodeGraph::ComputePipelineType::AvalancheTrajectories },
+          { "Iterative simulation (WIP)", nodes::NodeGraph::ComputePipelineType::IterativeSimulation },
+      })
+{
+    load_preset(nodes::NodeGraph::ComputePipelineType::AvalancheTrajectories);
+}
+
+void NodeGraphRenderer::load_preset(nodes::NodeGraph::ComputePipelineType type)
+{
+    m_context->set_compute_graph(nodes::NodeGraph::create_preset(type, m_context->webgpu_ctx()));
+    m_node_graph = m_context->compute_graph();
+
+    QObject::connect(m_node_graph, &nodes::NodeGraph::run_completed, m_context, [this](GraphRunContext) { m_context->request_redraw(); });
+    QObject::connect(m_node_graph, &nodes::NodeGraph::run_failed, m_context, [this](nodes::GraphRunFailureInfo info) {
+        qWarning() << "graph run failed. " << info.node_name() << ": " << info.node_run_failure_info().message();
+        m_error_state.text = "Execution of pipeline failed.\n\nNode \"" + info.node_name() + "\" reported \"" + info.node_run_failure_info().message() + "\"";
+        m_error_state.should_open = true;
+        m_context->request_redraw();
+    });
+
+    init(*m_node_graph);
+    m_active_preset = type;
 }
 
 void NodeGraphRenderer::init(nodes::NodeGraph& node_graph)
@@ -322,6 +352,18 @@ void NodeGraphRenderer::pop_style()
 
 void NodeGraphRenderer::render()
 {
+    if (m_pending_preset) {
+        load_preset(*m_pending_preset);
+        m_pending_preset.reset();
+        m_context->request_redraw();
+    }
+
+    render_toggle_button();
+    render_error_modal();
+
+    if (!m_editor_visible)
+        return;
+
     calculate_window_size();
 
     if (m_first_frame_after_init) {
@@ -457,12 +499,66 @@ void NodeGraphRenderer::rebuild_socket_id_maps()
     }
 }
 
+void NodeGraphRenderer::render_toggle_button()
+{
+    ImVec2 button_pos(10 + 58, ImGui::GetIO().DisplaySize.y - 48 * 2 - 40 - 10);
+    ImGui::SetNextWindowPos(button_pos, ImGuiCond_Always);
+    ImGui::SetNextWindowBgAlpha(0.5f);
+    ImGui::SetNextWindowSize(ImVec2(48, 48));
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+
+    ImGui::Begin("ToggleGraphRenderWindow", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize);
+    ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
+
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // fully transparent
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.0f, 0.0f, 0.0f, 0.2f)); // black with alpha 0.2
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.0f, 0.0f, 0.0f, 0.2f)); // same for active
+
+    if (ImGui::Button(ICON_FA_NETWORK_WIRED "###ToggleGraphRenderer", ImVec2(48, 48))) {
+        m_editor_visible = !m_editor_visible;
+    }
+
+    ImGui::PopStyleColor(3);
+    ImGui::End();
+    ImGui::PopStyleVar();
+}
+
+void NodeGraphRenderer::render_error_modal()
+{
+    if (m_error_state.should_open) {
+        ImGui::OpenPopup("Error");
+        m_error_state.should_open = false;
+    }
+
+    // Always center this window when appearing
+    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+
+    if (ImGui::BeginPopupModal("Error", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::PushTextWrapPos(30.0f * ImGui::GetFontSize());
+        ImGui::Text("%s", m_error_state.text.c_str());
+        ImGui::PopTextWrapPos();
+
+        ImGui::Separator();
+        if (ImGui::Button("OK", ImVec2(120, 0))) {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+}
+
 void NodeGraphRenderer::render_menu()
 {
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("File")) {
-            if (ImGui::MenuItem(ICON_FA_FOLDER_OPEN "  Load Graph")) {
-                // TODO: load graph
+            if (ImGui::BeginMenu(ICON_FA_FOLDER_OPEN "  Load Graph")) {
+                for (const auto& preset : m_presets) {
+                    const bool active = (m_active_preset == preset.type);
+                    if (ImGui::MenuItem(preset.name.c_str(), nullptr, active))
+                        m_pending_preset = preset.type;
+                }
+                ImGui::EndMenu();
             }
             if (ImGui::MenuItem(ICON_FA_SAVE "  Save Graph")) {
                 // TODO: save graph
