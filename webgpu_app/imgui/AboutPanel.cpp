@@ -24,7 +24,7 @@
 
 namespace webgpu_app {
 
-void AboutPanel::on_first_frame()
+void AboutPanel::ready()
 {
 #ifndef QT_DEBUG
     m_open_disclaimer = true;

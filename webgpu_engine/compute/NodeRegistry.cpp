@@ -24,6 +24,7 @@
 #include "nodes/ComputeReleasePointsNode.h"
 #include "nodes/ComputeSnowNode.h"
 #include "nodes/ExportNode.h"
+#include "nodes/GPXTrackNode.h"
 #include "nodes/HeightDecodeNode.h"
 #include "nodes/IterativeSimulationNode.h"
 #include "nodes/LoadTextureNode.h"
@@ -42,6 +43,7 @@ NodeRegistry::NodeRegistry()
     // Renderer-defined "custom" nodes (e.g. OverlayRenderNode) are registered separately by the renderer.
     // NOTE: UpsampleTexturesNode is intentionally not registered - its constructor needs explicit
     // (non-defaulted) configuration, so it has no parameterless-construction path yet.
+    register_node("GPXTrackNode", [](webgpu::Context&) { return std::make_unique<nodes::GPXTrackNode>(); });
     register_node("SelectTilesNode", [](webgpu::Context&) { return std::make_unique<nodes::SelectTilesNode>(); });
     register_node("RequestTilesNode", [](webgpu::Context&) { return std::make_unique<nodes::RequestTilesNode>(); });
     register_node("ComputeNormalsNode", [](webgpu::Context& c) { return std::make_unique<nodes::ComputeNormalsNode>(c); });

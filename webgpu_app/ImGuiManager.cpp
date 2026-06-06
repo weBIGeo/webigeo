@@ -97,7 +97,7 @@ void ImGuiManager::init(
     m_panels.push_back(std::make_unique<AtmospherePanel>(engine_ctx));
     m_panels.push_back(std::make_unique<ShadingPanel>(engine_ctx));
     m_panels.push_back(std::make_unique<OverlaysPanel>(engine_ctx));
-    m_panels.push_back(std::make_unique<TrackPanel>(engine_ctx));
+    m_panels.push_back(std::make_unique<TrackPanel>(engine_ctx, m_terrain_renderer));
     m_panels.push_back(std::make_unique<EnginePanel>(m_terrain_renderer));
 
     connect(&search_panel, &SearchPanel::search_requested, rc->search_service(), &SearchService::search);
@@ -107,6 +107,14 @@ void ImGuiManager::init(
         &nucleus::camera::Controller::fly_to_latitude_longitude);
     connect(rc->search_service(), &SearchService::search_results_arrived, &search_panel, &SearchPanel::display_search_results);
 
+#endif
+}
+
+void ImGuiManager::ready()
+{
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
+    for (auto& panel : m_panels)
+        panel->ready();
 #endif
 }
 
@@ -245,12 +253,6 @@ bool ImGuiManager::FloatingToggleButton(const char* id, const char* icon, const 
 
 void ImGuiManager::draw()
 {
-    if (m_first_frame) {
-        for (auto& panel : m_panels)
-            panel->on_first_frame();
-        m_first_frame = false;
-    }
-
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     if (!m_gui_visible)
         return;

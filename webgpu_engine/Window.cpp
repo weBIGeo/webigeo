@@ -20,7 +20,6 @@
  *****************************************************************************/
 
 #include "Window.h"
-#include "compute/nodes/SelectTilesNode.h"
 #include "gpu_utils.h"
 #include "nucleus/tile/drawing.h"
 #include "nucleus/utils/geopng_decoder.h"
@@ -58,7 +57,6 @@ void Window::set_context(Context* context)
 {
     m_context = context;
     connect(m_context, &Context::redraw_requested, this, &Window::request_redraw);
-    connect(m_context->track_renderer(), &TrackRenderer::track_loaded, this, &Window::on_track_loaded);
 }
 
 void Window::initialise_gpu()
@@ -285,11 +283,7 @@ void Window::paint_compute_pipeline_gui()
     if (ImGui::CollapsingHeader("Compute pipeline", ImGuiTreeNodeFlags_DefaultOpen)) {
 
         if (ImGui::Button("Run", ImVec2(250, 0))) {
-            if (m_is_region_selected) {
-                update_settings_and_rerun_pipeline();
-            } else {
-                display_message("Cannot run pipeline - No region selected");
-            }
+            update_settings_and_rerun_pipeline();
         }
 
         ImGui::SameLine();
@@ -300,13 +294,6 @@ void Window::paint_compute_pipeline_gui()
             m_needs_redraw = true;
         }
         ImGui::PopStyleColor(1);
-
-        const uint32_t min_zoomlevel = 1;
-        const uint32_t max_zoomlevel = 18;
-        ImGui::SliderScalar("Zoom level", ImGuiDataType_U32, &m_compute_zoomlevel, &min_zoomlevel, &max_zoomlevel, "%u");
-        if (ImGui::IsItemDeactivatedAfterEdit()) {
-            update_settings_and_rerun_pipeline();
-        }
 
         static int overlays_current_item = 1;
         const std::vector<std::pair<std::string, ComputePipelineType>> overlays = {
@@ -404,8 +391,6 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, 
         m_compute_graph = compute::nodes::NodeGraph::create_iterative_simulation_compute_graph(m_context->webgpu_ctx());
     }
 
-    update_compute_pipeline_settings();
-
     connect(m_compute_graph.get(), &compute::nodes::NodeGraph::run_completed, this, [this](compute::GraphRunContext) { request_redraw(); });
 
     connect(m_compute_graph.get(), &compute::nodes::NodeGraph::run_failed, this, [this](compute::nodes::GraphRunFailureInfo info) {
@@ -429,31 +414,17 @@ void Window::create_and_set_compute_pipeline(ComputePipelineType pipeline_type, 
     m_is_first_pipeline_run = true;
 }
 
-void Window::update_compute_pipeline_settings()
-{
-    // TODO: this function should go
-    if (m_compute_graph->exists_node("select_tiles_node")) {
-        m_compute_graph->get_node_as<compute::nodes::SelectTilesNode>("select_tiles_node").select_tiles_in_world_aabb(m_selected_region, m_compute_zoomlevel);
-    }
-}
-
 void Window::update_settings_and_rerun_pipeline(const std::string& entry_node)
 {
-    // TODO: This should go -> Node Graph Renderer is in charge for that
-    update_compute_pipeline_settings();
-    if (m_is_region_selected) {
-        if (!entry_node.empty() && !m_is_first_pipeline_run) {
-            if (m_compute_graph->exists_node(entry_node)) {
-                m_compute_graph->get_node_as<compute::nodes::Node>(entry_node).rerun();
-            } else {
-                qCritical() << "Entry node" << entry_node << "does not exist.";
-            }
+    if (!entry_node.empty() && !m_is_first_pipeline_run) {
+        if (m_compute_graph->exists_node(entry_node)) {
+            m_compute_graph->get_node_as<compute::nodes::Node>(entry_node).rerun();
         } else {
-            m_is_first_pipeline_run = false;
-            m_compute_graph->run();
+            qCritical() << "Entry node" << entry_node << "does not exist.";
         }
     } else {
-        qWarning() << "No region selected. Please load track.";
+        m_is_first_pipeline_run = false;
+        m_compute_graph->run();
     }
 }
 
@@ -528,27 +499,6 @@ void Window::pick_value([[maybe_unused]] const glm::dvec2& screen_space_coordina
 
 void Window::request_redraw() { m_needs_redraw = true; }
 
-void Window::on_track_loaded(const radix::geometry::Aabb3d& world_aabb)
-{
-    focus_region_3d(world_aabb);
-
-    // Auto-enable track rendering on first load (regardless of which entry point triggered it).
-    if (m_context->shared_config().m_track_render_mode == 0) {
-        m_context->shared_config().m_track_render_mode = 1;
-    }
-
-    m_needs_redraw = true;
-}
-
-void Window::focus_region_3d(const radix::geometry::Aabb3d& aabb)
-{
-    m_is_region_selected = true;
-    m_selected_region = aabb;
-    update_compute_pipeline_settings();
-
-    emit set_camera_definition_requested(nucleus::camera::Definition::looking_down_at_aabb(aabb, m_camera.viewport_size()));
-}
-
 void Window::focus_region_2d(const radix::geometry::Aabb<2, double>& aabb)
 {
     emit set_camera_definition_requested(nucleus::camera::Definition::looking_down_at_aabb(aabb, m_camera.viewport_size()));
@@ -557,11 +507,6 @@ void Window::focus_region_2d(const radix::geometry::Aabb<2, double>& aabb)
 void Window::ready()
 {
     m_context->overlay_renderer()->ready(m_context->webgpu_ctx());
-
-#if defined(QT_DEBUG)
-    m_context->track_renderer()->load_track(TrackRenderer::DEFAULT_GPX_TRACK_PATH);
-    // m_compute_graph->run();
-#endif
 }
 
 void Window::reload_shaders()

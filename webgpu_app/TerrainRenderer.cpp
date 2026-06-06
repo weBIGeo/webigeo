@@ -397,6 +397,10 @@ void TerrainRenderer::start() {
 
     m_webgpu_window->ready();
 
+#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
+    m_gui_manager->ready();
+#endif
+
 #if defined(__EMSCRIPTEN__)
     emscripten_set_main_loop_arg(
         [](void* userData) {

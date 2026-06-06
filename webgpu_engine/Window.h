@@ -82,8 +82,6 @@ public slots:
     void pick_value(const glm::dvec2& screen_space_coordinate) override;
 
     void request_redraw();
-    void on_track_loaded(const radix::geometry::Aabb3d& world_aabb);
-    void focus_region_3d(const radix::geometry::Aabb3d& aabb);
     void focus_region_2d(const radix::geometry::Aabb<2, double>& aabb);
     void reload_shaders();
     void on_shadow_texture_updated(const QByteArray& data);
@@ -107,7 +105,6 @@ private:
     glm::vec4 synchronous_position_readback(const glm::dvec2& normalised_device_coordinates);
 
     void create_and_set_compute_pipeline(ComputePipelineType pipeline_type, bool should_recreate_compose_bind_group = true);
-    void update_compute_pipeline_settings();
     void update_settings_and_rerun_pipeline(const std::string& entry_node = "");
 
     void display_message(const std::string& message);
@@ -143,11 +140,6 @@ private:
 
     std::unique_ptr<compute::nodes::NodeGraph> m_compute_graph;
     ComputePipelineType m_active_compute_pipeline_type;
-    // TODO: these should move into a dedicated gpxTrackNode, or TrackRenderer
-    //       should expose a Node that is responsible for filling the region/tiles.
-    radix::geometry::Aabb3d m_selected_region;
-    uint32_t m_compute_zoomlevel = 15;
-    bool m_is_region_selected = false;
     GuiErrorState m_gui_error_state;
 
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_shadow_texture;

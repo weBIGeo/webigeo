@@ -57,6 +57,7 @@ set(SOURCES
     compute/nodes/UpsampleTexturesNode.h compute/nodes/UpsampleTexturesNode.cpp
     compute/nodes/ComputeAvalancheTrajectoriesNode.h compute/nodes/ComputeAvalancheTrajectoriesNode.cpp
     compute/nodes/ExportNode.h compute/nodes/ExportNode.cpp
+    compute/nodes/GPXTrackNode.h compute/nodes/GPXTrackNode.cpp
     compute/nodes/BufferToTextureNode.h compute/nodes/BufferToTextureNode.cpp
     compute/nodes/ComputeReleasePointsNode.h compute/nodes/ComputeReleasePointsNode.cpp
     compute/nodes/TileStitchNode.h compute/nodes/TileStitchNode.cpp
@@ -79,6 +80,8 @@ if (ALP_WEBGPU_APP_ENABLE_IMGUI)
         compute/imgui/nodes/ComputeReleasePointsNodeRenderer.h compute/imgui/nodes/ComputeReleasePointsNodeRenderer.cpp
         compute/imgui/nodes/ComputeSnowNodeRenderer.h compute/imgui/nodes/ComputeSnowNodeRenderer.cpp
         compute/imgui/nodes/RequestTilesNodeRenderer.h compute/imgui/nodes/RequestTilesNodeRenderer.cpp
+        compute/imgui/nodes/SelectTilesNodeRenderer.h compute/imgui/nodes/SelectTilesNodeRenderer.cpp
+        compute/imgui/nodes/GPXTrackNodeRenderer.h compute/imgui/nodes/GPXTrackNodeRenderer.cpp
     )
 endif()
 

@@ -23,16 +23,20 @@
 #include "../../nodes/ComputeReleasePointsNode.h"
 #include "../../nodes/ComputeSnowNode.h"
 #include "../../nodes/ExportNode.h"
+#include "../../nodes/GPXTrackNode.h"
 #include "../../nodes/RequestTilesNode.h"
+#include "../../nodes/SelectTilesNode.h"
 #include "overlay/OverlayRenderNode.h"
 #include "BufferToTextureNodeRenderer.h"
 #include "ComputeAvalancheTrajectoriesNodeRenderer.h"
 #include "ComputeReleasePointsNodeRenderer.h"
 #include "ComputeSnowNodeRenderer.h"
 #include "ExportNodeRenderer.h"
+#include "GPXTrackNodeRenderer.h"
 #include "NodeRenderer.h"
 #include "OverlayNodeRenderer.h"
 #include "RequestTilesNodeRenderer.h"
+#include "SelectTilesNodeRenderer.h"
 
 namespace webgpu_engine::compute {
 
@@ -52,6 +56,10 @@ std::unique_ptr<NodeRenderer> NodeRendererFactory::create(const std::string& nam
         return std::make_unique<ComputeSnowNodeRenderer>(name, *n);
     if (auto* n = dynamic_cast<nodes::RequestTilesNode*>(&node))
         return std::make_unique<RequestTilesNodeRenderer>(name, *n);
+    if (auto* n = dynamic_cast<nodes::SelectTilesNode*>(&node))
+        return std::make_unique<SelectTilesNodeRenderer>(name, *n);
+    if (auto* n = dynamic_cast<nodes::GPXTrackNode*>(&node))
+        return std::make_unique<GPXTrackNodeRenderer>(name, *n);
     return std::make_unique<NodeRenderer>(name, node);
 }
 

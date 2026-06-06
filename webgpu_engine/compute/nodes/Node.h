@@ -42,6 +42,7 @@ using Data = std::variant<const std::vector<radix::tile::Id>*,
     webgpu::raii::RawBuffer<uint32_t>*,
     const webgpu::raii::TextureWithSampler*,
     const radix::geometry::Aabb<2, double>*,
+    const radix::geometry::Aabb<3, double>*,
     glm::uvec2>;
 
 using SocketIndex = size_t;

@@ -28,10 +28,13 @@ class TrackRenderer;
 
 namespace webgpu_app {
 
+class TerrainRenderer;
+
 class TrackPanel : public ImGuiPanel {
     Q_OBJECT
 public:
-    explicit TrackPanel(webgpu_engine::Context* context);
+    TrackPanel(webgpu_engine::Context* context, TerrainRenderer* terrain_renderer);
+    void ready() override;
     void draw_panel() override;
 
 #ifdef __EMSCRIPTEN__
@@ -40,7 +43,11 @@ private slots:
 #endif
 
 private:
+    // Loads the track for rendering and points the camera down at its bounding box.
+    void load_track_and_focus(const std::string& path);
+
     webgpu_engine::Context* m_context;
+    TerrainRenderer* m_terrain_renderer = nullptr;
     webgpu_engine::TrackRenderer* m_track_renderer = nullptr;
     std::string m_last_dialog_directory = ".";
 };

@@ -28,8 +28,8 @@ class ImGuiPanel : public QObject {
 public:
     virtual ~ImGuiPanel() = default;
 
-    // Called once on the first rendered frame
-    virtual void on_first_frame() {}
+    // Called once after initialization, alongside Window::ready()
+    virtual void ready() {}
 
     // Called outside the main sidebar window
     virtual void draw() {}

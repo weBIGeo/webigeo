@@ -28,13 +28,17 @@
 #include <IconsFontAwesome5.h>
 #include <imgui.h>
 
+#include "../TerrainRenderer.h"
+#include "nucleus/camera/Controller.h"
+#include "nucleus/camera/Definition.h"
 #include "webgpu_engine/Context.h"
 #include "webgpu_engine/track/TrackRenderer.h"
 
 namespace webgpu_app {
 
-TrackPanel::TrackPanel(webgpu_engine::Context* context)
+TrackPanel::TrackPanel(webgpu_engine::Context* context, TerrainRenderer* terrain_renderer)
     : m_context(context)
+    , m_terrain_renderer(terrain_renderer)
     , m_track_renderer(context->track_renderer())
 {
 #ifdef __EMSCRIPTEN__
@@ -42,11 +46,31 @@ TrackPanel::TrackPanel(webgpu_engine::Context* context)
 #endif
 }
 
+void TrackPanel::ready()
+{
+#if defined(QT_DEBUG)
+    load_track_and_focus(webgpu_engine::TrackRenderer::DEFAULT_GPX_TRACK_PATH);
+#endif
+}
+
+void TrackPanel::load_track_and_focus(const std::string& path)
+{
+    const radix::geometry::Aabb3d world_aabb = m_track_renderer->load_track(path);
+
+    auto* camera_controller = m_terrain_renderer->get_camera_controller();
+    camera_controller->set_model_matrix(
+        nucleus::camera::Definition::looking_down_at_aabb(world_aabb, camera_controller->definition().viewport_size()));
+
+    if (m_context->shared_config().m_track_render_mode == 0)
+        m_context->shared_config().m_track_render_mode = 1;
+    m_context->request_redraw();
+}
+
 #ifdef __EMSCRIPTEN__
 void TrackPanel::on_file_uploaded(const std::string& filename, const std::string& tag)
 {
     if (tag == "track")
-        m_track_renderer->load_track(filename);
+        load_track_and_focus(filename);
 }
 #endif
 
@@ -65,7 +89,7 @@ void TrackPanel::draw_panel()
         ImGui::SameLine();
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(106 / 255.0f, 112 / 255.0f, 115 / 255.0f, 1.00f));
         if (ImGui::Button("Open Preset ...", ImVec2(100, 0))) {
-            m_track_renderer->load_track(webgpu_engine::TrackRenderer::DEFAULT_GPX_TRACK_PATH);
+            load_track_and_focus(webgpu_engine::TrackRenderer::DEFAULT_GPX_TRACK_PATH);
         }
         ImGui::PopStyleColor(1);
 
@@ -80,7 +104,7 @@ void TrackPanel::draw_panel()
         if (ImGuiFileDialog::Instance()->IsOk()) {
             std::string file_path = ImGuiFileDialog::Instance()->GetFilePathName();
             m_last_dialog_directory = std::filesystem::path(file_path).parent_path().string();
-            m_track_renderer->load_track(file_path);
+            load_track_and_focus(file_path);
         }
         ImGuiFileDialog::Instance()->Close();
     }

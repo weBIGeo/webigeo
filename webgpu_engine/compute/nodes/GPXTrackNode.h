@@ -18,27 +18,36 @@
 
 #pragma once
 
-#include "ImGuiPanel.h"
+#include "Node.h"
 
-namespace webgpu_app {
+namespace webgpu_engine::compute::nodes {
 
-// Renders the copyright box with the About button, the About popup modal,
-// and the disclaimer popup modal. All three are co-located here since the
-// button and modals are tightly coupled.
-class AboutPanel : public ImGuiPanel {
+class GPXTrackNode : public Node {
+    Q_OBJECT
+
 public:
-    AboutPanel() = default;
+    NODE_TYPE_NAME(GPXTrackNode)
 
-    void ready() override;
-    void draw() override;
+    struct GPXTrackNodeSettings {
+        // duplicated literal of TrackRenderer::DEFAULT_GPX_TRACK_PATH to avoid a compute->track-layer dependency
+        std::string file_path = ":/gpx/breite_ries.gpx";
+        bool enable_caching = true;
+    };
+
+    GPXTrackNode();
+
+    void set_settings(const GPXTrackNodeSettings& settings) { m_settings = settings; }
+    const GPXTrackNodeSettings& get_settings() const { return m_settings; }
+
+public slots:
+    void run_impl() override;
 
 private:
-    bool m_show_about_popup = false;
-    bool m_open_disclaimer = false;
+    GPXTrackNodeSettings m_settings;
+    radix::geometry::Aabb<3, double> m_output_region;
 
-    void draw_copyright_box();
-    void draw_about_popup();
-    void draw_disclaimer_popup();
+    std::string m_cached_path;
+    bool m_has_cached = false;
 };
 
-} // namespace webgpu_app
+} // namespace webgpu_engine::compute::nodes

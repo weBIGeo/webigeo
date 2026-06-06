@@ -16,29 +16,31 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#pragma once
+#include "SelectTilesNodeRenderer.h"
 
-#include "ImGuiPanel.h"
+#include "../../nodes/SelectTilesNode.h"
+#include <imgui.h>
 
-namespace webgpu_app {
+namespace webgpu_engine::compute {
 
-// Renders the copyright box with the About button, the About popup modal,
-// and the disclaimer popup modal. All three are co-located here since the
-// button and modals are tightly coupled.
-class AboutPanel : public ImGuiPanel {
-public:
-    AboutPanel() = default;
+SelectTilesNodeRenderer::SelectTilesNodeRenderer(const std::string& name, nodes::SelectTilesNode& node)
+    : NodeRenderer(name, node)
+    , m_node(&node)
+{
+}
 
-    void ready() override;
-    void draw() override;
+void SelectTilesNodeRenderer::render_settings_content()
+{
+    auto settings = m_node->get_settings();
 
-private:
-    bool m_show_about_popup = false;
-    bool m_open_disclaimer = false;
+    const uint32_t min_zoomlevel = 1;
+    const uint32_t max_zoomlevel = 18;
+    ImGui::SetNextItemWidth(-1);
+    ImGui::SliderScalar("Zoom level", ImGuiDataType_U32, &settings.zoomlevel, &min_zoomlevel, &max_zoomlevel, "%u");
+    if (ImGui::IsItemDeactivatedAfterEdit()) {
+        m_node->set_settings(settings);
+        m_node->rerun();
+    }
+}
 
-    void draw_copyright_box();
-    void draw_about_popup();
-    void draw_disclaimer_popup();
-};
-
-} // namespace webgpu_app
+} // namespace webgpu_engine::compute

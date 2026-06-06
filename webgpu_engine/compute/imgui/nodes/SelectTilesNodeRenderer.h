@@ -18,27 +18,22 @@
 
 #pragma once
 
-#include "ImGuiPanel.h"
+#include "NodeRenderer.h"
 
-namespace webgpu_app {
+namespace webgpu_engine::compute::nodes {
+class SelectTilesNode;
+}
 
-// Renders the copyright box with the About button, the About popup modal,
-// and the disclaimer popup modal. All three are co-located here since the
-// button and modals are tightly coupled.
-class AboutPanel : public ImGuiPanel {
+namespace webgpu_engine::compute {
+
+class SelectTilesNodeRenderer : public NodeRenderer {
 public:
-    AboutPanel() = default;
-
-    void ready() override;
-    void draw() override;
+    SelectTilesNodeRenderer(const std::string& name, nodes::SelectTilesNode& node);
+    bool has_settings() const override { return true; }
+    void render_settings_content() override;
 
 private:
-    bool m_show_about_popup = false;
-    bool m_open_disclaimer = false;
-
-    void draw_copyright_box();
-    void draw_about_popup();
-    void draw_disclaimer_popup();
+    nodes::SelectTilesNode* m_node;
 };
 
-} // namespace webgpu_app
+} // namespace webgpu_engine::compute

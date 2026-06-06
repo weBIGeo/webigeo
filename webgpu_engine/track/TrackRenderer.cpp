@@ -33,7 +33,7 @@ TrackRenderer::TrackRenderer()
 {
 }
 
-void TrackRenderer::load_track(const std::string& path)
+radix::geometry::Aabb3d TrackRenderer::load_track(const std::string& path)
 {
     std::unique_ptr<nucleus::track::Gpx> gpx_track = nucleus::track::parse(QString::fromStdString(path));
 
@@ -46,7 +46,7 @@ void TrackRenderer::load_track(const std::string& path)
     }
     add_track(points);
 
-    emit track_loaded(nucleus::track::compute_world_aabb(*gpx_track));
+    return nucleus::track::compute_world_aabb(*gpx_track);
 }
 
 void TrackRenderer::init(webgpu::Context& ctx)

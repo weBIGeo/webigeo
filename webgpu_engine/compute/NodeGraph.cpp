@@ -29,6 +29,7 @@
 #include "nodes/ComputeReleasePointsNode.h"
 #include "nodes/ComputeSnowNode.h"
 #include "nodes/ExportNode.h"
+#include "nodes/GPXTrackNode.h"
 #include "nodes/IterativeSimulationNode.h"
 #include "nodes/LoadTextureNode.h"
 #include "nodes/RequestTilesNode.h"
@@ -179,6 +180,7 @@ static std::unique_ptr<NodeGraph> create_normal_compute_graph_unconnected(webgpu
     const glm::uvec2 input_resolution = { 65, 65 };
 
     auto node_graph = std::make_unique<NodeGraph>("normal_compute_graph_unconnected");
+    Node* gpx_track_node = node_graph->add_node("gpx_track_node", std::make_unique<GPXTrackNode>());
     Node* tile_select_node = node_graph->add_node("select_tiles_node", std::make_unique<SelectTilesNode>());
     Node* height_request_node = node_graph->add_node("request_height_node", std::make_unique<RequestTilesNode>());
 
@@ -199,6 +201,9 @@ static std::unique_ptr<NodeGraph> create_normal_compute_graph_unconnected(webgpu
 
     HeightDecodeNode* height_decode_node = static_cast<HeightDecodeNode*>(
         node_graph->add_node("height_decode_node", std::make_unique<HeightDecodeNode>(ctx, height_decode_settings)));
+
+    // connect tile select inputs
+    tile_select_node->input_socket("region").connect(gpx_track_node->output_socket("region"));
 
     // connect height request inputs
     height_request_node->input_socket("tile ids").connect(tile_select_node->output_socket("tile ids"));
