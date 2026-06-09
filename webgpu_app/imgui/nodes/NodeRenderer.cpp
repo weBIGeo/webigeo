@@ -55,28 +55,44 @@ std::string NodeRenderer::format_node_name(const std::string& name)
 ImU32 NodeRenderer::pin_color_for_type(nodes::DataType type)
 {
     switch (type) {
-    case 0: return IM_COL32(255, 160,  50, 255); // tile ID list -> orange
-    case 1: return IM_COL32(150, 220,  50, 255); // QByteArray list -> yellow-green
-    case 2: return IM_COL32( 70, 130, 255, 255); // TileStorageTexture -> blue
-    case 3: return IM_COL32(190,  80, 255, 255); // RawBuffer -> purple
-    case 4: return IM_COL32( 50, 210, 210, 255); // TextureWithSampler -> cyan
-    case 5: return IM_COL32(255,  80,  80, 255); // Aabb -> red
-    case 6: return IM_COL32(200, 200, 200, 255); // uvec2 -> gray
-    default: return IM_COL32(255, 255, 255, 255);
+    case 0:
+        return IM_COL32(255, 160, 50, 255); // tile ID list -> orange
+    case 1:
+        return IM_COL32(150, 220, 50, 255); // QByteArray list -> yellow-green
+    case 2:
+        return IM_COL32(70, 130, 255, 255); // TileStorageTexture -> blue
+    case 3:
+        return IM_COL32(190, 80, 255, 255); // RawBuffer -> purple
+    case 4:
+        return IM_COL32(50, 210, 210, 255); // TextureWithSampler -> cyan
+    case 5:
+        return IM_COL32(255, 80, 80, 255); // Aabb -> red
+    case 6:
+        return IM_COL32(200, 200, 200, 255); // uvec2 -> gray
+    default:
+        return IM_COL32(255, 255, 255, 255);
     }
 }
 
 ImNodesPinShape NodeRenderer::pin_shape_for_type(nodes::DataType type)
 {
     switch (type) {
-    case 0: return ImNodesPinShape_CircleFilled;    // tile ID list
-    case 1: return ImNodesPinShape_CircleFilled;    // QByteArray list
-    case 2: return ImNodesPinShape_QuadFilled;      // TileStorageTexture
-    case 3: return ImNodesPinShape_Quad;            // RawBuffer
-    case 4: return ImNodesPinShape_TriangleFilled;  // TextureWithSampler
-    case 5: return ImNodesPinShape_Triangle;        // Aabb
-    case 6: return ImNodesPinShape_Circle;          // uvec2
-    default: return ImNodesPinShape_CircleFilled;
+    case 0:
+        return ImNodesPinShape_CircleFilled; // tile ID list
+    case 1:
+        return ImNodesPinShape_CircleFilled; // QByteArray list
+    case 2:
+        return ImNodesPinShape_QuadFilled; // TileStorageTexture
+    case 3:
+        return ImNodesPinShape_Quad; // RawBuffer
+    case 4:
+        return ImNodesPinShape_TriangleFilled; // TextureWithSampler
+    case 5:
+        return ImNodesPinShape_Triangle; // Aabb
+    case 6:
+        return ImNodesPinShape_Circle; // uvec2
+    default:
+        return ImNodesPinShape_CircleFilled;
     }
 }
 

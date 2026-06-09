@@ -152,8 +152,11 @@ void TrackRenderer::add_world_positions(const std::vector<glm::vec4>& world_posi
             m_position_buffers.back()->create_bind_group_entry(0), m_line_config_buffers.back()->raw_buffer().create_bind_group_entry(1) }));
 }
 
-void TrackRenderer::render(WGPUCommandEncoder command_encoder, const webgpu::raii::BindGroup& shared_config, const webgpu::raii::BindGroup& camera_config,
-    const webgpu::raii::BindGroup& depth_texture, const webgpu::raii::TextureView& color_texture)
+void TrackRenderer::render(WGPUCommandEncoder command_encoder,
+    const webgpu::raii::BindGroup& shared_config,
+    const webgpu::raii::BindGroup& camera_config,
+    const webgpu::raii::BindGroup& depth_texture,
+    const webgpu::raii::TextureView& color_texture)
 {
     WGPURenderPassColorAttachment color_attachment {};
     color_attachment.view = color_texture.handle();

@@ -30,7 +30,9 @@
 #include "nucleus/tile/setup.h"
 #include "webgpu/webgpu.h"
 
-namespace webgpu { class Context; }
+namespace webgpu {
+class Context;
+}
 
 namespace webgpu_engine {
 class Context;

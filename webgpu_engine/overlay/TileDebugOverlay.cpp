@@ -33,7 +33,6 @@ TileDebugOverlay::TileDebugOverlay()
 
 TileDebugOverlay::~TileDebugOverlay()
 {
-    // Stop the tile pass from packing debug data once this overlay is gone.
     if (m_engine_ctx)
         m_engine_ctx->shared_config().m_overlay_mode = 0;
 }
@@ -97,8 +96,7 @@ void TileDebugOverlay::update_settings()
     m_settings_uniform->data.strength = settings.strength;
     m_settings_uniform->update_gpu_data(m_ctx->queue());
 
-    // The tile pass (render_tiles.wgsl) reads overlay_mode to decide which per-tile data to pack into
-    // GBuffer slot 3, which this overlay then visualizes. Only one TileDebugOverlay exists; last write wins.
+    // NOTE: Only one TileDebugOverlay possible due to GBuffer layout
     if (m_engine_ctx)
         m_engine_ctx->shared_config().m_overlay_mode = static_cast<uint32_t>(settings.mode);
 }

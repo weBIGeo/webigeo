@@ -71,4 +71,4 @@ struct uboCameraConfig {
     float buffer2;
 };
 
-}
+} // namespace webgpu_engine

@@ -33,7 +33,7 @@ bool TileDebugOverlayImGuiRenderer::render_custom_settings()
     auto& s = m_tile_debug_overlay->settings;
     bool changed = false;
 
-    // Combo order must match TileDebugOverlay::Mode (1..4); the selected index maps to mode = index + 1.
+    // Combo order must match TileDebugOverlay::Mode
     static const char* mode_items[] = { "Normals", "Tiles", "Zoomlevel", "Vertex-ID" };
     int current = s.mode - 1;
     if (ImGui::Combo("Mode", &current, mode_items, IM_ARRAYSIZE(mode_items))) {

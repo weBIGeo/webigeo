@@ -37,14 +37,13 @@ inline constexpr float ENCODED_FLOAT_RANGE_MAX = 10000.0f;
 
 // Returns candidate AABB .txt file paths for the given geo-PNG image path.
 // Tries in order:
-//   - <same dir>/<stem>_aabb.txt
-//   - <same dir>/<stem before first _>_aabb.txt (only when differs from candidate 1)
-//   - <same dir>/aabb.txt
+//   - %filename%_aabb.txt
+//   - %filename before first _%_aabb.txt
+//   - aabb.txt
 std::vector<std::filesystem::path> possible_aabb_paths(const std::filesystem::path& image_path);
 
 // Parses a sidecar AABB .txt file describing the world-space extent of a geo-PNG.
-// The file contains exactly four lines, one floating point number each (. as separator):
-//   min_x, min_y, max_x, max_y
+// The file contains exactly four lines: min_x, min_y, max_x, max_y
 // Returns the parsed AABB, or an error message on failure
 tl::expected<radix::geometry::Aabb<2, double>, std::string> load_aabb_from_file(const std::filesystem::path& file_path);
 

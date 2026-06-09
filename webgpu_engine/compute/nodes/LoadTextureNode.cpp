@@ -29,9 +29,9 @@ LoadTextureNode::LoadTextureNode(webgpu::Context& ctx)
 
 LoadTextureNode::LoadTextureNode(webgpu::Context& ctx, const LoadTextureNodeSettings& settings)
     : Node({},
-          {
-              OutputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }),
-          })
+        {
+            OutputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }),
+        })
     , m_ctx(&ctx)
     , m_settings(settings)
 {
@@ -59,7 +59,8 @@ void LoadTextureNode::run_impl()
     complete_run();
 }
 
-std::unique_ptr<webgpu::raii::TextureWithSampler> LoadTextureNode::create_texture(WGPUDevice device, uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage)
+std::unique_ptr<webgpu::raii::TextureWithSampler> LoadTextureNode::create_texture(
+    WGPUDevice device, uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage)
 {
     // create output texture
     WGPUTextureDescriptor texture_desc {};

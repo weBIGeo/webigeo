@@ -35,9 +35,9 @@ BufferToTextureNode::BufferToTextureNode(webgpu::Context& ctx, const BufferToTex
     : Node({ InputSocket(*this, "raster dimensions", data_type<glm::uvec2>()),
                InputSocket(*this, "storage buffer", data_type<webgpu::raii::RawBuffer<uint32_t>*>()),
                InputSocket(*this, "transparency buffer", data_type<webgpu::raii::RawBuffer<uint32_t>*>()) },
-          {
-              OutputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }),
-          })
+        {
+            OutputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }),
+        })
     , m_ctx(&ctx)
     , m_settings { settings }
     , m_settings_uniform(ctx.device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
@@ -46,25 +46,29 @@ BufferToTextureNode::BufferToTextureNode(webgpu::Context& ctx, const BufferToTex
     reg.register_shader("buffer_to_texture_compute", "compute/buffer_to_texture_compute.wgsl");
     reg.register_bind_group_layout("buffer_to_texture_compute", [](WGPUDevice dev) {
         WGPUBindGroupLayoutEntry e0 {};
-        e0.binding = 0; e0.visibility = WGPUShaderStage_Compute;
+        e0.binding = 0;
+        e0.visibility = WGPUShaderStage_Compute;
         e0.buffer.type = WGPUBufferBindingType_Uniform;
 
         WGPUBindGroupLayoutEntry e1 {};
-        e1.binding = 1; e1.visibility = WGPUShaderStage_Compute;
+        e1.binding = 1;
+        e1.visibility = WGPUShaderStage_Compute;
         e1.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
 
         WGPUBindGroupLayoutEntry e2 {};
-        e2.binding = 2; e2.visibility = WGPUShaderStage_Compute;
+        e2.binding = 2;
+        e2.visibility = WGPUShaderStage_Compute;
         e2.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
 
         WGPUBindGroupLayoutEntry e5 {};
-        e5.binding = 5; e5.visibility = WGPUShaderStage_Compute;
+        e5.binding = 5;
+        e5.visibility = WGPUShaderStage_Compute;
         e5.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
         e5.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
         e5.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
 
-        return std::make_unique<webgpu::raii::BindGroupLayout>(dev,
-            std::vector<WGPUBindGroupLayoutEntry> { e0, e1, e2, e5 }, "buffer to texture compute bind group layout");
+        return std::make_unique<webgpu::raii::BindGroupLayout>(
+            dev, std::vector<WGPUBindGroupLayoutEntry> { e0, e1, e2, e5 }, "buffer to texture compute bind group layout");
     });
     reg.register_pipeline([this](WGPUDevice device, const webgpu::RenderResourceRegistry& reg) {
         m_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(device,
@@ -78,7 +82,8 @@ void BufferToTextureNode::run_impl()
 
     const auto input_raster_dimensions = std::get<data_type<glm::uvec2>()>(input_socket("raster dimensions").get_connected_data());
     const auto& input_storage_buffer = *std::get<data_type<webgpu::raii::RawBuffer<uint32_t>*>()>(input_socket("storage buffer").get_connected_data());
-    const auto& input_transparency_buffer = *std::get<data_type<webgpu::raii::RawBuffer<uint32_t>*>()>(input_socket("transparency buffer").get_connected_data());
+    const auto& input_transparency_buffer
+        = *std::get<data_type<webgpu::raii::RawBuffer<uint32_t>*>()>(input_socket("transparency buffer").get_connected_data());
 
     m_settings_uniform.data.input_resolution = input_raster_dimensions;
     update_gpu_settings();
@@ -86,7 +91,7 @@ void BufferToTextureNode::run_impl()
     // assert input textures have same size, otherwise fail run
     if (input_raster_dimensions.x > MAX_TEXTURE_RESOLUTION || input_raster_dimensions.y > MAX_TEXTURE_RESOLUTION) {
         fail_run(std::format(
-                "cannot create texture: texture dimensions ({}x{}) exceed {}", input_raster_dimensions.x, input_raster_dimensions.y, MAX_TEXTURE_RESOLUTION));
+            "cannot create texture: texture dimensions ({}x{}) exceed {}", input_raster_dimensions.x, input_raster_dimensions.y, MAX_TEXTURE_RESOLUTION));
         return;
     }
 
@@ -151,7 +156,8 @@ void BufferToTextureNode::update_gpu_settings()
     m_settings_uniform.update_gpu_data(m_ctx->queue());
 }
 
-std::unique_ptr<webgpu::raii::TextureWithSampler> BufferToTextureNode::create_texture(WGPUDevice device, uint32_t width, uint32_t height, BufferToTextureSettings& settings)
+std::unique_ptr<webgpu::raii::TextureWithSampler> BufferToTextureNode::create_texture(
+    WGPUDevice device, uint32_t width, uint32_t height, BufferToTextureSettings& settings)
 {
     // create output texture
     WGPUTextureDescriptor texture_desc {};

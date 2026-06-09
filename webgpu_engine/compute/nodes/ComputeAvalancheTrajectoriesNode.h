@@ -42,7 +42,7 @@ public:
     };
 
     enum FrictionModelType : uint32_t {
-        //actually: friction model: 0 coulomb, 1 voellmy, 2 voellmy minshear, 3 samosAt
+        // actually: friction model: 0 coulomb, 1 voellmy, 2 voellmy minshear, 3 samosAt
         Coulomb = 0,
         Voellmy = 1,
         VoellmyMinShear = 2,

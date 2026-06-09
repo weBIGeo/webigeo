@@ -22,9 +22,9 @@
 namespace webgpu {
 class Context;
 namespace raii {
-class Texture;
+    class Texture;
 }
-}
+} // namespace webgpu
 
 namespace webgpu_engine {
 

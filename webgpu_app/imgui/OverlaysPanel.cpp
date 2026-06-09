@@ -25,8 +25,8 @@
 #include <imgui.h>
 
 #include <webgpu_engine/Context.h>
-#include <webgpu_engine/overlay/OverlayRenderer.h>
 #include <webgpu_engine/overlay/HeightLinesOverlay.h>
+#include <webgpu_engine/overlay/OverlayRenderer.h>
 #include <webgpu_engine/overlay/ScreenSpaceSnowOverlay.h>
 #include <webgpu_engine/overlay/TextureOverlay.h>
 #include <webgpu_engine/overlay/TileDebugOverlay.h>
@@ -55,23 +55,18 @@ static int display_to_engine(int d, int N) { return N - 1 - d; }
 
 void OverlaysPanel::do_move(int gui_row, int direction, int P, int N)
 {
-    // GUI has N+1 slots (0..N): the N overlays plus the Shading divider at slot P.
-    // Moving = swapping two adjacent slots. If the neighbour is the divider, the
-    // overlay simply crosses into the other bucket (its z_index sign flips).
     const int other = gui_row + direction;
     if (other < 0 || other > N)
         return;
 
-    m_selected_engine_idx = -1; // moving reshuffles engine indices, so just clear the selection
+    m_selected_engine_idx = -1;
 
-    // Build the GUI-ordered slot list (descending z_index) with the divider as a nullptr at slot P.
     auto gui_slots = m_overlay_renderer->overlays(); // ascending by z_index
     std::reverse(gui_slots.begin(), gui_slots.end()); // descending: post-shading first, then pre-shading
     gui_slots.insert(gui_slots.begin() + P, nullptr); // divider at slot P -> size becomes N+1
 
     std::swap(gui_slots[gui_row], gui_slots[other]);
 
-    // The divider's new slot is the new boundary -> reassign unique z_indices around it.
     int new_P = 0;
     for (int i = 0; i < static_cast<int>(gui_slots.size()); ++i)
         if (!gui_slots[i]) {
@@ -81,11 +76,11 @@ void OverlaysPanel::do_move(int gui_row, int direction, int P, int N)
 
     for (int i = 0; i < static_cast<int>(gui_slots.size()); ++i) {
         if (i == new_P)
-            continue; // divider slot
+            continue;
         if (i < new_P)
-            gui_slots[i]->z_index = new_P - i; // new_P, new_P-1, ..., 1
+            gui_slots[i]->z_index = new_P - i;
         else
-            gui_slots[i]->z_index = -(i - new_P); // -1, -2, ...
+            gui_slots[i]->z_index = -(i - new_P);
     }
 
     m_overlay_renderer->sort_overlays(); // re-sort m_overlays by the updated z_indices
@@ -99,29 +94,21 @@ void OverlaysPanel::draw_panel()
     if (!m_overlay_renderer)
         return;
 
-    // Overlays can be added/removed outside the panel (e.g. by a compute OverlayNode);
-    // resync our per-overlay renderer list when the count diverges.
+    // Overlays can be added/removed outside the panel (e.g. by a compute OverlayNode), so we check if the list converges:
     if (m_renderers.size() != m_overlay_renderer->overlays().size())
         rebuild_renderers();
 
     if (!ImGui::CollapsingHeader(ICON_FA_LAYER_GROUP "  Overlays"))
         return;
 
-    // --- Add controls (top) ---
     enum AddType { ADD_HEIGHT_LINES = 0, ADD_TEXTURE_OVERLAY = 1, ADD_TILE_DEBUG = 2, ADD_SCREEN_SPACE_SNOW = 3 };
     const char* add_items[] = { "Height Lines", "Texture Overlay", "Tile Debug", "Screen-Space Snow" };
-
-    // Only one TileDebugOverlay may exist (it owns the single shared GBuffer overlay slot).
-    bool tile_debug_exists = false;
-    for (const auto& o : m_overlay_renderer->overlays())
-        if (dynamic_cast<webgpu_engine::TileDebugOverlay*>(o.get()))
-            tile_debug_exists = true;
 
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 36);
     ImGui::Combo("##add_type", &m_add_type_index, add_items, IM_ARRAYSIZE(add_items));
     ImGui::SameLine();
 
-    const bool add_disabled = (m_add_type_index == ADD_TILE_DEBUG && tile_debug_exists);
+    const bool add_disabled = false; // ToDo: Some Overlays (TileDebug are only allowed once -> GUI should reflect that)
     ImGui::BeginDisabled(add_disabled);
     if (ImGui::Button(ICON_FA_PLUS)) {
         std::shared_ptr<webgpu_engine::Overlay> new_overlay;
@@ -143,7 +130,7 @@ void OverlaysPanel::draw_panel()
 
     ImGui::Separator();
 
-    // --- Overlay list ---
+    // OVERLAY LIST ====
     const auto& overlays = m_overlay_renderer->overlays();
     const int N = static_cast<int>(overlays.size());
 
@@ -247,10 +234,8 @@ void OverlaysPanel::draw()
     const float popup_w = 430.0f;
     const float sidebar_x = ImGui::GetIO().DisplaySize.x - 430.0f;
     ImGui::SetNextWindowPos(ImVec2(sidebar_x - popup_w - 8.0f, m_selected_row_screen_y), ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(popup_w, 0.0f)); // fixed width, auto height (y component 0 = auto-fit)
+    ImGui::SetNextWindowSize(ImVec2(popup_w, 0.0f));
 
-    // Title shows the (possibly renamed) overlay; the stable ### id keeps the window identity
-    // even when the name changes. Closing the window (X) clears the selection.
     bool open = true;
     const std::string title = renderer->effective_name() + "###overlay_settings";
     ImGui::Begin(title.c_str(), &open, ImGuiWindowFlags_NoSavedSettings);

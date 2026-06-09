@@ -20,13 +20,13 @@
 #include "NodeGraphPanel.h"
 
 #include "../ImGuiManager.h"
-#include <webgpu_engine/Context.h>
 #include "nodes/NodeRendererFactory.h"
 #include <IconsFontAwesome5.h>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <imnodes.h>
 #include <qDebug>
+#include <webgpu_engine/Context.h>
 
 namespace webgpu_app {
 namespace nodes = webgpu_engine::compute::nodes;
@@ -62,7 +62,8 @@ void NodeGraphPanel::load_preset(nodes::NodeGraph::ComputePipelineType type)
     m_context->set_compute_graph(nodes::NodeGraph::create_preset(type, m_context->webgpu_ctx()));
     m_node_graph = m_context->compute_graph();
 
-    QObject::connect(m_node_graph, &nodes::NodeGraph::run_completed, m_context, [this](webgpu_engine::compute::GraphRunContext) { m_context->request_redraw(); });
+    QObject::connect(
+        m_node_graph, &nodes::NodeGraph::run_completed, m_context, [this](webgpu_engine::compute::GraphRunContext) { m_context->request_redraw(); });
     QObject::connect(m_node_graph, &nodes::NodeGraph::run_failed, m_context, [this](nodes::GraphRunFailureInfo info) {
         qWarning() << "graph run failed. " << info.node_name() << ": " << info.node_run_failure_info().message();
         m_error_state.text = "Execution of pipeline failed.\n\nNode \"" + info.node_name() + "\" reported \"" + info.node_run_failure_info().message() + "\"";

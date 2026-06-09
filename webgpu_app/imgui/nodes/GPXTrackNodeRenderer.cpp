@@ -18,9 +18,9 @@
 
 #include "GPXTrackNodeRenderer.h"
 
-#include <webgpu_engine/compute/nodes/GPXTrackNode.h>
 #include <cstring>
 #include <imgui.h>
+#include <webgpu_engine/compute/nodes/GPXTrackNode.h>
 
 namespace webgpu_app {
 namespace nodes = webgpu_engine::compute::nodes;

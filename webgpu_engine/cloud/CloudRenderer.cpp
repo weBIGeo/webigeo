@@ -378,7 +378,11 @@ void CloudRenderer::resize(int w, int h)
         "upscale clouds bind group b");
 }
 
-void CloudRenderer::draw(const WGPUCommandEncoder& command_encoder, const WGPUBindGroup& depth_texture_bind_group, const WGPUBindGroup& shared_config_bind_group, const nucleus::camera::Definition& camera, uint32_t frame_number)
+void CloudRenderer::draw(const WGPUCommandEncoder& command_encoder,
+    const WGPUBindGroup& depth_texture_bind_group,
+    const WGPUBindGroup& shared_config_bind_group,
+    const nucleus::camera::Definition& camera,
+    uint32_t frame_number)
 {
     auto jitter_offset = generate_jitter_simple_4x(frame_number, m_output_lo_resolution);
     glm::mat4 unjittered_projection = camera.projection_matrix();

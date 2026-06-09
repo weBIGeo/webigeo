@@ -192,7 +192,7 @@ void TextureOverlay::draw(const WGPUCommandEncoder& command_encoder,
     webgpu::raii::TextureWithSampler& target_output,
     glm::uvec2 /*output_size*/)
 {
-    // A linked (external) texture takes priority over the owned one.
+    // A linked texture takes priority over the owned one.
     const webgpu::raii::TextureWithSampler* tex = m_linked_texture ? m_linked_texture : m_overlay_texture.get();
     if (!tex || !m_pipeline)
         return;

@@ -18,8 +18,8 @@
  *****************************************************************************/
 
 #include "ImGuiManager.h"
-#include "TerrainRenderer.h"
 #include "RenderingContext.h"
+#include "TerrainRenderer.h"
 
 #include "imgui/ImGuiPanel.h"
 

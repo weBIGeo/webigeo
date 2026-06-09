@@ -18,15 +18,6 @@
 
 #include "NodeRendererFactory.h"
 
-#include <webgpu_engine/compute/nodes/BufferToTextureNode.h>
-#include <webgpu_engine/compute/nodes/ComputeAvalancheTrajectoriesNode.h>
-#include <webgpu_engine/compute/nodes/ComputeReleasePointsNode.h>
-#include <webgpu_engine/compute/nodes/ComputeSnowNode.h>
-#include <webgpu_engine/compute/nodes/ExportNode.h>
-#include <webgpu_engine/compute/nodes/GPXTrackNode.h>
-#include <webgpu_engine/compute/nodes/RequestTilesNode.h>
-#include <webgpu_engine/compute/nodes/SelectTilesNode.h>
-#include <webgpu_engine/overlay/OverlayRenderNode.h>
 #include "BufferToTextureNodeRenderer.h"
 #include "ComputeAvalancheTrajectoriesNodeRenderer.h"
 #include "ComputeReleasePointsNodeRenderer.h"
@@ -37,6 +28,15 @@
 #include "OverlayNodeRenderer.h"
 #include "RequestTilesNodeRenderer.h"
 #include "SelectTilesNodeRenderer.h"
+#include <webgpu_engine/compute/nodes/BufferToTextureNode.h>
+#include <webgpu_engine/compute/nodes/ComputeAvalancheTrajectoriesNode.h>
+#include <webgpu_engine/compute/nodes/ComputeReleasePointsNode.h>
+#include <webgpu_engine/compute/nodes/ComputeSnowNode.h>
+#include <webgpu_engine/compute/nodes/ExportNode.h>
+#include <webgpu_engine/compute/nodes/GPXTrackNode.h>
+#include <webgpu_engine/compute/nodes/RequestTilesNode.h>
+#include <webgpu_engine/compute/nodes/SelectTilesNode.h>
+#include <webgpu_engine/overlay/OverlayRenderNode.h>
 
 namespace webgpu_app {
 namespace nodes = webgpu_engine::compute::nodes;

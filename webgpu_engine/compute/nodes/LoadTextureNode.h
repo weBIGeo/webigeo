@@ -35,7 +35,8 @@ public:
 
         // WebGPU texture parameters
         WGPUTextureFormat format = WGPUTextureFormat_RGBA8Uint;
-        WGPUTextureUsage usage = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc);
+        WGPUTextureUsage usage
+            = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc);
     };
 
     LoadTextureNode(webgpu::Context& ctx);
@@ -47,7 +48,8 @@ public slots:
     void run_impl() override;
 
 private:
-    static std::unique_ptr<webgpu::raii::TextureWithSampler> create_texture(WGPUDevice device, uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage);
+    static std::unique_ptr<webgpu::raii::TextureWithSampler> create_texture(
+        WGPUDevice device, uint32_t width, uint32_t height, WGPUTextureFormat format, WGPUTextureUsage usage);
 
 private:
     webgpu::Context* m_ctx;

@@ -58,8 +58,7 @@ void TrackPanel::load_track_and_focus(const std::string& path)
     const radix::geometry::Aabb3d world_aabb = m_track_renderer->load_track(path);
 
     auto* camera_controller = m_terrain_renderer->get_camera_controller();
-    camera_controller->set_model_matrix(
-        nucleus::camera::Definition::looking_down_at_aabb(world_aabb, camera_controller->definition().viewport_size()));
+    camera_controller->set_model_matrix(nucleus::camera::Definition::looking_down_at_aabb(world_aabb, camera_controller->definition().viewport_size()));
 
     if (m_context->shared_config().m_track_render_mode == 0)
         m_context->shared_config().m_track_render_mode = 1;

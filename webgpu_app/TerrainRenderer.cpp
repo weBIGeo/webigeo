@@ -62,7 +62,8 @@ TerrainRenderer::TerrainRenderer()
 #endif
 }
 
-void TerrainRenderer::init_window() {
+void TerrainRenderer::init_window()
+{
     // Initializes SDL2 video subsystem
     SDL_SetMainReady();
     if (SDL_InitSubSystem(SDL_INIT_VIDEO) != 0) {
@@ -178,7 +179,8 @@ void TerrainRenderer::poll_events()
     wgpuInstanceProcessEvents(m_instance);
 }
 
-void TerrainRenderer::render() {
+void TerrainRenderer::render()
+{
     // Do nothing, this checks for ongoing asynchronous operations and call their callbacks
 
     WGPUSurfaceTexture surface_texture;
@@ -259,7 +261,8 @@ void TerrainRenderer::render() {
 #endif
 }
 
-void TerrainRenderer::start() {
+void TerrainRenderer::start()
+{
     init_window();
 
     webgpu_create_context();
@@ -267,7 +270,8 @@ void TerrainRenderer::start() {
     m_context = std::make_unique<RenderingContext>();
     m_context->initialize(m_webgpu_ctx);
 
-    m_camera_controller = std::make_unique<nucleus::camera::Controller>(nucleus::camera::PositionStorage::instance()->get("grossglockner"), m_webgpu_window.get(), m_context->data_querier());
+    m_camera_controller = std::make_unique<nucleus::camera::Controller>(
+        nucleus::camera::PositionStorage::instance()->get("grossglockner"), m_webgpu_window.get(), m_context->data_querier());
 
     // clang-format off
     // NOTICE ME!!!! READ THIS, IF YOU HAVE TROUBLES WITH SIGNALS NOT REACHING THE QML RENDERING THREAD!!!!111elevenone
@@ -374,10 +378,15 @@ void TerrainRenderer::start() {
     shader_module_desc.nextInChain = &wgsl_desc.chain;
     auto shader_module = std::make_unique<webgpu::raii::ShaderModule>(m_device, shader_module_desc);
 
-    m_gui_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(m_device, *shader_module, *shader_module,
-        std::vector<webgpu::util::SingleVertexBufferInfo> {}, format, std::vector<const webgpu::raii::BindGroupLayout*> { m_gui_bind_group_layout.get() });
+    m_gui_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(m_device,
+        *shader_module,
+        *shader_module,
+        std::vector<webgpu::util::SingleVertexBufferInfo> {},
+        format,
+        std::vector<const webgpu::raii::BindGroupLayout*> { m_gui_bind_group_layout.get() });
 
-    m_gui_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, *m_gui_bind_group_layout.get(),
+    m_gui_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device,
+        *m_gui_bind_group_layout.get(),
         std::initializer_list<WGPUBindGroupEntry> { m_framebuffer->color_texture_view(0).create_bind_group_entry(0), m_gui_ubo->create_bind_group_entry(1) });
 
     m_timer_manager = std::make_unique<webgpu::timing::GuiTimerManager>();
@@ -409,7 +418,9 @@ void TerrainRenderer::start() {
             renderer.poll_events();
             renderer.render();
         },
-        (void*)this, 0, true);
+        (void*)this,
+        0,
+        true);
 #else
     while (m_window_open) {
         poll_events();
@@ -463,7 +474,8 @@ void TerrainRenderer::create_framebuffer(uint32_t width, uint32_t height)
     m_framebuffer = std::make_unique<webgpu::Framebuffer>(m_device, format);
 
     if (m_gui_bind_group) {
-        m_gui_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, *m_gui_bind_group_layout.get(),
+        m_gui_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device,
+            *m_gui_bind_group_layout.get(),
             std::initializer_list<WGPUBindGroupEntry> {
                 m_framebuffer->color_texture_view(0).create_bind_group_entry(0), m_gui_ubo->create_bind_group_entry(1) });
     }
@@ -507,7 +519,8 @@ void TerrainRenderer::configure_surface(uint32_t width, uint32_t height)
 
 void TerrainRenderer::update_camera() { emit update_camera_requested(); }
 
-void TerrainRenderer::on_window_resize(int width, int height) {
+void TerrainRenderer::on_window_resize(int width, int height)
+{
     m_viewport_size = { width, height };
 
     configure_surface(width, height);
@@ -587,7 +600,8 @@ void TerrainRenderer::webgpu_create_context()
     required_limits.maxInterStageShaderVariables = WGPU_LIMIT_U32_UNDEFINED; // required for current version of  Chrome Canary (2025-04-03)
     constexpr uint64_t desired_max_buffer_size = 2 * 1073741824ull; // 2 GiB
     if (supported_limits.maxBufferSize < desired_max_buffer_size)
-        qWarning() << "Adapter maxBufferSize" << supported_limits.maxBufferSize << "is below the desired" << desired_max_buffer_size << ". cloud rendering might fail.";
+        qWarning() << "Adapter maxBufferSize" << supported_limits.maxBufferSize << "is below the desired" << desired_max_buffer_size
+                   << ". cloud rendering might fail.";
     required_limits.maxBufferSize = std::min(supported_limits.maxBufferSize, desired_max_buffer_size);
 
     // Let the engine change the required limits

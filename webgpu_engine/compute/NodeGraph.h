@@ -60,8 +60,16 @@ public:
     [[nodiscard]] std::unordered_map<std::string, std::unique_ptr<Node>>& get_nodes();
     [[nodiscard]] const std::unordered_map<std::string, std::unique_ptr<Node>>& get_nodes() const;
 
-    template <typename NodeType> [[nodiscard]] NodeType& get_node_as(const std::string& node_name) { return static_cast<NodeType&>(get_node(node_name)); }
-    template <typename NodeType> [[nodiscard]] const NodeType& get_node_as(const std::string& node_name) const { return static_cast<const NodeType&>(get_node(node_name)); }
+    template <typename NodeType>
+    [[nodiscard]] NodeType& get_node_as(const std::string& node_name)
+    {
+        return static_cast<NodeType&>(get_node(node_name));
+    }
+    template <typename NodeType>
+    [[nodiscard]] const NodeType& get_node_as(const std::string& node_name) const
+    {
+        return static_cast<const NodeType&>(get_node(node_name));
+    }
 
     // Enables or disables all nodes whose name contains the given substring.
     void set_enabled_for_nodes_with_name(const std::string& name_substring, bool enabled);

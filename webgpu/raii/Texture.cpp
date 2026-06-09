@@ -153,7 +153,6 @@ void Texture::write(WGPUQueue queue, const nucleus::utils::ColourTexture3D& data
     wgpuQueueWriteTexture(queue, &image_copy_texture, data.data(), data.n_bytes(), &texture_data_layout, &copy_extent);
 }
 
-
 void Texture::copy_to_texture(WGPUCommandEncoder encoder, uint32_t source_layer, const Texture& target_texture, uint32_t target_layer) const
 {
     WGPUTexelCopyTextureInfo source {};

@@ -34,15 +34,15 @@ class RenderResourceRegistry {
 public:
     RenderResourceRegistry();
 
-    // Set local filesystem path prefix for shader hot-reload (empty = QRC only)
+    // Set local filesystem path prefix for shader hot-reload
     void set_local_shader_path(const std::string& path);
 
-    // Register a shader by name and source path. Compiles immediately if recreate_all() was already called.
+    // Register a shader by name and source path.
     void register_shader(const std::string& name, const std::string& source_path);
     [[nodiscard]] bool has_shader(const std::string& name) const;
     const raii::ShaderModule& shader(const std::string& name) const;
 
-    // Register a bind group layout by name and factory. Gets created immediately if recreate_all() was already called.
+    // Register a bind group layout by name and factory.
     void register_bind_group_layout(const std::string& name, std::function<std::unique_ptr<raii::BindGroupLayout>(WGPUDevice)> factory);
     [[nodiscard]] bool has_bind_group_layout(const std::string& name) const;
     const raii::BindGroupLayout& bind_group_layout(const std::string& name) const;

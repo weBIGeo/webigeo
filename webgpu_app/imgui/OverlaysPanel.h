@@ -26,7 +26,7 @@
 namespace webgpu_engine {
 class Context;
 class OverlayRenderer;
-}
+} // namespace webgpu_engine
 
 namespace webgpu_app {
 
@@ -43,7 +43,7 @@ private:
     webgpu_engine::Context* m_context;
     webgpu_engine::OverlayRenderer* m_overlay_renderer = nullptr;
     std::vector<std::unique_ptr<OverlayImGuiRenderer>> m_renderers;
-    int m_selected_engine_idx = -1;    // engine index of selected overlay (-1 = none)
+    int m_selected_engine_idx = -1; // engine index of selected overlay (-1 = none)
     float m_selected_row_screen_y = 0.0f; // screen Y of selected row (for settings popup)
     int m_add_type_index = 0;
 };

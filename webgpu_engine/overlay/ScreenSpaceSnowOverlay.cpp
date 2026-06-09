@@ -1,5 +1,6 @@
 /*****************************************************************************
  * weBIGeo
+ * Copyright (C) 2024 Patrick Komon
  * Copyright (C) 2026 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify

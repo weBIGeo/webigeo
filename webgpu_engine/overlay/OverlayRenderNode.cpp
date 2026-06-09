@@ -35,7 +35,7 @@ OverlayRenderNode::OverlayRenderNode(Context& context)
 OverlayRenderNode::OverlayRenderNode(Context& context, const OverlaySettings& settings)
     : Node({ InputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>()),
                InputSocket(*this, "region aabb", data_type<const radix::geometry::Aabb<2, double>*>()) },
-          {})
+        {})
     , m_context(&context)
     , m_settings(settings)
 {
@@ -43,8 +43,6 @@ OverlayRenderNode::OverlayRenderNode(Context& context, const OverlaySettings& se
 
 OverlayRenderNode::~OverlayRenderNode()
 {
-    // In link mode the overlay borrows a texture owned by this graph; unlink it so the renderer doesn't
-    // sample a destroyed texture once the graph (and its textures) are torn down. (No-op in copy mode.)
     if (auto overlay = m_result_overlay.lock())
         overlay->link_texture(nullptr);
 }

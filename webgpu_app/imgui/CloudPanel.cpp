@@ -88,11 +88,13 @@ void CloudPanel::draw_panel()
 
             ImGui::SameLine();
             const bool loading = m_clouds_manager->is_loading();
-            if (loading) ImGui::BeginDisabled();
+            if (loading)
+                ImGui::BeginDisabled();
             if (ImGui::Button(ICON_FA_SYNC "##reload_clouds")) {
                 m_clouds_manager->refresh_tileset_list();
             }
-            if (loading) ImGui::EndDisabled();
+            if (loading)
+                ImGui::EndDisabled();
         }
 
         ImGui::SeparatorText("Shading");

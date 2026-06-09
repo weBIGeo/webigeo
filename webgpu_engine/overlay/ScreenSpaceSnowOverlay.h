@@ -1,5 +1,6 @@
 /*****************************************************************************
  * weBIGeo
+ * Copyright (C) 2024 Patrick Komon
  * Copyright (C) 2026 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
@@ -19,21 +20,18 @@
 #pragma once
 
 #include "Overlay.h"
-#include <webgpu/Buffer.h>
 #include <memory>
+#include <webgpu/Buffer.h>
 #include <webgpu/raii/CombinedComputePipeline.h>
 #include <webgpu/raii/TextureWithSampler.h>
 
 namespace webgpu_engine {
 
-// A white screen-space snow overlay: marks terrain as snowy based on slope angle and altitude.
-// Just a white layer composited over the scene (no lighting interaction).
 class ScreenSpaceSnowOverlay : public Overlay {
 public:
-    // Layout must match ScreenSpaceSnowSettings in overlays/screen_space_snow.wgsl (all f32, 32 bytes).
     struct Settings {
-        float angle_min = 0.0f; // steepness band lower limit (deg)
-        float angle_max = 45.0f; // steepness band upper limit (deg)
+        float angle_min = 0.0f; // steepness lower limit (deg)
+        float angle_max = 45.0f; // steepness upper limit (deg)
         float angle_blend = 5.0f; // band smoothing (deg)
         float altitude_limit = 1000.0f; // snow line altitude (m)
         float altitude_variation = 200.0f; // noise variation around the snow line (m)

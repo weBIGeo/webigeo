@@ -24,7 +24,7 @@
 namespace webgpu_engine {
 class Context;
 class TrackRenderer;
-}
+} // namespace webgpu_engine
 
 namespace webgpu_app {
 

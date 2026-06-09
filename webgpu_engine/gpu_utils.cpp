@@ -50,8 +50,10 @@ void compute_mipmaps_for_texture(webgpu::Context& ctx, const webgpu::raii::Textu
         qDebug() << "Computing" << mipLevelCount << "mipmaps for texture";
     }
 
-    webgpu::raii::CombinedComputePipeline pipeline(device, reg.shader("mipmap_creation"),
-        std::vector<const webgpu::raii::BindGroupLayout*> { &reg.bind_group_layout("mipmap_creation") }, "mipmap creation compute pipeline");
+    webgpu::raii::CombinedComputePipeline pipeline(device,
+        reg.shader("mipmap_creation"),
+        std::vector<const webgpu::raii::BindGroupLayout*> { &reg.bind_group_layout("mipmap_creation") },
+        "mipmap creation compute pipeline");
 
     std::vector<std::unique_ptr<webgpu::raii::TextureView>> textureMipViews;
     std::vector<WGPUExtent3D> mipSizes(mipLevelCount);
@@ -78,7 +80,8 @@ void compute_mipmaps_for_texture(webgpu::Context& ctx, const webgpu::raii::Textu
             textureMipViews[i]->create_bind_group_entry(0),
             textureMipViews[i + 1]->create_bind_group_entry(1),
         };
-        bindGroups.push_back(std::make_unique<webgpu::raii::BindGroup>(device, reg.bind_group_layout("mipmap_creation"), bgEntries, "mipmap creation bindgroup"));
+        bindGroups.push_back(
+            std::make_unique<webgpu::raii::BindGroup>(device, reg.bind_group_layout("mipmap_creation"), bgEntries, "mipmap creation bindgroup"));
     }
 
     constexpr glm::uvec3 SHADER_WORKGROUP_SIZE = { 8, 8, 1 };

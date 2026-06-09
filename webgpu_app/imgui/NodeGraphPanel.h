@@ -38,7 +38,7 @@ class Context;
 namespace webgpu_engine::compute::nodes {
 class InputSocket;
 class OutputSocket;
-}
+} // namespace webgpu_engine::compute::nodes
 
 namespace webgpu_app {
 namespace nodes = webgpu_engine::compute::nodes;
@@ -47,7 +47,7 @@ class NodeGraphPanel : public ImGuiPanel {
 public:
     explicit NodeGraphPanel(webgpu_engine::Context* context);
 
-    // Loads the default pipeline preset into the context's compute graph (called after init).
+    // Loads the default pipeline preset into the contexts compute graph (called after init).
     void ready() override;
     void draw() override;
 

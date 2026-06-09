@@ -29,7 +29,6 @@ public:
     NODE_TYPE_NAME(GPXTrackNode)
 
     struct GPXTrackNodeSettings {
-        // duplicated literal of TrackRenderer::DEFAULT_GPX_TRACK_PATH to avoid a compute->track-layer dependency
         std::string file_path = ":/gpx/breite_ries.gpx";
         bool enable_caching = true;
     };

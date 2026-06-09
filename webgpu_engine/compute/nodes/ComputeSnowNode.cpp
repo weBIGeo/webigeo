@@ -32,14 +32,14 @@ ComputeSnowNode::ComputeSnowNode(webgpu::Context& ctx)
 
 ComputeSnowNode::ComputeSnowNode(webgpu::Context& ctx, const SnowSettings& settings)
     : Node(
-          {
-              InputSocket(*this, "bounds", data_type<const radix::geometry::Aabb<2, double>*>()),
-              InputSocket(*this, "normal texture", data_type<const webgpu::raii::TextureWithSampler*>()),
-              InputSocket(*this, "height texture", data_type<const webgpu::raii::TextureWithSampler*>()),
-          },
-          {
-              OutputSocket(*this, "snow texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_snow_texture.get(); }),
-          })
+        {
+            InputSocket(*this, "bounds", data_type<const radix::geometry::Aabb<2, double>*>()),
+            InputSocket(*this, "normal texture", data_type<const webgpu::raii::TextureWithSampler*>()),
+            InputSocket(*this, "height texture", data_type<const webgpu::raii::TextureWithSampler*>()),
+        },
+        {
+            OutputSocket(*this, "snow texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_snow_texture.get(); }),
+        })
     , m_ctx(&ctx)
     , m_settings { settings }
     , m_snow_settings_uniform_buffer(ctx.device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
@@ -77,19 +77,17 @@ ComputeSnowNode::ComputeSnowNode(webgpu::Context& ctx, const SnowSettings& setti
         e4.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
         e4.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
 
-        return std::make_unique<webgpu::raii::BindGroupLayout>(dev,
-            std::vector<WGPUBindGroupLayoutEntry> { e0, e1, e2, e3, e4 }, "snow compute bind group layout");
+        return std::make_unique<webgpu::raii::BindGroupLayout>(
+            dev, std::vector<WGPUBindGroupLayoutEntry> { e0, e1, e2, e3, e4 }, "snow compute bind group layout");
     });
     reg.register_pipeline([this](WGPUDevice device, const webgpu::RenderResourceRegistry& reg) {
-        m_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(device,
-            reg.shader("snow_compute"),
-            std::vector<const webgpu::raii::BindGroupLayout*> { &reg.bind_group_layout("snow_compute") });
+        m_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(
+            device, reg.shader("snow_compute"), std::vector<const webgpu::raii::BindGroupLayout*> { &reg.bind_group_layout("snow_compute") });
     });
 }
 
 void ComputeSnowNode::run_impl()
 {
-
 
     // read input data from input sockets
     const auto& bounds = *std::get<data_type<const radix::geometry::Aabb<2, double>*>()>(input_socket("bounds").get_connected_data());
@@ -126,7 +124,8 @@ void ComputeSnowNode::run_impl()
         heights_texture.texture_view().create_bind_group_entry(3),
         m_output_snow_texture->texture_view().create_bind_group_entry(4),
     };
-    webgpu::raii::BindGroup compute_bind_group(m_ctx->device(), m_ctx->resource_registry().bind_group_layout("snow_compute"), entries, "snow compute bind group");
+    webgpu::raii::BindGroup compute_bind_group(
+        m_ctx->device(), m_ctx->resource_registry().bind_group_layout("snow_compute"), entries, "snow compute bind group");
 
     // bind GPU resources and run pipeline
     {

@@ -18,8 +18,8 @@
 
 #include "OverlayNodeRenderer.h"
 
-#include <webgpu_engine/overlay/OverlayRenderNode.h>
 #include <imgui.h>
+#include <webgpu_engine/overlay/OverlayRenderNode.h>
 
 namespace webgpu_app {
 namespace nodes = webgpu_engine::compute::nodes;

@@ -29,13 +29,13 @@ IterativeSimulationNode::IterativeSimulationNode(webgpu::Context& ctx)
 
 IterativeSimulationNode::IterativeSimulationNode(webgpu::Context& ctx, const IterativeSimulationSettings& settings)
     : Node(
-          {
-              InputSocket(*this, "height texture", data_type<const webgpu::raii::TextureWithSampler*>()),
-              InputSocket(*this, "release point texture", data_type<const webgpu::raii::TextureWithSampler*>()),
-          },
-          {
-              OutputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }),
-          })
+        {
+            InputSocket(*this, "height texture", data_type<const webgpu::raii::TextureWithSampler*>()),
+            InputSocket(*this, "release point texture", data_type<const webgpu::raii::TextureWithSampler*>()),
+        },
+        {
+            OutputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }),
+        })
     , m_ctx(&ctx)
     , m_settings { settings }
 {
@@ -43,39 +43,46 @@ IterativeSimulationNode::IterativeSimulationNode(webgpu::Context& ctx, const Ite
     reg.register_shader("iterative_simulation_compute", "compute/iterative_simulation_compute.wgsl");
     reg.register_bind_group_layout("iterative_simulation_compute", [](WGPUDevice dev) {
         WGPUBindGroupLayoutEntry e0 {};
-        e0.binding = 0; e0.visibility = WGPUShaderStage_Compute;
+        e0.binding = 0;
+        e0.visibility = WGPUShaderStage_Compute;
         e0.buffer.type = WGPUBufferBindingType_Uniform;
 
         WGPUBindGroupLayoutEntry e1 {};
-        e1.binding = 1; e1.visibility = WGPUShaderStage_Compute;
+        e1.binding = 1;
+        e1.visibility = WGPUShaderStage_Compute;
         e1.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
         e1.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry e2 {};
-        e2.binding = 2; e2.visibility = WGPUShaderStage_Compute;
+        e2.binding = 2;
+        e2.visibility = WGPUShaderStage_Compute;
         e2.texture.sampleType = WGPUTextureSampleType_Float;
         e2.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry e3 {};
-        e3.binding = 3; e3.visibility = WGPUShaderStage_Compute;
+        e3.binding = 3;
+        e3.visibility = WGPUShaderStage_Compute;
         e3.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
 
         WGPUBindGroupLayoutEntry e4 {};
-        e4.binding = 4; e4.visibility = WGPUShaderStage_Compute;
+        e4.binding = 4;
+        e4.visibility = WGPUShaderStage_Compute;
         e4.buffer.type = WGPUBufferBindingType_Storage;
 
         WGPUBindGroupLayoutEntry e5 {};
-        e5.binding = 5; e5.visibility = WGPUShaderStage_Compute;
+        e5.binding = 5;
+        e5.visibility = WGPUShaderStage_Compute;
         e5.buffer.type = WGPUBufferBindingType_Storage;
 
         WGPUBindGroupLayoutEntry e6 {};
-        e6.binding = 6; e6.visibility = WGPUShaderStage_Compute;
+        e6.binding = 6;
+        e6.visibility = WGPUShaderStage_Compute;
         e6.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
         e6.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
         e6.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
 
-        return std::make_unique<webgpu::raii::BindGroupLayout>(dev,
-            std::vector<WGPUBindGroupLayoutEntry> { e0, e1, e2, e3, e4, e5, e6 }, "iterative simulation bind group layout");
+        return std::make_unique<webgpu::raii::BindGroupLayout>(
+            dev, std::vector<WGPUBindGroupLayoutEntry> { e0, e1, e2, e3, e4, e5, e6 }, "iterative simulation bind group layout");
     });
     reg.register_pipeline([this](WGPUDevice device, const webgpu::RenderResourceRegistry& reg) {
         m_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(device,
@@ -97,7 +104,8 @@ void IterativeSimulationNode::run_impl()
         WGPUTextureFormat_RGBA8Unorm,
         WGPUTextureUsage(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding));
 
-    m_settings_uniform = std::make_unique<webgpu::Buffer<IterativeSimulationSettingsUniform>>(m_ctx->device(), WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst);
+    m_settings_uniform
+        = std::make_unique<webgpu::Buffer<IterativeSimulationSettingsUniform>>(m_ctx->device(), WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst);
 
     size_t buffer_size = input_height_texture.texture().width() * input_height_texture.texture().height();
     m_input_parent_buffer = std::make_unique<webgpu::raii::RawBuffer<uint32_t>>(
@@ -108,7 +116,8 @@ void IterativeSimulationNode::run_impl()
         m_ctx->device(), WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst, buffer_size, "flow py parents buffer 2");
 
     // create bind group
-    webgpu::raii::BindGroup compute_bind_group(m_ctx->device(), m_ctx->resource_registry().bind_group_layout("iterative_simulation_compute"),
+    webgpu::raii::BindGroup compute_bind_group(m_ctx->device(),
+        m_ctx->resource_registry().bind_group_layout("iterative_simulation_compute"),
         std::vector<WGPUBindGroupEntry> {
             m_settings_uniform->raw_buffer().create_bind_group_entry(0),
             input_height_texture.texture_view().create_bind_group_entry(1),

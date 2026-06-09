@@ -27,14 +27,8 @@ RequestTilesNodeRenderer::RequestTilesNodeRenderer(const std::string& name, node
     : NodeRenderer(name, node)
     , m_node(&node)
     , m_options({
-          { "DTM tiles",
-              { "https://alpinemaps.cg.tuwien.ac.at/tiles/at_dtm_alpinemaps/",
-                  nucleus::tile::TileLoadService::UrlPattern::ZXY,
-                  ".png" } },
-          { "DSM tiles",
-              { "https://alpinemaps.cg.tuwien.ac.at/tiles/alpine_png/",
-                  nucleus::tile::TileLoadService::UrlPattern::ZXY,
-                  ".png" } },
+          { "DTM tiles", { "https://alpinemaps.cg.tuwien.ac.at/tiles/at_dtm_alpinemaps/", nucleus::tile::TileLoadService::UrlPattern::ZXY, ".png" } },
+          { "DSM tiles", { "https://alpinemaps.cg.tuwien.ac.at/tiles/alpine_png/", nucleus::tile::TileLoadService::UrlPattern::ZXY, ".png" } },
       })
 {
 }

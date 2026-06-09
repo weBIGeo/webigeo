@@ -24,12 +24,12 @@ glm::uvec3 UpsampleTexturesNode::SHADER_WORKGROUP_SIZE = { 1, 16, 16 };
 
 UpsampleTexturesNode::UpsampleTexturesNode(webgpu::Context& ctx, glm::uvec2 target_resolution, size_t capacity)
     : Node(
-          {
-              InputSocket(*this, "source textures", data_type<TileStorageTexture*>()),
-          },
-          {
-              OutputSocket(*this, "output textures", data_type<TileStorageTexture*>(), [this]() { return m_output_storage_texture.get(); }),
-          })
+        {
+            InputSocket(*this, "source textures", data_type<TileStorageTexture*>()),
+        },
+        {
+            OutputSocket(*this, "output textures", data_type<TileStorageTexture*>(), [this]() { return m_output_storage_texture.get(); }),
+        })
     , m_ctx(&ctx)
     , m_target_resolution { target_resolution }
     , m_input_indices(std::make_unique<webgpu::raii::RawBuffer<uint32_t>>(
@@ -40,26 +40,30 @@ UpsampleTexturesNode::UpsampleTexturesNode(webgpu::Context& ctx, glm::uvec2 targ
     reg.register_shader("upsample_textures_compute", "compute/upsample_textures_compute.wgsl");
     reg.register_bind_group_layout("upsample_textures_compute", [](WGPUDevice dev) {
         WGPUBindGroupLayoutEntry e0 {};
-        e0.binding = 0; e0.visibility = WGPUShaderStage_Compute;
+        e0.binding = 0;
+        e0.visibility = WGPUShaderStage_Compute;
         e0.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
 
         WGPUBindGroupLayoutEntry e1 {};
-        e1.binding = 1; e1.visibility = WGPUShaderStage_Compute;
+        e1.binding = 1;
+        e1.visibility = WGPUShaderStage_Compute;
         e1.texture.sampleType = WGPUTextureSampleType_Float;
         e1.texture.viewDimension = WGPUTextureViewDimension_2DArray;
 
         WGPUBindGroupLayoutEntry e2 {};
-        e2.binding = 2; e2.visibility = WGPUShaderStage_Compute;
+        e2.binding = 2;
+        e2.visibility = WGPUShaderStage_Compute;
         e2.sampler.type = WGPUSamplerBindingType_Filtering;
 
         WGPUBindGroupLayoutEntry e3 {};
-        e3.binding = 3; e3.visibility = WGPUShaderStage_Compute;
+        e3.binding = 3;
+        e3.visibility = WGPUShaderStage_Compute;
         e3.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
         e3.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
         e3.storageTexture.viewDimension = WGPUTextureViewDimension_2DArray;
 
-        return std::make_unique<webgpu::raii::BindGroupLayout>(dev,
-            std::vector<WGPUBindGroupLayoutEntry> { e0, e1, e2, e3 }, "compute: upsample textures bind group layout");
+        return std::make_unique<webgpu::raii::BindGroupLayout>(
+            dev, std::vector<WGPUBindGroupLayoutEntry> { e0, e1, e2, e3 }, "compute: upsample textures bind group layout");
     });
     reg.register_pipeline([this](WGPUDevice device, const webgpu::RenderResourceRegistry& reg) {
         m_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(device,
@@ -70,7 +74,6 @@ UpsampleTexturesNode::UpsampleTexturesNode(webgpu::Context& ctx, glm::uvec2 targ
 
 void UpsampleTexturesNode::run_impl()
 {
-
 
     const auto& input_textures = *std::get<data_type<TileStorageTexture*>()>(input_socket("source textures").get_connected_data());
     const std::vector<uint32_t> input_used_indices = input_textures.used_layer_indices();

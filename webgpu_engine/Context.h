@@ -20,20 +20,20 @@
 
 #pragma once
 
+#include "UniformBufferObjects.h"
 #include "atmosphere/AtmosphereRenderer.h"
 #include "cloud/CloudRenderer.h"
+#include "nucleus/EngineContext.h"
+#include "nucleus/track/Manager.h"
 #include "overlay/OverlayRenderer.h"
 #include "tile_mesh/TileMeshRenderer.h"
 #include "track/TrackRenderer.h"
-#include "UniformBufferObjects.h"
-#include "nucleus/EngineContext.h"
-#include "nucleus/track/Manager.h"
 #include <webgpu/Context.h>
 
 namespace webgpu_engine {
 
 namespace compute::nodes {
-class NodeGraph;
+    class NodeGraph;
 }
 
 class Context : public nucleus::EngineContext {

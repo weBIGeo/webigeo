@@ -19,8 +19,8 @@
 #pragma once
 
 #include "Overlay.h"
-#include <webgpu/Buffer.h>
 #include <memory>
+#include <webgpu/Buffer.h>
 #include <webgpu/raii/CombinedComputePipeline.h>
 #include <webgpu/raii/TextureWithSampler.h>
 

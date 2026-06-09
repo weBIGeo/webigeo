@@ -19,8 +19,8 @@
 
 #include "ComputeSnowNodeRenderer.h"
 
-#include <webgpu_engine/compute/nodes/ComputeSnowNode.h>
 #include <imgui.h>
+#include <webgpu_engine/compute/nodes/ComputeSnowNode.h>
 
 namespace webgpu_app {
 namespace nodes = webgpu_engine::compute::nodes;
@@ -36,7 +36,8 @@ void ComputeSnowNodeRenderer::render_settings_content()
     auto settings = m_snow_node->get_snow_settings();
     bool changed = false;
 
-    changed |= ImGui::DragFloatRange2("Ang.-limit", &settings.min_angle, &settings.max_angle, 0.1f, 0.0f, 90.0f, "%.1f°", "%.1f°", ImGuiSliderFlags_AlwaysClamp);
+    changed
+        |= ImGui::DragFloatRange2("Ang.-limit", &settings.min_angle, &settings.max_angle, 0.1f, 0.0f, 90.0f, "%.1f°", "%.1f°", ImGuiSliderFlags_AlwaysClamp);
     changed |= ImGui::SliderFloat("Ang.-blend", &settings.angle_blend, 0.0f, 90.0f, "%.1f°");
     changed |= ImGui::SliderFloat("Alt.-limit", &settings.min_altitude, 0.0f, 4000.0f, "%.1fm");
     changed |= ImGui::SliderFloat("Alt.-variation", &settings.altitude_variation, 0.0f, 1000.0f, "%.1fm");

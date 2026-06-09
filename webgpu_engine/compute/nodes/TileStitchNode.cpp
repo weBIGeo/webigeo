@@ -34,11 +34,11 @@ TileStitchNode::TileStitchNode(webgpu::Context& ctx)
 
 webgpu_engine::compute::nodes::TileStitchNode::TileStitchNode(webgpu::Context& ctx, StitchSettings settings)
     : Node(
-          {
-              InputSocket(*this, "tile ids", data_type<const std::vector<radix::tile::Id>*>()),
-              InputSocket(*this, "texture data", data_type<const std::vector<QByteArray>*>()),
-          },
-          { OutputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }) })
+        {
+            InputSocket(*this, "tile ids", data_type<const std::vector<radix::tile::Id>*>()),
+            InputSocket(*this, "texture data", data_type<const std::vector<QByteArray>*>()),
+        },
+        { OutputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }) })
     , m_ctx(&ctx)
     , m_settings(settings)
 {
@@ -46,7 +46,6 @@ webgpu_engine::compute::nodes::TileStitchNode::TileStitchNode(webgpu::Context& c
 
 void TileStitchNode::run_impl()
 {
-
 
     // get tile ids to process
     const auto& tile_ids = *std::get<data_type<const std::vector<radix::tile::Id>*>()>(input_socket("tile ids").get_connected_data());
@@ -82,7 +81,7 @@ void TileStitchNode::run_impl()
     // Check if inside bounds
     if (size_pixels.x > MAX_STITCHED_IMAGE_SIZE || size_pixels.y > MAX_STITCHED_IMAGE_SIZE) {
         fail_run(std::format(
-                "Stitched image size would exceeds maximum size of {}x{} pixel for zoom level {}", MAX_STITCHED_IMAGE_SIZE, MAX_STITCHED_IMAGE_SIZE, zl));
+            "Stitched image size would exceeds maximum size of {}x{} pixel for zoom level {}", MAX_STITCHED_IMAGE_SIZE, MAX_STITCHED_IMAGE_SIZE, zl));
         return;
     }
 

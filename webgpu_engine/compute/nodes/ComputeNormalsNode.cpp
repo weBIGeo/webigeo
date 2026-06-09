@@ -26,13 +26,13 @@ glm::uvec3 ComputeNormalsNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
 
 ComputeNormalsNode::ComputeNormalsNode(webgpu::Context& ctx)
     : Node(
-          {
-              InputSocket(*this, "bounds", data_type<const radix::geometry::Aabb<2, double>*>()),
-              InputSocket(*this, "height texture", data_type<const webgpu::raii::TextureWithSampler*>()),
-          },
-          {
-              OutputSocket(*this, "normal texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }),
-          })
+        {
+            InputSocket(*this, "bounds", data_type<const radix::geometry::Aabb<2, double>*>()),
+            InputSocket(*this, "height texture", data_type<const webgpu::raii::TextureWithSampler*>()),
+        },
+        {
+            OutputSocket(*this, "normal texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }),
+        })
     , m_ctx(&ctx)
     , m_normals_settings_uniform_buffer(ctx.device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
 {
@@ -57,13 +57,11 @@ ComputeNormalsNode::ComputeNormalsNode(webgpu::Context& ctx)
         e2.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
         e2.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
 
-        return std::make_unique<webgpu::raii::BindGroupLayout>(dev,
-            std::vector<WGPUBindGroupLayoutEntry> { e0, e1, e2 }, "normals compute bind group layout");
+        return std::make_unique<webgpu::raii::BindGroupLayout>(dev, std::vector<WGPUBindGroupLayoutEntry> { e0, e1, e2 }, "normals compute bind group layout");
     });
     reg.register_pipeline([this](WGPUDevice device, const webgpu::RenderResourceRegistry& reg) {
-        m_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(device,
-            reg.shader("normals_compute"),
-            std::vector<const webgpu::raii::BindGroupLayout*> { &reg.bind_group_layout("normals_compute") });
+        m_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(
+            device, reg.shader("normals_compute"), std::vector<const webgpu::raii::BindGroupLayout*> { &reg.bind_group_layout("normals_compute") });
     });
 }
 
@@ -71,7 +69,6 @@ void ComputeNormalsNode::set_settings(const NormalSettings& settings) { m_settin
 
 void ComputeNormalsNode::run_impl()
 {
-
 
     const auto& bounds = *std::get<data_type<const radix::geometry::Aabb<2, double>*>()>(input_socket("bounds").get_connected_data());
     const auto& height_texture = *std::get<data_type<const webgpu::raii::TextureWithSampler*>()>(input_socket("height texture").get_connected_data());
@@ -90,7 +87,8 @@ void ComputeNormalsNode::run_impl()
         height_texture.texture_view().create_bind_group_entry(1),
         m_output_texture->texture_view().create_bind_group_entry(2),
     };
-    webgpu::raii::BindGroup compute_bind_group(m_ctx->device(), m_ctx->resource_registry().bind_group_layout("normals_compute"), entries, "compute controller bind group");
+    webgpu::raii::BindGroup compute_bind_group(
+        m_ctx->device(), m_ctx->resource_registry().bind_group_layout("normals_compute"), entries, "compute controller bind group");
 
     // bind GPU resources and run pipeline
     // the result is a texture array with the calculated overlays, and a hashmap that maps id to texture array index

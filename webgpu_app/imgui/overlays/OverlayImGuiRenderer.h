@@ -24,21 +24,19 @@
 namespace webgpu_app {
 
 /// Base class for per-overlay ImGui UI renderers.
-/// Mirrors the NodeRenderer pattern from imgui/nodes/.
 class OverlayImGuiRenderer {
 public:
     explicit OverlayImGuiRenderer(webgpu_engine::Overlay& overlay);
     virtual ~OverlayImGuiRenderer() = default;
 
-    // Default/type name for this overlay kind (subclasses override).
     virtual std::string display_name() const { return "Overlay"; }
-    // Name shown in the list/title: the user-set name if any, otherwise display_name().
+    // The user-set name if any, otherwise display_name()
     std::string effective_name() const;
-    // Renders the general name field followed by overlay-specific settings; returns true if redraw needed.
-    // Subclasses override render_custom_settings(), not this.
+    // Renders the general name field followed by overlay-specific settings (render_custom_settings); returns true if redraw needed.
     bool render_settings();
 
 protected:
+    // Subclasses override this to to render custom ImGui Settings
     virtual bool render_custom_settings() { return false; }
 
     webgpu_engine::Overlay* overlay() const { return m_overlay; }

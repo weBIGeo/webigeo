@@ -28,16 +28,12 @@ OverlayImGuiRenderer::OverlayImGuiRenderer(webgpu_engine::Overlay& overlay)
 {
 }
 
-std::string OverlayImGuiRenderer::effective_name() const
-{
-    return m_overlay->name.empty() ? display_name() : m_overlay->name;
-}
+std::string OverlayImGuiRenderer::effective_name() const { return m_overlay->name.empty() ? display_name() : m_overlay->name; }
 
 bool OverlayImGuiRenderer::render_settings()
 {
     bool changed = false;
 
-    // General setting: configurable name (empty -> falls back to the type name).
     char buf[128];
     std::snprintf(buf, sizeof(buf), "%s", m_overlay->name.c_str());
     ImGui::SetNextItemWidth(-FLT_MIN);

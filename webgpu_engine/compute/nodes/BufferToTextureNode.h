@@ -51,7 +51,8 @@ public:
 
     struct BufferToTextureSettings {
         WGPUTextureFormat texture_format = WGPUTextureFormat_RGBA8Unorm;
-        WGPUTextureUsage texture_usage = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_RenderAttachment);
+        WGPUTextureUsage texture_usage
+            = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_RenderAttachment);
         WGPUFilterMode texture_filter_mode = WGPUFilterMode_Linear;
         WGPUMipmapFilterMode texture_mipmap_filter_mode = WGPUMipmapFilterMode_Linear;
         uint16_t texture_max_aniostropy = 1;

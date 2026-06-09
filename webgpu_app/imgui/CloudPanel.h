@@ -24,12 +24,12 @@
 namespace webgpu_engine {
 class CloudRenderer;
 class Context;
-}
+} // namespace webgpu_engine
 
 namespace webgpu_app {
 
 namespace clouds {
-class Manager;
+    class Manager;
 }
 
 class CloudPanel : public ImGuiPanel {

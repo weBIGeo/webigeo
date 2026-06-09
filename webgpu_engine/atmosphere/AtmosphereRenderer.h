@@ -39,8 +39,6 @@ public:
 
     void resize(int w, int h);
 
-    // Executes the atmosphere full-screen render pass.
-    // camera_bind_group must be bound to group 0 by the pipeline (provides view/projection data).
     void draw(const WGPUCommandEncoder& command_encoder, const WGPUBindGroup& camera_bind_group);
 
     [[nodiscard]] const webgpu::raii::TextureView* result_view() const;

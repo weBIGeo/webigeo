@@ -20,12 +20,12 @@
 
 #include <memory>
 
-#include <webgpu/Buffer.h>
 #include <QObject>
 #include <glm/glm.hpp>
 #include <mutex>
 #include <nucleus/tile/GpuArrayHelper.h>
 #include <nucleus/tile/types.h>
+#include <webgpu/Buffer.h>
 #include <webgpu/Context.h>
 #include <webgpu/raii/BindGroup.h>
 #include <webgpu/raii/BindGroupLayout.h>

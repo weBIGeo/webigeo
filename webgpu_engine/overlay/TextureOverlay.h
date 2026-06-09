@@ -19,11 +19,11 @@
 #pragma once
 
 #include "Overlay.h"
-#include <webgpu/Buffer.h>
 #include <QString>
 #include <memory>
 #include <nucleus/Raster.h>
 #include <radix/geometry.h>
+#include <webgpu/Buffer.h>
 #include <webgpu/Framebuffer.h>
 #include <webgpu/raii/Pipeline.h>
 #include <webgpu/raii/TextureWithSampler.h>
@@ -53,7 +53,7 @@ public:
     void load_texture(const webgpu::raii::TextureWithSampler& source);
 
     // Link an external GPU texture directly (non-owning). The caller must keep it alive while linked.
-    // pass nullptr to unlink. While linked, settings.filter_mode/use_mipmaps have no effect.
+    // pass nullptr to unlink.
     void link_texture(const webgpu::raii::TextureWithSampler* texture);
     [[nodiscard]] bool is_linked() const { return m_linked_texture != nullptr; }
 

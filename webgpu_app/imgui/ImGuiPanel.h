@@ -28,14 +28,14 @@ class ImGuiPanel : public QObject {
 public:
     virtual ~ImGuiPanel() = default;
 
-    // Called once after initialization, alongside Window::ready()
-    virtual void ready() {}
+    // Called once after initialization
+    virtual void ready() { }
 
     // Called outside the main sidebar window
-    virtual void draw() {}
+    virtual void draw() { }
 
     // Called inside the main sidebar ImGui::Begin/End block
-    virtual void draw_panel() {}
+    virtual void draw_panel() { }
 };
 
 } // namespace webgpu_app

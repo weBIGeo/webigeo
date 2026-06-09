@@ -26,11 +26,6 @@
 #include <webgpu/Context.h>
 
 namespace webgpu_engine::compute {
-
-// Registry of node factories keyed by type-name. Lets graph builders create nodes - including
-// renderer-defined "custom" nodes - by name, without a compile-time dependency on the concrete type.
-// The renderer registers its node(s) at init (the factory captures whatever it needs, e.g. the engine
-// Context) and graph builders create them via create().
 class NodeRegistry {
 public:
     using NodeFactory = std::function<std::unique_ptr<nodes::Node>(webgpu::Context&)>;
@@ -44,7 +39,7 @@ public:
     [[nodiscard]] std::unique_ptr<nodes::Node> create(const std::string& type_name, webgpu::Context& ctx) const;
 
 private:
-    NodeRegistry(); // registers all built-in compute nodes
+    NodeRegistry(); // registers all core compute nodes
 
     std::unordered_map<std::string, NodeFactory> m_factories;
 };

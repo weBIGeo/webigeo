@@ -301,8 +301,10 @@ void Window::reload_shaders()
 
 void Window::create_buffers()
 {
-    m_shared_config_ubo = std::make_unique<webgpu::Buffer<uboSharedConfig>>(m_context->webgpu_ctx().device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
-    m_camera_config_ubo = std::make_unique<webgpu::Buffer<uboCameraConfig>>(m_context->webgpu_ctx().device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
+    m_shared_config_ubo
+        = std::make_unique<webgpu::Buffer<uboSharedConfig>>(m_context->webgpu_ctx().device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
+    m_camera_config_ubo
+        = std::make_unique<webgpu::Buffer<uboCameraConfig>>(m_context->webgpu_ctx().device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
     m_position_readback_buffer = std::make_unique<webgpu::raii::RawBuffer<glm::vec4>>(
         m_context->webgpu_ctx().device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead, 256 / sizeof(glm::vec4), "position readback buffer");
 }

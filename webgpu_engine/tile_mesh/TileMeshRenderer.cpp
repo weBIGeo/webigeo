@@ -30,7 +30,11 @@
 using webgpu_engine::TileMeshRenderer;
 
 namespace {
-template <typename T> int bufferLengthInBytes(const std::vector<T>& vec) { return int(vec.size() * sizeof(T)); }
+template <typename T>
+int bufferLengthInBytes(const std::vector<T>& vec)
+{
+    return int(vec.size() * sizeof(T));
+}
 } // namespace
 
 namespace webgpu_engine {
@@ -59,12 +63,17 @@ void TileMeshRenderer::init(webgpu::Context& ctx)
     // create buffers for bounds, tile ids, zoom level, height and ortho texture buffers
     m_bounds_buffer = std::make_unique<webgpu::raii::RawBuffer<glm::vec4>>(m_ctx->device(), WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
     m_tileset_id_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_ctx->device(), WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
-    m_height_zoom_level_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_ctx->device(), WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
-    m_height_texture_layer_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_ctx->device(), WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
-    m_ortho_zoom_level_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_ctx->device(), WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
-    m_ortho_texture_layer_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_ctx->device(), WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
+    m_height_zoom_level_buffer
+        = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_ctx->device(), WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
+    m_height_texture_layer_buffer
+        = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_ctx->device(), WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
+    m_ortho_zoom_level_buffer
+        = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_ctx->device(), WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
+    m_ortho_texture_layer_buffer
+        = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_ctx->device(), WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
 
-    m_tile_id_buffer = std::make_unique<webgpu::raii::RawBuffer<compute::GpuTileId>>(m_ctx->device(), WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
+    m_tile_id_buffer
+        = std::make_unique<webgpu::raii::RawBuffer<compute::GpuTileId>>(m_ctx->device(), WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
     m_n_edge_vertices_buffer = std::make_unique<webgpu::Buffer<int32_t>>(m_ctx->device(), WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst);
     m_n_edge_vertices_buffer->data = int(m_height_resolution);
     m_n_edge_vertices_buffer->update_gpu_data(m_ctx->queue());
@@ -176,10 +185,10 @@ void TileMeshRenderer::init(webgpu::Context& ctx)
 
         webgpu::FramebufferFormat format {};
         format.depth_format = WGPUTextureFormat_Depth24Plus;
-        format.color_formats.emplace_back(WGPUTextureFormat_R32Uint);    // albedo
+        format.color_formats.emplace_back(WGPUTextureFormat_R32Uint); // albedo
         format.color_formats.emplace_back(WGPUTextureFormat_RGBA32Float); // position
-        format.color_formats.emplace_back(WGPUTextureFormat_RG16Uint);   // normal
-        format.color_formats.emplace_back(WGPUTextureFormat_R32Uint);    // overlay
+        format.color_formats.emplace_back(WGPUTextureFormat_RG16Uint); // normal
+        format.color_formats.emplace_back(WGPUTextureFormat_R32Uint); // overlay
 
         m_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(dev,
             reg.shader("render_tiles"),
@@ -231,7 +240,10 @@ void TileMeshRenderer::draw(
     for (const auto& id_bounds : draw_tiles) {
         const auto& tile_id = id_bounds.id;
         const auto& tile_bounds = id_bounds.bounds;
-        bounds.emplace_back(tile_bounds.min.x - camera.position().x, tile_bounds.min.y - camera.position().y, tile_bounds.max.x - camera.position().x, tile_bounds.max.y - camera.position().y);
+        bounds.emplace_back(tile_bounds.min.x - camera.position().x,
+            tile_bounds.min.y - camera.position().y,
+            tile_bounds.max.x - camera.position().x,
+            tile_bounds.max.y - camera.position().y);
         tileset_id.emplace_back(tile_id.coords[0] + tile_id.coords[1]);
 
         const auto height_layer_info = m_loaded_height_textures.layer(tile_id);

@@ -35,12 +35,10 @@ public:
     // NOTE: z_index < 0 -> pre-shading bucket, z_index >= 0 -> post-shading bucket
     int z_index = 0;
 
-    // User-configurable display name
     std::string name;
 
     virtual ~Overlay() = default;
     // Initialization code for GPU Ressources goes here. Needs to be called after creation.
-    // Receives the engine Context (exposes both webgpu_ctx() and shared_config()).
     virtual void init(Context& ctx) = 0;
     // Called once all shared GPU resources (compiled shaders, pipelines, bind group layouts)
     // have been created. From here on it is safe to use them and to upload GPU data.
@@ -57,7 +55,8 @@ public:
         const WGPUBindGroup& camera_bg,
         const webgpu::raii::TextureWithSampler& current_input,
         webgpu::raii::TextureWithSampler& target_output,
-        glm::uvec2 output_size) = 0;
+        glm::uvec2 output_size)
+        = 0;
 };
 
 } // namespace webgpu_engine

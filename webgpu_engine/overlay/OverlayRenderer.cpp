@@ -78,9 +78,6 @@ void OverlayRenderer::init(Context& ctx)
 {
     m_ctx = &ctx;
 
-    // Register our renderer-aware terminal node so compute graph builders can create it by type-name
-    // without the compute core depending on the renderer. The factory captures the (long-lived) engine
-    // Context and ignores the webgpu::Context the registry passes for core nodes.
     compute::NodeRegistry::instance().register_node(
         "OverlayRenderNode", [&ctx](webgpu::Context&) { return std::make_unique<compute::nodes::OverlayRenderNode>(ctx); });
 
@@ -112,8 +109,8 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> OverlayRenderer::create_output
     sampler_desc.addressModeV = WGPUAddressMode_ClampToEdge;
     sampler_desc.addressModeW = WGPUAddressMode_ClampToEdge;
     sampler_desc.magFilter = WGPUFilterMode_Nearest;
-    sampler_desc.minFilter = WGPUFilterMode_Nearest;
     sampler_desc.mipmapFilter = WGPUMipmapFilterMode_Nearest;
+    sampler_desc.minFilter = WGPUFilterMode_Nearest;
     sampler_desc.lodMinClamp = 0.0f;
     sampler_desc.lodMaxClamp = 1.0f;
     sampler_desc.compare = WGPUCompareFunction_Undefined;

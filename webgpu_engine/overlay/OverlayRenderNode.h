@@ -26,14 +26,12 @@
 namespace webgpu_engine {
 class Context;
 class TextureOverlay;
-}
+} // namespace webgpu_engine
 
 namespace webgpu_engine::compute::nodes {
 
-// Terminal node that forwards the graph's result texture (+ region aabb) to a "Compute Result"
-// TextureOverlay managed by the OverlayRenderer. Unlike a generic compute node it knows the rendering
-// layer (it lives there): the OverlayRenderer registers it with the NodeRegistry and the graph builders
-// create it by type-name, so the compute core keeps no dependency on the renderer.
+// A custom node that forwards the graph result to a TextureOverlay managed by the OverlayRenderer.
+// Unlike a base compute node it knows the rendering layer: the OverlayRenderer registers it with the NodeRegistry.
 class OverlayRenderNode : public Node {
     Q_OBJECT
 
@@ -59,7 +57,7 @@ public slots:
 private:
     Context* m_context;
     OverlaySettings m_settings;
-    std::weak_ptr<TextureOverlay> m_result_overlay; // weak: the user may delete it via the OverlaysPanel
+    std::weak_ptr<TextureOverlay> m_result_overlay; // weak: the user may delete it in the gui
 };
 
 } // namespace webgpu_engine::compute::nodes

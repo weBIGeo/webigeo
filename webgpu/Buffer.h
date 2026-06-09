@@ -26,7 +26,8 @@
 namespace webgpu {
 
 /// Generic class for buffers that are backed by a member variable.
-template <typename T> class Buffer {
+template <typename T>
+class Buffer {
 public:
     // Creates a Buffer object representing a region in GPU memory.
     Buffer(WGPUDevice device, WGPUBufferUsage flags)

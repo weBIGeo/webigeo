@@ -18,17 +18,16 @@
 
 #include "ComputeAvalancheTrajectoriesNodeRenderer.h"
 
-#include <webgpu_engine/compute/nodes/ComputeAvalancheTrajectoriesNode.h>
 #include <glm/glm.hpp>
 #include <imgui.h>
+#include <webgpu_engine/compute/nodes/ComputeAvalancheTrajectoriesNode.h>
 
 namespace webgpu_app {
 namespace nodes = webgpu_engine::compute::nodes;
 
 using Node = nodes::ComputeAvalancheTrajectoriesNode;
 
-ComputeAvalancheTrajectoriesNodeRenderer::ComputeAvalancheTrajectoriesNodeRenderer(
-    const std::string& name, nodes::ComputeAvalancheTrajectoriesNode& node)
+ComputeAvalancheTrajectoriesNodeRenderer::ComputeAvalancheTrajectoriesNodeRenderer(const std::string& name, nodes::ComputeAvalancheTrajectoriesNode& node)
     : NodeRenderer(name, node)
     , m_node(&node)
 {
@@ -50,7 +49,8 @@ void ComputeAvalancheTrajectoriesNodeRenderer::render_settings_content()
     rerun |= ImGui::IsItemDeactivatedAfterEdit();
 
     const uint32_t min_paths = 1, max_paths = 2048;
-    settings_changed |= ImGui::DragScalar("Num particles per cell", ImGuiDataType_U32, &settings.num_paths_per_release_cell, 1.0f, &min_paths, &max_paths, "%u");
+    settings_changed
+        |= ImGui::DragScalar("Num particles per cell", ImGuiDataType_U32, &settings.num_paths_per_release_cell, 1.0f, &min_paths, &max_paths, "%u");
     rerun |= ImGui::IsItemDeactivatedAfterEdit();
 
     const uint32_t min_runs = 1, max_runs = 1000;
@@ -64,8 +64,7 @@ void ComputeAvalancheTrajectoriesNodeRenderer::render_settings_content()
     ImGui::Separator();
 
     // --- Physics model ---
-    if (ImGui::Combo("Model", (int*)&settings.active_model,
-            "weBIGeo Avalanche Simulation\0Physics Less Simple\0")) {
+    if (ImGui::Combo("Model", (int*)&settings.active_model, "weBIGeo Avalanche Simulation\0Physics Less Simple\0")) {
         settings_changed = rerun = true;
     }
 

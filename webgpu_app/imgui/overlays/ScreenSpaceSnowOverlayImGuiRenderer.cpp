@@ -1,6 +1,7 @@
 /*****************************************************************************
  * weBIGeo
  * Copyright (C) 2026 Gerald Kimmersdorfer
+ * Copyright (C) 2024 Patrick Komon
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,8 +34,7 @@ bool ScreenSpaceSnowOverlayImGuiRenderer::render_custom_settings()
     auto& s = m_snow_overlay->settings;
     bool changed = false;
 
-    changed |= ImGui::DragFloatRange2(
-        "Angle limit", &s.angle_min, &s.angle_max, 0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp);
+    changed |= ImGui::DragFloatRange2("Angle limit", &s.angle_min, &s.angle_max, 0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp);
     changed |= ImGui::SliderFloat("Angle blend", &s.angle_blend, 0.0f, 90.0f, "%.1f°");
     changed |= ImGui::SliderFloat("Altitude limit", &s.altitude_limit, 0.0f, 4000.0f, "%.1fm");
     changed |= ImGui::SliderFloat("Altitude variation", &s.altitude_variation, 0.0f, 1000.0f, "%.1fm");

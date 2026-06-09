@@ -23,8 +23,8 @@
 #include <IconsFontAwesome5.h>
 #include <imgui.h>
 
-#include "../TerrainRenderer.h"
 #include "../RenderingContext.h"
+#include "../TerrainRenderer.h"
 #include <QDebug>
 
 namespace webgpu_app {

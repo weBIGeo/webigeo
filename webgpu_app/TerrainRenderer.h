@@ -29,10 +29,10 @@
 #include <nucleus/tile/TextureScheduler.h>
 #include <nucleus/timing/TimerManager.h>
 
-#include <webgpu/webgpu.h>
 #include <webgpu/timing/CpuTimer.h>
 #include <webgpu/timing/GuiTimerManager.h>
 #include <webgpu/timing/WebGpuTimer.h>
+#include <webgpu/webgpu.h>
 
 #include "webgpu_engine/Context.h"
 #include "webgpu_engine/Window.h"

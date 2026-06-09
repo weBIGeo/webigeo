@@ -29,12 +29,12 @@ ComputeReleasePointsNode::ComputeReleasePointsNode(webgpu::Context& ctx)
 
 ComputeReleasePointsNode::ComputeReleasePointsNode(webgpu::Context& ctx, const ReleasePointsSettings& settings)
     : Node(
-          {
-              InputSocket(*this, "normal texture", data_type<const webgpu::raii::TextureWithSampler*>()),
-          },
-          {
-              OutputSocket(*this, "release point texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }),
-          })
+        {
+            InputSocket(*this, "normal texture", data_type<const webgpu::raii::TextureWithSampler*>()),
+        },
+        {
+            OutputSocket(*this, "release point texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }),
+        })
     , m_ctx(&ctx)
     , m_settings { settings }
     , m_settings_uniform(ctx.device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
@@ -60,25 +60,26 @@ ComputeReleasePointsNode::ComputeReleasePointsNode(webgpu::Context& ctx, const R
         e2.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
         e2.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
 
-        return std::make_unique<webgpu::raii::BindGroupLayout>(dev,
-            std::vector<WGPUBindGroupLayoutEntry> { e0, e1, e2 }, "release point compute bind group layout");
+        return std::make_unique<webgpu::raii::BindGroupLayout>(
+            dev, std::vector<WGPUBindGroupLayoutEntry> { e0, e1, e2 }, "release point compute bind group layout");
     });
     reg.register_pipeline([this](WGPUDevice device, const webgpu::RenderResourceRegistry& reg) {
-        m_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(device,
-            reg.shader("release_point_compute"),
-            std::vector<const webgpu::raii::BindGroupLayout*> { &reg.bind_group_layout("release_point_compute") });
+        m_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(
+            device, reg.shader("release_point_compute"), std::vector<const webgpu::raii::BindGroupLayout*> { &reg.bind_group_layout("release_point_compute") });
     });
 }
 
 void ComputeReleasePointsNode::run_impl()
 {
 
-
     const auto& normal_texture = *std::get<data_type<const webgpu::raii::TextureWithSampler*>()>(input_socket("normal texture").get_connected_data());
 
     // create output texture
-    m_output_texture = create_release_points_texture(
-        m_ctx->device(), uint32_t(normal_texture.texture().width()), uint32_t(normal_texture.texture().height()), m_settings.texture_format, m_settings.texture_usage);
+    m_output_texture = create_release_points_texture(m_ctx->device(),
+        uint32_t(normal_texture.texture().width()),
+        uint32_t(normal_texture.texture().height()),
+        m_settings.texture_format,
+        m_settings.texture_usage);
 
     // update settings on GPU side
     m_settings_uniform.data.min_slope_angle = m_settings.min_slope_angle;

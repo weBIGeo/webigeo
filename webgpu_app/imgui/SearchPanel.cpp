@@ -47,7 +47,8 @@ void SearchPanel::draw()
     ImGui::SetNextWindowSize(ImVec2(window_width, window_height));
 
     ImGui::PushStyleVar(ImGuiStyleVar_Alpha, m_is_active ? 1.0f : 0.4f);
-    if (ImGui::Begin("search_panel", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove)) {
+    if (ImGui::Begin(
+            "search_panel", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove)) {
         ImGui::BringWindowToDisplayBack(ImGui::GetCurrentWindow());
         m_is_active = ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows) || ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows);
         ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f));

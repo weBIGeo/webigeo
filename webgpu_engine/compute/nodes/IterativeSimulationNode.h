@@ -18,8 +18,8 @@
 
 #pragma once
 
-#include <webgpu/Buffer.h>
 #include "Node.h"
+#include <webgpu/Buffer.h>
 #include <webgpu/Context.h>
 #include <webgpu/raii/CombinedComputePipeline.h>
 

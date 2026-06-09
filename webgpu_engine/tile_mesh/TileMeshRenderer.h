@@ -22,11 +22,11 @@
 
 #include <memory>
 
-#include <webgpu/Buffer.h>
 #include "webgpu_engine/compute/GpuTileId.h"
 #include <QObject>
 #include <nucleus/tile/GpuArrayHelper.h>
 #include <nucleus/tile/types.h>
+#include <webgpu/Buffer.h>
 #include <webgpu/Context.h>
 #include <webgpu/raii/BindGroup.h>
 #include <webgpu/raii/BindGroupLayout.h>

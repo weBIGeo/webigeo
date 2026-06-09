@@ -38,11 +38,7 @@ namespace webgpu_engine::compute {
 
 NodeRegistry::NodeRegistry()
 {
-    // Built-in compute-core nodes. Each is constructible with just a webgpu::Context (settings default
-    // to sensible values and are configured afterwards), which is what makes them registry-creatable.
-    // Renderer-defined "custom" nodes (e.g. OverlayRenderNode) are registered separately by the renderer.
-    // NOTE: UpsampleTexturesNode is intentionally not registered - its constructor needs explicit
-    // (non-defaulted) configuration, so it has no parameterless-construction path yet.
+    // ToDo: Make sure all nodes share the same constructor and create Makro for register process
     register_node("GPXTrackNode", [](webgpu::Context&) { return std::make_unique<nodes::GPXTrackNode>(); });
     register_node("SelectTilesNode", [](webgpu::Context&) { return std::make_unique<nodes::SelectTilesNode>(); });
     register_node("RequestTilesNode", [](webgpu::Context&) { return std::make_unique<nodes::RequestTilesNode>(); });

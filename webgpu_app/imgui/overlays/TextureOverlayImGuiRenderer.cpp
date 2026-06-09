@@ -115,14 +115,9 @@ bool TextureOverlayImGuiRenderer::render_custom_settings()
 {
     auto& s = m_texture_overlay->settings;
     bool changed = false;
-
-    // When a texture is linked directly (e.g. a compute OverlayNode in link mode) the overlay
-    // samples that GPU texture as-is, so the file-loading UI and the sampler settings below
-    // (filter mode / mipmaps) don't apply and are hidden.
     const bool linked = m_texture_overlay->is_linked();
 
     if (!linked) {
-        // Image path display
         if (m_loaded_image_path.empty())
             ImGui::TextDisabled("No image loaded");
         else
@@ -164,8 +159,6 @@ bool TextureOverlayImGuiRenderer::render_custom_settings()
 #endif
     }
 
-    // AABB as editable vec4 (min_x, min_y, max_x, max_y) — Aabb is { dvec2 min; dvec2 max; },
-    // i.e. 4 contiguous doubles, so we can edit it in place.
     ImGui::PushItemWidth(-1);
     if (ImGui::DragScalarN("##aabb", ImGuiDataType_Double, &s.aabb.min.x, 4, 0.0001f, nullptr, nullptr, "%.5f")) {
         m_texture_overlay->update_gpu_settings();
@@ -196,6 +189,7 @@ bool TextureOverlayImGuiRenderer::render_custom_settings()
         }
     }
 
+    // When a texture is linked the sampler settings below arent necessary and hidden
     if (!linked) {
         const char* filter_items[] = { "Nearest", "Linear" };
         int filter_idx = (s.filter_mode == webgpu_engine::TextureOverlay::FilterMode::Linear) ? 1 : 0;
@@ -207,7 +201,6 @@ bool TextureOverlayImGuiRenderer::render_custom_settings()
         ImGui::TextDisabled("(takes effect on next image load)");
     }
 
-    // pick up deferred redraw requests
     changed |= m_needs_redraw;
     m_needs_redraw = false;
 
