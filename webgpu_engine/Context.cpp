@@ -198,6 +198,7 @@ void Context::internal_destroy()
     m_track_renderer.reset();
     m_overlay_renderer.reset();
     m_cloud_renderer.reset();
+    m_atmosphere_renderer.reset();
     m_tile_mesh_renderer.reset();
 }
 
