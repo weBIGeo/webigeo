@@ -183,12 +183,6 @@ void Window::resize_framebuffer(int w, int h)
     recreate_compose_bind_group();
 }
 
-std::unique_ptr<webgpu::raii::RenderPassEncoder> begin_render_pass(
-    WGPUCommandEncoder encoder, WGPUTextureView color_attachment, WGPUTextureView depth_attachment)
-{
-    return std::make_unique<webgpu::raii::RenderPassEncoder>(encoder, color_attachment, depth_attachment);
-}
-
 void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_encoder)
 {
     m_needs_redraw = false;
@@ -335,27 +329,9 @@ void Window::update_camera([[maybe_unused]] const nucleus::camera::Definition& n
     // m_needs_redraw = true;
 }
 
-void Window::update_debug_scheduler_stats([[maybe_unused]] const QString& stats)
-{
-    // Logic for updating debug scheduler stats, parameter currently unused
-}
-
-void Window::pick_value([[maybe_unused]] const glm::dvec2& screen_space_coordinate)
-{
-    // Logic for picking (e.g. read back id buffer for label picking or sth)
-}
-
 void Window::request_redraw() { m_needs_redraw = true; }
 
-void Window::focus_region_2d(const radix::geometry::Aabb<2, double>& aabb)
-{
-    emit set_camera_definition_requested(nucleus::camera::Definition::looking_down_at_aabb(aabb, m_camera.viewport_size()));
-}
-
-void Window::ready()
-{
-    m_context->overlay_renderer()->ready(m_context->webgpu_ctx());
-}
+void Window::ready() { m_context->overlay_renderer()->ready(m_context->webgpu_ctx()); }
 
 void Window::reload_shaders()
 {

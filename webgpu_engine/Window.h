@@ -65,11 +65,10 @@ public:
 
 public slots:
     void update_camera(const nucleus::camera::Definition& new_definition) override;
-    void update_debug_scheduler_stats(const QString& stats) override;
-    void pick_value(const glm::dvec2& screen_space_coordinate) override;
+    void update_debug_scheduler_stats([[maybe_unused]] const QString& stats) override { }
+    void pick_value([[maybe_unused]] const glm::dvec2& screen_space_coordinate) override { }
 
     void request_redraw();
-    void focus_region_2d(const radix::geometry::Aabb<2, double>& aabb);
     void reload_shaders();
     void on_shadow_texture_updated(const QByteArray& data);
 
