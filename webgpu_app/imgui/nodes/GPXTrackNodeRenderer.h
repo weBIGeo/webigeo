@@ -18,20 +18,25 @@
 
 #pragma once
 
-#include "ImGuiPanel.h"
+#include "NodeRenderer.h"
+#include <array>
+
+namespace webgpu_engine::compute::nodes {
+class GPXTrackNode;
+}
 
 namespace webgpu_app {
+namespace nodes = webgpu_engine::compute::nodes;
 
-class TerrainRenderer;
-
-class EnginePanel : public ImGuiPanel {
+class GPXTrackNodeRenderer : public NodeRenderer {
 public:
-    explicit EnginePanel(TerrainRenderer* terrain_renderer);
-
-    void draw_panel() override;
+    GPXTrackNodeRenderer(const std::string& name, nodes::GPXTrackNode& node);
+    bool has_settings() const override { return true; }
+    void render_settings_content() override;
 
 private:
-    TerrainRenderer* m_terrain_renderer;
+    nodes::GPXTrackNode* m_node;
+    std::array<char, 512> m_path_buffer {};
 };
 
 } // namespace webgpu_app

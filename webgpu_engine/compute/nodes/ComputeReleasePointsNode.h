@@ -19,7 +19,7 @@
 #pragma once
 
 #include "Node.h"
-#include <Buffer.h>
+#include "../../Buffer.h"
 #include <webgpu/Context.h>
 #include <webgpu/raii/CombinedComputePipeline.h>
 

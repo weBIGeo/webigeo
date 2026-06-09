@@ -395,6 +395,7 @@ void TerrainRenderer::start() {
     this->on_window_resize(m_viewport_size.x, m_viewport_size.y);
     m_initialized = true;
 
+    qInfo() << "TerrainRenderer ready";
     m_webgpu_window->ready();
 
 #ifdef ALP_WEBGPU_APP_ENABLE_IMGUI

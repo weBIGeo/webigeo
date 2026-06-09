@@ -16,24 +16,32 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#pragma once
+#include "SelectTilesNodeRenderer.h"
 
-#include "NodeRenderer.h"
+#include <webgpu_engine/compute/nodes/SelectTilesNode.h>
+#include <imgui.h>
 
-namespace webgpu_engine::compute::nodes {
-class OverlayRenderNode;
+namespace webgpu_app {
+namespace nodes = webgpu_engine::compute::nodes;
+
+SelectTilesNodeRenderer::SelectTilesNodeRenderer(const std::string& name, nodes::SelectTilesNode& node)
+    : NodeRenderer(name, node)
+    , m_node(&node)
+{
 }
 
-namespace webgpu_engine::compute {
+void SelectTilesNodeRenderer::render_settings_content()
+{
+    auto settings = m_node->get_settings();
 
-class OverlayNodeRenderer : public NodeRenderer {
-public:
-    OverlayNodeRenderer(const std::string& name, nodes::OverlayRenderNode& node);
-    bool has_settings() const override { return true; }
-    void render_settings_content() override;
+    const uint32_t min_zoomlevel = 1;
+    const uint32_t max_zoomlevel = 18;
+    ImGui::SetNextItemWidth(-1);
+    ImGui::SliderScalar("Zoom level", ImGuiDataType_U32, &settings.zoomlevel, &min_zoomlevel, &max_zoomlevel, "%u");
+    if (ImGui::IsItemDeactivatedAfterEdit()) {
+        m_node->set_settings(settings);
+        m_node->rerun();
+    }
+}
 
-private:
-    nodes::OverlayRenderNode* m_node;
-};
-
-} // namespace webgpu_engine::compute
+} // namespace webgpu_app

@@ -29,10 +29,10 @@
 #include <imgui.h>
 
 #include "../TerrainRenderer.h"
-#include "nucleus/camera/Controller.h"
-#include "nucleus/camera/Definition.h"
-#include "webgpu_engine/Context.h"
-#include "webgpu_engine/track/TrackRenderer.h"
+#include <nucleus/camera/Controller.h>
+#include <nucleus/camera/Definition.h>
+#include <webgpu_engine/Context.h>
+#include <webgpu_engine/track/TrackRenderer.h>
 
 namespace webgpu_app {
 

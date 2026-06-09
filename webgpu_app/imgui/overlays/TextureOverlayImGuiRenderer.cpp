@@ -27,7 +27,7 @@
 #include <filesystem>
 #include <imgui.h>
 
-#include "nucleus/utils/geopng_decoder.h"
+#include <nucleus/utils/geopng_decoder.h>
 #include <nucleus/utils/image_loader.h>
 
 namespace webgpu_app {

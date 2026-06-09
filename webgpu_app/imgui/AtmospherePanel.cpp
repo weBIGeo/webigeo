@@ -21,7 +21,7 @@
 #include "../ImGuiManager.h"
 #include <IconsFontAwesome5.h>
 
-#include "webgpu_engine/Context.h"
+#include <webgpu_engine/Context.h>
 
 namespace webgpu_app {
 

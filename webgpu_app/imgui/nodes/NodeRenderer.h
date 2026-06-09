@@ -25,9 +25,10 @@
 #include <string>
 #include <vector>
 
-#include "../../nodes/Node.h"
+#include <webgpu_engine/compute/nodes/Node.h>
 
-namespace webgpu_engine::compute {
+namespace webgpu_app {
+namespace nodes = webgpu_engine::compute::nodes;
 
 class NodeRenderer {
 public:
@@ -74,4 +75,4 @@ private:
     ImVec2 m_size = { -1, -1 }; // Initialized after first frame
 };
 
-} // namespace webgpu_engine::compute
+} // namespace webgpu_app

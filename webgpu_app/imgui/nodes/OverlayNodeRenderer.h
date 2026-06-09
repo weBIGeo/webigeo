@@ -1,6 +1,6 @@
 /*****************************************************************************
  * weBIGeo
- * Copyright (C) 2024 Gerald Kimmersdorfer
+ * Copyright (C) 2026 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,29 +16,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "EnginePanel.h"
+#pragma once
 
-#include <IconsFontAwesome5.h>
-#include <imgui.h>
+#include "NodeRenderer.h"
 
-#include "../TerrainRenderer.h"
-#include "webgpu_engine/Window.h"
+namespace webgpu_engine::compute::nodes {
+class OverlayRenderNode;
+}
 
 namespace webgpu_app {
+namespace nodes = webgpu_engine::compute::nodes;
 
-EnginePanel::EnginePanel(TerrainRenderer* terrain_renderer)
-    : m_terrain_renderer(terrain_renderer)
-{
-}
+class OverlayNodeRenderer : public NodeRenderer {
+public:
+    OverlayNodeRenderer(const std::string& name, nodes::OverlayRenderNode& node);
+    bool has_settings() const override { return true; }
+    void render_settings_content() override;
 
-void EnginePanel::draw_panel()
-{
-    if (ImGui::CollapsingHeader(ICON_FA_COGS "  Engine Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
-        auto webgpu_window = m_terrain_renderer->get_webgpu_window();
-        if (webgpu_window) {
-            webgpu_window->paint_gui();
-        }
-    }
-}
+private:
+    nodes::OverlayRenderNode* m_node;
+};
 
 } // namespace webgpu_app

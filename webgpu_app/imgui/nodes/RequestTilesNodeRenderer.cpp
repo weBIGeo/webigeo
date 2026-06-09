@@ -20,7 +20,8 @@
 
 #include <imgui.h>
 
-namespace webgpu_engine::compute {
+namespace webgpu_app {
+namespace nodes = webgpu_engine::compute::nodes;
 
 RequestTilesNodeRenderer::RequestTilesNodeRenderer(const std::string& name, nodes::RequestTilesNode& node)
     : NodeRenderer(name, node)
@@ -51,4 +52,4 @@ void RequestTilesNodeRenderer::render_settings_content()
     }
 }
 
-} // namespace webgpu_engine::compute
+} // namespace webgpu_app

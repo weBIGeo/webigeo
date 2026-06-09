@@ -19,23 +19,22 @@
 #pragma once
 
 #include "NodeRenderer.h"
-#include <array>
 
 namespace webgpu_engine::compute::nodes {
-class GPXTrackNode;
+class ComputeReleasePointsNode;
 }
 
-namespace webgpu_engine::compute {
+namespace webgpu_app {
+namespace nodes = webgpu_engine::compute::nodes;
 
-class GPXTrackNodeRenderer : public NodeRenderer {
+class ComputeReleasePointsNodeRenderer : public NodeRenderer {
 public:
-    GPXTrackNodeRenderer(const std::string& name, nodes::GPXTrackNode& node);
+    ComputeReleasePointsNodeRenderer(const std::string& name, nodes::ComputeReleasePointsNode& node);
     bool has_settings() const override { return true; }
     void render_settings_content() override;
 
 private:
-    nodes::GPXTrackNode* m_node;
-    std::array<char, 512> m_path_buffer {};
+    nodes::ComputeReleasePointsNode* m_node;
 };
 
-} // namespace webgpu_engine::compute
+} // namespace webgpu_app

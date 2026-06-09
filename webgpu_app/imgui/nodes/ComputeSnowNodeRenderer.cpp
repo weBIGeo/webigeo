@@ -19,10 +19,11 @@
 
 #include "ComputeSnowNodeRenderer.h"
 
-#include "../../nodes/ComputeSnowNode.h"
+#include <webgpu_engine/compute/nodes/ComputeSnowNode.h>
 #include <imgui.h>
 
-namespace webgpu_engine::compute {
+namespace webgpu_app {
+namespace nodes = webgpu_engine::compute::nodes;
 
 ComputeSnowNodeRenderer::ComputeSnowNodeRenderer(const std::string& name, nodes::ComputeSnowNode& node)
     : NodeRenderer(name, node)
@@ -47,4 +48,4 @@ void ComputeSnowNodeRenderer::render_settings_content()
     }
 }
 
-} // namespace webgpu_engine::compute
+} // namespace webgpu_app

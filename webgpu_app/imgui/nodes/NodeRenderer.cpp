@@ -25,7 +25,8 @@
 #include <iomanip>
 #include <qDebug>
 
-namespace webgpu_engine::compute {
+namespace webgpu_app {
+namespace nodes = webgpu_engine::compute::nodes;
 
 static std::hash<std::string> hasher;
 
@@ -250,4 +251,4 @@ int NodeRenderer::get_output_socket_id(const std::string& output_socket_name) co
     return -1;
 }
 
-} // namespace webgpu_engine::compute
+} // namespace webgpu_app

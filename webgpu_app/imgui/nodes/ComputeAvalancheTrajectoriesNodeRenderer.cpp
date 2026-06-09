@@ -18,10 +18,11 @@
 
 #include "ComputeAvalancheTrajectoriesNodeRenderer.h"
 
-#include "../../nodes/ComputeAvalancheTrajectoriesNode.h"
+#include <webgpu_engine/compute/nodes/ComputeAvalancheTrajectoriesNode.h>
 #include <imgui.h>
 
-namespace webgpu_engine::compute {
+namespace webgpu_app {
+namespace nodes = webgpu_engine::compute::nodes;
 
 using Node = nodes::ComputeAvalancheTrajectoriesNode;
 
@@ -101,4 +102,4 @@ void ComputeAvalancheTrajectoriesNodeRenderer::render_settings_content()
         m_node->rerun();
 }
 
-} // namespace webgpu_engine::compute
+} // namespace webgpu_app

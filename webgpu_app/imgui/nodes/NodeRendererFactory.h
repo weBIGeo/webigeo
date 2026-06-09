@@ -18,28 +18,21 @@
 
 #pragma once
 
-#include "NodeRenderer.h"
-#include "../../nodes/RequestTilesNode.h"
+#include <memory>
 #include <string>
-#include <vector>
 
-namespace webgpu_engine::compute {
+namespace webgpu_engine::compute::nodes {
+class Node;
+}
 
-class RequestTilesNodeRenderer : public NodeRenderer {
+namespace webgpu_app {
+namespace nodes = webgpu_engine::compute::nodes;
+
+class NodeRenderer;
+
+class NodeRendererFactory {
 public:
-    struct TileSourceOption {
-        std::string name;
-        nodes::RequestTilesNode::RequestTilesNodeSettings settings;
-    };
-
-    RequestTilesNodeRenderer(const std::string& name, nodes::RequestTilesNode& node);
-    bool has_settings() const override { return true; }
-    void render_settings_content() override;
-
-private:
-    nodes::RequestTilesNode* m_node;
-    std::vector<TileSourceOption> m_options;
-    int m_selected_index = 0;
+    static std::unique_ptr<NodeRenderer> create(const std::string& name, nodes::Node& node);
 };
 
-} // namespace webgpu_engine::compute
+} // namespace webgpu_app

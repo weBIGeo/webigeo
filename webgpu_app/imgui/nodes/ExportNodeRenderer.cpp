@@ -18,11 +18,12 @@
 
 #include "ExportNodeRenderer.h"
 
-#include "../../nodes/ExportNode.h"
+#include <webgpu_engine/compute/nodes/ExportNode.h>
 #include <cstring>
 #include <imgui.h>
 
-namespace webgpu_engine::compute {
+namespace webgpu_app {
+namespace nodes = webgpu_engine::compute::nodes;
 
 ExportNodeRenderer::ExportNodeRenderer(const std::string& name, nodes::ExportNode& node)
     : NodeRenderer(name, node)
@@ -64,4 +65,4 @@ void ExportNodeRenderer::render_settings_content()
     ImGui::TextDisabled("Placeholders: {node_name}, {run_datetime}, {run_id}");
 }
 
-} // namespace webgpu_engine::compute
+} // namespace webgpu_app

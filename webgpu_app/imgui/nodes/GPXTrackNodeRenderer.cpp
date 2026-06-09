@@ -18,11 +18,12 @@
 
 #include "GPXTrackNodeRenderer.h"
 
-#include "../../nodes/GPXTrackNode.h"
+#include <webgpu_engine/compute/nodes/GPXTrackNode.h>
 #include <cstring>
 #include <imgui.h>
 
-namespace webgpu_engine::compute {
+namespace webgpu_app {
+namespace nodes = webgpu_engine::compute::nodes;
 
 GPXTrackNodeRenderer::GPXTrackNodeRenderer(const std::string& name, nodes::GPXTrackNode& node)
     : NodeRenderer(name, node)
@@ -53,4 +54,4 @@ void GPXTrackNodeRenderer::render_settings_content()
     }
 }
 
-} // namespace webgpu_engine::compute
+} // namespace webgpu_app

@@ -23,7 +23,7 @@
 #include <imgui.h>
 #include <glm/glm.hpp>
 
-#include "webgpu_engine/Context.h"
+#include <webgpu_engine/Context.h>
 
 namespace webgpu_app {
 

@@ -21,19 +21,23 @@
 #include "NodeRenderer.h"
 
 namespace webgpu_engine::compute::nodes {
-class ComputeAvalancheTrajectoriesNode;
+class ExportNode;
 }
 
-namespace webgpu_engine::compute {
+namespace webgpu_app {
+namespace nodes = webgpu_engine::compute::nodes;
 
-class ComputeAvalancheTrajectoriesNodeRenderer : public NodeRenderer {
+class ExportNodeRenderer : public NodeRenderer {
 public:
-    ComputeAvalancheTrajectoriesNodeRenderer(const std::string& name, nodes::ComputeAvalancheTrajectoriesNode& node);
+    ExportNodeRenderer(const std::string& name, nodes::ExportNode& node);
     bool has_settings() const override { return true; }
     void render_settings_content() override;
 
 private:
-    nodes::ComputeAvalancheTrajectoriesNode* m_node;
+    nodes::ExportNode* m_node;
+    char m_buffer_buf[512] = {};
+    char m_texture_buf[512] = {};
+    char m_aabb_buf[512] = {};
 };
 
-} // namespace webgpu_engine::compute
+} // namespace webgpu_app

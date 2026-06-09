@@ -20,10 +20,7 @@
  *****************************************************************************/
 
 #include "Window.h"
-#include "gpu_utils.h"
 #include "nucleus/tile/drawing.h"
-#include "nucleus/utils/geopng_decoder.h"
-#include "nucleus/utils/image_loader.h"
 #include "overlay/OverlayRenderer.h"
 #include "webgpu/raii/RenderPassEncoder.h"
 #include "webgpu_engine/Context.h"
@@ -33,25 +30,11 @@
 
 #include <webgpu/webgpu.h>
 
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-#include "imgui.h"
-#include "imgui_internal.h"
-#ifndef __EMSCRIPTEN__
-#include "ImGuiFileDialog.h"
-#endif
-// TODO: Remove ImGuiFileDialog dependency on Web-build
-
-#include <IconsFontAwesome5.h>
-#endif
-
 namespace webgpu_engine {
 
 Window::Window() { }
 
-Window::~Window()
-{
-    // Destructor cleanup logic here
-}
+Window::~Window() { }
 
 void Window::set_context(Context* context)
 {
@@ -83,20 +66,11 @@ void Window::initialise_gpu()
             });
     });
 
-    m_context->atmosphere_renderer()->init(m_context->webgpu_ctx());
-
     m_context->webgpu_ctx().resource_registry().recreate_all(m_context->webgpu_ctx().device());
 
     create_bind_groups();
 
     m_shadow_texture = create_shadow_texture(1, 1, 1);
-
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-    m_node_graph_renderer = std::make_unique<compute::NodeGraphRenderer>(*m_context);
-#endif
-
-    qInfo() << "gpu_ready_changed";
-    // emit gpu_ready_changed(true); //TODO remove/find replacement
 }
 
 std::unique_ptr<webgpu::raii::TextureWithSampler> Window::create_shadow_texture(uint32_t width, uint32_t height, uint32_t mip_levels)
@@ -179,8 +153,7 @@ void Window::resize_framebuffer(int w, int h)
     m_context->cloud_renderer()->resize(w, h);
     m_context->overlay_renderer()->resize(w, h);
 
-    // Do late
-    recreate_compose_bind_group();
+    recreate_compose_bind_group(); // Do late
 }
 
 void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_encoder)
@@ -242,14 +215,6 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
     m_paint_number++;
 }
 
-void Window::paint_gui()
-{
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-    if (m_node_graph_renderer)
-        m_node_graph_renderer->render();
-#endif
-}
-
 glm::vec4 Window::synchronous_position_readback(const glm::dvec2& ndc)
 {
     if (m_position_readback_buffer->map_state() == WGPUBufferMapState_Unmapped) {
@@ -292,16 +257,10 @@ glm::dvec3 Window::position([[maybe_unused]] const glm::dvec2& normalised_device
     return m_camera.position() + glm::dvec3(position.x, position.y, position.z);
 }
 
-void Window::destroy()
-{
-    //  emit gpu_ready_changed(false); // TODO find replacement
-}
+void Window::destroy() { }
 
-nucleus::camera::AbstractDepthTester* Window::depth_tester()
-{
-    // Return this object as the depth tester
-    return this;
-}
+// Return this object as the depth tester
+nucleus::camera::AbstractDepthTester* Window::depth_tester() { return this; }
 
 nucleus::utils::ColourTexture::Format Window::ortho_tile_compression_algorithm() const
 {
@@ -326,7 +285,6 @@ void Window::update_camera([[maybe_unused]] const nucleus::camera::Definition& n
     m_camera = new_definition;
 
     emit update_requested();
-    // m_needs_redraw = true;
 }
 
 void Window::request_redraw() { m_needs_redraw = true; }

@@ -16,24 +16,32 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#pragma once
+#include "OverlayNodeRenderer.h"
 
-#include "NodeRenderer.h"
+#include <webgpu_engine/overlay/OverlayRenderNode.h>
+#include <imgui.h>
 
-namespace webgpu_engine::compute::nodes {
-class BufferToTextureNode;
+namespace webgpu_app {
+namespace nodes = webgpu_engine::compute::nodes;
+
+OverlayNodeRenderer::OverlayNodeRenderer(const std::string& name, nodes::OverlayRenderNode& node)
+    : NodeRenderer(name, node)
+    , m_node(&node)
+{
 }
 
-namespace webgpu_engine::compute {
+void OverlayNodeRenderer::render_settings_content()
+{
+    auto settings = m_node->get_settings();
 
-class BufferToTextureNodeRenderer : public NodeRenderer {
-public:
-    BufferToTextureNodeRenderer(const std::string& name, nodes::BufferToTextureNode& node);
-    bool has_settings() const override { return true; }
-    void render_settings_content() override;
+    const char* mode_items[] = { "Linked", "Copy" };
+    int mode_idx = settings.copy ? 1 : 0;
+    ImGui::SetNextItemWidth(-1);
+    if (ImGui::Combo("##overlay_mode", &mode_idx, mode_items, 2)) {
+        settings.copy = (mode_idx == 1);
+        m_node->set_settings(settings);
+    }
+    ImGui::TextDisabled("Linked: sample source directly. Copy: own a copy (needs CopySrc).");
+}
 
-private:
-    nodes::BufferToTextureNode* m_node;
-};
-
-} // namespace webgpu_engine::compute
+} // namespace webgpu_app

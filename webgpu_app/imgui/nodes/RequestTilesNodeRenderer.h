@@ -16,31 +16,31 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "SelectTilesNodeRenderer.h"
+#pragma once
 
-#include "../../nodes/SelectTilesNode.h"
-#include <imgui.h>
+#include "NodeRenderer.h"
+#include <webgpu_engine/compute/nodes/RequestTilesNode.h>
+#include <string>
+#include <vector>
 
-namespace webgpu_engine::compute {
+namespace webgpu_app {
+namespace nodes = webgpu_engine::compute::nodes;
 
-SelectTilesNodeRenderer::SelectTilesNodeRenderer(const std::string& name, nodes::SelectTilesNode& node)
-    : NodeRenderer(name, node)
-    , m_node(&node)
-{
-}
+class RequestTilesNodeRenderer : public NodeRenderer {
+public:
+    struct TileSourceOption {
+        std::string name;
+        nodes::RequestTilesNode::RequestTilesNodeSettings settings;
+    };
 
-void SelectTilesNodeRenderer::render_settings_content()
-{
-    auto settings = m_node->get_settings();
+    RequestTilesNodeRenderer(const std::string& name, nodes::RequestTilesNode& node);
+    bool has_settings() const override { return true; }
+    void render_settings_content() override;
 
-    const uint32_t min_zoomlevel = 1;
-    const uint32_t max_zoomlevel = 18;
-    ImGui::SetNextItemWidth(-1);
-    ImGui::SliderScalar("Zoom level", ImGuiDataType_U32, &settings.zoomlevel, &min_zoomlevel, &max_zoomlevel, "%u");
-    if (ImGui::IsItemDeactivatedAfterEdit()) {
-        m_node->set_settings(settings);
-        m_node->rerun();
-    }
-}
+private:
+    nodes::RequestTilesNode* m_node;
+    std::vector<TileSourceOption> m_options;
+    int m_selected_index = 0;
+};
 
-} // namespace webgpu_engine::compute
+} // namespace webgpu_app

@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "compute/nodes/Node.h"
+#include "../compute/nodes/Node.h"
 #include <memory>
 #include <radix/geometry.h>
 #include <webgpu/raii/TextureWithSampler.h>

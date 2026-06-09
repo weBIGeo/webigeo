@@ -67,24 +67,6 @@ set(SOURCES
     compute/nodes/util.h compute/nodes/util.cpp
 )
 
-# NodeGraphRenderer and NodeRenderer are only compiled when ImGui is enabled
-if (ALP_WEBGPU_APP_ENABLE_IMGUI)
-    list(APPEND SOURCES
-        compute/imgui/NodeGraphRenderer.h compute/imgui/NodeGraphRenderer.cpp
-        compute/imgui/nodes/NodeRenderer.h compute/imgui/nodes/NodeRenderer.cpp
-        compute/imgui/nodes/NodeRendererFactory.h compute/imgui/nodes/NodeRendererFactory.cpp
-        compute/imgui/nodes/ExportNodeRenderer.h compute/imgui/nodes/ExportNodeRenderer.cpp
-        compute/imgui/nodes/OverlayNodeRenderer.h compute/imgui/nodes/OverlayNodeRenderer.cpp
-        compute/imgui/nodes/BufferToTextureNodeRenderer.h compute/imgui/nodes/BufferToTextureNodeRenderer.cpp
-        compute/imgui/nodes/ComputeAvalancheTrajectoriesNodeRenderer.h compute/imgui/nodes/ComputeAvalancheTrajectoriesNodeRenderer.cpp
-        compute/imgui/nodes/ComputeReleasePointsNodeRenderer.h compute/imgui/nodes/ComputeReleasePointsNodeRenderer.cpp
-        compute/imgui/nodes/ComputeSnowNodeRenderer.h compute/imgui/nodes/ComputeSnowNodeRenderer.cpp
-        compute/imgui/nodes/RequestTilesNodeRenderer.h compute/imgui/nodes/RequestTilesNodeRenderer.cpp
-        compute/imgui/nodes/SelectTilesNodeRenderer.h compute/imgui/nodes/SelectTilesNodeRenderer.cpp
-        compute/imgui/nodes/GPXTrackNodeRenderer.h compute/imgui/nodes/GPXTrackNodeRenderer.cpp
-    )
-endif()
-
 qt_add_library(webgpu_engine STATIC ${SOURCES})
 
 if (ALP_ENABLE_WGSL_MINIFICATION)
@@ -164,28 +146,6 @@ qt_add_resources(webgpu_engine "shaders"
         "${SHADER_BASE_DIR}/util/noise.wgsl"
         "${SHADER_BASE_DIR}/util/random.wgsl"
     )
-
-# Note: This has to go into the webgpu_app as soon as we don't use ImGui in the engine anymore!!!
-# We can't do it right now as the engine is not dependent on the app. so we dont have acess in this case.
-if (ALP_WEBGPU_APP_ENABLE_IMGUI)
-    # For Font Awesome Icon Headers:
-    alp_add_git_repository(iconfontcppheaders URL https://github.com/juliettef/IconFontCppHeaders.git COMMITISH f30b1e73b2d71eb331d77619c3f1de34199afc38 DO_NOT_ADD_SUBPROJECT)
-    target_include_directories(webgpu_engine PUBLIC ../extern/iconfontcppheaders)
-
-    alp_add_git_repository(imgui URL https://github.com/AlpineMapsOrgDependencies/imgui_slim.git COMMITISH 4d8ecbf58ebf32e757ff56a60f1fb0446033edb8)
-
-    set(IMNODES_IMGUI_TARGET_NAME imgui)
-    set(BUILD_SHARED_LIBS_SAVED ${BUILD_SHARED_LIBS})
-    set(BUILD_SHARED_LIBS OFF)
-    alp_add_git_repository(imnodes URL https://github.com/AlpineMapsOrgDependencies/imnodes_slim.git COMMITISH 324355e64ed8b5bea02fe1439cdcb5c7773b4436)
-    set(BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS_SAVED})
-
-    alp_add_git_repository(ImGuiFileDialog URL https://github.com/AlpineMapsOrgDependencies/ImGuiFileDialog_slim.git COMMITISH 39f98eb131ee00d476f1002336fc7e9e1795ccc5)
-    target_link_libraries(ImGuiFileDialog PRIVATE imgui)
-
-    target_link_libraries(webgpu_engine PUBLIC imgui imnodes ImGuiFileDialog)
-    target_compile_definitions(webgpu_engine PUBLIC "ALP_WEBGPU_APP_ENABLE_IMGUI")
-endif()
 
 target_link_libraries(webgpu_engine PUBLIC nucleus Qt::Core webgpu)
 target_include_directories(webgpu_engine PRIVATE .)

@@ -21,22 +21,20 @@
 #include "NodeRenderer.h"
 
 namespace webgpu_engine::compute::nodes {
-class ExportNode;
+class SelectTilesNode;
 }
 
-namespace webgpu_engine::compute {
+namespace webgpu_app {
+namespace nodes = webgpu_engine::compute::nodes;
 
-class ExportNodeRenderer : public NodeRenderer {
+class SelectTilesNodeRenderer : public NodeRenderer {
 public:
-    ExportNodeRenderer(const std::string& name, nodes::ExportNode& node);
+    SelectTilesNodeRenderer(const std::string& name, nodes::SelectTilesNode& node);
     bool has_settings() const override { return true; }
     void render_settings_content() override;
 
 private:
-    nodes::ExportNode* m_node;
-    char m_buffer_buf[512] = {};
-    char m_texture_buf[512] = {};
-    char m_aabb_buf[512] = {};
+    nodes::SelectTilesNode* m_node;
 };
 
-} // namespace webgpu_engine::compute
+} // namespace webgpu_app

@@ -24,7 +24,7 @@
 namespace webgpu_app {
 
 /// Base class for per-overlay ImGui UI renderers.
-/// Mirrors the NodeRenderer pattern from compute/imgui/nodes/.
+/// Mirrors the NodeRenderer pattern from imgui/nodes/.
 class OverlayImGuiRenderer {
 public:
     explicit OverlayImGuiRenderer(webgpu_engine::Overlay& overlay);

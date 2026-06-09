@@ -179,6 +179,8 @@ void Context::internal_initialise()
 
     if (m_tile_mesh_renderer)
         m_tile_mesh_renderer->init(webgpu_ctx());
+    if (m_atmosphere_renderer)
+        m_atmosphere_renderer->init(webgpu_ctx());
     if (m_cloud_renderer)
         m_cloud_renderer->init(webgpu_ctx());
     if (m_overlay_renderer)

@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <imgui.h>
 #include <memory>
 #include <optional>
@@ -26,8 +27,9 @@
 #include <unordered_map>
 #include <vector>
 
+#include "ImGuiPanel.h"
 #include "nodes/NodeRenderer.h"
-#include "../NodeGraph.h"
+#include <webgpu_engine/compute/NodeGraph.h>
 
 namespace webgpu_engine {
 class Context;
@@ -38,16 +40,16 @@ class InputSocket;
 class OutputSocket;
 }
 
-namespace webgpu_engine::compute {
+namespace webgpu_app {
+namespace nodes = webgpu_engine::compute::nodes;
 
-class NodeRenderer;
-
-class NodeGraphRenderer {
+class NodeGraphPanel : public ImGuiPanel {
 public:
-    // Builds and loads a default pipeline preset into the given context's compute graph.
-    explicit NodeGraphRenderer(webgpu_engine::Context& context);
+    explicit NodeGraphPanel(webgpu_engine::Context* context);
 
-    void render();
+    // Loads the default pipeline preset into the context's compute graph (called after init).
+    void ready() override;
+    void draw() override;
 
     enum class GraphRenderingMode { Default, Transparent, White, WhiteOpaque };
 
@@ -63,7 +65,6 @@ private:
         nodes::NodeGraph::ComputePipelineType type;
     };
 
-    void render_toggle_button();
     void render_error_modal();
 
     webgpu_engine::Context* m_context = nullptr;
@@ -73,7 +74,7 @@ private:
     nodes::NodeGraph::ComputePipelineType m_active_preset = nodes::NodeGraph::ComputePipelineType::AvalancheTrajectories;
     std::optional<nodes::NodeGraph::ComputePipelineType> m_pending_preset;
 
-    bool m_editor_visible = false;
+    uint32_t m_editor_visible = 0;
 
     struct ErrorModalState {
         bool should_open = false;
@@ -128,4 +129,4 @@ private:
     NodeRenderer* find_selected_node_renderer() const;
 };
 
-} // namespace webgpu_engine::compute
+} // namespace webgpu_app

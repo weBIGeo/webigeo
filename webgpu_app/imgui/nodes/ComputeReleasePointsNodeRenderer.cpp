@@ -18,11 +18,12 @@
 
 #include "ComputeReleasePointsNodeRenderer.h"
 
-#include "../../nodes/ComputeReleasePointsNode.h"
+#include <webgpu_engine/compute/nodes/ComputeReleasePointsNode.h>
 #include <glm/glm.hpp>
 #include <imgui.h>
 
-namespace webgpu_engine::compute {
+namespace webgpu_app {
+namespace nodes = webgpu_engine::compute::nodes;
 
 ComputeReleasePointsNodeRenderer::ComputeReleasePointsNodeRenderer(
     const std::string& name, nodes::ComputeReleasePointsNode& node)
@@ -60,4 +61,4 @@ void ComputeReleasePointsNodeRenderer::render_settings_content()
         m_node->rerun();
 }
 
-} // namespace webgpu_engine::compute
+} // namespace webgpu_app

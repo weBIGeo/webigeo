@@ -21,13 +21,9 @@
 
 #include "Context.h"
 #include "UniformBufferObjects.h"
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-#include "compute/imgui/NodeGraphRenderer.h"
-#endif
-#include "compute/NodeGraph.h"
 #include "nucleus/AbstractRenderWindow.h"
 #include "nucleus/camera/AbstractDepthTester.h"
-#include "nucleus/camera/Controller.h"
+#include "nucleus/camera/Definition.h"
 #include "nucleus/utils/ColourTexture.h"
 #include <webgpu/raii/BindGroup.h>
 #include <webgpu/webgpu.h>
@@ -59,7 +55,6 @@ public:
     bool needs_redraw() { return m_needs_redraw; }
 
     void update_required_gpu_limits(WGPULimits& limits, const WGPULimits& supported_limits);
-    void paint_gui();
 
     void set_max_zoom_level(uint32_t max_zoom_level);
 
@@ -119,10 +114,6 @@ private:
     uint32_t m_paint_number = 0;
 
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_shadow_texture;
-
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-    std::unique_ptr<compute::NodeGraphRenderer> m_node_graph_renderer;
-#endif
 };
 
 } // namespace webgpu_engine

@@ -18,15 +18,15 @@
 
 #include "NodeRendererFactory.h"
 
-#include "../../nodes/BufferToTextureNode.h"
-#include "../../nodes/ComputeAvalancheTrajectoriesNode.h"
-#include "../../nodes/ComputeReleasePointsNode.h"
-#include "../../nodes/ComputeSnowNode.h"
-#include "../../nodes/ExportNode.h"
-#include "../../nodes/GPXTrackNode.h"
-#include "../../nodes/RequestTilesNode.h"
-#include "../../nodes/SelectTilesNode.h"
-#include "overlay/OverlayRenderNode.h"
+#include <webgpu_engine/compute/nodes/BufferToTextureNode.h>
+#include <webgpu_engine/compute/nodes/ComputeAvalancheTrajectoriesNode.h>
+#include <webgpu_engine/compute/nodes/ComputeReleasePointsNode.h>
+#include <webgpu_engine/compute/nodes/ComputeSnowNode.h>
+#include <webgpu_engine/compute/nodes/ExportNode.h>
+#include <webgpu_engine/compute/nodes/GPXTrackNode.h>
+#include <webgpu_engine/compute/nodes/RequestTilesNode.h>
+#include <webgpu_engine/compute/nodes/SelectTilesNode.h>
+#include <webgpu_engine/overlay/OverlayRenderNode.h>
 #include "BufferToTextureNodeRenderer.h"
 #include "ComputeAvalancheTrajectoriesNodeRenderer.h"
 #include "ComputeReleasePointsNodeRenderer.h"
@@ -38,7 +38,8 @@
 #include "RequestTilesNodeRenderer.h"
 #include "SelectTilesNodeRenderer.h"
 
-namespace webgpu_engine::compute {
+namespace webgpu_app {
+namespace nodes = webgpu_engine::compute::nodes;
 
 std::unique_ptr<NodeRenderer> NodeRendererFactory::create(const std::string& name, nodes::Node& node)
 {
@@ -63,4 +64,4 @@ std::unique_ptr<NodeRenderer> NodeRendererFactory::create(const std::string& nam
     return std::make_unique<NodeRenderer>(name, node);
 }
 
-} // namespace webgpu_engine::compute
+} // namespace webgpu_app

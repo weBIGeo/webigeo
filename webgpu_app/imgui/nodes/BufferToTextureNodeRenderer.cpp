@@ -18,10 +18,11 @@
 
 #include "BufferToTextureNodeRenderer.h"
 
-#include "../../nodes/BufferToTextureNode.h"
+#include <webgpu_engine/compute/nodes/BufferToTextureNode.h>
 #include <imgui.h>
 
-namespace webgpu_engine::compute {
+namespace webgpu_app {
+namespace nodes = webgpu_engine::compute::nodes;
 
 BufferToTextureNodeRenderer::BufferToTextureNodeRenderer(const std::string& name, nodes::BufferToTextureNode& node)
     : NodeRenderer(name, node)
@@ -65,4 +66,4 @@ void BufferToTextureNodeRenderer::render_settings_content()
         m_node->rerun();
 }
 
-} // namespace webgpu_engine::compute
+} // namespace webgpu_app

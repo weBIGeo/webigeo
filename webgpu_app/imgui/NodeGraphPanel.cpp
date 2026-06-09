@@ -17,9 +17,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "NodeGraphRenderer.h"
+#include "NodeGraphPanel.h"
 
-#include "../../Context.h"
+#include "../ImGuiManager.h"
+#include <webgpu_engine/Context.h>
 #include "nodes/NodeRendererFactory.h"
 #include <IconsFontAwesome5.h>
 #include <imgui.h>
@@ -27,7 +28,8 @@
 #include <imnodes.h>
 #include <qDebug>
 
-namespace webgpu_engine::compute {
+namespace webgpu_app {
+namespace nodes = webgpu_engine::compute::nodes;
 
 // see https://easings.net/#easeOutElastic
 static float easeOutElastic(float x)
@@ -43,23 +45,24 @@ static float easeOutElastic(float x)
     return powf(2.0f, -10.0f * x) * sinf((x * 10.0f - 0.75f) * c4) + 1.0f;
 }
 
-NodeGraphRenderer::NodeGraphRenderer(webgpu_engine::Context& context)
-    : m_context(&context)
+NodeGraphPanel::NodeGraphPanel(webgpu_engine::Context* context)
+    : m_context(context)
     , m_presets({
           { "Snow", nodes::NodeGraph::ComputePipelineType::Snow },
           { "Avalanche trajectories", nodes::NodeGraph::ComputePipelineType::AvalancheTrajectories },
           { "Iterative simulation (WIP)", nodes::NodeGraph::ComputePipelineType::IterativeSimulation },
       })
 {
-    load_preset(nodes::NodeGraph::ComputePipelineType::AvalancheTrajectories);
 }
 
-void NodeGraphRenderer::load_preset(nodes::NodeGraph::ComputePipelineType type)
+void NodeGraphPanel::ready() { load_preset(nodes::NodeGraph::ComputePipelineType::AvalancheTrajectories); }
+
+void NodeGraphPanel::load_preset(nodes::NodeGraph::ComputePipelineType type)
 {
     m_context->set_compute_graph(nodes::NodeGraph::create_preset(type, m_context->webgpu_ctx()));
     m_node_graph = m_context->compute_graph();
 
-    QObject::connect(m_node_graph, &nodes::NodeGraph::run_completed, m_context, [this](GraphRunContext) { m_context->request_redraw(); });
+    QObject::connect(m_node_graph, &nodes::NodeGraph::run_completed, m_context, [this](webgpu_engine::compute::GraphRunContext) { m_context->request_redraw(); });
     QObject::connect(m_node_graph, &nodes::NodeGraph::run_failed, m_context, [this](nodes::GraphRunFailureInfo info) {
         qWarning() << "graph run failed. " << info.node_name() << ": " << info.node_run_failure_info().message();
         m_error_state.text = "Execution of pipeline failed.\n\nNode \"" + info.node_name() + "\" reported \"" + info.node_run_failure_info().message() + "\"";
@@ -71,7 +74,7 @@ void NodeGraphRenderer::load_preset(nodes::NodeGraph::ComputePipelineType type)
     m_active_preset = type;
 }
 
-void NodeGraphRenderer::init(nodes::NodeGraph& node_graph)
+void NodeGraphPanel::init(nodes::NodeGraph& node_graph)
 {
     m_window_title = "Compute Graph Editor - " + NodeRenderer::format_node_name(node_graph.get_name());
 
@@ -93,7 +96,7 @@ void NodeGraphRenderer::init(nodes::NodeGraph& node_graph)
     m_first_frame_after_init = true;
 }
 
-void NodeGraphRenderer::calculate_window_size()
+void NodeGraphPanel::calculate_window_size()
 {
     if (!ImGui::GetCurrentContext()) {
         m_window_size = ImVec2(0.0f, 0.0f);
@@ -103,7 +106,7 @@ void NodeGraphRenderer::calculate_window_size()
     m_window_size.x -= 430;
 }
 
-void NodeGraphRenderer::calculate_auto_layout()
+void NodeGraphPanel::calculate_auto_layout()
 {
     m_target_layout.clear();
 
@@ -215,7 +218,7 @@ void NodeGraphRenderer::calculate_auto_layout()
     center_target_layout();
 }
 
-void NodeGraphRenderer::apply_node_layout(float animation_duration)
+void NodeGraphPanel::apply_node_layout(float animation_duration)
 {
     // Create start_layout with current positions
     m_start_layout.clear();
@@ -257,7 +260,7 @@ void NodeGraphRenderer::apply_node_layout(float animation_duration)
     m_animation_runtime = 0.0f;
 }
 
-void NodeGraphRenderer::process_animation(float dt)
+void NodeGraphPanel::process_animation(float dt)
 {
     if (!m_animation_running)
         return;
@@ -282,7 +285,7 @@ void NodeGraphRenderer::process_animation(float dt)
         m_animation_running = false;
 }
 
-void NodeGraphRenderer::recenter_graph(float animation_duration)
+void NodeGraphPanel::recenter_graph(float animation_duration)
 {
     m_target_layout.clear();
     for (auto& [nodePtr, nr] : m_node_renderers_by_node)
@@ -291,13 +294,13 @@ void NodeGraphRenderer::recenter_graph(float animation_duration)
     apply_node_layout(animation_duration);
 }
 
-void NodeGraphRenderer::reset_graph_layout(float animation_duration)
+void NodeGraphPanel::reset_graph_layout(float animation_duration)
 {
     calculate_auto_layout();
     apply_node_layout(animation_duration);
 }
 
-void NodeGraphRenderer::center_target_layout()
+void NodeGraphPanel::center_target_layout()
 {
     // Get AABB of target layout
     ImVec4 aabb(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
@@ -319,7 +322,7 @@ void NodeGraphRenderer::center_target_layout()
     }
 }
 
-void NodeGraphRenderer::push_style()
+void NodeGraphPanel::push_style()
 {
     // Always use transparent grid background
     ImNodes::PushColorStyle(ImNodesCol_GridBackground, IM_COL32(50, 50, 50, 0));
@@ -343,14 +346,14 @@ void NodeGraphRenderer::push_style()
     }
 }
 
-void NodeGraphRenderer::pop_style()
+void NodeGraphPanel::pop_style()
 {
     ImGui::PopStyleColor(); // ImGui window background
     ImNodes::PopColorStyle(); // Grid line
     ImNodes::PopColorStyle(); // Grid background
 }
 
-void NodeGraphRenderer::render()
+void NodeGraphPanel::draw()
 {
     if (m_pending_preset) {
         load_preset(*m_pending_preset);
@@ -358,7 +361,7 @@ void NodeGraphRenderer::render()
         m_context->request_redraw();
     }
 
-    render_toggle_button();
+    ImGuiManager::FloatingToggleButton("###ToggleGraphRenderer", ICON_FA_NETWORK_WIRED, "Toggle compute graph editor", &m_editor_visible);
     render_error_modal();
 
     if (!m_editor_visible)
@@ -451,7 +454,7 @@ void NodeGraphRenderer::render()
     m_first_frame_after_init = false;
 }
 
-void NodeGraphRenderer::poll_keyboard_shortcuts()
+void NodeGraphPanel::poll_keyboard_shortcuts()
 {
     if (ImGui::IsKeyPressed(ImGuiKey_M)) {
         m_render_mode = static_cast<GraphRenderingMode>((static_cast<int>(m_render_mode) + 1) % 4);
@@ -467,7 +470,7 @@ void NodeGraphRenderer::poll_keyboard_shortcuts()
     }
 }
 
-void NodeGraphRenderer::rebuild_links()
+void NodeGraphPanel::rebuild_links()
 {
     m_links.clear();
     auto& nodes = m_node_graph->get_nodes();
@@ -485,7 +488,7 @@ void NodeGraphRenderer::rebuild_links()
     }
 }
 
-void NodeGraphRenderer::rebuild_socket_id_maps()
+void NodeGraphPanel::rebuild_socket_id_maps()
 {
     m_input_socket_by_id.clear();
     m_output_socket_by_id.clear();
@@ -499,32 +502,7 @@ void NodeGraphRenderer::rebuild_socket_id_maps()
     }
 }
 
-void NodeGraphRenderer::render_toggle_button()
-{
-    ImVec2 button_pos(10 + 58, ImGui::GetIO().DisplaySize.y - 48 * 2 - 40 - 10);
-    ImGui::SetNextWindowPos(button_pos, ImGuiCond_Always);
-    ImGui::SetNextWindowBgAlpha(0.5f);
-    ImGui::SetNextWindowSize(ImVec2(48, 48));
-
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-
-    ImGui::Begin("ToggleGraphRenderWindow", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize);
-    ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
-
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // fully transparent
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.0f, 0.0f, 0.0f, 0.2f)); // black with alpha 0.2
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.0f, 0.0f, 0.0f, 0.2f)); // same for active
-
-    if (ImGui::Button(ICON_FA_NETWORK_WIRED "###ToggleGraphRenderer", ImVec2(48, 48))) {
-        m_editor_visible = !m_editor_visible;
-    }
-
-    ImGui::PopStyleColor(3);
-    ImGui::End();
-    ImGui::PopStyleVar();
-}
-
-void NodeGraphRenderer::render_error_modal()
+void NodeGraphPanel::render_error_modal()
 {
     if (m_error_state.should_open) {
         ImGui::OpenPopup("Error");
@@ -548,7 +526,7 @@ void NodeGraphRenderer::render_error_modal()
     }
 }
 
-void NodeGraphRenderer::render_menu()
+void NodeGraphPanel::render_menu()
 {
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("File")) {
@@ -607,7 +585,7 @@ void NodeGraphRenderer::render_menu()
     }
 }
 
-NodeRenderer* NodeGraphRenderer::find_selected_node_renderer() const
+NodeRenderer* NodeGraphPanel::find_selected_node_renderer() const
 {
     if (ImNodes::NumSelectedNodes() != 1)
         return nullptr;
@@ -620,7 +598,7 @@ NodeRenderer* NodeGraphRenderer::find_selected_node_renderer() const
     return nullptr;
 }
 
-void NodeGraphRenderer::render_settings_panel()
+void NodeGraphPanel::render_settings_panel()
 {
     NodeRenderer* selected = find_selected_node_renderer();
 
@@ -656,4 +634,4 @@ void NodeGraphRenderer::render_settings_panel()
     ImGui::End();
 }
 
-} // namespace webgpu_engine::compute
+} // namespace webgpu_app
