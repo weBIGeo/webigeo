@@ -32,14 +32,13 @@ SelectTilesNodeRenderer::SelectTilesNodeRenderer(const std::string& name, nodes:
 
 void SelectTilesNodeRenderer::render_settings_content()
 {
-    auto settings = m_node->get_settings();
+    static uint32_t zoom_level = m_node->get_settings().zoomlevel;
 
     const uint32_t min_zoomlevel = 1;
     const uint32_t max_zoomlevel = 18;
-    ImGui::SetNextItemWidth(-1);
-    ImGui::SliderScalar("Zoom level", ImGuiDataType_U32, &settings.zoomlevel, &min_zoomlevel, &max_zoomlevel, "%u");
+    ImGui::SliderScalar("Zoom level", ImGuiDataType_U32, &zoom_level, &min_zoomlevel, &max_zoomlevel);
     if (ImGui::IsItemDeactivatedAfterEdit()) {
-        m_node->set_settings(settings);
+        m_node->set_settings(nodes::SelectTilesNode::SelectTilesNodeSettings { zoom_level });
         m_node->rerun();
     }
 }
