@@ -24,6 +24,7 @@
 #include <SDL2/SDL.h>
 #include <memory>
 
+#include <nucleus/camera/Controller.h>
 #include <nucleus/tile/GeometryScheduler.h>
 #include <nucleus/tile/TextureScheduler.h>
 #include <nucleus/timing/TimerManager.h>
