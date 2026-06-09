@@ -52,15 +52,15 @@ public:
     struct BufferToTextureSettings {
         WGPUTextureFormat texture_format = WGPUTextureFormat_RGBA8Unorm;
         WGPUTextureUsage texture_usage = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_RenderAttachment);
-        WGPUFilterMode texture_filter_mode = WGPUFilterMode_Nearest;
-        WGPUMipmapFilterMode texture_mipmap_filter_mode = WGPUMipmapFilterMode_Nearest;
+        WGPUFilterMode texture_filter_mode = WGPUFilterMode_Linear;
+        WGPUMipmapFilterMode texture_mipmap_filter_mode = WGPUMipmapFilterMode_Linear;
         uint16_t texture_max_aniostropy = 1;
 
-        bool create_mipmaps = false;
+        bool create_mipmaps = true;
 
-        glm::vec2 color_map_bounds = { 0.0f, 100.0f };
-        glm::vec2 transparency_map_bounds = { 0.0f, 10.0f }; // x gets mapped to fully invisible, y to fully visible
-        bool use_bin_interpolation = true; // if true, use linear interpolation between color bins
+        glm::vec2 color_map_bounds = { 0.0f, 40.0f };
+        glm::vec2 transparency_map_bounds = { 0.0f, 1.0f }; // x gets mapped to fully invisible, y to fully visible
+        bool use_bin_interpolation = false; // if true, use linear interpolation between color bins
         bool use_transparency_buffer = true; // if true, the transparency texture is used to evaluate an alpha factor based on the alpha_remap_bounds
     };
 

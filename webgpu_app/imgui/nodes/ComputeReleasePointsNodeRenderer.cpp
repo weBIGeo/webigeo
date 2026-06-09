@@ -18,15 +18,14 @@
 
 #include "ComputeReleasePointsNodeRenderer.h"
 
-#include <webgpu_engine/compute/nodes/ComputeReleasePointsNode.h>
 #include <glm/glm.hpp>
 #include <imgui.h>
+#include <webgpu_engine/compute/nodes/ComputeReleasePointsNode.h>
 
 namespace webgpu_app {
 namespace nodes = webgpu_engine::compute::nodes;
 
-ComputeReleasePointsNodeRenderer::ComputeReleasePointsNodeRenderer(
-    const std::string& name, nodes::ComputeReleasePointsNode& node)
+ComputeReleasePointsNodeRenderer::ComputeReleasePointsNodeRenderer(const std::string& name, nodes::ComputeReleasePointsNode& node)
     : NodeRenderer(name, node)
     , m_node(&node)
 {
@@ -47,8 +46,7 @@ void ComputeReleasePointsNodeRenderer::render_settings_content()
 
     float min_deg = glm::degrees(settings.min_slope_angle);
     float max_deg = glm::degrees(settings.max_slope_angle);
-    if (ImGui::DragFloatRange2("Steepness", &min_deg, &max_deg, 0.1f, 0.0f, 90.0f,
-            "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp)) {
+    if (ImGui::DragFloatRange2("Steepness", &min_deg, &max_deg, 0.1f, 0.0f, 90.0f, "Min: %.1f°", "Max: %.1f°", ImGuiSliderFlags_AlwaysClamp)) {
         settings.min_slope_angle = glm::radians(min_deg);
         settings.max_slope_angle = glm::radians(max_deg);
         settings_changed = true;

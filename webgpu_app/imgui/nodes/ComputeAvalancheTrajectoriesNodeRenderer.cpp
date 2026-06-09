@@ -19,6 +19,7 @@
 #include "ComputeAvalancheTrajectoriesNodeRenderer.h"
 
 #include <webgpu_engine/compute/nodes/ComputeAvalancheTrajectoriesNode.h>
+#include <glm/glm.hpp>
 #include <imgui.h>
 
 namespace webgpu_app {
@@ -69,7 +70,11 @@ void ComputeAvalancheTrajectoriesNodeRenderer::render_settings_content()
     }
 
     if (settings.active_model == Node::PhysicsModelType::WEBIGEO_AVALANCHE_SIMULATION) {
-        settings_changed |= ImGui::DragFloat("Randomness", &settings.random_contribution, 0.01f, 0.0f, 90.0f, "%.1f°");
+        float perturbation_deg = glm::degrees(settings.max_perturbation);
+        if (ImGui::DragFloat("Max Perturbation", &perturbation_deg, 0.1f, 0.0f, 90.0f, "%.1f°")) {
+            settings.max_perturbation = glm::radians(perturbation_deg);
+            settings_changed = true;
+        }
         rerun |= ImGui::IsItemDeactivatedAfterEdit();
 
         settings_changed |= ImGui::DragFloat("Persistence", &settings.persistence_contribution, 0.01f, 0.0f, 0.99f, "%.2f");
