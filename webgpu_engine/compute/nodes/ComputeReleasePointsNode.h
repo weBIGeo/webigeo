@@ -19,7 +19,7 @@
 #pragma once
 
 #include "Node.h"
-#include "../../Buffer.h"
+#include <webgpu/Buffer.h>
 #include <webgpu/Context.h>
 #include <webgpu/raii/CombinedComputePipeline.h>
 
@@ -67,7 +67,7 @@ private:
     webgpu::Context* m_ctx;
 
     ReleasePointsSettings m_settings;
-    webgpu_engine::Buffer<ReleasePointsSettingsUniform> m_settings_uniform;
+    webgpu::Buffer<ReleasePointsSettingsUniform> m_settings_uniform;
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_output_texture;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_pipeline;
 };

@@ -65,7 +65,7 @@ void TileMeshRenderer::init(webgpu::Context& ctx)
     m_ortho_texture_layer_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_ctx->device(), WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
 
     m_tile_id_buffer = std::make_unique<webgpu::raii::RawBuffer<compute::GpuTileId>>(m_ctx->device(), WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
-    m_n_edge_vertices_buffer = std::make_unique<Buffer<int32_t>>(m_ctx->device(), WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst);
+    m_n_edge_vertices_buffer = std::make_unique<webgpu::Buffer<int32_t>>(m_ctx->device(), WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst);
     m_n_edge_vertices_buffer->data = int(m_height_resolution);
     m_n_edge_vertices_buffer->update_gpu_data(m_ctx->queue());
 

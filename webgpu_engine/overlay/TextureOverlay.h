@@ -19,7 +19,7 @@
 #pragma once
 
 #include "Overlay.h"
-#include "webgpu_engine/Buffer.h"
+#include <webgpu/Buffer.h>
 #include <QString>
 #include <memory>
 #include <nucleus/Raster.h>
@@ -86,7 +86,7 @@ private:
     bool m_is_ready = false;
 
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_pipeline;
-    std::unique_ptr<webgpu_engine::Buffer<GpuSettings>> m_settings_uniform;
+    std::unique_ptr<webgpu::Buffer<GpuSettings>> m_settings_uniform;
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_overlay_texture; // owned source (load_image/load_texture)
     const webgpu::raii::TextureWithSampler* m_linked_texture = nullptr; // borrowed source (link_texture)
 };

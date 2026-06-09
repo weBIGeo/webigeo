@@ -20,7 +20,7 @@
 #pragma once
 
 #include "Node.h"
-#include "webgpu_engine/Buffer.h"
+#include <webgpu/Buffer.h>
 #include <webgpu/Context.h>
 #include <webgpu/raii/CombinedComputePipeline.h>
 
@@ -89,7 +89,7 @@ private:
     webgpu::Context* m_ctx;
 
     BufferToTextureSettings m_settings;
-    webgpu_engine::Buffer<BufferToTextureSettingsUniform> m_settings_uniform;
+    webgpu::Buffer<BufferToTextureSettingsUniform> m_settings_uniform;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_pipeline;
 
     // output

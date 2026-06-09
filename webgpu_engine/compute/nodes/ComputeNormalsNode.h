@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "../../Buffer.h"
+#include <webgpu/Buffer.h>
 #include "Node.h"
 #include <webgpu/Context.h>
 #include <webgpu/raii/CombinedComputePipeline.h>
@@ -60,7 +60,7 @@ private:
 
     NormalSettings m_settings;
 
-    webgpu_engine::Buffer<NormalsSettingsUniform> m_normals_settings_uniform_buffer;
+    webgpu::Buffer<NormalsSettingsUniform> m_normals_settings_uniform_buffer;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_pipeline;
 
     // output

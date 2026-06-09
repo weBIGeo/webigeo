@@ -131,7 +131,7 @@ void TextureOverlay::init(Context& context)
             });
     });
 
-    m_settings_uniform = std::make_unique<webgpu_engine::Buffer<GpuSettings>>(ctx.device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
+    m_settings_uniform = std::make_unique<webgpu::Buffer<GpuSettings>>(ctx.device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
     update_gpu_settings();
 }
 

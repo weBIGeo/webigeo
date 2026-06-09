@@ -25,7 +25,7 @@
 #include <iostream>
 #include <webgpu/raii/CombinedComputePipeline.h>
 #include <webgpu/raii/base_types.h>
-#include <webgpu_engine/Buffer.h>
+#include <webgpu/Buffer.h>
 
 using namespace webgpu_engine;
 

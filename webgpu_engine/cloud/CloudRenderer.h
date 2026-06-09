@@ -20,7 +20,7 @@
 
 #include <memory>
 
-#include "../Buffer.h"
+#include <webgpu/Buffer.h>
 #include <QObject>
 #include <glm/glm.hpp>
 #include <mutex>
@@ -167,8 +167,8 @@ private:
 
     webgpu::Context* m_ctx = nullptr;
 
-    std::unique_ptr<Buffer<ShaderParamsRender>> m_render_shader_params_ubo;
-    std::unique_ptr<Buffer<ShaderParamsUpscale>> m_upscale_shader_params_ubo;
+    std::unique_ptr<webgpu::Buffer<ShaderParamsRender>> m_render_shader_params_ubo;
+    std::unique_ptr<webgpu::Buffer<ShaderParamsUpscale>> m_upscale_shader_params_ubo;
 
     std::unique_ptr<webgpu::raii::RawBuffer<TileInfo>> m_cloud_tile_info_buffer;
     std::vector<TileInfo> m_tile_infos;

@@ -19,7 +19,7 @@
 #pragma once
 
 #include "Overlay.h"
-#include "webgpu_engine/Buffer.h"
+#include <webgpu/Buffer.h>
 #include <memory>
 #include <webgpu/raii/CombinedComputePipeline.h>
 #include <webgpu/raii/TextureWithSampler.h>
@@ -55,7 +55,7 @@ public:
 private:
     webgpu::Context* m_ctx = nullptr;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_pipeline;
-    std::unique_ptr<webgpu_engine::Buffer<Settings>> m_settings_uniform;
+    std::unique_ptr<webgpu::Buffer<Settings>> m_settings_uniform;
 };
 
 } // namespace webgpu_engine

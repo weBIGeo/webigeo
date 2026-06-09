@@ -19,7 +19,7 @@
 #pragma once
 
 #include "Node.h"
-#include "webgpu_engine/Buffer.h"
+#include <webgpu/Buffer.h>
 #include <webgpu/Context.h>
 #include <webgpu/raii/CombinedComputePipeline.h>
 
@@ -85,8 +85,8 @@ private:
     webgpu::Context* m_ctx;
 
     SnowSettings m_settings;
-    webgpu_engine::Buffer<SnowSettingsUniform> m_snow_settings_uniform_buffer;
-    webgpu_engine::Buffer<RegionBoundsUniform> m_region_bounds_uniform_buffer;
+    webgpu::Buffer<SnowSettingsUniform> m_snow_settings_uniform_buffer;
+    webgpu::Buffer<RegionBoundsUniform> m_region_bounds_uniform_buffer;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_pipeline;
 
     // input

@@ -70,10 +70,10 @@ void CloudRenderer::init(webgpu::Context& ctx)
     glm::dvec2 world_bounds_max_aligned = nucleus::srs::tile_id_to_world_xy(m_tile_coords_offset + TILE_COUNTS, ZOOM_MAX);
     float world_bounds_max_z = MAX_ALTITUDE / std::cos(glm::radians(BOUNDS_MAX.x));
 
-    m_render_shader_params_ubo = std::make_unique<Buffer<ShaderParamsRender>>(m_ctx->device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
+    m_render_shader_params_ubo = std::make_unique<webgpu::Buffer<ShaderParamsRender>>(m_ctx->device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
     m_render_shader_params_ubo->data.bounds_min = glm::vec4(world_bounds_min_aligned, 0.0, 0.0);
     m_render_shader_params_ubo->data.bounds_max = glm::vec4(world_bounds_max_aligned, world_bounds_max_z, 0.0);
-    m_upscale_shader_params_ubo = std::make_unique<Buffer<ShaderParamsUpscale>>(m_ctx->device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
+    m_upscale_shader_params_ubo = std::make_unique<webgpu::Buffer<ShaderParamsUpscale>>(m_ctx->device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
 
     // this represents a flattened 2d lookup table
     m_cloud_tile_info_buffer

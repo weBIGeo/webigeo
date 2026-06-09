@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "../../Buffer.h"
+#include <webgpu/Buffer.h>
 #include "Node.h"
 #include <webgpu/Context.h>
 #include <webgpu/raii/CombinedComputePipeline.h>
@@ -60,7 +60,7 @@ private:
     IterativeSimulationSettings m_settings;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_pipeline;
 
-    std::unique_ptr<Buffer<IterativeSimulationSettingsUniform>> m_settings_uniform;
+    std::unique_ptr<webgpu::Buffer<IterativeSimulationSettingsUniform>> m_settings_uniform;
     std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_flux_buffer;
     std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_input_parent_buffer;
     std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_output_parent_buffer;

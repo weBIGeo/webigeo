@@ -22,7 +22,7 @@
 
 #include "Node.h"
 
-#include "webgpu_engine/Buffer.h"
+#include <webgpu/Buffer.h>
 #include <webgpu/Context.h>
 #include <webgpu/raii/CombinedComputePipeline.h>
 
@@ -170,7 +170,7 @@ private:
     webgpu::Context* m_ctx;
 
     AvalancheTrajectoriesSettings m_settings;
-    webgpu_engine::Buffer<AvalancheTrajectoriesSettingsUniform> m_settings_uniform;
+    webgpu::Buffer<AvalancheTrajectoriesSettingsUniform> m_settings_uniform;
     std::unique_ptr<webgpu::raii::Sampler> m_normal_sampler;
     std::unique_ptr<webgpu::raii::Sampler> m_height_sampler;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_pipeline;

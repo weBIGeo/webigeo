@@ -85,7 +85,7 @@ void HeightLinesOverlay::init(Context& context)
             "height lines compute pipeline");
     });
 
-    m_settings_uniform = std::make_unique<webgpu_engine::Buffer<Settings>>(ctx.device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
+    m_settings_uniform = std::make_unique<webgpu::Buffer<Settings>>(ctx.device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
     m_settings_uniform->data = settings;
     m_settings_uniform->update_gpu_data(ctx.queue());
 }

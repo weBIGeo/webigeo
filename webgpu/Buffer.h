@@ -23,18 +23,21 @@
 #include <webgpu/webgpu.h>
 #include <webgpu/webgpu_interface.hpp>
 
-namespace webgpu_engine {
+namespace webgpu {
 
 /// Generic class for buffers that are backed by a member variable.
 template <typename T> class Buffer {
 public:
     // Creates a Buffer object representing a region in GPU memory.
-    Buffer(WGPUDevice device, WGPUBufferUsage flags);
+    Buffer(WGPUDevice device, WGPUBufferUsage flags)
+        : m_raw_buffer(device, flags, 1)
+    {
+    }
 
     // Refills the GPU Buffer
-    void update_gpu_data(WGPUQueue queue);
+    void update_gpu_data(WGPUQueue queue) { m_raw_buffer.write(queue, &data, 1, 0); }
 
-    const webgpu::raii::RawBuffer<T>& raw_buffer() const;
+    const webgpu::raii::RawBuffer<T>& raw_buffer() const { return m_raw_buffer; }
 
 public:
     // Contains the buffer data
@@ -44,4 +47,4 @@ protected:
     webgpu::raii::RawBuffer<T> m_raw_buffer;
 };
 
-} // namespace webgpu_engine
+} // namespace webgpu

@@ -97,7 +97,7 @@ void IterativeSimulationNode::run_impl()
         WGPUTextureFormat_RGBA8Unorm,
         WGPUTextureUsage(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding));
 
-    m_settings_uniform = std::make_unique<Buffer<IterativeSimulationSettingsUniform>>(m_ctx->device(), WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst);
+    m_settings_uniform = std::make_unique<webgpu::Buffer<IterativeSimulationSettingsUniform>>(m_ctx->device(), WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst);
 
     size_t buffer_size = input_height_texture.texture().width() * input_height_texture.texture().height();
     m_input_parent_buffer = std::make_unique<webgpu::raii::RawBuffer<uint32_t>>(

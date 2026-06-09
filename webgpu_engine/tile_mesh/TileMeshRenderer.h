@@ -22,7 +22,7 @@
 
 #include <memory>
 
-#include "../Buffer.h"
+#include <webgpu/Buffer.h>
 #include "webgpu_engine/compute/GpuTileId.h"
 #include <QObject>
 #include <nucleus/tile/GpuArrayHelper.h>
@@ -80,7 +80,7 @@ private:
     std::unique_ptr<webgpu::raii::RawBuffer<int32_t>> m_height_texture_layer_buffer;
     std::unique_ptr<webgpu::raii::RawBuffer<int32_t>> m_ortho_zoom_level_buffer;
     std::unique_ptr<webgpu::raii::RawBuffer<int32_t>> m_ortho_texture_layer_buffer;
-    std::unique_ptr<Buffer<int32_t>> m_n_edge_vertices_buffer;
+    std::unique_ptr<webgpu::Buffer<int32_t>> m_n_edge_vertices_buffer;
     std::unique_ptr<webgpu::raii::RawBuffer<compute::GpuTileId>> m_tile_id_buffer;
 
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_heightmap_textures;

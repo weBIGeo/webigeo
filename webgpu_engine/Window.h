@@ -25,6 +25,7 @@
 #include "nucleus/camera/AbstractDepthTester.h"
 #include "nucleus/camera/Definition.h"
 #include "nucleus/utils/ColourTexture.h"
+#include <webgpu/Buffer.h>
 #include <webgpu/raii/BindGroup.h>
 #include <webgpu/webgpu.h>
 
@@ -90,8 +91,8 @@ private:
 private:
     Context* m_context = nullptr;
 
-    std::unique_ptr<Buffer<uboSharedConfig>> m_shared_config_ubo;
-    std::unique_ptr<Buffer<uboCameraConfig>> m_camera_config_ubo;
+    std::unique_ptr<webgpu::Buffer<uboSharedConfig>> m_shared_config_ubo;
+    std::unique_ptr<webgpu::Buffer<uboCameraConfig>> m_camera_config_ubo;
 
     std::unique_ptr<webgpu::raii::BindGroup> m_shared_config_bind_group;
     std::unique_ptr<webgpu::raii::BindGroup> m_camera_bind_group;

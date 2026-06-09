@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "../Buffer.h"
+#include <webgpu/Buffer.h>
 #include "webgpu/raii/BindGroup.h"
 #include "webgpu/raii/RawBuffer.h"
 #include <QObject>
@@ -65,7 +65,7 @@ private:
     std::unique_ptr<webgpu::raii::RenderPipeline> m_pipeline;
 
     std::vector<std::unique_ptr<webgpu::raii::RawBuffer<glm::fvec4>>> m_position_buffers;
-    std::vector<std::unique_ptr<webgpu_engine::Buffer<TrackRenderer::LineConfig>>> m_line_config_buffers;
+    std::vector<std::unique_ptr<webgpu::Buffer<TrackRenderer::LineConfig>>> m_line_config_buffers;
     std::vector<std::unique_ptr<webgpu::raii::BindGroup>> m_bind_groups;
 };
 
