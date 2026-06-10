@@ -18,8 +18,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-///use util/filtering
-///use util/tile_util
+///use webgpu::filtering
+///use webgpu::tile_util
 
 // input
 @group(0) @binding(0) var<storage> indices: array<u32>;

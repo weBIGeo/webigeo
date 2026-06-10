@@ -18,10 +18,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-///use util/filtering
-///use util/tile_util
-///use util/tile_hashmap
-///use util/normals_util
+///use webgpu::filtering
+///use webgpu::tile_util
+///use webgpu::tile_hashmap
+///use webgpu::normals_util
 
 struct AreaOfInfluenceSettings {
     target_point: vec4f,

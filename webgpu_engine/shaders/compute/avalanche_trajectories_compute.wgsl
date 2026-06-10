@@ -19,11 +19,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-///use util/filtering
-///use util/tile_util
-///use util/normals_util
-///use util/random
-///use util/encoder
+///use webgpu::filtering
+///use webgpu::tile_util
+///use webgpu::normals_util
+///use webgpu::random
+///use webgpu::encoder
 
 
 // weights need to match the texels that are chosen by textureGather - this does NOT align perfectly, and introduces some artifacts

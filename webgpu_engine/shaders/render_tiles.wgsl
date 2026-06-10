@@ -19,12 +19,12 @@
 *****************************************************************************/
 
 ///use util/shared_config
-///use util/hashing
+///use webgpu::hashing
 ///use util/camera_config
-///use util/encoder
-///use util/tile_util
-///use util/normals_util
-///use util/filtering
+///use webgpu::encoder
+///use webgpu::tile_util
+///use webgpu::normals_util
+///use webgpu::filtering
 
 @group(0) @binding(0) var<uniform> config : shared_config;
 

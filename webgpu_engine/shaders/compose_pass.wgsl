@@ -21,9 +21,9 @@
 ///use util/shared_config
 ///use util/camera_config
 ///use util/atmosphere
-///use util/encoder
-///use util/general
-///use util/tile_util
+///use webgpu::encoder
+///use webgpu::general
+///use webgpu::tile_util
 
 ///use screen_pass_vert
 

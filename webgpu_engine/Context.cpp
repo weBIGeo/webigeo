@@ -37,6 +37,7 @@ void Context::internal_initialise()
     assert(m_webgpu_ctx_ptr != nullptr);
 
     auto& reg = webgpu_ctx().resource_registry();
+    reg.set_local_shader_path("webgpu", ALP_SHADER_DIR_WEBGPU);
     reg.set_local_shader_path("webgpu_engine", ALP_SHADER_DIR_WEBGPU_ENGINE);
 
     reg.register_bind_group_layout("shared_config", [](WGPUDevice device) {
@@ -155,26 +156,6 @@ void Context::internal_initialise()
                 overlay_renderer_pre_entry,
             },
             "compose bind group layout");
-    });
-
-    reg.register_shader("mipmap_creation", "webgpu_engine::compute/mipmap_creation_compute");
-
-    reg.register_bind_group_layout("mipmap_creation", [](WGPUDevice device) {
-        WGPUBindGroupLayoutEntry input_entry {};
-        input_entry.binding = 0;
-        input_entry.visibility = WGPUShaderStage_Compute;
-        input_entry.texture.sampleType = WGPUTextureSampleType_Float;
-        input_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
-
-        WGPUBindGroupLayoutEntry output_entry {};
-        output_entry.binding = 1;
-        output_entry.visibility = WGPUShaderStage_Compute;
-        output_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
-        output_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
-        output_entry.storageTexture.format = WGPUTextureFormat_RGBA8Unorm;
-
-        return std::make_unique<webgpu::raii::BindGroupLayout>(
-            device, std::vector<WGPUBindGroupLayoutEntry> { input_entry, output_entry }, "mipmap creation bind group layout");
     });
 
     if (m_tile_mesh_renderer)

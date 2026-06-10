@@ -40,7 +40,7 @@ TEST_CASE("encoder functions")
         const int random_normals_count = 200;
 
         const char* wgsl_single_thread_octahedron_test = R"(
-            ///use webgpu_engine::util/encoder
+            ///use webgpu::encoder
 
             @group(0) @binding(0) var<storage, read_write> input_buffer: array<vec4f>;
             @group(0) @binding(1) var<storage, read_write> output_buffer: array<u32>;

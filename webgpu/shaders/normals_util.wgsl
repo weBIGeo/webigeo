@@ -17,7 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-///use util/tile_util
+///use tile_util
 
 fn normal_by_finite_difference_method(
     uv: vec2<f32>,

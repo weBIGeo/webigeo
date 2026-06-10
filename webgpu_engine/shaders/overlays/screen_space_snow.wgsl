@@ -19,9 +19,9 @@
 
 ///use util/shared_config
 ///use util/camera_config
-///use util/encoder
-///use util/tile_util
-///use util/snow
+///use webgpu::encoder
+///use webgpu::tile_util
+///use webgpu::snow
 
 @group(0) @binding(0) var<uniform> conf : shared_config;
 @group(1) @binding(0) var<uniform> camera : camera_config;

@@ -20,7 +20,7 @@
 #include "TextureOverlay.h"
 
 #include "webgpu_engine/Context.h"
-#include "webgpu_engine/gpu_utils.h"
+#include <webgpu/gpu_utils.h>
 #include <nucleus/utils/geopng_decoder.h>
 #include <nucleus/utils/image_loader.h>
 #include <optional>
@@ -46,7 +46,7 @@ void TextureOverlay::load_image(const QString& path)
     create_texture(*m_ctx, uint32_t(image.width()), uint32_t(image.height()));
     m_overlay_texture->texture().write(m_ctx->queue(), image);
     if (settings.use_mipmaps)
-        compute_mipmaps_for_texture(*m_ctx, &m_overlay_texture->texture());
+        webgpu::compute_mipmaps_for_texture(*m_ctx, &m_overlay_texture->texture());
 }
 
 void TextureOverlay::link_texture(const webgpu::raii::TextureWithSampler* texture) { m_linked_texture = texture; }
@@ -69,7 +69,7 @@ void TextureOverlay::load_texture(const webgpu::raii::TextureWithSampler& source
     wgpuCommandBufferRelease(command);
 
     if (settings.use_mipmaps)
-        compute_mipmaps_for_texture(*m_ctx, &m_overlay_texture->texture());
+        webgpu::compute_mipmaps_for_texture(*m_ctx, &m_overlay_texture->texture());
 }
 
 void TextureOverlay::init(Context& context)

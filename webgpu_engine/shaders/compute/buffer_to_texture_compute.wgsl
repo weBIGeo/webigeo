@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-///use util/color_mapping
-///use util/encoder
+///use webgpu::color_mapping
+///use webgpu::encoder
 
 // input
 @group(0) @binding(0) var<uniform> settings: BufferToTextureSettings;

@@ -17,7 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-///use util/tile_util
+///use webgpu::tile_util
 
 @group(0) @binding(0) var<uniform> bounds: RegionBounds;
 @group(0) @binding(1) var input_texture: texture_storage_2d<rgba8uint, read>;

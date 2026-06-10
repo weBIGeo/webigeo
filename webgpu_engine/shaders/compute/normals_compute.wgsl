@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-///use util/tile_util
-///use util/normals_util
+///use webgpu::tile_util
+///use webgpu::normals_util
 
 // input
 @group(0) @binding(0) var<uniform> bounds: RegionBounds;

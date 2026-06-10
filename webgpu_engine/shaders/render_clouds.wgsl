@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-///use util/tile_util
+///use webgpu::tile_util
 ///use util/shared_config
 ///use util/atmosphere
 

@@ -19,8 +19,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-///use util/normals_util
-///use util/color_mapping
+///use webgpu::normals_util
+///use webgpu::color_mapping
 
 ///define USE_ROUGHNESS_FILTERING 1
 ///define ROUGHNESS_THRESHOLD 0.01

@@ -25,7 +25,6 @@ project(alpine-renderer-webgpu_engine LANGUAGES C CXX)
 
 set(SOURCES
     Window.h Window.cpp
-    gpu_utils.h gpu_utils.cpp
     UniformBufferObjects.h
     tile_mesh/TileMeshRenderer.h tile_mesh/TileMeshRenderer.cpp
     cloud/CloudRenderer.h cloud/CloudRenderer.cpp
@@ -117,7 +116,6 @@ qt_add_resources(webgpu_engine "shaders"
         "${SHADER_BASE_DIR}/compute/buffer_to_texture_compute.wgsl"
         "${SHADER_BASE_DIR}/compute/avalanche_influence_area_compute.wgsl"
         "${SHADER_BASE_DIR}/compute/d8_compute.wgsl"
-        "${SHADER_BASE_DIR}/compute/mipmap_creation_compute.wgsl"
         "${SHADER_BASE_DIR}/compute/compute_release_points.wgsl"
         "${SHADER_BASE_DIR}/compute/height_decode_compute.wgsl"
         "${SHADER_BASE_DIR}/compute/fxaa_compute.wgsl"
@@ -129,19 +127,8 @@ qt_add_resources(webgpu_engine "shaders"
         "${SHADER_BASE_DIR}/overlays/screen_space_snow.wgsl"
 
         "${SHADER_BASE_DIR}/util/atmosphere.wgsl"
-        "${SHADER_BASE_DIR}/util/snow.wgsl"
-        "${SHADER_BASE_DIR}/util/general.wgsl"
-        "${SHADER_BASE_DIR}/util/tile_util.wgsl"
-        "${SHADER_BASE_DIR}/util/normals_util.wgsl"
-        "${SHADER_BASE_DIR}/util/tile_hashmap.wgsl"
-        "${SHADER_BASE_DIR}/util/shared_config.wgsl"
         "${SHADER_BASE_DIR}/util/camera_config.wgsl"
-        "${SHADER_BASE_DIR}/util/hashing.wgsl"
-        "${SHADER_BASE_DIR}/util/encoder.wgsl"
-        "${SHADER_BASE_DIR}/util/color_mapping.wgsl"
-        "${SHADER_BASE_DIR}/util/filtering.wgsl"
-        "${SHADER_BASE_DIR}/util/noise.wgsl"
-        "${SHADER_BASE_DIR}/util/random.wgsl"
+        "${SHADER_BASE_DIR}/util/shared_config.wgsl"
     )
 
 target_link_libraries(webgpu_engine PUBLIC nucleus Qt::Core webgpu)

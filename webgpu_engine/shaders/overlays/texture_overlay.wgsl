@@ -19,7 +19,7 @@
 
 ///use util/shared_config
 ///use util/camera_config
-///use util/encoder
+///use webgpu::encoder
 ///use screen_pass_vert
 
 @group(0) @binding(0) var<uniform> conf : shared_config;
