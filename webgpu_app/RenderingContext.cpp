@@ -21,7 +21,6 @@
 
 #include "RenderingContext.h"
 
-#include "compute/OverlayRenderNode.h"
 #include "nucleus/DataQuerier.h"
 #include "nucleus/tile/SchedulerDirector.h"
 #include "nucleus/tile/Texture3DScheduler.h"
@@ -29,11 +28,15 @@
 #include "nucleus/tile/setup.h"
 #include "webgpu_engine/Context.h"
 #include "webgpu_engine/cloud/CloudRenderer.h"
-#include "webgpu_compute/NodeRegistry.h"
 #include "webgpu_engine/overlay/HeightLinesOverlay.h"
 #include "webgpu_engine/overlay/OverlayRenderer.h"
 #include "webgpu_engine/overlay/TextureOverlay.h"
 #include "webgpu_engine/tile_mesh/TileMeshRenderer.h"
+
+#ifdef ALP_WEBGPU_APP_ENABLE_COMPUTE
+#include "compute/OverlayRenderNode.h"
+#include "webgpu_compute/NodeRegistry.h"
+#endif
 
 namespace webgpu_app {
 
@@ -165,6 +168,7 @@ void RenderingContext::initialize(webgpu::Context& ctx)
 
     m_engine_context->initialise();
 
+#ifdef ALP_WEBGPU_APP_ENABLE_COMPUTE
     // Compute shaders are bundled by the webgpu_compute target; register its local source dir for hot-reload.
     ctx.resource_registry().set_local_shader_path("webgpu_compute", ALP_SHADER_DIR_WEBGPU_COMPUTE);
 
@@ -174,6 +178,7 @@ void RenderingContext::initialize(webgpu::Context& ctx)
         "OverlayRenderNode", [ctx = m_engine_context.get()](webgpu::Context&) {
             return std::make_unique<webgpu_compute::nodes::OverlayRenderNode>(*ctx);
         });
+#endif
 
     nucleus::utils::thread::async_call(this, [this]() { emit this->initialised(); });
 }

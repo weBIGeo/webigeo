@@ -28,8 +28,6 @@ set(SOURCES
     InputMapper.h InputMapper.cpp
     CloudsManager.h CloudsManager.cpp
 
-    compute/OverlayRenderNode.h compute/OverlayRenderNode.cpp
-
     util/error_logging.h util/error_logging.cpp
 
     util/dark_mode.h util/dark_mode.cpp
@@ -51,6 +49,18 @@ list(APPEND SOURCES
         imgui/SearchPanel.h imgui/SearchPanel.cpp
         imgui/OverlaysPanel.h imgui/OverlaysPanel.cpp
         imgui/TrackPanel.h imgui/TrackPanel.cpp
+        imgui/overlays/OverlayImGuiRenderer.h imgui/overlays/OverlayImGuiRenderer.cpp
+        imgui/overlays/OverlayImGuiRendererFactory.h imgui/overlays/OverlayImGuiRendererFactory.cpp
+        imgui/overlays/HeightLinesOverlayImGuiRenderer.h imgui/overlays/HeightLinesOverlayImGuiRenderer.cpp
+        imgui/overlays/ScreenSpaceSnowOverlayImGuiRenderer.h imgui/overlays/ScreenSpaceSnowOverlayImGuiRenderer.cpp
+        imgui/overlays/TextureOverlayImGuiRenderer.h imgui/overlays/TextureOverlayImGuiRenderer.cpp
+        imgui/overlays/TileDebugOverlayImGuiRenderer.h imgui/overlays/TileDebugOverlayImGuiRenderer.cpp
+        SearchService.h SearchService.cpp
+    )
+
+if (ALP_WEBGPU_APP_ENABLE_COMPUTE)
+    list(APPEND SOURCES
+        compute/OverlayRenderNode.h compute/OverlayRenderNode.cpp
         imgui/NodeGraphPanel.h imgui/NodeGraphPanel.cpp
         imgui/nodes/NodeRenderer.h imgui/nodes/NodeRenderer.cpp
         imgui/nodes/NodeRendererFactory.h imgui/nodes/NodeRendererFactory.cpp
@@ -63,14 +73,8 @@ list(APPEND SOURCES
         imgui/nodes/RequestTilesNodeRenderer.h imgui/nodes/RequestTilesNodeRenderer.cpp
         imgui/nodes/SelectTilesNodeRenderer.h imgui/nodes/SelectTilesNodeRenderer.cpp
         imgui/nodes/GPXTrackNodeRenderer.h imgui/nodes/GPXTrackNodeRenderer.cpp
-        imgui/overlays/OverlayImGuiRenderer.h imgui/overlays/OverlayImGuiRenderer.cpp
-        imgui/overlays/OverlayImGuiRendererFactory.h imgui/overlays/OverlayImGuiRendererFactory.cpp
-        imgui/overlays/HeightLinesOverlayImGuiRenderer.h imgui/overlays/HeightLinesOverlayImGuiRenderer.cpp
-        imgui/overlays/ScreenSpaceSnowOverlayImGuiRenderer.h imgui/overlays/ScreenSpaceSnowOverlayImGuiRenderer.cpp
-        imgui/overlays/TextureOverlayImGuiRenderer.h imgui/overlays/TextureOverlayImGuiRenderer.cpp
-        imgui/overlays/TileDebugOverlayImGuiRenderer.h imgui/overlays/TileDebugOverlayImGuiRenderer.cpp
-        SearchService.h SearchService.cpp
     )
+endif()
 
 if (EMSCRIPTEN)
     list(APPEND SOURCES WebInterop.h WebInterop.cpp)
@@ -87,8 +91,13 @@ set_target_properties(webgpu_app PROPERTIES
     MACOSX_BUNDLE TRUE
 )
 
-target_link_libraries(webgpu_app PUBLIC webgpu webgpu_engine webgpu_compute Qt::Core Qt::Network)
+target_link_libraries(webgpu_app PUBLIC webgpu webgpu_engine Qt::Core Qt::Network)
 target_include_directories(webgpu_app PRIVATE .)
+
+if (ALP_WEBGPU_APP_ENABLE_COMPUTE)
+    target_link_libraries(webgpu_app PUBLIC webgpu_compute)
+    target_compile_definitions(webgpu_app PRIVATE ALP_WEBGPU_APP_ENABLE_COMPUTE)
+endif()
 
 # For Font Awesome Icon Headers:
     alp_add_git_repository(iconfontcppheaders URL https://github.com/juliettef/IconFontCppHeaders.git COMMITISH f30b1e73b2d71eb331d77619c3f1de34199afc38 DO_NOT_ADD_SUBPROJECT)

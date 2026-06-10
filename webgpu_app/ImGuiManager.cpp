@@ -32,12 +32,14 @@
 #include "imgui/CloudPanel.h"
 #include "imgui/CompassPanel.h"
 #include "imgui/LogoPanel.h"
-#include "imgui/NodeGraphPanel.h"
 #include "imgui/OverlaysPanel.h"
 #include "imgui/SearchPanel.h"
 #include "imgui/ShadingPanel.h"
 #include "imgui/TimingPanel.h"
 #include "imgui/TrackPanel.h"
+#ifdef ALP_WEBGPU_APP_ENABLE_COMPUTE
+#include "imgui/NodeGraphPanel.h"
+#endif
 #include <IconsFontAwesome5.h>
 #include <imgui_internal.h>
 #include <imnodes.h>
@@ -95,7 +97,9 @@ void ImGuiManager::init(
     m_panels.push_back(std::make_unique<ShadingPanel>(engine_ctx));
     m_panels.push_back(std::make_unique<OverlaysPanel>(engine_ctx));
     m_panels.push_back(std::make_unique<TrackPanel>(engine_ctx, m_terrain_renderer));
+#ifdef ALP_WEBGPU_APP_ENABLE_COMPUTE
     m_panels.push_back(std::make_unique<NodeGraphPanel>(engine_ctx));
+#endif
 
     connect(&search_panel, &SearchPanel::search_requested, rc->search_service(), &SearchService::search);
     connect(&search_panel,
