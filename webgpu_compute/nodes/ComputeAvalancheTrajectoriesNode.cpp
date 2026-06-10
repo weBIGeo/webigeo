@@ -139,9 +139,9 @@ void ComputeAvalancheTrajectoriesNode::update_gpu_settings(uint32_t run)
     m_settings_uniform.data.num_steps = m_settings.num_steps;
     m_settings_uniform.data.step_length = m_settings.step_length;
     m_settings_uniform.data.max_perturbation = m_settings.max_perturbation;
-    m_settings_uniform.data.direction_offset = m_settings.persistence_contribution;
+    m_settings_uniform.data.persistence_contribution = m_settings.persistence_contribution;
 
-    m_settings_uniform.data.physics_model_type = m_settings.active_model;
+    m_settings_uniform.data.model_type = m_settings.active_model;
     m_settings_uniform.data.model2_gravity = m_settings.model2.gravity;
     m_settings_uniform.data.model2_mass = m_settings.model2.mass;
     m_settings_uniform.data.model2_friction_coeff = m_settings.model2.friction_coeff;

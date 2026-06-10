@@ -83,14 +83,14 @@ qt_add_resources(webgpu_compute "webgpu_compute_shaders"
         "${SHADER_BASE_DIR}/snow_compute.wgsl"
         "${SHADER_BASE_DIR}/upsample_textures_compute.wgsl"
         "${SHADER_BASE_DIR}/avalanche_trajectories_compute.wgsl"
-        "${SHADER_BASE_DIR}/avalanche_influence_area_compute.wgsl"
         "${SHADER_BASE_DIR}/buffer_to_texture_compute.wgsl"
         "${SHADER_BASE_DIR}/compute_release_points.wgsl"
-        "${SHADER_BASE_DIR}/d8_compute.wgsl"
-        "${SHADER_BASE_DIR}/downsample_compute.wgsl"
-        "${SHADER_BASE_DIR}/fxaa_compute.wgsl"
         "${SHADER_BASE_DIR}/height_decode_compute.wgsl"
         "${SHADER_BASE_DIR}/iterative_simulation_compute.wgsl"
+
+        "${SHADER_BASE_DIR}/tile_hashmap.wgsl"
+        "${SHADER_BASE_DIR}/color_mapping.wgsl"
+        "${SHADER_BASE_DIR}/random.wgsl"
     )
 
 target_link_libraries(webgpu_compute PUBLIC nucleus Qt::Core webgpu)

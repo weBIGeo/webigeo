@@ -17,7 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-///use webgpu::color_mapping
+///use color_mapping
 ///use webgpu::encoder
 
 // input

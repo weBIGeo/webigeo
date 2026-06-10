@@ -243,13 +243,10 @@ qt_add_resources(webgpu "webgpu_shaders"
         "${WEBGPU_SHADER_BASE_DIR}/general.wgsl"
         "${WEBGPU_SHADER_BASE_DIR}/tile_util.wgsl"
         "${WEBGPU_SHADER_BASE_DIR}/normals_util.wgsl"
-        "${WEBGPU_SHADER_BASE_DIR}/tile_hashmap.wgsl"
         "${WEBGPU_SHADER_BASE_DIR}/hashing.wgsl"
         "${WEBGPU_SHADER_BASE_DIR}/encoder.wgsl"
-        "${WEBGPU_SHADER_BASE_DIR}/color_mapping.wgsl"
         "${WEBGPU_SHADER_BASE_DIR}/filtering.wgsl"
         "${WEBGPU_SHADER_BASE_DIR}/noise.wgsl"
-        "${WEBGPU_SHADER_BASE_DIR}/random.wgsl"
     )
 
 target_compile_definitions(webgpu PUBLIC ALP_SHADER_DIR_WEBGPU="${CMAKE_CURRENT_SOURCE_DIR}/shaders/")

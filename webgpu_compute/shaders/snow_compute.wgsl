@@ -19,7 +19,7 @@
  *****************************************************************************/
 
 ///use webgpu::tile_util
-///use webgpu::tile_hashmap
+///use tile_hashmap
 ///use webgpu::normals_util
 ///use webgpu::snow
 

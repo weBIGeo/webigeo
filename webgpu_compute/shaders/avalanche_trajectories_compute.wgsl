@@ -22,7 +22,7 @@
 ///use webgpu::filtering
 ///use webgpu::tile_util
 ///use webgpu::normals_util
-///use webgpu::random
+///use random
 ///use webgpu::encoder
 
 

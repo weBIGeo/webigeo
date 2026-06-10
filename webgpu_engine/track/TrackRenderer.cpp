@@ -143,7 +143,7 @@ void TrackRenderer::add_world_positions(const std::vector<glm::vec4>& world_posi
     m_position_buffers.back()->write(m_ctx->queue(), world_positions.data(), world_positions.size());
 
     m_line_config_buffers.emplace_back(std::make_unique<webgpu::Buffer<LineConfig>>(m_ctx->device(), WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst));
-    m_line_config_buffers.back()->data.line_color = color;
+    m_line_config_buffers.back()->data.color = color;
     m_line_config_buffers.back()->update_gpu_data(m_ctx->queue());
 
     m_bind_groups.emplace_back(std::make_unique<webgpu::raii::BindGroup>(m_ctx->device(),

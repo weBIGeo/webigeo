@@ -122,11 +122,11 @@ private:
         // uint32_t num_paths_per_release_cell = 256;
 
         float max_perturbation;
-        float direction_offset;
+        float persistence_contribution;
 
         // ^^ 4 byte ^^
 
-        PhysicsModelType physics_model_type;
+        PhysicsModelType model_type;
         float model2_gravity;
         float model2_mass;
         float model2_friction_coeff;
