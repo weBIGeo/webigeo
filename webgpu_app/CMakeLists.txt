@@ -35,8 +35,7 @@ set(SOURCES
     ImGuiManager.h ImGuiManager.cpp
 )
 
-if (ALP_WEBGPU_APP_ENABLE_IMGUI)
-    list(APPEND SOURCES
+list(APPEND SOURCES
         imgui/ImGuiPanel.h
         imgui/TimingPanel.h imgui/TimingPanel.cpp
         imgui/CameraPanel.h imgui/CameraPanel.cpp
@@ -70,7 +69,6 @@ if (ALP_WEBGPU_APP_ENABLE_IMGUI)
         imgui/overlays/TileDebugOverlayImGuiRenderer.h imgui/overlays/TileDebugOverlayImGuiRenderer.cpp
         SearchService.h SearchService.cpp
     )
-endif()
 
 if (EMSCRIPTEN)
     list(APPEND SOURCES WebInterop.h WebInterop.cpp)
@@ -90,8 +88,7 @@ set_target_properties(webgpu_app PROPERTIES
 target_link_libraries(webgpu_app PUBLIC webgpu webgpu_engine Qt::Core Qt::Network)
 target_include_directories(webgpu_app PRIVATE .)
 
-if (ALP_WEBGPU_APP_ENABLE_IMGUI)
-    # For Font Awesome Icon Headers:
+# For Font Awesome Icon Headers:
     alp_add_git_repository(iconfontcppheaders URL https://github.com/juliettef/IconFontCppHeaders.git COMMITISH f30b1e73b2d71eb331d77619c3f1de34199afc38 DO_NOT_ADD_SUBPROJECT)
     target_include_directories(webgpu_app PRIVATE ../extern/iconfontcppheaders)
 
@@ -107,8 +104,6 @@ if (ALP_WEBGPU_APP_ENABLE_IMGUI)
     target_link_libraries(ImGuiFileDialog PRIVATE imgui)
 
     target_link_libraries(webgpu_app PRIVATE imgui imnodes ImGuiFileDialog)
-    target_compile_definitions(webgpu_app PRIVATE "ALP_WEBGPU_APP_ENABLE_IMGUI")
-endif()
 
 # Copy necessary DLLs to the output directory on Windows
 if (WIN32 AND NOT EMSCRIPTEN)

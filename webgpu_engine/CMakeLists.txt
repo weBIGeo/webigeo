@@ -18,8 +18,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #############################################################################
 
-# option to enable/disable imgui
-option(ALP_WEBGPU_APP_ENABLE_IMGUI "Enable imgui" ON)
 option(ALP_ENABLE_WGSL_MINIFICATION "Minify WGSL shaders to reduce size" OFF)
 
 project(alpine-renderer-webgpu_engine LANGUAGES C CXX)

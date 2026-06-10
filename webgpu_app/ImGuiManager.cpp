@@ -23,7 +23,6 @@
 
 #include "imgui/ImGuiPanel.h"
 
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_wgpu.h"
 #include "imgui/AboutPanel.h"
@@ -42,7 +41,6 @@
 #include <IconsFontAwesome5.h>
 #include <imgui_internal.h>
 #include <imnodes.h>
-#endif
 
 #include "util/dark_mode.h"
 #include <QDebug>
@@ -62,7 +60,6 @@ void ImGuiManager::init(
     m_window = window;
     m_device = device;
 
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -106,21 +103,16 @@ void ImGuiManager::init(
         m_terrain_renderer->get_camera_controller(),
         &nucleus::camera::Controller::fly_to_latitude_longitude);
     connect(rc->search_service(), &SearchService::search_results_arrived, &search_panel, &SearchPanel::display_search_results);
-
-#endif
 }
 
 void ImGuiManager::ready()
 {
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     for (auto& panel : m_panels)
         panel->ready();
-#endif
 }
 
 void ImGuiManager::install_fonts()
 {
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     ImGuiIO& io = ImGui::GetIO();
 
     float baseFontSize = 16.0f;
@@ -156,12 +148,10 @@ void ImGuiManager::install_fonts()
         icons_config.FontDataOwnedByAtlas = false;
         io.Fonts->AddFontFromMemoryTTF(byteArray.data(), byteArray.size(), iconFontSize, &icons_config, icons_ranges);
     }
-#endif
 }
 
 void ImGuiManager::render([[maybe_unused]] WGPURenderPassEncoder renderPass)
 {
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     ImGui_ImplWGPU_NewFrame();
     ImGui_ImplSDL2_NewFrame();
     ImGui::NewFrame();
@@ -170,44 +160,22 @@ void ImGuiManager::render([[maybe_unused]] WGPURenderPassEncoder renderPass)
 
     ImGui::Render();
     ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), renderPass);
-#endif
 }
 
 void ImGuiManager::shutdown()
 {
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     qDebug() << "Releasing ImGuiManager...";
     ImGui_ImplWGPU_Shutdown();
     ImGui_ImplSDL2_Shutdown();
     ImNodes::DestroyContext();
     ImGui::DestroyContext();
-#endif
 }
 
-bool ImGuiManager::want_capture_keyboard()
-{
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-    return ImGui::GetIO().WantCaptureKeyboard;
-#else
-    return false;
-#endif
-}
+bool ImGuiManager::want_capture_keyboard() { return ImGui::GetIO().WantCaptureKeyboard; }
 
-bool ImGuiManager::want_capture_mouse()
-{
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-    return ImGui::GetIO().WantCaptureMouse;
-#else
-    return false;
-#endif
-}
+bool ImGuiManager::want_capture_mouse() { return ImGui::GetIO().WantCaptureMouse; }
 
-void ImGuiManager::on_sdl_event(SDL_Event& event)
-{
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
-    ImGui_ImplSDL2_ProcessEvent(&event);
-#endif
-}
+void ImGuiManager::on_sdl_event(SDL_Event& event) { ImGui_ImplSDL2_ProcessEvent(&event); }
 
 void ImGuiManager::set_gui_visibility(bool visible) { m_gui_visible = visible; }
 
@@ -215,7 +183,6 @@ bool ImGuiManager::get_gui_visibility() const { return m_gui_visible; }
 
 float ImGuiManager::s_tool_button_y = 0.0f;
 
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
 bool ImGuiManager::FloatingToggleButton(const char* id, const char* icon, const char* tooltip, uint32_t* enabled)
 {
     const bool on = *enabled != 0u;
@@ -249,11 +216,9 @@ bool ImGuiManager::FloatingToggleButton(const char* id, const char* icon, const 
         ImGui::SetTooltip("%s", tooltip);
     return clicked;
 }
-#endif
 
 void ImGuiManager::draw()
 {
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     if (!m_gui_visible)
         return;
 
@@ -273,7 +238,6 @@ void ImGuiManager::draw()
         panel->draw_panel();
 
     ImGui::End();
-#endif
 }
 
 } // namespace webgpu_app

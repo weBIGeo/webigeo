@@ -23,11 +23,9 @@
 #include <cstdint>
 #include <webgpu/webgpu.h>
 
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
 #include "imgui/ImGuiPanel.h"
 #include <memory>
 #include <vector>
-#endif
 
 namespace webgpu_app {
 
@@ -62,9 +60,7 @@ private:
     TerrainRenderer* m_terrain_renderer = nullptr;
     bool m_gui_visible = true;
 
-#ifdef ALP_WEBGPU_APP_ENABLE_IMGUI
     std::vector<std::unique_ptr<ImGuiPanel>> m_panels;
-#endif
 
     void draw();
     void install_fonts();
