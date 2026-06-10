@@ -28,6 +28,8 @@ set(SOURCES
     InputMapper.h InputMapper.cpp
     CloudsManager.h CloudsManager.cpp
 
+    compute/OverlayRenderNode.h compute/OverlayRenderNode.cpp
+
     util/error_logging.h util/error_logging.cpp
 
     util/dark_mode.h util/dark_mode.cpp

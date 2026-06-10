@@ -18,12 +18,12 @@
 
 #include "OverlayRenderNode.h"
 
-#include "OverlayRenderer.h"
-#include "TextureOverlay.h"
 #include "nucleus/srs.h"
-#include "webgpu_engine/Context.h"
 #include <QDebug>
 #include <webgpu/webgpu.h>
+#include <webgpu_engine/Context.h>
+#include <webgpu_engine/overlay/OverlayRenderer.h>
+#include <webgpu_engine/overlay/TextureOverlay.h>
 
 namespace webgpu_engine::compute::nodes {
 

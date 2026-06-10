@@ -36,7 +36,8 @@
 #include <webgpu_engine/compute/nodes/GPXTrackNode.h>
 #include <webgpu_engine/compute/nodes/RequestTilesNode.h>
 #include <webgpu_engine/compute/nodes/SelectTilesNode.h>
-#include <webgpu_engine/overlay/OverlayRenderNode.h>
+
+#include "compute/OverlayRenderNode.h"
 
 namespace webgpu_app {
 namespace nodes = webgpu_engine::compute::nodes;

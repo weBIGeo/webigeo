@@ -18,10 +18,10 @@
 
 #pragma once
 
-#include "../compute/nodes/Node.h"
 #include <memory>
 #include <radix/geometry.h>
 #include <webgpu/raii/TextureWithSampler.h>
+#include <webgpu_engine/compute/nodes/Node.h>
 
 namespace webgpu_engine {
 class Context;

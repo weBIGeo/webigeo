@@ -36,7 +36,6 @@ set(SOURCES
     overlay/ScreenSpaceSnowOverlay.h overlay/ScreenSpaceSnowOverlay.cpp
     overlay/TextureOverlay.h overlay/TextureOverlay.cpp
     overlay/TileDebugOverlay.h overlay/TileDebugOverlay.cpp
-    overlay/OverlayRenderNode.h overlay/OverlayRenderNode.cpp
     Context.h Context.cpp
 
     compute/GpuTileStorage.h compute/GpuTileStorage.cpp
