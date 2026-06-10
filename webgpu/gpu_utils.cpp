@@ -66,6 +66,11 @@ namespace {
 
 void compute_mipmaps_for_texture(Context& ctx, const raii::Texture* texture)
 {
+    compute_mipmaps_for_texture(ctx, texture, {});
+}
+
+void compute_mipmaps_for_texture(Context& ctx, const raii::Texture* texture, WGPUQueueWorkDoneCallbackInfo on_done)
+{
     WGPUDevice device = ctx.device();
     WGPUQueue queue = ctx.queue();
     auto& reg = ctx.resource_registry();
@@ -135,6 +140,9 @@ void compute_mipmaps_for_texture(Context& ctx, const raii::Texture* texture)
         wgpuQueueSubmit(queue, 1, &command);
         wgpuCommandBufferRelease(command);
     }
+
+    if (on_done.callback)
+        wgpuQueueOnSubmittedWorkDone(queue, on_done);
 }
 
 } // namespace webgpu

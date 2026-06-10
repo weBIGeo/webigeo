@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include <webgpu/webgpu.h>
+
 namespace webgpu {
 
 class Context;
@@ -30,5 +32,8 @@ namespace raii {
 // The required shader (webgpu::mipmap) and its bind group layout are lazily registered in
 // the context's resource registry on first use, so callers need no separate setup.
 void compute_mipmaps_for_texture(Context& ctx, const raii::Texture* texture);
+
+// Async overload: calls on_done after the mipmap work is submitted to the queue.
+void compute_mipmaps_for_texture(Context& ctx, const raii::Texture* texture, WGPUQueueWorkDoneCallbackInfo on_done);
 
 } // namespace webgpu

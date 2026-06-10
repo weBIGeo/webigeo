@@ -19,6 +19,7 @@
 
 #include "BufferToTextureNode.h"
 #include "webgpu/raii/Texture.h"
+#include <webgpu/gpu_utils.h>
 
 namespace webgpu_compute::nodes {
 
@@ -132,19 +133,33 @@ void BufferToTextureNode::run_impl()
 
     const auto on_work_done
         = []([[maybe_unused]] WGPUQueueWorkDoneStatus status, [[maybe_unused]] WGPUStringView message, void* userdata, [[maybe_unused]] void* userdata2) {
-              BufferToTextureNode* _this = reinterpret_cast<BufferToTextureNode*>(userdata);
-              _this->complete_run();
+              auto* node = reinterpret_cast<BufferToTextureNode*>(userdata);
+              if (node->m_settings.create_mipmaps) {
+                  const auto on_mipmaps_done
+                      = []([[maybe_unused]] WGPUQueueWorkDoneStatus status, [[maybe_unused]] WGPUStringView message, void* userdata, [[maybe_unused]] void* userdata2) {
+                            reinterpret_cast<BufferToTextureNode*>(userdata)->complete_run();
+                        };
+                  webgpu::compute_mipmaps_for_texture(*node->m_ctx, &node->m_output_texture->texture(),
+                      WGPUQueueWorkDoneCallbackInfo {
+                          .nextInChain = nullptr,
+                          .mode = WGPUCallbackMode_AllowProcessEvents,
+                          .callback = on_mipmaps_done,
+                          .userdata1 = node,
+                          .userdata2 = nullptr,
+                      });
+              } else {
+                  node->complete_run();
+              }
           };
 
-    WGPUQueueWorkDoneCallbackInfo callback_info {
-        .nextInChain = nullptr,
-        .mode = WGPUCallbackMode_AllowProcessEvents,
-        .callback = on_work_done,
-        .userdata1 = this,
-        .userdata2 = nullptr,
-    };
-
-    wgpuQueueOnSubmittedWorkDone(m_ctx->queue(), callback_info);
+    wgpuQueueOnSubmittedWorkDone(m_ctx->queue(),
+        WGPUQueueWorkDoneCallbackInfo {
+            .nextInChain = nullptr,
+            .mode = WGPUCallbackMode_AllowProcessEvents,
+            .callback = on_work_done,
+            .userdata1 = this,
+            .userdata2 = nullptr,
+        });
 }
 
 void BufferToTextureNode::update_gpu_settings()
