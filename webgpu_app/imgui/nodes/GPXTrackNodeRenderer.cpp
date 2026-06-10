@@ -20,10 +20,10 @@
 
 #include <cstring>
 #include <imgui.h>
-#include <webgpu_engine/compute/nodes/GPXTrackNode.h>
+#include <webgpu_compute/nodes/GPXTrackNode.h>
 
 namespace webgpu_app {
-namespace nodes = webgpu_engine::compute::nodes;
+namespace nodes = webgpu_compute::nodes;
 
 GPXTrackNodeRenderer::GPXTrackNodeRenderer(const std::string& name, nodes::GPXTrackNode& node)
     : NodeRenderer(name, node)

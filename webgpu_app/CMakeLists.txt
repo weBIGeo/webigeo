@@ -87,7 +87,7 @@ set_target_properties(webgpu_app PROPERTIES
     MACOSX_BUNDLE TRUE
 )
 
-target_link_libraries(webgpu_app PUBLIC webgpu webgpu_engine Qt::Core Qt::Network)
+target_link_libraries(webgpu_app PUBLIC webgpu webgpu_engine webgpu_compute Qt::Core Qt::Network)
 target_include_directories(webgpu_app PRIVATE .)
 
 # For Font Awesome Icon Headers:

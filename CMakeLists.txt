@@ -140,6 +140,7 @@ if (ALP_WEBGPU_APP OR ALP_WEBGPU_ENGINE)
         add_subdirectory(webgpu_engine)
     endif()
     if (ALP_WEBGPU_APP)
+        add_subdirectory(webgpu_compute)
         add_subdirectory(webgpu_app)
     endif()
 

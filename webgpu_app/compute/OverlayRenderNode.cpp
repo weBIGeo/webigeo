@@ -25,14 +25,14 @@
 #include <webgpu_engine/overlay/OverlayRenderer.h>
 #include <webgpu_engine/overlay/TextureOverlay.h>
 
-namespace webgpu_engine::compute::nodes {
+namespace webgpu_compute::nodes {
 
-OverlayRenderNode::OverlayRenderNode(Context& context)
+OverlayRenderNode::OverlayRenderNode(webgpu_engine::Context& context)
     : OverlayRenderNode(context, OverlaySettings {})
 {
 }
 
-OverlayRenderNode::OverlayRenderNode(Context& context, const OverlaySettings& settings)
+OverlayRenderNode::OverlayRenderNode(webgpu_engine::Context& context, const OverlaySettings& settings)
     : Node({ InputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>()),
                InputSocket(*this, "region aabb", data_type<const radix::geometry::Aabb<2, double>*>()) },
         {})
@@ -61,7 +61,7 @@ void OverlayRenderNode::run_impl()
 
         auto overlay = m_result_overlay.lock();
         if (!overlay) { // first run, or the user deleted it from the panel -> (re)create
-            overlay = std::make_shared<TextureOverlay>();
+            overlay = std::make_shared<webgpu_engine::TextureOverlay>();
             overlay->name = "Compute Result";
             m_context->overlay_renderer()->add_overlay(overlay);
             m_result_overlay = overlay;
@@ -84,4 +84,4 @@ void OverlayRenderNode::run_impl()
     complete_run();
 }
 
-} // namespace webgpu_engine::compute::nodes
+} // namespace webgpu_compute::nodes

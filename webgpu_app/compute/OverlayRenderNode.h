@@ -21,14 +21,14 @@
 #include <memory>
 #include <radix/geometry.h>
 #include <webgpu/raii/TextureWithSampler.h>
-#include <webgpu_engine/compute/nodes/Node.h>
+#include <webgpu_compute/nodes/Node.h>
 
 namespace webgpu_engine {
 class Context;
 class TextureOverlay;
 } // namespace webgpu_engine
 
-namespace webgpu_engine::compute::nodes {
+namespace webgpu_compute::nodes {
 
 // A custom node that forwards the graph result to a TextureOverlay managed by the OverlayRenderer.
 // Unlike a base compute node it knows the rendering layer: the OverlayRenderer registers it with the NodeRegistry.
@@ -44,8 +44,8 @@ public:
         bool copy = false;
     };
 
-    explicit OverlayRenderNode(Context& context);
-    OverlayRenderNode(Context& context, const OverlaySettings& settings);
+    explicit OverlayRenderNode(webgpu_engine::Context& context);
+    OverlayRenderNode(webgpu_engine::Context& context, const OverlaySettings& settings);
     ~OverlayRenderNode() override;
 
     void set_settings(const OverlaySettings& settings) { m_settings = settings; }
@@ -55,9 +55,9 @@ public slots:
     void run_impl() override;
 
 private:
-    Context* m_context;
+    webgpu_engine::Context* m_context;
     OverlaySettings m_settings;
-    std::weak_ptr<TextureOverlay> m_result_overlay; // weak: the user may delete it in the gui
+    std::weak_ptr<webgpu_engine::TextureOverlay> m_result_overlay; // weak: the user may delete it in the gui
 };
 
-} // namespace webgpu_engine::compute::nodes
+} // namespace webgpu_compute::nodes

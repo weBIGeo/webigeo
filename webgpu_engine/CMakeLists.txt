@@ -37,29 +37,6 @@ set(SOURCES
     overlay/TextureOverlay.h overlay/TextureOverlay.cpp
     overlay/TileDebugOverlay.h overlay/TileDebugOverlay.cpp
     Context.h Context.cpp
-
-    compute/GpuTileStorage.h compute/GpuTileStorage.cpp
-    compute/GpuTileId.h compute/GpuTileId.cpp
-    compute/RectangularTileRegion.h compute/RectangularTileRegion.cpp
-    compute/nodes/Node.h compute/nodes/Node.cpp
-    compute/nodes/SelectTilesNode.h compute/nodes/SelectTilesNode.cpp
-    compute/nodes/RequestTilesNode.h compute/nodes/RequestTilesNode.cpp
-    compute/nodes/ComputeNormalsNode.h compute/nodes/ComputeNormalsNode.cpp
-    compute/GraphRunContext.h
-    compute/NodeGraph.h compute/NodeGraph.cpp
-    compute/NodeRegistry.h compute/NodeRegistry.cpp
-    compute/nodes/ComputeSnowNode.h compute/nodes/ComputeSnowNode.cpp
-    compute/nodes/UpsampleTexturesNode.h compute/nodes/UpsampleTexturesNode.cpp
-    compute/nodes/ComputeAvalancheTrajectoriesNode.h compute/nodes/ComputeAvalancheTrajectoriesNode.cpp
-    compute/nodes/ExportNode.h compute/nodes/ExportNode.cpp
-    compute/nodes/GPXTrackNode.h compute/nodes/GPXTrackNode.cpp
-    compute/nodes/BufferToTextureNode.h compute/nodes/BufferToTextureNode.cpp
-    compute/nodes/ComputeReleasePointsNode.h compute/nodes/ComputeReleasePointsNode.cpp
-    compute/nodes/TileStitchNode.h compute/nodes/TileStitchNode.cpp
-    compute/nodes/HeightDecodeNode.h compute/nodes/HeightDecodeNode.cpp
-    compute/nodes/IterativeSimulationNode.h compute/nodes/IterativeSimulationNode.cpp
-    compute/nodes/LoadTextureNode.h compute/nodes/LoadTextureNode.cpp
-    compute/nodes/util.h compute/nodes/util.cpp
 )
 
 qt_add_library(webgpu_engine STATIC ${SOURCES})
@@ -106,19 +83,6 @@ qt_add_resources(webgpu_engine "shaders"
         "${SHADER_BASE_DIR}/screen_pass_vert.wgsl"
         "${SHADER_BASE_DIR}/render_clouds.wgsl"
         "${SHADER_BASE_DIR}/upscale_clouds.wgsl"
-
-        "${SHADER_BASE_DIR}/compute/downsample_compute.wgsl"
-        "${SHADER_BASE_DIR}/compute/normals_compute.wgsl"
-        "${SHADER_BASE_DIR}/compute/snow_compute.wgsl"
-        "${SHADER_BASE_DIR}/compute/upsample_textures_compute.wgsl"
-        "${SHADER_BASE_DIR}/compute/avalanche_trajectories_compute.wgsl"
-        "${SHADER_BASE_DIR}/compute/buffer_to_texture_compute.wgsl"
-        "${SHADER_BASE_DIR}/compute/avalanche_influence_area_compute.wgsl"
-        "${SHADER_BASE_DIR}/compute/d8_compute.wgsl"
-        "${SHADER_BASE_DIR}/compute/compute_release_points.wgsl"
-        "${SHADER_BASE_DIR}/compute/height_decode_compute.wgsl"
-        "${SHADER_BASE_DIR}/compute/fxaa_compute.wgsl"
-        "${SHADER_BASE_DIR}/compute/iterative_simulation_compute.wgsl"
 
         "${SHADER_BASE_DIR}/overlays/height_lines.wgsl"
         "${SHADER_BASE_DIR}/overlays/texture_overlay.wgsl"

@@ -22,7 +22,7 @@
 #include <imgui.h>
 
 namespace webgpu_app {
-namespace nodes = webgpu_engine::compute::nodes;
+namespace nodes = webgpu_compute::nodes;
 
 OverlayNodeRenderer::OverlayNodeRenderer(const std::string& name, nodes::OverlayRenderNode& node)
     : NodeRenderer(name, node)

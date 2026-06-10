@@ -29,7 +29,7 @@
 #include "nucleus/tile/setup.h"
 #include "webgpu_engine/Context.h"
 #include "webgpu_engine/cloud/CloudRenderer.h"
-#include "webgpu_engine/compute/NodeRegistry.h"
+#include "webgpu_compute/NodeRegistry.h"
 #include "webgpu_engine/overlay/HeightLinesOverlay.h"
 #include "webgpu_engine/overlay/OverlayRenderer.h"
 #include "webgpu_engine/overlay/TextureOverlay.h"
@@ -165,11 +165,14 @@ void RenderingContext::initialize(webgpu::Context& ctx)
 
     m_engine_context->initialise();
 
+    // Compute shaders are bundled by the webgpu_compute target; register its local source dir for hot-reload.
+    ctx.resource_registry().set_local_shader_path("webgpu_compute", ALP_SHADER_DIR_WEBGPU_COMPUTE);
+
     // The terminal node that forwards compute-graph results onto the overlay renderer lives in the
     // app (it bridges the compute and rendering layers). Register it once the engine context is ready.
-    webgpu_engine::compute::NodeRegistry::instance().register_node(
+    webgpu_compute::NodeRegistry::instance().register_node(
         "OverlayRenderNode", [ctx = m_engine_context.get()](webgpu::Context&) {
-            return std::make_unique<webgpu_engine::compute::nodes::OverlayRenderNode>(*ctx);
+            return std::make_unique<webgpu_compute::nodes::OverlayRenderNode>(*ctx);
         });
 
     nucleus::utils::thread::async_call(this, [this]() { emit this->initialised(); });
