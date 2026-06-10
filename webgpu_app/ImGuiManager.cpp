@@ -23,6 +23,13 @@
 
 #include "imgui/ImGuiPanel.h"
 
+#ifdef __EMSCRIPTEN__
+#include "WebInterop.h"
+#else
+#include <ImGuiFileDialog.h>
+#include <filesystem>
+#endif
+
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_wgpu.h"
 #include "imgui/AboutPanel.h"
@@ -107,6 +114,10 @@ void ImGuiManager::init(
         m_terrain_renderer->get_camera_controller(),
         &nucleus::camera::Controller::fly_to_latitude_longitude);
     connect(rc->search_service(), &SearchService::search_results_arrived, &search_panel, &SearchPanel::display_search_results);
+
+#ifdef __EMSCRIPTEN__
+    connect(&WebInterop::instance(), &WebInterop::file_uploaded, this, &ImGuiManager::on_file_uploaded);
+#endif
 }
 
 void ImGuiManager::ready()
@@ -186,6 +197,59 @@ void ImGuiManager::set_gui_visibility(bool visible) { m_gui_visible = visible; }
 bool ImGuiManager::get_gui_visibility() const { return m_gui_visible; }
 
 float ImGuiManager::s_tool_button_y = 0.0f;
+std::unordered_map<std::string, ImGuiManager::FilePickerState> ImGuiManager::s_picker_states;
+
+#ifdef __EMSCRIPTEN__
+void ImGuiManager::on_file_uploaded(const std::string& filename, const std::string& tag)
+{
+    auto it = s_picker_states.find(tag);
+    if (it != s_picker_states.end() && it->second.is_open)
+        it->second.pending.push_back(filename);
+}
+#endif
+
+bool ImGuiManager::FilePicker(const char* dialog_id, const char* title, const char* filters,
+    bool wants_open, std::vector<std::string>& out_paths,
+    bool allow_multiple, const char* initial_path)
+{
+#ifdef __EMSCRIPTEN__
+    auto& state = s_picker_states[dialog_id];
+    if (wants_open) {
+        state.is_open = true;
+        state.pending.clear();
+        WebInterop::instance().open_file_dialog(filters, dialog_id, allow_multiple);
+    }
+    if (state.is_open && !state.pending.empty()) {
+        out_paths = std::move(state.pending);
+        state.pending.clear();
+        state.is_open = false;
+        return true;
+    }
+    return false;
+#else
+    if (wants_open) {
+        IGFD::FileDialogConfig config;
+        config.path = initial_path;
+        config.countSelectionMax = allow_multiple ? 0 : 1;
+        config.flags = ImGuiFileDialogFlags_Modal;
+        ImGuiFileDialog::Instance()->OpenDialog(dialog_id, title, filters, config);
+    }
+    const ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+    ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+    const ImVec2 vp = ImGui::GetMainViewport()->Size;
+    const ImVec2 dialog_size(vp.x < 1000.0f ? vp.x * 0.9f : vp.x * 0.5f,
+                             vp.y < 1000.0f ? vp.y * 0.9f : vp.y * 0.5f);
+    if (ImGuiFileDialog::Instance()->Display(dialog_id, ImGuiWindowFlags_NoCollapse, dialog_size, dialog_size)) {
+        if (ImGuiFileDialog::Instance()->IsOk()) {
+            for (auto& [name, path] : ImGuiFileDialog::Instance()->GetSelection())
+                out_paths.push_back(path);
+        }
+        ImGuiFileDialog::Instance()->Close();
+        return !out_paths.empty();
+    }
+    return false;
+#endif
+}
 
 bool ImGuiManager::FloatingToggleButton(const char* id, const char* icon, const char* tooltip, uint32_t* enabled)
 {

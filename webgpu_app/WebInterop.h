@@ -54,7 +54,7 @@ public:
 
     static void _file_uploaded(const char* filename, const char* tag);
 
-    void open_file_dialog(const std::string& filter, const std::string& tag);
+    void open_file_dialog(const std::string& filter, const std::string& tag, bool allow_multiple = false);
 
     glm::uvec2 get_body_size();
 

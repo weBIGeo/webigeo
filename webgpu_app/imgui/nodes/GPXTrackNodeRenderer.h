@@ -20,6 +20,8 @@
 
 #include "NodeRenderer.h"
 #include <array>
+#include <string>
+#include <vector>
 
 namespace webgpu_compute::nodes {
 class GPXTrackNode;
@@ -33,10 +35,15 @@ public:
     GPXTrackNodeRenderer(const std::string& name, nodes::GPXTrackNode& node);
     bool has_settings() const override { return true; }
     void render_settings_content() override;
+    void render_dialogs() override;
 
 private:
     nodes::GPXTrackNode* m_node;
     std::array<char, 512> m_path_buffer {};
+    std::string m_last_dialog_directory = ".";
+    std::string m_dialog_id;
+    std::vector<std::string> m_picked_files;
+    bool m_want_open_dialog = false;
 };
 
 } // namespace webgpu_app
