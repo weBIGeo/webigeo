@@ -17,10 +17,10 @@
 * along with this program. If not, see <http : //www.gnu.org/licenses/>.
 *****************************************************************************/
 
-#include "util/shared_config.wgsl"
-#include "util/camera_config.wgsl"
-#include "util/encoder.wgsl"
-#include "screen_pass_vert.wgsl"
+///use util/shared_config
+///use util/camera_config
+///use util/encoder
+///use screen_pass_vert
 
 @group(0) @binding(0) var<uniform> conf : shared_config;
 @group(1) @binding(0) var<uniform> camera : camera_config;

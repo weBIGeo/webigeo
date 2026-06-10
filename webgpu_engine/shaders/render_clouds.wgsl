@@ -16,9 +16,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "util/tile_util.wgsl"
-#include "util/shared_config.wgsl"
-#include "util/atmosphere.wgsl"
+///use util/tile_util
+///use util/shared_config
+///use util/atmosphere
 
 struct tile_info {
     index: u32,
@@ -98,9 +98,9 @@ override tile_coords_offset_y = 660;
 override atlas_bits_xy = 2u;
 override atlas_bits_z = 5u;
 
-#define ATLAS_MASK_XY u32((1<<atlas_bits_xy)-1)
-#define ATLAS_MASK_Z u32((1<<atlas_bits_z)-1)
-#define ATLAS_INV_SCALE vec3(1.0 / f32(1<<atlas_bits_xy), 1.0 / f32(1<<atlas_bits_xy), 1.0 / f32(1<<atlas_bits_z))
+///define ATLAS_MASK_XY u32((1<<atlas_bits_xy)-1)
+///define ATLAS_MASK_Z u32((1<<atlas_bits_z)-1)
+///define ATLAS_INV_SCALE vec3(1.0 / f32(1<<atlas_bits_xy), 1.0 / f32(1<<atlas_bits_xy), 1.0 / f32(1<<atlas_bits_z))
 
 // Texture dimensions
 const TILE_RESOLUTION_XY = 256.0;

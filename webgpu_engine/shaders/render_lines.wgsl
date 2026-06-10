@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "util/shared_config.wgsl"
-#include "util/camera_config.wgsl"
+///use util/shared_config
+///use util/camera_config
 
 @group(0) @binding(0) var<uniform> config: shared_config;
 @group(1) @binding(0) var<uniform> camera: camera_config;

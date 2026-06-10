@@ -37,7 +37,7 @@ ComputeNormalsNode::ComputeNormalsNode(webgpu::Context& ctx)
     , m_normals_settings_uniform_buffer(ctx.device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
 {
     auto& reg = ctx.resource_registry();
-    reg.register_shader("normals_compute", "compute/normals_compute.wgsl");
+    reg.register_shader("normals_compute", "webgpu_engine::compute/normals_compute");
     reg.register_bind_group_layout("normals_compute", [](WGPUDevice dev) {
         WGPUBindGroupLayoutEntry e0 {};
         e0.binding = 0;

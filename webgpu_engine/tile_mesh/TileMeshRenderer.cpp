@@ -132,7 +132,7 @@ void TileMeshRenderer::init(webgpu::Context& ctx)
     m_ortho_textures = std::make_unique<webgpu::raii::TextureWithSampler>(m_ctx->device(), ortho_texture_desc, ortho_sampler_desc);
 
     auto& reg = ctx.resource_registry();
-    reg.register_shader("render_tiles", "render_tiles.wgsl");
+    reg.register_shader("render_tiles", "webgpu_engine::render_tiles");
     reg.register_bind_group_layout("tile", [](WGPUDevice device) {
         WGPUBindGroupLayoutEntry n_vertices_entry {};
         n_vertices_entry.binding = 0;

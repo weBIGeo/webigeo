@@ -40,7 +40,7 @@ ComputeReleasePointsNode::ComputeReleasePointsNode(webgpu::Context& ctx, const R
     , m_settings_uniform(ctx.device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
 {
     auto& reg = ctx.resource_registry();
-    reg.register_shader("release_point_compute", "compute/compute_release_points.wgsl");
+    reg.register_shader("release_point_compute", "webgpu_engine::compute/compute_release_points");
     reg.register_bind_group_layout("release_point_compute", [](WGPUDevice dev) {
         WGPUBindGroupLayoutEntry e0 {};
         e0.binding = 0;

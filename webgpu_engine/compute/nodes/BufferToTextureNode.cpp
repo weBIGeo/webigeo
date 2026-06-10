@@ -43,7 +43,7 @@ BufferToTextureNode::BufferToTextureNode(webgpu::Context& ctx, const BufferToTex
     , m_settings_uniform(ctx.device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
 {
     auto& reg = ctx.resource_registry();
-    reg.register_shader("buffer_to_texture_compute", "compute/buffer_to_texture_compute.wgsl");
+    reg.register_shader("buffer_to_texture_compute", "webgpu_engine::compute/buffer_to_texture_compute");
     reg.register_bind_group_layout("buffer_to_texture_compute", [](WGPUDevice dev) {
         WGPUBindGroupLayoutEntry e0 {};
         e0.binding = 0;

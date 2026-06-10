@@ -37,7 +37,7 @@ UpsampleTexturesNode::UpsampleTexturesNode(webgpu::Context& ctx, glm::uvec2 targ
     , m_output_storage_texture(std::make_unique<TileStorageTexture>(m_ctx->device(), m_target_resolution, capacity, WGPUTextureFormat_RGBA8Unorm))
 {
     auto& reg = ctx.resource_registry();
-    reg.register_shader("upsample_textures_compute", "compute/upsample_textures_compute.wgsl");
+    reg.register_shader("upsample_textures_compute", "webgpu_engine::compute/upsample_textures_compute");
     reg.register_bind_group_layout("upsample_textures_compute", [](WGPUDevice dev) {
         WGPUBindGroupLayoutEntry e0 {};
         e0.binding = 0;

@@ -37,7 +37,7 @@ void Context::internal_initialise()
     assert(m_webgpu_ctx_ptr != nullptr);
 
     auto& reg = webgpu_ctx().resource_registry();
-    reg.set_local_shader_path(ALP_RESOURCES_PREFIX);
+    reg.set_local_shader_path("webgpu_engine", ALP_SHADER_DIR_WEBGPU_ENGINE);
 
     reg.register_bind_group_layout("shared_config", [](WGPUDevice device) {
         WGPUBindGroupLayoutEntry entry {};
@@ -157,7 +157,7 @@ void Context::internal_initialise()
             "compose bind group layout");
     });
 
-    reg.register_shader("mipmap_creation", "compute/mipmap_creation_compute.wgsl");
+    reg.register_shader("mipmap_creation", "webgpu_engine::compute/mipmap_creation_compute");
 
     reg.register_bind_group_layout("mipmap_creation", [](WGPUDevice device) {
         WGPUBindGroupLayoutEntry input_entry {};

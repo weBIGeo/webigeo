@@ -18,10 +18,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "util/tile_util.wgsl"
-#include "util/tile_hashmap.wgsl"
-#include "util/normals_util.wgsl"
-#include "util/snow.wgsl"
+///use util/tile_util
+///use util/tile_hashmap
+///use util/normals_util
+///use util/snow
 
 struct SnowSettings {
     angle: vec4f,

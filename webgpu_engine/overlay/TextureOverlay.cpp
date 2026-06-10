@@ -79,7 +79,7 @@ void TextureOverlay::init(Context& context)
 
     auto& reg = ctx.resource_registry();
     if (!reg.has_shader("texture_overlay_render"))
-        reg.register_shader("texture_overlay_render", "overlays/texture_overlay.wgsl");
+        reg.register_shader("texture_overlay_render", "webgpu_engine::overlays/texture_overlay");
     if (!reg.has_bind_group_layout("texture_overlay"))
         reg.register_bind_group_layout("texture_overlay", [](WGPUDevice device) {
             WGPUBindGroupLayoutEntry position_entry {};

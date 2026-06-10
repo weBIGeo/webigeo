@@ -46,7 +46,7 @@ ComputeSnowNode::ComputeSnowNode(webgpu::Context& ctx, const SnowSettings& setti
     , m_region_bounds_uniform_buffer(ctx.device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
 {
     auto& reg = ctx.resource_registry();
-    reg.register_shader("snow_compute", "compute/snow_compute.wgsl");
+    reg.register_shader("snow_compute", "webgpu_engine::compute/snow_compute");
     reg.register_bind_group_layout("snow_compute", [](WGPUDevice dev) {
         WGPUBindGroupLayoutEntry e0 {};
         e0.binding = 0;

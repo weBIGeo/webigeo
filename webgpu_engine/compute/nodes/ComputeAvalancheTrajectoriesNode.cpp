@@ -58,7 +58,7 @@ ComputeAvalancheTrajectoriesNode::ComputeAvalancheTrajectoriesNode(webgpu::Conte
     , m_height_sampler(create_height_sampler(m_ctx->device()))
 {
     auto& reg = ctx.resource_registry();
-    reg.register_shader("avalanche_trajectories_compute", "compute/avalanche_trajectories_compute.wgsl");
+    reg.register_shader("avalanche_trajectories_compute", "webgpu_engine::compute/avalanche_trajectories_compute");
     reg.register_bind_group_layout("avalanche_trajectories_compute", [](WGPUDevice dev) {
         WGPUBindGroupLayoutEntry e0 {};
         e0.binding = 0;

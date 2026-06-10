@@ -54,7 +54,7 @@ void TrackRenderer::init(webgpu::Context& ctx)
     m_ctx = &ctx;
 
     auto& reg = ctx.resource_registry();
-    reg.register_shader("render_lines", "render_lines.wgsl");
+    reg.register_shader("render_lines", "webgpu_engine::render_lines");
     reg.register_bind_group_layout("lines", [](WGPUDevice device) {
         WGPUBindGroupLayoutEntry input_positions_entry {};
         input_positions_entry.binding = 0;

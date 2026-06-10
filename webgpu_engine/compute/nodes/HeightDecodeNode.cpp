@@ -43,7 +43,7 @@ webgpu_engine::compute::nodes::HeightDecodeNode::HeightDecodeNode(webgpu::Contex
     , m_settings_uniform(m_ctx->device(), WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)
 {
     auto& reg = ctx.resource_registry();
-    reg.register_shader("height_decode_compute", "compute/height_decode_compute.wgsl");
+    reg.register_shader("height_decode_compute", "webgpu_engine::compute/height_decode_compute");
     reg.register_bind_group_layout("height_decode_compute", [](WGPUDevice dev) {
         WGPUBindGroupLayoutEntry e0 {};
         e0.binding = 0;

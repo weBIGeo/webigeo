@@ -40,7 +40,7 @@ IterativeSimulationNode::IterativeSimulationNode(webgpu::Context& ctx, const Ite
     , m_settings { settings }
 {
     auto& reg = ctx.resource_registry();
-    reg.register_shader("iterative_simulation_compute", "compute/iterative_simulation_compute.wgsl");
+    reg.register_shader("iterative_simulation_compute", "webgpu_engine::compute/iterative_simulation_compute");
     reg.register_bind_group_layout("iterative_simulation_compute", [](WGPUDevice dev) {
         WGPUBindGroupLayoutEntry e0 {};
         e0.binding = 0;

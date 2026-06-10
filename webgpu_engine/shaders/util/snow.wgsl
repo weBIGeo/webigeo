@@ -18,9 +18,9 @@
 * along with this program. If not, see <http : //www.gnu.org/licenses/>.
 *****************************************************************************/
 
-#include "util/noise.wgsl"
-#include "util/normals_util.wgsl"
-#include "util/general.wgsl"
+///use util/noise
+///use util/normals_util
+///use util/general
 
 fn overlay_snow(normal : vec3f, pos_ws : vec3f, snow_settings_angle : vec4f, snow_settings_alt : vec4f) -> vec4f {
     //Calculate steepness in deg where 90.0 = vertical (90°) and 0.0 = flat (0°)

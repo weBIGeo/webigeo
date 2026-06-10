@@ -67,8 +67,8 @@ set(SOURCES
 qt_add_library(webgpu_engine STATIC ${SOURCES})
 
 if (ALP_ENABLE_WGSL_MINIFICATION)
-    set(SHADER_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/wgsl_shaders")
-    set(SHADER_MINIFIED_DIR "${CMAKE_CURRENT_BINARY_DIR}/wgsl_shaders_minified")
+    set(SHADER_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shaders")
+    set(SHADER_MINIFIED_DIR "${CMAKE_CURRENT_BINARY_DIR}/shaders_minified")
     set(MINIFY_SCRIPT "${CMAKE_SOURCE_DIR}/scripts/minify_shaders.py")
 
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
@@ -94,11 +94,11 @@ if (ALP_ENABLE_WGSL_MINIFICATION)
     set(SHADER_BASE_DIR "${SHADER_MINIFIED_DIR}")
     target_compile_definitions(webgpu_engine PUBLIC ALP_ENABLE_WGSL_MINIFICATION)
 else()
-    set(SHADER_BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/wgsl_shaders")
+    set(SHADER_BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shaders")
 endif()
 
 qt_add_resources(webgpu_engine "shaders"
-    PREFIX "/wgsl_shaders"
+    PREFIX "/shaders/webgpu_engine"
     BASE "${SHADER_BASE_DIR}"
     FILES
         "${SHADER_BASE_DIR}/render_tiles.wgsl"
@@ -147,4 +147,4 @@ qt_add_resources(webgpu_engine "shaders"
 target_link_libraries(webgpu_engine PUBLIC nucleus Qt::Core webgpu)
 target_include_directories(webgpu_engine PRIVATE .)
 
-target_compile_definitions(webgpu_engine PUBLIC ALP_RESOURCES_PREFIX="${CMAKE_CURRENT_SOURCE_DIR}/wgsl_shaders/")
+target_compile_definitions(webgpu_engine PUBLIC ALP_SHADER_DIR_WEBGPU_ENGINE="${CMAKE_CURRENT_SOURCE_DIR}/shaders/")

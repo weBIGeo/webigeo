@@ -18,13 +18,13 @@
 * along with this program. If not, see <http : //www.gnu.org/licenses/>.
 *****************************************************************************/
 
-#include "util/shared_config.wgsl"
-#include "util/hashing.wgsl"
-#include "util/camera_config.wgsl"
-#include "util/encoder.wgsl"
-#include "util/tile_util.wgsl"
-#include "util/normals_util.wgsl"
-#include "util/filtering.wgsl"
+///use util/shared_config
+///use util/hashing
+///use util/camera_config
+///use util/encoder
+///use util/tile_util
+///use util/normals_util
+///use util/filtering
 
 @group(0) @binding(0) var<uniform> config : shared_config;
 

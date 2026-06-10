@@ -18,10 +18,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "util/filtering.wgsl"
-#include "util/tile_util.wgsl"
-#include "util/tile_hashmap.wgsl"
-#include "util/normals_util.wgsl"
+///use util/filtering
+///use util/tile_util
+///use util/tile_hashmap
+///use util/normals_util
 
 struct AreaOfInfluenceSettings {
     target_point: vec4f,

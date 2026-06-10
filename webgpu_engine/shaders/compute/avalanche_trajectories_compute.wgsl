@@ -19,11 +19,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "util/filtering.wgsl"
-#include "util/tile_util.wgsl"
-#include "util/normals_util.wgsl"
-#include "util/random.wgsl"
-#include "util/encoder.wgsl"
+///use util/filtering
+///use util/tile_util
+///use util/normals_util
+///use util/random
+///use util/encoder
 
 
 // weights need to match the texels that are chosen by textureGather - this does NOT align perfectly, and introduces some artifacts
