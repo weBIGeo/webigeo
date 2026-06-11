@@ -37,6 +37,7 @@ public:
     struct NormalSettings {
         WGPUTextureFormat format = WGPUTextureFormat_RGBA8Unorm;
         WGPUTextureUsage usage = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst);
+
     };
 
     struct NormalsSettingsUniform {
@@ -47,6 +48,9 @@ public:
     explicit ComputeNormalsNode(webgpu::Context& ctx);
 
     void set_settings(const NormalSettings& settings);
+    const NormalSettings& get_settings() const { return m_settings; }
+    void serialize_settings(QJsonObject& out) const override;
+    void deserialize_settings(const QJsonObject& in) override;
 
 public slots:
     void run_impl() override;

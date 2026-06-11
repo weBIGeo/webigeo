@@ -17,6 +17,7 @@
  *****************************************************************************/
 
 #include "ComputeSnowNode.h"
+#include "util.h"
 
 #include <QDebug>
 #include <QString>
@@ -195,6 +196,38 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> ComputeSnowNode::create_snow_t
     sampler_desc.maxAnisotropy = 1;
 
     return std::make_unique<webgpu::raii::TextureWithSampler>(device, texture_desc, sampler_desc);
+}
+
+void ComputeSnowNode::serialize_settings(QJsonObject& out) const
+{
+    out["format"] = wgpu_format_to_string(m_settings.format);
+    out["usage"] = wgpu_usage_to_json(m_settings.usage);
+    out["min_angle"] = static_cast<double>(m_settings.min_angle);
+    out["max_angle"] = static_cast<double>(m_settings.max_angle);
+    out["angle_blend"] = static_cast<double>(m_settings.angle_blend);
+    out["min_altitude"] = static_cast<double>(m_settings.min_altitude);
+    out["altitude_variation"] = static_cast<double>(m_settings.altitude_variation);
+    out["altitude_blend"] = static_cast<double>(m_settings.altitude_blend);
+}
+
+void ComputeSnowNode::deserialize_settings(const QJsonObject& in)
+{
+    if (in.contains("format"))
+        m_settings.format = wgpu_format_from_string(in["format"].toString(), m_settings.format);
+    if (in.contains("usage"))
+        m_settings.usage = wgpu_usage_from_json(in["usage"].toArray(), m_settings.usage);
+    if (in.contains("min_angle"))
+        m_settings.min_angle = static_cast<float>(in["min_angle"].toDouble(m_settings.min_angle));
+    if (in.contains("max_angle"))
+        m_settings.max_angle = static_cast<float>(in["max_angle"].toDouble(m_settings.max_angle));
+    if (in.contains("angle_blend"))
+        m_settings.angle_blend = static_cast<float>(in["angle_blend"].toDouble(m_settings.angle_blend));
+    if (in.contains("min_altitude"))
+        m_settings.min_altitude = static_cast<float>(in["min_altitude"].toDouble(m_settings.min_altitude));
+    if (in.contains("altitude_variation"))
+        m_settings.altitude_variation = static_cast<float>(in["altitude_variation"].toDouble(m_settings.altitude_variation));
+    if (in.contains("altitude_blend"))
+        m_settings.altitude_blend = static_cast<float>(in["altitude_blend"].toDouble(m_settings.altitude_blend));
 }
 
 } // namespace webgpu_compute::nodes

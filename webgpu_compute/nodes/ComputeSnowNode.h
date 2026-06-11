@@ -45,6 +45,7 @@ public:
         float min_altitude = 1000; // minimal altitude in meters
         float altitude_variation = 200; // TODO doc
         float altitude_blend = 200; // TODO doc
+
     };
 
     struct SnowSettingsUniform {
@@ -71,8 +72,10 @@ public:
     ComputeSnowNode(webgpu::Context& ctx);
     ComputeSnowNode(webgpu::Context& ctx, const SnowSettings& settings);
 
-    void set_snow_settings(const SnowSettings& settings) { m_settings = settings; }
-    const SnowSettings& get_snow_settings() const { return m_settings; }
+    void set_settings(const SnowSettings& settings) { m_settings = settings; }
+    const SnowSettings& get_settings() const { return m_settings; }
+    void serialize_settings(QJsonObject& out) const override;
+    void deserialize_settings(const QJsonObject& in) override;
 
 public slots:
     void run_impl() override;

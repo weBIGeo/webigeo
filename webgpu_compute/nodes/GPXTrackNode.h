@@ -37,6 +37,8 @@ public:
 
     void set_settings(const GPXTrackNodeSettings& settings) { m_settings = settings; }
     const GPXTrackNodeSettings& get_settings() const { return m_settings; }
+    void serialize_settings(QJsonObject& out) const override;
+    void deserialize_settings(const QJsonObject& in) override;
 
 public slots:
     void run_impl() override;

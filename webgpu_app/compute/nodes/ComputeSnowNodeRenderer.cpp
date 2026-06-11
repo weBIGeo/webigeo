@@ -33,7 +33,7 @@ ComputeSnowNodeRenderer::ComputeSnowNodeRenderer(const std::string& name, nodes:
 
 void ComputeSnowNodeRenderer::render_settings_content()
 {
-    auto settings = m_snow_node->get_snow_settings();
+    auto settings = m_snow_node->get_settings();
     bool changed = false;
 
     changed
@@ -44,7 +44,7 @@ void ComputeSnowNodeRenderer::render_settings_content()
     changed |= ImGui::SliderFloat("Alt.-blend", &settings.altitude_blend, 0.0f, 1000.0f, "%.1fm");
 
     if (changed) {
-        m_snow_node->set_snow_settings(settings);
+        m_snow_node->set_settings(settings);
         m_snow_node->rerun();
     }
 }

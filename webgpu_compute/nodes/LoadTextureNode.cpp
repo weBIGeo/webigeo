@@ -17,6 +17,7 @@
  *****************************************************************************/
 
 #include "LoadTextureNode.h"
+#include "util.h"
 
 #include "nucleus/utils/image_loader.h"
 
@@ -86,6 +87,25 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> LoadTextureNode::create_textur
     sampler_desc.maxAnisotropy = 1;
 
     return std::make_unique<webgpu::raii::TextureWithSampler>(device, texture_desc, sampler_desc);
+}
+
+void LoadTextureNode::serialize_settings(QJsonObject& out) const
+{
+    out["file_path"] = QString::fromStdString(m_settings.file_path);
+    out["format"] = wgpu_format_to_string(m_settings.format);
+    out["usage"] = wgpu_usage_to_json(m_settings.usage);
+}
+
+void LoadTextureNode::deserialize_settings(const QJsonObject& in)
+{
+    auto s = m_settings;
+    if (in.contains("file_path"))
+        s.file_path = in["file_path"].toString().toStdString();
+    if (in.contains("format"))
+        s.format = wgpu_format_from_string(in["format"].toString(), s.format);
+    if (in.contains("usage"))
+        s.usage = wgpu_usage_from_json(in["usage"].toArray(), s.usage);
+    set_settings(s);
 }
 
 } // namespace webgpu_compute::nodes

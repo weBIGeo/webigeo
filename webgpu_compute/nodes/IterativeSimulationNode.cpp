@@ -210,4 +210,15 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> IterativeSimulationNode::creat
     return std::make_unique<webgpu::raii::TextureWithSampler>(device, texture_desc, sampler_desc);
 }
 
+void IterativeSimulationNode::serialize_settings(QJsonObject& out) const
+{
+    out["max_num_iterations"] = static_cast<int>(m_settings.max_num_iterations);
+}
+
+void IterativeSimulationNode::deserialize_settings(const QJsonObject& in)
+{
+    if (in.contains("max_num_iterations"))
+        m_settings.max_num_iterations = static_cast<uint32_t>(in["max_num_iterations"].toInt(static_cast<int>(m_settings.max_num_iterations)));
+}
+
 } // namespace webgpu_compute::nodes

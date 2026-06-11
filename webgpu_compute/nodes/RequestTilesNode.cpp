@@ -17,6 +17,7 @@
  *****************************************************************************/
 
 #include "RequestTilesNode.h"
+#include "util.h"
 
 #include <QDebug>
 #include <set>
@@ -110,6 +111,25 @@ void RequestTilesNode::check_progress_and_emit_signals()
             complete_run();
         }
     }
+}
+
+void RequestTilesNode::serialize_settings(QJsonObject& out) const
+{
+    out["tile_path"] = QString::fromStdString(m_settings.tile_path);
+    out["url_pattern"] = url_pattern_to_string(m_settings.url_pattern);
+    out["file_extension"] = QString::fromStdString(m_settings.file_extension);
+}
+
+void RequestTilesNode::deserialize_settings(const QJsonObject& in)
+{
+    auto s = m_settings;
+    if (in.contains("tile_path"))
+        s.tile_path = in["tile_path"].toString().toStdString();
+    if (in.contains("url_pattern"))
+        s.url_pattern = url_pattern_from_string(in["url_pattern"].toString(), s.url_pattern);
+    if (in.contains("file_extension"))
+        s.file_extension = in["file_extension"].toString().toStdString();
+    set_settings(s);
 }
 
 } // namespace webgpu_compute::nodes

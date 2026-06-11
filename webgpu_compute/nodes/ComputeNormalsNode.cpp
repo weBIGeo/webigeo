@@ -17,6 +17,7 @@
  *****************************************************************************/
 
 #include "ComputeNormalsNode.h"
+#include "util.h"
 
 #include <QDebug>
 
@@ -161,6 +162,22 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> ComputeNormalsNode::create_nor
     sampler_desc.maxAnisotropy = 1;
 
     return std::make_unique<webgpu::raii::TextureWithSampler>(device, texture_desc, sampler_desc);
+}
+
+void ComputeNormalsNode::serialize_settings(QJsonObject& out) const
+{
+    out["format"] = wgpu_format_to_string(m_settings.format);
+    out["usage"] = wgpu_usage_to_json(m_settings.usage);
+}
+
+void ComputeNormalsNode::deserialize_settings(const QJsonObject& in)
+{
+    auto s = m_settings;
+    if (in.contains("format"))
+        s.format = wgpu_format_from_string(in["format"].toString(), s.format);
+    if (in.contains("usage"))
+        s.usage = wgpu_usage_from_json(in["usage"].toArray(), s.usage);
+    set_settings(s);
 }
 
 } // namespace webgpu_compute::nodes

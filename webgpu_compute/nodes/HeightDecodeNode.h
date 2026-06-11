@@ -36,6 +36,7 @@ public:
     struct HeightDecodeSettings {
         // The usage flags of the output texture
         WGPUTextureUsage texture_usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
+
     };
 
     struct HeightDecodeSettingsUniform {
@@ -45,6 +46,12 @@ public:
 
     explicit HeightDecodeNode(webgpu::Context& ctx); // default-configured; for the NodeRegistry
     HeightDecodeNode(webgpu::Context& ctx, HeightDecodeSettings settings);
+
+    // settings are consumed lazily in run_impl, applying them at any time is safe
+    void set_settings(const HeightDecodeSettings& settings) { m_settings = settings; }
+    const HeightDecodeSettings& get_settings() const { return m_settings; }
+    void serialize_settings(QJsonObject& out) const override;
+    void deserialize_settings(const QJsonObject& in) override;
 
 public slots:
     void run_impl() override;

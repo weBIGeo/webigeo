@@ -55,4 +55,18 @@ void GPXTrackNode::run_impl()
     complete_run();
 }
 
+void GPXTrackNode::serialize_settings(QJsonObject& out) const
+{
+    out["file_path"] = QString::fromStdString(m_settings.file_path);
+    out["enable_caching"] = m_settings.enable_caching;
+}
+
+void GPXTrackNode::deserialize_settings(const QJsonObject& in)
+{
+    if (in.contains("file_path"))
+        m_settings.file_path = in["file_path"].toString().toStdString();
+    if (in.contains("enable_caching"))
+        m_settings.enable_caching = in["enable_caching"].toBool(m_settings.enable_caching);
+}
+
 } // namespace webgpu_compute::nodes

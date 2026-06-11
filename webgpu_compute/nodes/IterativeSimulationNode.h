@@ -35,6 +35,7 @@ public:
 
     struct IterativeSimulationSettings {
         uint32_t max_num_iterations = 16;
+
     };
 
     struct IterativeSimulationSettingsUniform {
@@ -46,6 +47,12 @@ public:
 
     IterativeSimulationNode(webgpu::Context& ctx);
     IterativeSimulationNode(webgpu::Context& ctx, const IterativeSimulationSettings& settings);
+
+    // settings are consumed lazily in run_impl, applying them at any time is safe
+    void set_settings(const IterativeSimulationSettings& settings) { m_settings = settings; }
+    const IterativeSimulationSettings& get_settings() const { return m_settings; }
+    void serialize_settings(QJsonObject& out) const override;
+    void deserialize_settings(const QJsonObject& in) override;
 
 public slots:
     void run_impl() override;

@@ -37,12 +37,16 @@ public:
         WGPUTextureFormat format = WGPUTextureFormat_RGBA8Uint;
         WGPUTextureUsage usage
             = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc);
+
     };
 
     LoadTextureNode(webgpu::Context& ctx);
     LoadTextureNode(webgpu::Context& ctx, const LoadTextureNodeSettings& settings);
 
     void set_settings(const LoadTextureNodeSettings& settings);
+    const LoadTextureNodeSettings& get_settings() const { return m_settings; }
+    void serialize_settings(QJsonObject& out) const override;
+    void deserialize_settings(const QJsonObject& in) override;
 
 public slots:
     void run_impl() override;

@@ -18,6 +18,7 @@
  *****************************************************************************/
 
 #include "BufferToTextureNode.h"
+#include "util.h"
 #include "webgpu/raii/Texture.h"
 #include <webgpu/gpu_utils.h>
 
@@ -204,6 +205,44 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> BufferToTextureNode::create_te
     m_output_views[m_pingpong] = texture_with_sampler->texture().create_view(desc);
 
     return texture_with_sampler;
+}
+
+void BufferToTextureNode::serialize_settings(QJsonObject& out) const
+{
+    out["texture_format"] = wgpu_format_to_string(m_settings.texture_format);
+    out["texture_usage"] = wgpu_usage_to_json(m_settings.texture_usage);
+    out["texture_filter_mode"] = wgpu_filter_mode_to_string(m_settings.texture_filter_mode);
+    out["texture_mipmap_filter_mode"] = wgpu_mipmap_filter_mode_to_string(m_settings.texture_mipmap_filter_mode);
+    out["texture_max_aniostropy"] = static_cast<int>(m_settings.texture_max_aniostropy);
+    out["create_mipmaps"] = m_settings.create_mipmaps;
+    out["color_map_bounds"] = vec2_to_json(m_settings.color_map_bounds);
+    out["transparency_map_bounds"] = vec2_to_json(m_settings.transparency_map_bounds);
+    out["use_bin_interpolation"] = m_settings.use_bin_interpolation;
+    out["use_transparency_buffer"] = m_settings.use_transparency_buffer;
+}
+
+void BufferToTextureNode::deserialize_settings(const QJsonObject& in)
+{
+    if (in.contains("texture_format"))
+        m_settings.texture_format = wgpu_format_from_string(in["texture_format"].toString(), m_settings.texture_format);
+    if (in.contains("texture_usage"))
+        m_settings.texture_usage = wgpu_usage_from_json(in["texture_usage"].toArray(), m_settings.texture_usage);
+    if (in.contains("texture_filter_mode"))
+        m_settings.texture_filter_mode = wgpu_filter_mode_from_string(in["texture_filter_mode"].toString(), m_settings.texture_filter_mode);
+    if (in.contains("texture_mipmap_filter_mode"))
+        m_settings.texture_mipmap_filter_mode = wgpu_mipmap_filter_mode_from_string(in["texture_mipmap_filter_mode"].toString(), m_settings.texture_mipmap_filter_mode);
+    if (in.contains("texture_max_aniostropy"))
+        m_settings.texture_max_aniostropy = static_cast<uint16_t>(in["texture_max_aniostropy"].toInt(m_settings.texture_max_aniostropy));
+    if (in.contains("create_mipmaps"))
+        m_settings.create_mipmaps = in["create_mipmaps"].toBool(m_settings.create_mipmaps);
+    if (in.contains("color_map_bounds"))
+        m_settings.color_map_bounds = vec2_from_json(in["color_map_bounds"].toArray(), m_settings.color_map_bounds);
+    if (in.contains("transparency_map_bounds"))
+        m_settings.transparency_map_bounds = vec2_from_json(in["transparency_map_bounds"].toArray(), m_settings.transparency_map_bounds);
+    if (in.contains("use_bin_interpolation"))
+        m_settings.use_bin_interpolation = in["use_bin_interpolation"].toBool(m_settings.use_bin_interpolation);
+    if (in.contains("use_transparency_buffer"))
+        m_settings.use_transparency_buffer = in["use_transparency_buffer"].toBool(m_settings.use_transparency_buffer);
 }
 
 } // namespace webgpu_compute::nodes

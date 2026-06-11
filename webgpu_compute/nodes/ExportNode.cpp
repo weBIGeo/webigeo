@@ -176,4 +176,21 @@ void ExportNode::run_impl()
         complete_run();
 }
 
+void ExportNode::serialize_settings(QJsonObject& out) const
+{
+    out["buffer_output_file"] = QString::fromStdString(m_settings.buffer_output_file);
+    out["texture_output_file"] = QString::fromStdString(m_settings.texture_output_file);
+    out["aabb_output_file"] = QString::fromStdString(m_settings.aabb_output_file);
+}
+
+void ExportNode::deserialize_settings(const QJsonObject& in)
+{
+    if (in.contains("buffer_output_file"))
+        m_settings.buffer_output_file = in["buffer_output_file"].toString().toStdString();
+    if (in.contains("texture_output_file"))
+        m_settings.texture_output_file = in["texture_output_file"].toString().toStdString();
+    if (in.contains("aabb_output_file"))
+        m_settings.aabb_output_file = in["aabb_output_file"].toString().toStdString();
+}
+
 } // namespace webgpu_compute::nodes

@@ -36,6 +36,8 @@ public:
 
     void set_settings(const SelectTilesNodeSettings& settings) { m_settings = settings; }
     const SelectTilesNodeSettings& get_settings() const { return m_settings; }
+    void serialize_settings(QJsonObject& out) const override;
+    void deserialize_settings(const QJsonObject& in) override;
 
 public slots:
     void run_impl() override;

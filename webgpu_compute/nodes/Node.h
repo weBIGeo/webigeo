@@ -23,6 +23,7 @@
 #include "../GraphRunContext.h"
 #include "radix/tile.h"
 #include <QByteArray>
+#include <QJsonObject>
 #include <QObject>
 #include <nucleus/tile/GpuTileId.h>
 #include <queue>
@@ -172,6 +173,9 @@ public:
     virtual ~Node() = default;
 
     virtual std::string get_type_name() const = 0;
+
+    virtual void serialize_settings(QJsonObject& out) const {}
+    virtual void deserialize_settings(const QJsonObject& in) {}
 
     [[nodiscard]] bool has_input_socket(const std::string& name) const;
     [[nodiscard]] InputSocket& input_socket(const std::string& name);

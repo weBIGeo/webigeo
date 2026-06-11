@@ -23,6 +23,7 @@ set(SOURCES
     RectangularTileRegion.h RectangularTileRegion.cpp
     GraphRunContext.h
     NodeGraph.h NodeGraph.cpp
+    NodeGraphSerialization.h NodeGraphSerialization.cpp
     NodeRegistry.h NodeRegistry.cpp
 
     nodes/Node.h nodes/Node.cpp

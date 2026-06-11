@@ -41,6 +41,9 @@ public:
     void on_single_tile_received(const nucleus::tile::Data& tile);
 
     void set_settings(const RequestTilesNodeSettings& settings);
+    const RequestTilesNodeSettings& get_settings() const { return m_settings; }
+    void serialize_settings(QJsonObject& out) const override;
+    void deserialize_settings(const QJsonObject& in) override;
 
     void check_progress_and_emit_signals();
 

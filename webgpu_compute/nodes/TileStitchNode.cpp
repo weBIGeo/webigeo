@@ -17,6 +17,7 @@
  *****************************************************************************/
 
 #include "TileStitchNode.h"
+#include "util.h"
 
 #include <QDebug>
 #include <QString>
@@ -155,6 +156,29 @@ void TileStitchNode::run_impl()
 
     // Weird that this works here. Is wgpuQueueWriteTexture blocking after all?
     // m_output_texture->texture().save_to_file(m_ctx->device(), "C:\\tmp\\asd.png");
+}
+
+void TileStitchNode::serialize_settings(QJsonObject& out) const
+{
+    out["tile_size"] = uvec2_to_json(m_settings.tile_size);
+    out["tile_has_border"] = m_settings.tile_has_border;
+    out["stitch_inverted_y"] = m_settings.stitch_inverted_y;
+    out["texture_format"] = wgpu_format_to_string(m_settings.texture_format);
+    out["texture_usage"] = wgpu_usage_to_json(m_settings.texture_usage);
+}
+
+void TileStitchNode::deserialize_settings(const QJsonObject& in)
+{
+    if (in.contains("tile_size"))
+        m_settings.tile_size = uvec2_from_json(in["tile_size"].toArray(), m_settings.tile_size);
+    if (in.contains("tile_has_border"))
+        m_settings.tile_has_border = in["tile_has_border"].toBool(m_settings.tile_has_border);
+    if (in.contains("stitch_inverted_y"))
+        m_settings.stitch_inverted_y = in["stitch_inverted_y"].toBool(m_settings.stitch_inverted_y);
+    if (in.contains("texture_format"))
+        m_settings.texture_format = wgpu_format_from_string(in["texture_format"].toString(), m_settings.texture_format);
+    if (in.contains("texture_usage"))
+        m_settings.texture_usage = wgpu_usage_from_json(in["texture_usage"].toArray(), m_settings.texture_usage);
 }
 
 } // namespace webgpu_compute::nodes

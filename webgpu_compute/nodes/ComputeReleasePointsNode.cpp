@@ -17,6 +17,7 @@
  *****************************************************************************/
 
 #include "ComputeReleasePointsNode.h"
+#include "util.h"
 
 namespace webgpu_compute::nodes {
 
@@ -169,6 +170,29 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> ComputeReleasePointsNode::crea
     sampler_desc.maxAnisotropy = 1;
 
     return std::make_unique<webgpu::raii::TextureWithSampler>(device, texture_desc, sampler_desc);
+}
+
+void ComputeReleasePointsNode::serialize_settings(QJsonObject& out) const
+{
+    out["texture_format"] = wgpu_format_to_string(m_settings.texture_format);
+    out["texture_usage"] = wgpu_usage_to_json(m_settings.texture_usage);
+    out["min_slope_angle"] = static_cast<double>(m_settings.min_slope_angle);
+    out["max_slope_angle"] = static_cast<double>(m_settings.max_slope_angle);
+    out["sampling_interval"] = uvec2_to_json(m_settings.sampling_interval);
+}
+
+void ComputeReleasePointsNode::deserialize_settings(const QJsonObject& in)
+{
+    if (in.contains("texture_format"))
+        m_settings.texture_format = wgpu_format_from_string(in["texture_format"].toString(), m_settings.texture_format);
+    if (in.contains("texture_usage"))
+        m_settings.texture_usage = wgpu_usage_from_json(in["texture_usage"].toArray(), m_settings.texture_usage);
+    if (in.contains("min_slope_angle"))
+        m_settings.min_slope_angle = static_cast<float>(in["min_slope_angle"].toDouble(m_settings.min_slope_angle));
+    if (in.contains("max_slope_angle"))
+        m_settings.max_slope_angle = static_cast<float>(in["max_slope_angle"].toDouble(m_settings.max_slope_angle));
+    if (in.contains("sampling_interval"))
+        m_settings.sampling_interval = uvec2_from_json(in["sampling_interval"].toArray(), m_settings.sampling_interval);
 }
 
 } // namespace webgpu_compute::nodes

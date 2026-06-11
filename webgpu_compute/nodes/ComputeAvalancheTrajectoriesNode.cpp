@@ -325,4 +325,96 @@ std::unique_ptr<webgpu::raii::Sampler> ComputeAvalancheTrajectoriesNode::create_
     return std::make_unique<webgpu::raii::Sampler>(device, sampler_desc);
 }
 
+void ComputeAvalancheTrajectoriesNode::serialize_settings(QJsonObject& out) const
+{
+    const auto& s = m_settings;
+    out["resolution_multiplier"] = static_cast<int>(s.resolution_multiplier);
+    out["num_steps"] = static_cast<int>(s.num_steps);
+    out["step_length"] = static_cast<double>(s.step_length);
+    out["num_paths_per_release_cell"] = static_cast<int>(s.num_paths_per_release_cell);
+    out["num_runs"] = static_cast<int>(s.num_runs);
+    out["max_perturbation"] = static_cast<double>(s.max_perturbation);
+    out["persistence_contribution"] = static_cast<double>(s.persistence_contribution);
+    out["active_model"] = static_cast<int>(s.active_model);
+    out["model2"] = QJsonObject {
+        { "gravity",       static_cast<double>(s.model2.gravity)       },
+        { "mass",          static_cast<double>(s.model2.mass)          },
+        { "friction_coeff",static_cast<double>(s.model2.friction_coeff)},
+        { "drag_coeff",    static_cast<double>(s.model2.drag_coeff)    },
+    };
+    out["active_runout_model"] = static_cast<int>(s.active_runout_model);
+    out["runout_perla"] = QJsonObject {
+        { "my", static_cast<double>(s.runout_perla.my) },
+        { "md", static_cast<double>(s.runout_perla.md) },
+        { "l",  static_cast<double>(s.runout_perla.l)  },
+        { "g",  static_cast<double>(s.runout_perla.g)  },
+    };
+    out["runout_flowpy"] = QJsonObject { { "alpha", static_cast<double>(s.runout_flowpy.alpha) } };
+    out["output_layer"] = QJsonObject {
+        { "layer1_zdelta_enabled",         static_cast<int>(s.output_layer.layer1_zdelta_enabled)         },
+        { "layer2_cellCounts_enabled",     static_cast<int>(s.output_layer.layer2_cellCounts_enabled)     },
+        { "layer3_travelLength_enabled",   static_cast<int>(s.output_layer.layer3_travelLength_enabled)   },
+        { "layer4_travelAngle_enabled",    static_cast<int>(s.output_layer.layer4_travelAngle_enabled)    },
+        { "layer5_altitudeDifference_enabled", static_cast<int>(s.output_layer.layer5_altitudeDifference_enabled) },
+    };
+    out["random_seed"] = static_cast<int>(s.random_seed);
+}
+
+void ComputeAvalancheTrajectoriesNode::deserialize_settings(const QJsonObject& in)
+{
+    auto s = m_settings;
+    if (in.contains("resolution_multiplier"))
+        s.resolution_multiplier = static_cast<uint32_t>(in["resolution_multiplier"].toInt(static_cast<int>(s.resolution_multiplier)));
+    if (in.contains("num_steps"))
+        s.num_steps = static_cast<uint32_t>(in["num_steps"].toInt(static_cast<int>(s.num_steps)));
+    if (in.contains("step_length"))
+        s.step_length = static_cast<float>(in["step_length"].toDouble(s.step_length));
+    if (in.contains("num_paths_per_release_cell"))
+        s.num_paths_per_release_cell = static_cast<uint32_t>(in["num_paths_per_release_cell"].toInt(static_cast<int>(s.num_paths_per_release_cell)));
+    if (in.contains("num_runs"))
+        s.num_runs = static_cast<uint32_t>(in["num_runs"].toInt(static_cast<int>(s.num_runs)));
+    if (in.contains("max_perturbation"))
+        s.max_perturbation = static_cast<float>(in["max_perturbation"].toDouble(s.max_perturbation));
+    if (in.contains("persistence_contribution"))
+        s.persistence_contribution = static_cast<float>(in["persistence_contribution"].toDouble(s.persistence_contribution));
+    if (in.contains("active_model"))
+        s.active_model = static_cast<PhysicsModelType>(in["active_model"].toInt(static_cast<int>(s.active_model)));
+    if (in.contains("model2")) {
+        const QJsonObject m = in["model2"].toObject();
+        if (m.contains("gravity"))        s.model2.gravity        = static_cast<float>(m["gravity"].toDouble(s.model2.gravity));
+        if (m.contains("mass"))           s.model2.mass           = static_cast<float>(m["mass"].toDouble(s.model2.mass));
+        if (m.contains("friction_coeff")) s.model2.friction_coeff = static_cast<float>(m["friction_coeff"].toDouble(s.model2.friction_coeff));
+        if (m.contains("drag_coeff"))     s.model2.drag_coeff     = static_cast<float>(m["drag_coeff"].toDouble(s.model2.drag_coeff));
+    }
+    if (in.contains("active_runout_model"))
+        s.active_runout_model = static_cast<FrictionModelType>(in["active_runout_model"].toInt(static_cast<int>(s.active_runout_model)));
+    if (in.contains("runout_perla")) {
+        const QJsonObject p = in["runout_perla"].toObject();
+        if (p.contains("my")) s.runout_perla.my = static_cast<float>(p["my"].toDouble(s.runout_perla.my));
+        if (p.contains("md")) s.runout_perla.md = static_cast<float>(p["md"].toDouble(s.runout_perla.md));
+        if (p.contains("l"))  s.runout_perla.l  = static_cast<float>(p["l"].toDouble(s.runout_perla.l));
+        if (p.contains("g"))  s.runout_perla.g  = static_cast<float>(p["g"].toDouble(s.runout_perla.g));
+    }
+    if (in.contains("runout_flowpy")) {
+        const QJsonObject f = in["runout_flowpy"].toObject();
+        if (f.contains("alpha")) s.runout_flowpy.alpha = static_cast<float>(f["alpha"].toDouble(s.runout_flowpy.alpha));
+    }
+    if (in.contains("output_layer")) {
+        const QJsonObject l = in["output_layer"].toObject();
+        if (l.contains("layer1_zdelta_enabled"))
+            s.output_layer.layer1_zdelta_enabled = static_cast<uint32_t>(l["layer1_zdelta_enabled"].toInt(static_cast<int>(s.output_layer.layer1_zdelta_enabled)));
+        if (l.contains("layer2_cellCounts_enabled"))
+            s.output_layer.layer2_cellCounts_enabled = static_cast<uint32_t>(l["layer2_cellCounts_enabled"].toInt(static_cast<int>(s.output_layer.layer2_cellCounts_enabled)));
+        if (l.contains("layer3_travelLength_enabled"))
+            s.output_layer.layer3_travelLength_enabled = static_cast<uint32_t>(l["layer3_travelLength_enabled"].toInt(static_cast<int>(s.output_layer.layer3_travelLength_enabled)));
+        if (l.contains("layer4_travelAngle_enabled"))
+            s.output_layer.layer4_travelAngle_enabled = static_cast<uint32_t>(l["layer4_travelAngle_enabled"].toInt(static_cast<int>(s.output_layer.layer4_travelAngle_enabled)));
+        if (l.contains("layer5_altitudeDifference_enabled"))
+            s.output_layer.layer5_altitudeDifference_enabled = static_cast<uint32_t>(l["layer5_altitudeDifference_enabled"].toInt(static_cast<int>(s.output_layer.layer5_altitudeDifference_enabled)));
+    }
+    if (in.contains("random_seed"))
+        s.random_seed = static_cast<uint32_t>(in["random_seed"].toInt(static_cast<int>(s.random_seed)));
+    set_settings(s);
+}
+
 } // namespace webgpu_compute::nodes

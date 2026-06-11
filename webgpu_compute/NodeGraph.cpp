@@ -39,6 +39,7 @@
 #include "nodes/UpsampleTexturesNode.h"
 #include <QDebug>
 #include <memory>
+#include <tl/expected.hpp>
 
 namespace webgpu_compute::nodes {
 
@@ -87,7 +88,7 @@ const TileStorageTexture& NodeGraph::output_overlay_texture_storage() const { re
 
 TileStorageTexture& NodeGraph::output_overlay_texture_storage() { return *m_output_overlay_texture_storage_ptr; }
 
-void NodeGraph::connect_node_signals_and_slots()
+tl::expected<std::vector<Node*>, std::string> NodeGraph::compute_topological_order()
 {
     // basic idea: find topological ordering by counting in-coming edges (in-degree)
     //  1. start with nodes that have no incoming edges
@@ -99,7 +100,8 @@ void NodeGraph::connect_node_signals_and_slots()
     //
     // known as https://en.wikipedia.org/wiki/Topological_sorting#Kahn's_algorithm
 
-    assert(!m_nodes.empty());
+    if (m_nodes.empty())
+        return tl::unexpected(std::string("node graph is empty"));
 
     std::unordered_map<Node*, uint32_t> in_degrees;
     std::queue<Node*> node_queue;
@@ -135,9 +137,20 @@ void NodeGraph::connect_node_signals_and_slots()
 
     for (auto& [node, in_degree] : in_degrees) {
         if (in_degree) {
-            qFatal() << "cycle in node graph detected";
+            return tl::unexpected(std::string("cycle in node graph detected"));
         }
     }
+
+    return topological_ordering;
+}
+
+void NodeGraph::connect_node_signals_and_slots()
+{
+    auto order_result = compute_topological_order();
+    if (!order_result) {
+        qFatal() << "NodeGraph::connect_node_signals_and_slots:" << QString::fromStdString(order_result.error());
+    }
+    const std::vector<Node*>& topological_ordering = *order_result;
 
     for (auto& conn : m_topology_connections)
         QObject::disconnect(conn);

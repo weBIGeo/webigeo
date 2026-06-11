@@ -39,6 +39,7 @@ public:
         float min_slope_angle = glm::radians(30.0f); // min slope angle [rad]
         float max_slope_angle = glm::radians(45.0f); // max slope angle [rad]
         glm::uvec2 sampling_interval = glm::uvec2(8); // sampling interval in x and y direction [every sampling_interval texels]
+
     };
 
     struct ReleasePointsSettingsUniform {
@@ -55,6 +56,8 @@ public:
 
     void set_settings(const ReleasePointsSettings& settings) { m_settings = settings; }
     const ReleasePointsSettings& get_settings() const { return m_settings; }
+    void serialize_settings(QJsonObject& out) const override;
+    void deserialize_settings(const QJsonObject& in) override;
 
 public slots:
     void run_impl() override;

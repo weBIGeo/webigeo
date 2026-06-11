@@ -17,6 +17,7 @@
  *****************************************************************************/
 
 #include "HeightDecodeNode.h"
+#include "util.h"
 
 #include <QDebug>
 
@@ -145,6 +146,17 @@ void HeightDecodeNode::run_impl()
     // NOTE: Maybe this needs to be inside onsubmittedworkdone callback? But technically
     // I don't think we should wait for the queue...
     complete_run();
+}
+
+void HeightDecodeNode::serialize_settings(QJsonObject& out) const
+{
+    out["texture_usage"] = wgpu_usage_to_json(m_settings.texture_usage);
+}
+
+void HeightDecodeNode::deserialize_settings(const QJsonObject& in)
+{
+    if (in.contains("texture_usage"))
+        m_settings.texture_usage = wgpu_usage_from_json(in["texture_usage"].toArray(), m_settings.texture_usage);
 }
 
 } // namespace webgpu_compute::nodes

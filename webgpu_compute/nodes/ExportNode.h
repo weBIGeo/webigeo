@@ -39,6 +39,7 @@ public:
         std::string buffer_output_file = "export/{run_datetime}_{run_id}/exp_{node_name}_buff.png";
         std::string texture_output_file = "export/{run_datetime}_{run_id}/exp_{node_name}_tex.png";
         std::string aabb_output_file = "export/{run_datetime}_{run_id}/exp_aabb.txt";
+
     };
 
     explicit ExportNode(webgpu::Context& ctx);
@@ -46,6 +47,8 @@ public:
 
     const ExportSettings& get_settings() const { return m_settings; }
     void set_settings(const ExportSettings& settings);
+    void serialize_settings(QJsonObject& out) const override;
+    void deserialize_settings(const QJsonObject& in) override;
 
 public slots:
     void run_impl() override;

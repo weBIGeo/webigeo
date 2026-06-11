@@ -66,12 +66,19 @@ bool NodeRegistry::is_registered(const std::string& type_name) const { return m_
 
 std::unique_ptr<nodes::Node> NodeRegistry::create(const std::string& type_name, webgpu::Context& ctx) const
 {
-    const auto it = m_factories.find(type_name);
-    if (it == m_factories.end()) {
+    auto node = try_create(type_name, ctx);
+    if (!node) {
         qCritical() << "NodeRegistry::create: no node registered for type" << QString::fromStdString(type_name);
         assert(false && "NodeRegistry::create: unknown node type");
-        return nullptr;
     }
+    return node;
+}
+
+std::unique_ptr<nodes::Node> NodeRegistry::try_create(const std::string& type_name, webgpu::Context& ctx) const
+{
+    const auto it = m_factories.find(type_name);
+    if (it == m_factories.end())
+        return nullptr;
     return it->second(ctx);
 }
 

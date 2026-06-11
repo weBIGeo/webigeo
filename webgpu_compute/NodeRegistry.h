@@ -38,6 +38,9 @@ public:
     // Creates a node of the given registered type. Asserts if the type is unknown.
     [[nodiscard]] std::unique_ptr<nodes::Node> create(const std::string& type_name, webgpu::Context& ctx) const;
 
+    // Non-asserting variant for data-driven loading. Returns nullptr if the type is unknown.
+    [[nodiscard]] std::unique_ptr<nodes::Node> try_create(const std::string& type_name, webgpu::Context& ctx) const;
+
 private:
     NodeRegistry(); // registers all core compute nodes
 

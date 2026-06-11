@@ -64,6 +64,7 @@ public:
         glm::vec2 transparency_map_bounds = { 0.0f, 1.0f }; // x gets mapped to fully invisible, y to fully visible
         bool use_bin_interpolation = false; // if true, use linear interpolation between color bins
         bool use_transparency_buffer = true; // if true, the transparency texture is used to evaluate an alpha factor based on the alpha_remap_bounds
+
     };
 
     struct BufferToTextureSettingsUniform {
@@ -75,6 +76,12 @@ public:
     };
 
     BufferToTextureSettings& settings() { return m_settings; }
+
+    // settings are consumed lazily in run_impl, applying them at any time is safe
+    void set_settings(const BufferToTextureSettings& settings) { m_settings = settings; }
+    const BufferToTextureSettings& get_settings() const { return m_settings; }
+    void serialize_settings(QJsonObject& out) const override;
+    void deserialize_settings(const QJsonObject& in) override;
 
     BufferToTextureNode(webgpu::Context& ctx);
     BufferToTextureNode(webgpu::Context& ctx, const BufferToTextureSettings& settings);

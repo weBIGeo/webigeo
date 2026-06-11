@@ -82,4 +82,15 @@ void SelectTilesNode::run_impl()
     complete_run();
 }
 
+void SelectTilesNode::serialize_settings(QJsonObject& out) const
+{
+    out["zoomlevel"] = static_cast<int>(m_settings.zoomlevel);
+}
+
+void SelectTilesNode::deserialize_settings(const QJsonObject& in)
+{
+    if (in.contains("zoomlevel"))
+        m_settings.zoomlevel = static_cast<uint32_t>(in["zoomlevel"].toInt(static_cast<int>(m_settings.zoomlevel)));
+}
+
 } // namespace webgpu_compute::nodes
