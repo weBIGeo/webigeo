@@ -34,9 +34,7 @@ class RenderResourceRegistry {
 public:
     RenderResourceRegistry();
 
-    // Set the local filesystem path prefix for a target's shaders (for hot-reload).
-    // `target` matches the namespace used in shader names (e.g. "webgpu_engine"); `path`
-    // is the directory holding that target's shaders and must end with a separator.
+    // Set the local filesystem path prefix for a targets shaders (for hot-reload).
     void set_local_shader_path(const std::string& target, const std::string& path);
 
     // Register a shader by name and source path.

@@ -28,11 +28,7 @@ namespace webgpu::util {
 /**
  * A text-based shader preprocessor for intended use with WebGPU shaders.
  *
- * Directives use a `///`-comment prefix so the files stay valid WGSL (linters
- * and formatters treat them as comments). Shaders are addressed by a logical
- * name `<target>::<relpath>` (no extension); a bare `///use <relpath>` inherits
- * the including file's target namespace, while `///use <target>::<relpath>`
- * switches it.
+ * IMPORTANT: Directives use a `///`-comment prefix so the files stay valid WGSL!
  *
  * Features:
  * - File inclusion with ///use relpath  (or ///use target::relpath)
@@ -42,10 +38,6 @@ namespace webgpu::util {
  * - Macro definitions with ///define SYMBOL or ///define SYMBOL value
  * - Environment variable defines (global, persist across calls)
  * - File content caching
- *
- * Directives must be the first non-whitespace content on their line (leading
- * whitespace/indentation is allowed); anything after the leading `///` token is
- * the directive.
  */
 class ShaderPreprocessor {
 public:

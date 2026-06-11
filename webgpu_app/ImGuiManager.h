@@ -55,9 +55,9 @@ public:
     // Draws a floating 48x48 icon tool button at the next bottom-left stack slot (claims s_tool_button_y).
     static bool FloatingToggleButton(const char* id, const char* icon, const char* tooltip, uint32_t* enabled);
 
-    // ImGui-style file picker. Call every frame inside an ImGui frame.
-    // Pass the return value of an ImGui::Button as wants_open to trigger the dialog.
+    // ImGui-style file picker. Call every frame inside an ImGui frame. wants_open=true triggers the dialog to open.
     // Returns true (once) when the user has confirmed a selection; out_paths is filled with selected paths.
+    // NOTE: Uses WebInterop to be platform independent
     static bool FilePicker(const char* dialog_id,
         const char* title,
         const char* filters,

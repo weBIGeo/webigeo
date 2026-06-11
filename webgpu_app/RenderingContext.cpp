@@ -168,12 +168,12 @@ void RenderingContext::initialize(webgpu::Context& ctx)
 
     m_engine_context->initialise();
 
+    // ToDo: Maybe the Compute should get its own context to do the following:
 #ifdef ALP_WEBGPU_APP_ENABLE_COMPUTE
     // Compute shaders are bundled by the webgpu_compute target; register its local source dir for hot-reload.
     ctx.resource_registry().set_local_shader_path("webgpu_compute", ALP_SHADER_DIR_WEBGPU_COMPUTE);
 
-    // The terminal node that forwards compute-graph results onto the overlay renderer lives in the
-    // app (it bridges the compute and rendering layers). Register it once the engine context is ready.
+    // The terminal node that forwards compute-graph results onto the overlay renderer needs to be registered
     webgpu_compute::NodeRegistry::instance().register_node(
         "OverlayRenderNode", [ctx = m_engine_context.get()](webgpu::Context&) { return std::make_unique<webgpu_compute::nodes::OverlayRenderNode>(*ctx); });
 #endif

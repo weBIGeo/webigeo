@@ -31,7 +31,7 @@ class TextureOverlay;
 namespace webgpu_compute::nodes {
 
 // A custom node that forwards the graph result to a TextureOverlay managed by the OverlayRenderer.
-// Unlike a base compute node it knows the rendering layer: the OverlayRenderer registers it with the NodeRegistry.
+// Unlike a base compute node it knows the rendering layer.
 class OverlayRenderNode : public Node {
     Q_OBJECT
 

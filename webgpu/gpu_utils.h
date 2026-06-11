@@ -28,9 +28,7 @@ namespace raii {
     class Texture;
 }
 
-// Computes the mipmap chain for the given RGBA8Unorm texture using a compute shader.
-// The required shader (webgpu::mipmap) and its bind group layout are lazily registered in
-// the context's resource registry on first use, so callers need no separate setup.
+// Computes the mipmap chain for the given RGBA8Unorm texture using a compute shader
 void compute_mipmaps_for_texture(Context& ctx, const raii::Texture* texture);
 
 // Async overload: calls on_done after the mipmap work is submitted to the queue.

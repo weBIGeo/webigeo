@@ -33,6 +33,10 @@
 
 namespace webgpu_app {
 
+enum AddType { ADD_HEIGHT_LINES = 0, ADD_TEXTURE_OVERLAY = 1, ADD_TILE_DEBUG = 2, ADD_SCREEN_SPACE_SNOW = 3 };
+constexpr const char* ADD_ITEMS[] = { "Height Lines", "Texture Overlay", "Tile Debug", "Screen-Space Snow" };
+constexpr const char* ADD_POPUP_ID = "Add Overlay###add_overlay";
+
 OverlaysPanel::OverlaysPanel(webgpu_engine::Context* context)
     : m_context(context)
     , m_overlay_renderer(context->overlay_renderer())
@@ -88,12 +92,6 @@ void OverlaysPanel::do_move(int gui_row, int direction, int P, int N)
     rebuild_renderers();
     m_context->request_redraw();
 }
-
-namespace {
-    enum AddType { ADD_HEIGHT_LINES = 0, ADD_TEXTURE_OVERLAY = 1, ADD_TILE_DEBUG = 2, ADD_SCREEN_SPACE_SNOW = 3 };
-    constexpr const char* ADD_ITEMS[] = { "Height Lines", "Texture Overlay", "Tile Debug", "Screen-Space Snow" };
-    constexpr const char* ADD_POPUP_ID = "Add Overlay###add_overlay";
-} // namespace
 
 void OverlaysPanel::add_overlay_of_type(int type)
 {
