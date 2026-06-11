@@ -102,11 +102,11 @@ void ImGuiManager::init(
     m_panels.push_back(std::make_unique<CloudPanel>(engine_ctx, rc->clouds_manager(), engine_ctx->cloud_renderer()));
     m_panels.push_back(std::make_unique<AtmospherePanel>(engine_ctx));
     m_panels.push_back(std::make_unique<ShadingPanel>(engine_ctx));
-    m_panels.push_back(std::make_unique<OverlaysPanel>(engine_ctx));
     m_panels.push_back(std::make_unique<TrackPanel>(engine_ctx, m_terrain_renderer));
 #ifdef ALP_WEBGPU_APP_ENABLE_COMPUTE
     m_panels.push_back(std::make_unique<NodeGraphPanel>(engine_ctx));
 #endif
+    m_panels.push_back(std::make_unique<OverlaysPanel>(engine_ctx));
 
     connect(&search_panel, &SearchPanel::search_requested, rc->search_service(), &SearchService::search);
     connect(&search_panel,
@@ -293,11 +293,7 @@ void ImGuiManager::draw()
     // Reset the floating tool-button stack for this frame (bottom-left, stacking upward).
     s_tool_button_y = ImGui::GetIO().DisplaySize.y - 48.0f - 40.0f;
 
-    // Standalone windows, overlays, and modals
-    for (auto& panel : m_panels)
-        panel->draw();
-
-    // Main sidebar window with CollapsingHeader sections
+    // Main sidebar window with CollapsingHeader sections.
     ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - 430, 0)); // Set position to top-right corner
     ImGui::SetNextWindowSize(ImVec2(430, ImGui::GetIO().DisplaySize.y)); // Set height to full screen height, width as desired
     ImGui::Begin("weBIGeo", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar);
@@ -306,6 +302,9 @@ void ImGuiManager::draw()
         panel->draw_panel();
 
     ImGui::End();
+
+    for (auto& panel : m_panels)
+        panel->draw();
 }
 
 } // namespace webgpu_app
