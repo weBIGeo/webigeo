@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <QByteArray>
 #include <cstdint>
 #include <imgui.h>
 #include <memory>
@@ -107,7 +108,13 @@ private:
     // Current rendering mode for the graph background and grid.
     GraphRenderingMode m_render_mode = GraphRenderingMode::Default;
 
+    bool m_save_dialog_wants_open = false;
+
 private:
+    // Serializes the current graph (engine + UI positions) as indented JSON bytes.
+    QByteArray export_graph_json() const;
+    void render_save_dialog();
+
     void calculate_window_size();
     void center_target_layout();
     void calculate_auto_layout();

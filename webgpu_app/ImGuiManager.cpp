@@ -214,9 +214,19 @@ bool ImGuiManager::FilePicker(const char* dialog_id,
     bool wants_open,
     std::vector<std::string>& out_paths,
     bool allow_multiple,
-    const char* initial_path)
+    const char* initial_path,
+    FilePickerMode mode,
+    const char* default_filename)
 {
 #ifdef __EMSCRIPTEN__
+    if (mode == FilePickerMode::Save) {
+        // Web: no file-system dialog for saves; return a synthetic MEMFS path immediately.
+        if (wants_open) {
+            out_paths.push_back(std::string("/download/") + default_filename);
+            return true;
+        }
+        return false;
+    }
     auto& state = s_picker_states[dialog_id];
     if (wants_open) {
         state.is_open = true;
@@ -234,8 +244,14 @@ bool ImGuiManager::FilePicker(const char* dialog_id,
     if (wants_open) {
         IGFD::FileDialogConfig config;
         config.path = initial_path;
-        config.countSelectionMax = allow_multiple ? 0 : 1;
         config.flags = ImGuiFileDialogFlags_Modal;
+        if (mode == FilePickerMode::Save) {
+            config.countSelectionMax = 1;
+            config.flags |= ImGuiFileDialogFlags_ConfirmOverwrite;
+            config.fileName = default_filename;
+        } else {
+            config.countSelectionMax = allow_multiple ? 0 : 1;
+        }
         ImGuiFileDialog::Instance()->OpenDialog(dialog_id, title, filters, config);
     }
     const ImVec2 center = ImGui::GetMainViewport()->GetCenter();
@@ -244,13 +260,26 @@ bool ImGuiManager::FilePicker(const char* dialog_id,
     const ImVec2 dialog_size(vp.x < 1000.0f ? vp.x * 0.9f : vp.x * 0.5f, vp.y < 1000.0f ? vp.y * 0.9f : vp.y * 0.5f);
     if (ImGuiFileDialog::Instance()->Display(dialog_id, ImGuiWindowFlags_NoCollapse, dialog_size, dialog_size)) {
         if (ImGuiFileDialog::Instance()->IsOk()) {
-            for (auto& [name, path] : ImGuiFileDialog::Instance()->GetSelection())
-                out_paths.push_back(path);
+            if (mode == FilePickerMode::Save) {
+                out_paths.push_back(ImGuiFileDialog::Instance()->GetFilePathName());
+            } else {
+                for (auto& [name, path] : ImGuiFileDialog::Instance()->GetSelection())
+                    out_paths.push_back(path);
+            }
         }
         ImGuiFileDialog::Instance()->Close();
         return !out_paths.empty();
     }
     return false;
+#endif
+}
+
+void ImGuiManager::finalize_save(const std::string& path)
+{
+#ifdef __EMSCRIPTEN__
+    WebInterop::download_file(path);
+#else
+    (void)path;
 #endif
 }
 

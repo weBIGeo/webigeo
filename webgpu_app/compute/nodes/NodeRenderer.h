@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <QJsonObject>
 #include <imgui.h>
 #include <imnodes.h>
 #include <memory>
@@ -42,6 +43,10 @@ public:
     virtual void render_settings_content() { }
     // Called outside ImNodes::BeginNodeEditor/EndNodeEditor for proper z-ordering
     virtual void render_dialogs() { }
+
+    // UI-layer serialization: node position (and subclass-specific data).
+    virtual QJsonObject serialize_ui() const;
+    virtual void deserialize_ui(const QJsonObject& obj);
 
     int get_node_id() const { return m_node_id; }
     const std::string& get_name_formatted() const { return m_name_formatted; }

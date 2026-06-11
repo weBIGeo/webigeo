@@ -20,6 +20,7 @@
 #include "NodeRenderer.h"
 
 #include <IconsFontAwesome5.h>
+#include <QJsonArray>
 #include <imgui.h>
 #include <imnodes.h>
 #include <iomanip>
@@ -238,6 +239,20 @@ void NodeRenderer::render_sockets()
         ImNodes::EndOutputAttribute();
         ImNodes::PopColorStyle();
         ImNodes::PopColorStyle();
+    }
+}
+
+QJsonObject NodeRenderer::serialize_ui() const
+{
+    return QJsonObject { { "position", QJsonArray { m_position.x, m_position.y } } };
+}
+
+void NodeRenderer::deserialize_ui(const QJsonObject& obj)
+{
+    if (obj.contains("position")) {
+        const auto arr = obj["position"].toArray();
+        if (arr.size() == 2)
+            m_position = { static_cast<float>(arr[0].toDouble()), static_cast<float>(arr[1].toDouble()) };
     }
 }
 

@@ -37,6 +37,11 @@ void WebInterop::open_file_dialog(const std::string& filter, const std::string& 
     EM_ASM_({ eminstance.hacks.uploadFilesWithDialog(UTF8ToString($0), UTF8ToString($1), !!$2); }, filter.c_str(), tag.c_str(), (int)allow_multiple);
 }
 
+void WebInterop::download_file(const std::string& path, const std::string& mime)
+{
+    EM_ASM_({ eminstance.hacks.downloadFile(UTF8ToString($0), UTF8ToString($1)); }, path.c_str(), mime.c_str());
+}
+
 glm::uvec2 WebInterop::get_body_size()
 {
     double w, h;

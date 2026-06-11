@@ -56,6 +56,9 @@ public:
 
     void open_file_dialog(const std::string& filter, const std::string& tag, bool allow_multiple = false);
 
+    // Reads the file at the given MEMFS path and triggers a browser download.
+    static void download_file(const std::string& path, const std::string& mime = "application/octet-stream");
+
     glm::uvec2 get_body_size();
 
 signals:

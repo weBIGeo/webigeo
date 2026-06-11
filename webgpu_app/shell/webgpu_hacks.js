@@ -93,6 +93,23 @@ class WeBIGeoHacks {
     fileInput.click();
   }
 
+  downloadFile(path, mime) {
+    try {
+      const data = eminstance.FS.readFile(path);
+      const blob = new Blob([data], { type: mime || 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = path.split('/').pop();
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('downloadFile failed:', e);
+    }
+  }
+
   log(text) {
     if (this.debug) console.log(text);
     if (this.logElement) {

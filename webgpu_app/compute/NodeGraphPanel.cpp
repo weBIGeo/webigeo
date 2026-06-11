@@ -23,10 +23,14 @@
 #include <nucleus/utils/easing.h>
 #include "nodes/NodeRendererFactory.h"
 #include <IconsFontAwesome5.h>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <imnodes.h>
 #include <qDebug>
+#include <webgpu_compute/NodeGraphSerialization.h>
 #include <webgpu_engine/Context.h>
 
 namespace webgpu_app {
@@ -82,6 +86,39 @@ void NodeGraphPanel::init(nodes::NodeGraph& node_graph)
     rebuild_links();
 
     m_first_frame_after_init = true;
+}
+
+QByteArray NodeGraphPanel::export_graph_json() const
+{
+    QJsonObject root = webgpu_compute::nodes::serialize_node_graph(*m_node_graph);
+
+    QJsonObject ui_nodes;
+    for (const auto& [name, renderer] : m_node_renderers)
+        ui_nodes[QString::fromStdString(name)] = renderer->serialize_ui();
+    QJsonObject ui;
+    ui["nodes"] = ui_nodes;
+    root["ui"] = ui;
+
+    return QJsonDocument(root).toJson(QJsonDocument::Indented);
+}
+
+void NodeGraphPanel::render_save_dialog()
+{
+    std::vector<std::string> save_paths;
+    const std::string default_name = m_node_graph->get_name() + ".json";
+    if (ImGuiManager::FilePicker("save_graph_dialog", "Save Graph", "Graph files{.json}", m_save_dialog_wants_open,
+            save_paths, false, ".", ImGuiManager::FilePickerMode::Save, default_name.c_str())) {
+        QFile file(QString::fromStdString(save_paths[0]));
+        if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            file.write(export_graph_json());
+            file.close();
+            ImGuiManager::finalize_save(save_paths[0]);
+        } else {
+            m_error_state.text = "Failed to open file for writing:\n" + save_paths[0];
+            m_error_state.should_open = true;
+        }
+    }
+    m_save_dialog_wants_open = false;
 }
 
 void NodeGraphPanel::calculate_window_size()
@@ -351,6 +388,7 @@ void NodeGraphPanel::draw()
 
     ImGuiManager::FloatingToggleButton("###ToggleGraphRenderer", ICON_FA_NETWORK_WIRED, "Toggle compute graph editor", &m_editor_visible);
     render_error_modal();
+    render_save_dialog();
 
     if (!m_editor_visible)
         return;
@@ -526,9 +564,8 @@ void NodeGraphPanel::render_menu()
                 }
                 ImGui::EndMenu();
             }
-            if (ImGui::MenuItem(ICON_FA_SAVE "  Save Graph")) {
-                // TODO: save graph
-            }
+            if (ImGui::MenuItem(ICON_FA_SAVE "  Save Graph"))
+                m_save_dialog_wants_open = true;
             if (ImGui::BeginMenu(ICON_FA_LAYER_GROUP "  Configurations")) {
                 if (ImGui::MenuItem(ICON_FA_PLUS "  New Configuration")) {
                     // TODO: new configuration

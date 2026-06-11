@@ -55,8 +55,11 @@ public:
     // Draws a floating 48x48 icon tool button at the next bottom-left stack slot (claims s_tool_button_y).
     static bool FloatingToggleButton(const char* id, const char* icon, const char* tooltip, uint32_t* enabled);
 
+    enum class FilePickerMode { Open, Save };
+
     // ImGui-style file picker. Call every frame inside an ImGui frame. wants_open=true triggers the dialog to open.
     // Returns true (once) when the user has confirmed a selection; out_paths is filled with selected paths.
+    // In Save mode on web, returns true immediately with a synthetic /download/<default_filename> path.
     // NOTE: Uses WebInterop to be platform independent
     static bool FilePicker(const char* dialog_id,
         const char* title,
@@ -64,7 +67,12 @@ public:
         bool wants_open,
         std::vector<std::string>& out_paths,
         bool allow_multiple = false,
-        const char* initial_path = ".");
+        const char* initial_path = ".",
+        FilePickerMode mode = FilePickerMode::Open,
+        const char* default_filename = "");
+
+    // No-op on native; triggers a browser file download on web for the given MEMFS path.
+    static void finalize_save(const std::string& path);
 
 #ifdef __EMSCRIPTEN__
 private slots:
