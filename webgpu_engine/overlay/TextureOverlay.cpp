@@ -133,6 +133,7 @@ void TextureOverlay::init(Context& context)
 
     m_settings_uniform = std::make_unique<webgpu::Buffer<GpuSettings>>(ctx.device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
     update_gpu_settings();
+    create_texture(context.webgpu_ctx(), 1, 1);
 }
 
 void TextureOverlay::ready(webgpu::Context& ctx) { m_is_ready = true; }
@@ -194,8 +195,7 @@ void TextureOverlay::draw(const WGPUCommandEncoder& command_encoder,
 {
     // A linked texture takes priority over the owned one.
     const webgpu::raii::TextureWithSampler* tex = m_linked_texture ? m_linked_texture : m_overlay_texture.get();
-    if (!tex || !m_pipeline)
-        return;
+    assert(tex && m_pipeline);
 
     webgpu::raii::BindGroup bind_group(m_ctx->device(),
         m_ctx->resource_registry().bind_group_layout("texture_overlay"),
