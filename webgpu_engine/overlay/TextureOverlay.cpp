@@ -20,11 +20,11 @@
 #include "TextureOverlay.h"
 
 #include "webgpu_engine/Context.h"
-#include <webgpu/gpu_utils.h>
 #include <nucleus/utils/geopng_decoder.h>
 #include <nucleus/utils/image_loader.h>
 #include <optional>
 #include <webgpu/RenderResourceRegistry.h>
+#include <webgpu/gpu_utils.h>
 #include <webgpu/raii/BindGroup.h>
 #include <webgpu/raii/BindGroupLayout.h>
 #include <webgpu/raii/RenderPassEncoder.h>
@@ -193,7 +193,6 @@ void TextureOverlay::draw(const WGPUCommandEncoder& command_encoder,
     webgpu::raii::TextureWithSampler& target_output,
     glm::uvec2 /*output_size*/)
 {
-    // A linked texture takes priority over the owned one.
     const webgpu::raii::TextureWithSampler* tex = m_linked_texture ? m_linked_texture : m_overlay_texture.get();
     assert(tex && m_pipeline);
 

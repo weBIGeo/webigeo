@@ -73,10 +73,11 @@ void OverlayRenderNode::run_impl()
         trimmed.max -= glm::dvec2(nucleus::srs::tile_width(18) / 65, nucleus::srs::tile_height(18) / 65);
         overlay->settings.aabb = trimmed;
         if (texture) {
-            if (copy)
+            if (copy) {
                 overlay->load_texture(*texture);
-            else
+            } else {
                 overlay->link_texture(texture);
+            }
         }
         overlay->update_gpu_settings();
         m_context->request_redraw();

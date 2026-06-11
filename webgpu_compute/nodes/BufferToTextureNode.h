@@ -20,6 +20,7 @@
 #pragma once
 
 #include "Node.h"
+#include <array>
 #include <webgpu/Buffer.h>
 #include <webgpu/Context.h>
 #include <webgpu/raii/CombinedComputePipeline.h>
@@ -93,10 +94,11 @@ private:
     webgpu::Buffer<BufferToTextureSettingsUniform> m_settings_uniform;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_pipeline;
 
-    // output
-    std::unique_ptr<webgpu::raii::TextureWithSampler> m_output_texture; // texture per tile
+    // IMPORTANT: The output needs to be double-buffered if linked to rendering
+    std::array<std::unique_ptr<webgpu::raii::TextureWithSampler>, 2> m_output_textures;
     // NOTE: We need a non default texture view as a storage texture can only have mipLevelCount = 1
-    std::unique_ptr<webgpu::raii::TextureView> m_output_view;
+    std::array<std::unique_ptr<webgpu::raii::TextureView>, 2> m_output_views;
+    int m_pingpong = 0; // current output_texture to write to
 };
 
 } // namespace webgpu_compute::nodes

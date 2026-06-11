@@ -37,7 +37,7 @@ BufferToTextureNode::BufferToTextureNode(webgpu::Context& ctx, const BufferToTex
                InputSocket(*this, "storage buffer", data_type<webgpu::raii::RawBuffer<uint32_t>*>()),
                InputSocket(*this, "transparency buffer", data_type<webgpu::raii::RawBuffer<uint32_t>*>()) },
         {
-            OutputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }),
+            OutputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_textures[m_pingpong].get(); }),
         })
     , m_ctx(&ctx)
     , m_settings { settings }
@@ -96,18 +96,17 @@ void BufferToTextureNode::run_impl()
         return;
     }
 
-    m_output_texture = create_texture(m_ctx->device(), input_raster_dimensions.x, input_raster_dimensions.y, m_settings);
-
+    m_pingpong = 1 - m_pingpong; // write the other slot; the previously produced texture stays alive for rendering
+    m_output_textures[m_pingpong] = create_texture(m_ctx->device(), input_raster_dimensions.x, input_raster_dimensions.y, m_settings);
     // create bind group
     std::vector<WGPUBindGroupEntry> entries {
         m_settings_uniform.raw_buffer().create_bind_group_entry(0),
         input_storage_buffer.create_bind_group_entry(1),
         input_transparency_buffer.create_bind_group_entry(2),
-        m_output_view->create_bind_group_entry(5),
+        m_output_views[m_pingpong]->create_bind_group_entry(5),
     };
     webgpu::raii::BindGroup compute_bind_group(
         m_ctx->device(), m_ctx->resource_registry().bind_group_layout("buffer_to_texture_compute"), entries, "buffer to texture compute bind group");
-
     // bind GPU resources and run pipeline
     {
         WGPUCommandEncoderDescriptor descriptor {};
@@ -139,7 +138,7 @@ void BufferToTextureNode::run_impl()
                       = []([[maybe_unused]] WGPUQueueWorkDoneStatus status, [[maybe_unused]] WGPUStringView message, void* userdata, [[maybe_unused]] void* userdata2) {
                             reinterpret_cast<BufferToTextureNode*>(userdata)->complete_run();
                         };
-                  webgpu::compute_mipmaps_for_texture(*node->m_ctx, &node->m_output_texture->texture(),
+                  webgpu::compute_mipmaps_for_texture(*node->m_ctx, &node->m_output_textures[node->m_pingpong]->texture(),
                       WGPUQueueWorkDoneCallbackInfo {
                           .nextInChain = nullptr,
                           .mode = WGPUCallbackMode_AllowProcessEvents,
@@ -201,7 +200,7 @@ std::unique_ptr<webgpu::raii::TextureWithSampler> BufferToTextureNode::create_te
 
     WGPUTextureViewDescriptor desc = texture_with_sampler->texture().default_texture_view_descriptor();
     desc.mipLevelCount = 1;
-    m_output_view = texture_with_sampler->texture().create_view(desc);
+    m_output_views[m_pingpong] = texture_with_sampler->texture().create_view(desc);
 
     return texture_with_sampler;
 }
