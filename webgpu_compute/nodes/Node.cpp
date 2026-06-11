@@ -128,8 +128,7 @@ void Node::run(webgpu_compute::GraphRunContext context)
 void Node::complete_run()
 {
     m_last_run_finished = std::chrono::high_resolution_clock::now();
-    m_last_run_duration_in_ms = static_cast<int>(
-        std::chrono::duration_cast<std::chrono::milliseconds>(m_last_run_finished - m_last_run_started).count());
+    m_last_run_duration_in_ms = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(m_last_run_finished - m_last_run_started).count());
     m_is_running = false;
     qDebug() << m_node_name << "done. Execution took" << m_last_run_duration_in_ms << "ms (run " << m_run_context.run_id << ")";
     emit run_completed(m_run_context);
@@ -176,7 +175,8 @@ const InputSocket& Node::input_socket(const std::string& name) const
 
 bool Node::has_output_socket(const std::string& name) const
 {
-    return std::find_if(m_output_sockets.begin(), m_output_sockets.end(), [&name](const OutputSocket& s) { return s.name() == name; }) != m_output_sockets.end();
+    return std::find_if(m_output_sockets.begin(), m_output_sockets.end(), [&name](const OutputSocket& s) { return s.name() == name; })
+        != m_output_sockets.end();
 }
 
 OutputSocket& Node::output_socket(const std::string& name)

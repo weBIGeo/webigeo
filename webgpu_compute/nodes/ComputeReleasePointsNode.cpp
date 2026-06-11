@@ -29,12 +29,12 @@ ComputeReleasePointsNode::ComputeReleasePointsNode(webgpu::Context& ctx)
 
 ComputeReleasePointsNode::ComputeReleasePointsNode(webgpu::Context& ctx, const ReleasePointsSettings& settings)
     : Node(
-        {
-            InputSocket(*this, "normal texture", data_type<const webgpu::raii::TextureWithSampler*>()),
-        },
-        {
-            OutputSocket(*this, "release point texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }),
-        })
+          {
+              InputSocket(*this, "normal texture", data_type<const webgpu::raii::TextureWithSampler*>()),
+          },
+          {
+              OutputSocket(*this, "release point texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }),
+          })
     , m_ctx(&ctx)
     , m_settings { settings }
     , m_settings_uniform(ctx.device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)

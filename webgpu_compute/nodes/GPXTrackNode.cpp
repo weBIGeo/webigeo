@@ -26,9 +26,9 @@ namespace webgpu_compute::nodes {
 
 GPXTrackNode::GPXTrackNode()
     : Node({},
-        {
-            OutputSocket(*this, "region", data_type<const radix::geometry::Aabb<3, double>*>(), [this]() { return &m_output_region; }),
-        })
+          {
+              OutputSocket(*this, "region", data_type<const radix::geometry::Aabb<3, double>*>(), [this]() { return &m_output_region; }),
+          })
 {
 }
 

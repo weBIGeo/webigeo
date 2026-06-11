@@ -99,13 +99,13 @@ ExportNode::ExportNode(webgpu::Context& ctx)
 
 ExportNode::ExportNode(webgpu::Context& ctx, const ExportSettings& settings)
     : Node(
-        {
-            InputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>()),
-            InputSocket(*this, "buffer", data_type<webgpu::raii::RawBuffer<uint32_t>*>()),
-            InputSocket(*this, "dimensions", data_type<glm::uvec2>()),
-            InputSocket(*this, "region aabb", data_type<const radix::geometry::Aabb<2, double>*>()),
-        },
-        {})
+          {
+              InputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>()),
+              InputSocket(*this, "buffer", data_type<webgpu::raii::RawBuffer<uint32_t>*>()),
+              InputSocket(*this, "dimensions", data_type<glm::uvec2>()),
+              InputSocket(*this, "region aabb", data_type<const radix::geometry::Aabb<2, double>*>()),
+          },
+          {})
     , m_ctx(&ctx)
     , m_settings(settings)
 {

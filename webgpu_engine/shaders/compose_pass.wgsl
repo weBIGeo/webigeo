@@ -27,22 +27,22 @@
 
 ///use screen_pass_vert
 
-@group(0) @binding(0) var<uniform> conf : shared_config;
-@group(1) @binding(0) var<uniform> camera : camera_config;
+@group(0) @binding(0) var<uniform> conf: shared_config;
+@group(1) @binding(0) var<uniform> camera: camera_config;
 
-@group(2) @binding(0) var albedo_texture : texture_2d<u32>;
-@group(2) @binding(1) var position_texture : texture_2d<f32>;
-@group(2) @binding(2) var normal_texture : texture_2d<u32>;
-@group(2) @binding(3) var atmosphere_texture : texture_2d<f32>;
-@group(2) @binding(4) var overlay_texture : texture_2d<u32>;
+@group(2) @binding(0) var albedo_texture: texture_2d<u32>;
+@group(2) @binding(1) var position_texture: texture_2d<f32>;
+@group(2) @binding(2) var normal_texture: texture_2d<u32>;
+@group(2) @binding(3) var atmosphere_texture: texture_2d<f32>;
+@group(2) @binding(4) var overlay_texture: texture_2d<u32>;
 
-@group(2) @binding(5) var clouds_texture : texture_2d<f32>;
-@group(2) @binding(6) var clouds_depth_texture : texture_storage_2d < r32float, read>;
-@group(2) @binding(7) var cloud_shadow_texture : texture_2d<f32>;
-@group(2) @binding(8) var cloud_shadow_sampler : sampler;
-@group(2) @binding(9) var depth_texture : texture_2d<f32>;
-@group(2) @binding(10) var overlay_renderer_post_texture : texture_2d<f32>;
-@group(2) @binding(11) var overlay_renderer_pre_texture : texture_2d<f32>;
+@group(2) @binding(5) var clouds_texture: texture_2d<f32>;
+@group(2) @binding(6) var clouds_depth_texture: texture_storage_2d<r32float, read>;
+@group(2) @binding(7) var cloud_shadow_texture: texture_2d<f32>;
+@group(2) @binding(8) var cloud_shadow_sampler: sampler;
+@group(2) @binding(9) var depth_texture: texture_2d<f32>;
+@group(2) @binding(10) var overlay_renderer_post_texture: texture_2d<f32>;
+@group(2) @binding(11) var overlay_renderer_pre_texture: texture_2d<f32>;
 
 const CLOUD_SHADOW_AABB_MIN = vec3f(1045658.54694121, 5811660.13457852, 0.0);
 const CLOUD_SHADOW_AABB_MAX = vec3f(1937220.04485951, 6309418.06277159, 14000.0);
@@ -51,60 +51,60 @@ const CLOUD_SHADOW_AABB_MAX = vec3f(1937220.04485951, 6309418.06277159, 14000.0)
 //parameters according to the Blinn-Phong lighting model.
 //All parameters must be normalized.
 fn calc_blinn_phong_contribution(
-toLight : vec3 < f32>,
-toEye : vec3 < f32>,
-normal : vec3 < f32>,
-diffFactor : vec3 < f32>,
-specFactor : vec3 < f32>,
-specShininess : f32
-) -> vec3 < f32> {
-    let nDotL : f32 = max(0.0, dot(normal, toLight)); //Lambertian coefficient
-    let h : vec3 < f32> = normalize(toLight + toEye);
-    let nDotH : f32 = max(0.0, dot(normal, h));
-    let specPower : f32 = pow(nDotH, specShininess);
-    let diffuse : vec3 < f32> = diffFactor * nDotL; //Component-wise product
-    let specular : vec3 < f32> = specFactor * specPower;
+    toLight: vec3<f32>,
+    toEye: vec3<f32>,
+    normal: vec3<f32>,
+    diffFactor: vec3<f32>,
+    specFactor: vec3<f32>,
+    specShininess: f32
+) -> vec3<f32> {
+    let nDotL: f32 = max(0.0, dot(normal, toLight)); //Lambertian coefficient
+    let h: vec3<f32> = normalize(toLight + toEye);
+    let nDotH: f32 = max(0.0, dot(normal, h));
+    let specPower: f32 = pow(nDotH, specShininess);
+    let diffuse: vec3<f32> = diffFactor * nDotL; //Component-wise product
+    let specular: vec3<f32> = specFactor * specPower;
     return diffuse + specular;
 }
 
 //Calculates the Blinn-Phong illumination for the given fragment
 fn calculate_illumination(
-albedo : vec3 < f32>,
-eyePos : vec3 < f32>,
-fragPos : vec3 < f32>,
-fragNorm : vec3 < f32>,
-dirLight : vec4 < f32>,
-ambLight : vec4 < f32>,
-dirDirection : vec3 < f32>,
-material : vec4 < f32>,
-ao : f32,
-shadow_term : f32
-) -> vec3 < f32> {
-    let dirColor : vec3 < f32> = dirLight.rgb * dirLight.a;
-    let ambColor : vec3 < f32> = ambLight.rgb * ambLight.a;
-    let ambient : vec3 < f32> = material.r * albedo;
-    let diff : vec3 < f32> = material.g * albedo;
-    let spec : vec3 < f32> = vec3 < f32 > (material.b);
-    let shini : f32 = material.a;
+    albedo: vec3<f32>,
+    eyePos: vec3<f32>,
+    fragPos: vec3<f32>,
+    fragNorm: vec3<f32>,
+    dirLight: vec4<f32>,
+    ambLight: vec4<f32>,
+    dirDirection: vec3<f32>,
+    material: vec4<f32>,
+    ao: f32,
+    shadow_term: f32
+) -> vec3<f32> {
+    let dirColor: vec3<f32> = dirLight.rgb * dirLight.a;
+    let ambColor: vec3<f32> = ambLight.rgb * ambLight.a;
+    let ambient: vec3<f32> = material.r * albedo;
+    let diff: vec3<f32> = material.g * albedo;
+    let spec: vec3<f32> = vec3<f32>(material.b);
+    let shini: f32 = material.a;
 
-    let ambientIllumination : vec3 < f32> = ambient * ambColor * ao;
+    let ambientIllumination: vec3<f32> = ambient * ambColor * ao;
 
-    let toLightDirWS : vec3 < f32> = -normalize(dirDirection);
-    let toEyeNrmWS : vec3 < f32> = normalize(eyePos - fragPos);
-    let diffAndSpecIllumination : vec3 < f32> = dirColor * calc_blinn_phong_contribution(toLightDirWS, toEyeNrmWS, fragNorm, diff, spec, shini);
+    let toLightDirWS: vec3<f32> = -normalize(dirDirection);
+    let toEyeNrmWS: vec3<f32> = normalize(eyePos - fragPos);
+    let diffAndSpecIllumination: vec3<f32> = dirColor * calc_blinn_phong_contribution(toLightDirWS, toEyeNrmWS, fragNorm, diff, spec, shini);
 
     return ambientIllumination + diffAndSpecIllumination * (1.0 - shadow_term);
 }
 
-fn get_cloud_shadow_occlusion(world_pos : vec3f) -> f32 {
+fn get_cloud_shadow_occlusion(world_pos: vec3f) -> f32 {
     const SHADOW_BIAS = 0.05;
     const ESM_CONSTANT = 4.0;
 
     //TODO: Future improvement: Implement parallax
 
     let uv = vec2f(
-    (world_pos.x - CLOUD_SHADOW_AABB_MIN.x) / (CLOUD_SHADOW_AABB_MAX.x - CLOUD_SHADOW_AABB_MIN.x),
-    (CLOUD_SHADOW_AABB_MAX.y - world_pos.y) / (CLOUD_SHADOW_AABB_MAX.y - CLOUD_SHADOW_AABB_MIN.y)
+        (world_pos.x - CLOUD_SHADOW_AABB_MIN.x) / (CLOUD_SHADOW_AABB_MAX.x - CLOUD_SHADOW_AABB_MIN.x),
+        (CLOUD_SHADOW_AABB_MAX.y - world_pos.y) / (CLOUD_SHADOW_AABB_MAX.y - CLOUD_SHADOW_AABB_MIN.y)
     );
 
     let shadow_map_val = textureSample(cloud_shadow_texture, cloud_shadow_sampler, uv).r;
@@ -125,10 +125,10 @@ fn get_cloud_shadow_occlusion(world_pos : vec3f) -> f32 {
 }
 
 @fragment
-fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
-    let tci : vec2 < u32> = vec2u(vertex_out.texcoords * camera.viewport_size);
+fn fragmentMain(vertex_out: VertexOut) -> @location(0) vec4f {
+    let tci: vec2<u32> = vec2u(vertex_out.texcoords * camera.viewport_size);
 
-    var albedo : vec3f = unpack4x8unorm(textureLoad(albedo_texture, tci, 0).r).xyz;
+    var albedo: vec3f = unpack4x8unorm(textureLoad(albedo_texture, tci, 0).r).xyz;
     let pos_dist = textureLoad(position_texture, tci, 0);
     let encoded_normal = textureLoad(normal_texture, tci, 0).xy;
 
@@ -145,7 +145,7 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         amb_occlusion = texture(texin_ssao, texcoords).r;
     }*/
 
-    let sampled_shadow_layer : i32 = -1;
+    let sampled_shadow_layer: i32 = -1;
 
     let origin = camera.position.xyz;
     let pos_ws = pos_cws + origin;
@@ -154,8 +154,7 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
     let atmospheric_color = textureLoad(atmosphere_texture, vec2u(0, tci.y), 0).rgb;
 
     var cloud_shadow = 0.0;
-    if bool(conf.clouds_enabled)
-    {
+    if bool(conf.clouds_enabled) {
         //must be called from uniform control flow :(
         let cloud_shadow_raw = get_cloud_shadow_occlusion(pos_ws);
 
@@ -185,24 +184,20 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         albedo = albedo * (1.0 - pre_overlay_color.a) + pre_overlay_color.rgb;
 
         var shaded_color = albedo;
-        if bool(conf.shading_enabled)
-        {
+        if bool(conf.shading_enabled) {
             shaded_color = calculate_illumination(shaded_color, origin, pos_ws, normal, conf.sun_light, conf.amb_light, conf.sun_light_dir.xyz, material_light_response, amb_occlusion, shadow_term);
         }
-        if bool(conf.atmosphere_enabled)
-        {
+        if bool(conf.atmosphere_enabled) {
             shaded_color = calculate_atmospheric_light(origin / 1000.0, ray_direction, dist / 1000.0, shaded_color, 10);
         }
         shaded_color = max(vec3(0.0), shaded_color);
-        if dist > 0 && bool(conf.atmosphere_enabled)
-        {
+        if dist > 0 && bool(conf.atmosphere_enabled) {
             let atmosphere_blend = calculate_falloff(dist, 300000.0, 600000.0);
             shaded_color = mix(atmospheric_color, shaded_color, atmosphere_blend);
         }
         out_Color = vec4(shaded_color, 1.0);
     } else {
-        if bool(conf.atmosphere_enabled)
-        {
+        if bool(conf.atmosphere_enabled) {
             out_Color = vec4(atmospheric_color, 1.0);
         } else {
             out_Color = vec4(1.0);
@@ -214,8 +209,7 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
     out_Color = vec4f(out_Color.rgb * (1.0 - post_overlay_color.a) + post_overlay_color.rgb, out_Color.a);
 
     //Clouds
-    if bool(conf.clouds_enabled)
-    {
+    if bool(conf.clouds_enabled) {
         let clouds_color = textureLoad(clouds_texture, tci, 0);
         let clouds_depth = textureLoad(clouds_depth_texture, tci / 2).x;
 
@@ -226,8 +220,7 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         var tonemapped_rgb = straight_rgb / (straight_rgb + 1.0);
 
         //atmosphere
-        if clouds_depth > 0.0 && bool(conf.atmosphere_enabled)
-        {
+        if clouds_depth > 0.0 && bool(conf.atmosphere_enabled) {
             let atmosphere_blend = calculate_falloff(clouds_depth, 300000.0, 600000.0);
             tonemapped_rgb = mix(atmospheric_color, tonemapped_rgb, atmosphere_blend);
         }
@@ -235,8 +228,8 @@ fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
         var blend_alpha = raw_alpha;
 
         out_Color = vec4(
-        out_Color.rgb * (1.0 - blend_alpha) + tonemapped_rgb * blend_alpha,
-        1.0 - (1.0 - out_Color.a) * (1.0 - blend_alpha)
+            out_Color.rgb * (1.0 - blend_alpha) + tonemapped_rgb * blend_alpha,
+            1.0 - (1.0 - out_Color.a) * (1.0 - blend_alpha)
         );
     }
 

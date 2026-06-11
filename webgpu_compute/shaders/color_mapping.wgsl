@@ -21,17 +21,17 @@
 // color map from https://www.bergfex.com/
 // values not in [0,1] are mapped to black
 fn color_mapping_bergfex(value: f32) -> vec3f {
-    if (value < 0.0 || value > 1.0) {
+    if value < 0.0 || value > 1.0 {
         return vec3f(0);
     }
 
     let deg = u32(value * 90);
 
     const bins = array<u32, 5>(29, 34, 39, 44, 90);
-    const colors = array<vec3f, 5>(vec3f(1, 1, 1), vec3f(255.0 / 255.0, 219.0 / 255.0, 17.0 / 255.0), vec3f(255.0 / 255.0, 117.0 / 255.0, 6.0 / 255.0), vec3f(213.0 / 255.0, 0.0 / 255.0, 0.0 / 255.0), vec3f(100.0 / 255.0, 0.0 / 255.0, 213.0 / 255.0),);
+    const colors = array<vec3f, 5>(vec3f(1, 1, 1), vec3f(255.0 / 255.0, 219.0 / 255.0, 17.0 / 255.0), vec3f(255.0 / 255.0, 117.0 / 255.0, 6.0 / 255.0), vec3f(213.0 / 255.0, 0.0 / 255.0, 0.0 / 255.0), vec3f(100.0 / 255.0, 0.0 / 255.0, 213.0 / 255.0));
 
     var index = 0;
-    while (deg > bins[index]) {
+    while deg > bins[index] {
         index++;
     }
     return colors[index];
@@ -41,17 +41,17 @@ fn color_mapping_bergfex(value: f32) -> vec3f {
 // color map from https://www.openslopemap.org/karte/
 // values not in [0,1] are mapped to black
 fn color_mapping_openslopemap(value: f32) -> vec3f {
-    if (value < 0.0 || value > 1.0) {
+    if value < 0.0 || value > 1.0 {
         return vec3f(0);
     }
 
     let deg = u32(value * 90);
 
     const bins = array<u32, 9>(9, 29, 34, 39, 42, 45, 49, 54, 90);
-    const colors = array<vec3f, 9>(vec3f(254.0 / 255.0, 249.0 / 255.0, 249.0 / 255.0), vec3f(51.0 / 255.0, 249.0 / 255.0, 49.0 / 255.0), vec3f(242.0 / 255.0, 228.0 / 255.0, 44.0 / 255.0), vec3f(255.0 / 255.0, 169.0 / 255.0, 45.0 / 255.0), vec3f(255.0 / 255.0, 48.0 / 255.0, 45.0 / 255.0), vec3f(255.0 / 255.0, 79.0 / 255.0, 249.0 / 255.0), vec3f(183.0 / 255.0, 69.0 / 255.0, 253.0 / 255.0), vec3f(135.0 / 255.0, 44.0 / 255.0, 253.0 / 255.0), vec3f(49.0 / 255.0, 49.0 / 255.0, 253.0 / 255.0),);
+    const colors = array<vec3f, 9>(vec3f(254.0 / 255.0, 249.0 / 255.0, 249.0 / 255.0), vec3f(51.0 / 255.0, 249.0 / 255.0, 49.0 / 255.0), vec3f(242.0 / 255.0, 228.0 / 255.0, 44.0 / 255.0), vec3f(255.0 / 255.0, 169.0 / 255.0, 45.0 / 255.0), vec3f(255.0 / 255.0, 48.0 / 255.0, 45.0 / 255.0), vec3f(255.0 / 255.0, 79.0 / 255.0, 249.0 / 255.0), vec3f(183.0 / 255.0, 69.0 / 255.0, 253.0 / 255.0), vec3f(135.0 / 255.0, 44.0 / 255.0, 253.0 / 255.0), vec3f(49.0 / 255.0, 49.0 / 255.0, 253.0 / 255.0));
 
     var index = 0;
-    while (deg > bins[index]) {
+    while deg > bins[index] {
         index++;
     }
     return colors[index];
@@ -78,7 +78,7 @@ fn color_mapping_flowpy(value: f32, min: f32, max: f32, blend: bool) -> vec4f {
     let index = u32(pos);
     let factor = pos - f32(index);
 
-    if (!blend || index >= bin_count - 1) {
+    if !blend || index >= bin_count - 1 {
         return colors[index];
     }
     else {

@@ -18,10 +18,10 @@
 
 #include "TextureOverlayImGuiRenderer.h"
 
-#include <webgpu_app/ImGuiManager.h>
 #include <QDebug>
 #include <filesystem>
 #include <imgui.h>
+#include <webgpu_app/ImGuiManager.h>
 
 #include <nucleus/utils/geopng_decoder.h>
 #include <nucleus/utils/image_loader.h>
@@ -105,8 +105,12 @@ bool TextureOverlayImGuiRenderer::render_custom_settings()
         const float full_w = ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x;
         const bool btn = ImGui::Button("Load Files...", ImVec2(full_w, 0));
         m_picked_files.clear();
-        if (ImGuiManager::FilePicker(m_dialog_id.c_str(), "Choose PNG and/or AABB",
-                ".png,.txt,.*", btn, m_picked_files, /*allow_multiple=*/true,
+        if (ImGuiManager::FilePicker(m_dialog_id.c_str(),
+                "Choose PNG and/or AABB",
+                ".png,.txt,.*",
+                btn,
+                m_picked_files,
+                /*allow_multiple=*/true,
                 m_last_dialog_directory.empty() ? "." : m_last_dialog_directory.c_str())) {
             for (const auto& path : m_picked_files) {
                 const auto ext = std::filesystem::path(path).extension().string();

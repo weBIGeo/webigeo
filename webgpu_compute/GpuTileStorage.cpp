@@ -34,8 +34,7 @@ TileStorageTexture::TileStorageTexture(WGPUDevice device, WGPUTextureDescriptor 
 }
 
 TileStorageTexture::TileStorageTexture(WGPUDevice device, const glm::uvec2& resolution, size_t capacity, WGPUTextureFormat format, WGPUTextureUsage usage)
-    : webgpu_compute::TileStorageTexture(
-          device, create_default_texture_descriptor(resolution, capacity, format, usage), create_default_sampler_descriptor())
+    : webgpu_compute::TileStorageTexture(device, create_default_texture_descriptor(resolution, capacity, format, usage), create_default_sampler_descriptor())
 {
 }
 

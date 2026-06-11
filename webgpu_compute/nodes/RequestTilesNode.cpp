@@ -43,7 +43,6 @@ RequestTilesNode::RequestTilesNode()
 void RequestTilesNode::run_impl()
 {
 
-
     // get tile ids to request
     // TODO maybe make get_input_data a template (so usage would become get_input_data<type>(socket_index))
     const auto& tile_ids = *std::get<data_type<const std::vector<radix::tile::Id>*>()>(input_socket("tile ids").get_connected_data());
@@ -96,7 +95,8 @@ void RequestTilesNode::set_settings(const RequestTilesNodeSettings& settings)
 {
     m_settings = settings;
     m_requested_tile_ids.clear(); // force re-download on next run
-    m_tile_loader = std::make_unique<nucleus::tile::TileLoadService>(QString::fromStdString(settings.tile_path), settings.url_pattern, QString::fromStdString(settings.file_extension));
+    m_tile_loader = std::make_unique<nucleus::tile::TileLoadService>(
+        QString::fromStdString(settings.tile_path), settings.url_pattern, QString::fromStdString(settings.file_extension));
     connect(m_tile_loader.get(), &nucleus::tile::TileLoadService::load_finished, this, &RequestTilesNode::on_single_tile_received);
 }
 

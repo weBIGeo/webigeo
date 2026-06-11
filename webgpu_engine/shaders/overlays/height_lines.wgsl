@@ -21,34 +21,32 @@
 ///use webgpu::encoder
 ///use webgpu::tile_util
 
-@group(0) @binding(0) var<uniform> conf : shared_config;
-@group(1) @binding(0) var<uniform> camera : camera_config;
-@group(2) @binding(0) var position_texture : texture_2d<f32>;
-@group(2) @binding(1) var normal_texture : texture_2d<u32>;
-@group(2) @binding(2) var<uniform> settings : HeightLinesSettings;
-@group(2) @binding(3) var output_texture : texture_storage_2d < rgba8unorm, write>;
-@group(2) @binding(4) var prev_output : texture_2d<f32>;
+@group(0) @binding(0) var<uniform> conf: shared_config;
+@group(1) @binding(0) var<uniform> camera: camera_config;
+@group(2) @binding(0) var position_texture: texture_2d<f32>;
+@group(2) @binding(1) var normal_texture: texture_2d<u32>;
+@group(2) @binding(2) var<uniform> settings: HeightLinesSettings;
+@group(2) @binding(3) var output_texture: texture_storage_2d<rgba8unorm, write>;
+@group(2) @binding(4) var prev_output: texture_2d<f32>;
 
 struct HeightLinesSettings {
-    primary_interval : f32,
-    secondary_interval : f32,
-    base_width : f32,
-    minor_opacity : f32,
-    line_color : vec4f,
+    primary_interval: f32,
+    secondary_interval: f32,
+    base_width: f32,
+    minor_opacity: f32,
+    line_color: vec4f,
 }
 
 //Returns the blending alpha for a height line at this pixel, or 0 if no line.
-fn get_height_line_alpha(pos_ws : vec3f, normal : vec3f, dist : f32, interval : f32, base_width : f32, aa_scale : f32) -> f32 {
+fn get_height_line_alpha(pos_ws: vec3f, normal: vec3f, dist: f32, interval: f32, base_width: f32, aa_scale: f32) -> f32 {
     let alpha_line = 1.0 - min(dist / 20000.0, 1.0);
-    if (alpha_line <= 0.01)
-    {
+    if alpha_line <= 0.01 {
         return 0.0;
     }
 
     var line_width = (1.0 + dist / 5000.0) * base_width;
     var aa_scaled = 0.0;
-    if (aa_scale > 0.0)
-    {
+    if aa_scale > 0.0 {
         aa_scaled = max(dist / 2000.0 * aa_scale, 0.03);
     }
 
@@ -61,27 +59,22 @@ fn get_height_line_alpha(pos_ws : vec3f, normal : vec3f, dist : f32, interval : 
     let dist_from_line = min(fractional_part, interval - fractional_part);
     let dist_from_edge = (line_width / 2.0) - dist_from_line;
 
-    if (abs(dist_from_edge) < aa_scaled)
-    {
+    if abs(dist_from_edge) < aa_scaled {
         let aa_factor = smoothstep(-aa_scaled, aa_scaled, dist_from_edge);
         let effective_alpha = alpha_line * aa_factor;
-        if (effective_alpha > 0.01)
-        {
+        if effective_alpha > 0.01 {
             return effective_alpha;
         }
-    } else if (dist_from_edge > 0.0)
-    {
+    } else if dist_from_edge > 0.0 {
         return alpha_line;
     }
     return 0.0;
 }
 
 @compute @workgroup_size(16, 16, 1)
-fn computeMain(@builtin(global_invocation_id) id : vec3u)
-{
+fn computeMain(@builtin(global_invocation_id) id: vec3u) {
     let dims = vec2u(textureDimensions(position_texture));
-    if (id.x >= dims.x || id.y >= dims.y)
-    {
+    if id.x >= dims.x || id.y >= dims.y {
         return;
     }
     let tci = id.xy;
@@ -96,8 +89,7 @@ fn computeMain(@builtin(global_invocation_id) id : vec3u)
 
     var out_color = vec4f(0.0);
 
-    if (dist > 0.0)
-    {
+    if dist > 0.0 {
         let major = get_height_line_alpha(pos_ws, normal, dist, settings.primary_interval, settings.base_width, 1.0);
         let minor = get_height_line_alpha(pos_ws, normal, dist, settings.secondary_interval, settings.base_width * 0.5, 1.0);
         let alpha = max(major, minor * settings.minor_opacity) * settings.line_color.a;

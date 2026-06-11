@@ -26,13 +26,13 @@ glm::uvec3 ComputeNormalsNode::SHADER_WORKGROUP_SIZE = { 16, 16, 1 };
 
 ComputeNormalsNode::ComputeNormalsNode(webgpu::Context& ctx)
     : Node(
-        {
-            InputSocket(*this, "bounds", data_type<const radix::geometry::Aabb<2, double>*>()),
-            InputSocket(*this, "height texture", data_type<const webgpu::raii::TextureWithSampler*>()),
-        },
-        {
-            OutputSocket(*this, "normal texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }),
-        })
+          {
+              InputSocket(*this, "bounds", data_type<const radix::geometry::Aabb<2, double>*>()),
+              InputSocket(*this, "height texture", data_type<const webgpu::raii::TextureWithSampler*>()),
+          },
+          {
+              OutputSocket(*this, "normal texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }),
+          })
     , m_ctx(&ctx)
     , m_normals_settings_uniform_buffer(ctx.device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
 {

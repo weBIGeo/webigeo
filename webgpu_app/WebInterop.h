@@ -38,13 +38,13 @@ class WebInterop : public QObject {
     Q_OBJECT
 
 public:
-
     // Deleted copy constructor and copy assignment operator
     WebInterop(const WebInterop&) = delete;
     WebInterop& operator=(const WebInterop&) = delete;
 
     // Static method to get the instance of the class
-    static WebInterop& instance() {
+    static WebInterop& instance()
+    {
         static WebInterop _instance;
         return _instance;
     }
@@ -67,4 +67,3 @@ private:
     // Private constructor
     WebInterop();
 };
-

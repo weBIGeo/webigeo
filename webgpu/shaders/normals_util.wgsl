@@ -25,14 +25,14 @@ fn normal_by_finite_difference_method(
     quad_height: f32,
     altitude_correction_factor: f32,
     texture_layer: i32,
-    texture_array: texture_2d_array<u32>) -> vec3<f32>
-{
+    texture_array: texture_2d_array<u32>
+) -> vec3<f32> {
     let height_texture_size = textureDimensions(texture_array);
     // from here: https://stackoverflow.com/questions/6656358/calculating-normals-in-a-triangle-mesh/21660173#21660173
-    
+
     // 0 is texel center of first texel, 1 is texel center of last texel
     let uv_tex = vec2i(floor(uv * vec2f(height_texture_size - 1) + 0.5));
-    
+
     let upper_bounds = vec2<i32>(height_texture_size - 1);
     let lower_bounds = vec2<i32>(0, 0);
     let hL_uv = clamp(uv_tex - vec2<i32>(1, 0), lower_bounds, upper_bounds);
@@ -65,12 +65,12 @@ fn normal_by_finite_difference_method_texture_f32(
     quad_width: f32,
     quad_height: f32,
     altitude_correction_factor: f32,
-    texture: texture_2d<f32>) -> vec3<f32>
-{
+    texture: texture_2d<f32>
+) -> vec3<f32> {
     let height_texture_size = textureDimensions(texture);
     // from here: https://stackoverflow.com/questions/6656358/calculating-normals-in-a-triangle-mesh/21660173#21660173
     let height = quad_width + quad_height;
-    
+
     let upper_bounds = vec2<i32>(height_texture_size - 1);
     let lower_bounds = vec2<i32>(0, 0);
     let hL_uv = clamp(vec2i(pos) - vec2<i32>(1, 0), lower_bounds, upper_bounds);

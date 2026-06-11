@@ -35,7 +35,7 @@ fn signNotZero(v: vec2f) -> vec2f {
 // - Requirement: n must be normalized.
 fn v3f32_to_oct(n: vec3<f32>) -> vec2<f32> {
     var en: vec2<f32> = n.xy * (1.0 / (abs(n.x) + abs(n.y) + abs(n.z)));
-    if (n.z <= 0.0) {
+    if n.z <= 0.0 {
         en = (1.0 - abs(en.yx)) * signNotZero(en);
     }
     return en;
@@ -46,7 +46,7 @@ fn v3f32_to_oct(n: vec3<f32>) -> vec2<f32> {
 // - Returns: A normalized vec3f containing the decoded normal vector.
 fn oct_to_v3f32(en: vec2<f32>) -> vec3<f32> {
     var n: vec3<f32> = vec3f(en.xy, 1.0 - abs(en.x) - abs(en.y));
-    if (n.z < 0.0) {
+    if n.z < 0.0 {
         n = vec3f((1.0 - abs(n.yx)) * signNotZero(n.xy), n.z);
     }
     return normalize(n);

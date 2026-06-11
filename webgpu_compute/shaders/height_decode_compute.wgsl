@@ -32,7 +32,7 @@ struct RegionBounds {
 fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     // Exit if thread id is outside the image dimensions
     let output_texture_size = textureDimensions(output_texture);
-    if (id.x >= output_texture_size.x || id.y >= output_texture_size.y) {
+    if id.x >= output_texture_size.x || id.y >= output_texture_size.y {
         return;
     }
 
@@ -45,11 +45,10 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     // calculate altitude correction factor based on latitude
     //let pos_y = bounds.aabb_min.y + (bounds.aabb_max.y - bounds.aabb_min.y) * f32(id.y) / f32(output_texture_size.y);
     //let altitude_correction_factor = 1 / cos(y_to_lat(pos_y));
-    
+
     // moved altitude correction to normals compute node
     //TODO: figure out why we dont need corrected altitudes for the alpha runout model (see compute trajectories shader)
     const altitude_correction_factor = 1;
-
 
     // Write the red channel value to the output texture
     textureStore(output_texture, vec2<i32>(id.xy), vec4<f32>(height_value * altitude_correction_factor, 0.0, 0.0, 0.0));

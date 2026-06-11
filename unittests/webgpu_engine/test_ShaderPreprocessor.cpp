@@ -16,33 +16,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include <catch2/catch_test_macros.hpp>
 #include <catch2/benchmark/catch_benchmark.hpp>
-#include <webgpu/util/ShaderPreprocessor.h>
+#include <catch2/catch_test_macros.hpp>
 #include <filesystem>
 #include <fstream>
 #include <map>
 #include <sstream>
 #include <string>
 #include <vector>
+#include <webgpu/util/ShaderPreprocessor.h>
 
 using namespace webgpu::util;
 
 // Helper function to set up error callback for tests
 inline void setup_error_callback(ShaderPreprocessor& preprocessor)
 {
-    preprocessor.set_error_callback([](const std::string& message) {
-        FAIL(message);
-    });
+    preprocessor.set_error_callback([](const std::string& message) { FAIL(message); });
 }
 
 // Helper class to create a mock file system for testing
 class MockFileSystem {
 public:
-    void add_file(const std::string& name, const std::string& content)
-    {
-        m_files[name] = content;
-    }
+    void add_file(const std::string& name, const std::string& content) { m_files[name] = content; }
 
     std::string read_file(const std::string& name) const
     {
@@ -67,9 +62,7 @@ TEST_CASE("ShaderPreprocessor - Include Statement Tests")
     {
         fs.add_file("header", "// Header content\nfn helper() -> f32 { return 1.0; }");
 
-        preprocessor.set_file_reader([&fs](const std::string& name) {
-            return fs.read_file(name);
-        });
+        preprocessor.set_file_reader([&fs](const std::string& name) { return fs.read_file(name); });
 
         std::string input = R"(
 // Main file
@@ -91,9 +84,7 @@ fn main() -> f32 {
     {
         fs.add_file("common", "const PI: f32 = 3.14159;");
 
-        preprocessor.set_file_reader([&fs](const std::string& name) {
-            return fs.read_file(name);
-        });
+        preprocessor.set_file_reader([&fs](const std::string& name) { return fs.read_file(name); });
 
         std::string input = R"(
 ///use common
@@ -124,9 +115,7 @@ fn area(r: f32) -> f32 {
         fs.add_file("math_utils", "///use constants\nfn exp_approx(x: f32) -> f32 { return E; }");
         fs.add_file("physics", "///use constants\nfn decay(t: f32) -> f32 { return E; }");
 
-        preprocessor.set_file_reader([&fs](const std::string& name) {
-            return fs.read_file(name);
-        });
+        preprocessor.set_file_reader([&fs](const std::string& name) { return fs.read_file(name); });
 
         std::string input = R"(
 ///use math_utils
@@ -155,9 +144,7 @@ fn main() {}
         fs.add_file("b", "///use c\nfn b() {}");
         fs.add_file("c", "///use a\nfn c() {}");
 
-        preprocessor.set_file_reader([&fs](const std::string& name) {
-            return fs.read_file(name);
-        });
+        preprocessor.set_file_reader([&fs](const std::string& name) { return fs.read_file(name); });
 
         std::string input = "///use a";
 
@@ -175,9 +162,7 @@ fn main() {}
     {
         fs.add_file("util/helpers", "fn utility() -> i32 { return 42; }");
 
-        preprocessor.set_file_reader([&fs](const std::string& name) {
-            return fs.read_file(name);
-        });
+        preprocessor.set_file_reader([&fs](const std::string& name) { return fs.read_file(name); });
 
         std::string input = R"(
 ///use util/helpers
@@ -411,9 +396,7 @@ fn compute_shadows() -> f32 { return 1.0; }
 ///endif
 )");
 
-        preprocessor.set_file_reader([&fs](const std::string& name) {
-            return fs.read_file(name);
-        });
+        preprocessor.set_file_reader([&fs](const std::string& name) { return fs.read_file(name); });
 
         std::string input = R"(
 ///use lighting
@@ -436,9 +419,7 @@ fn main() {
         fs.add_file("basic_math", "fn add(a: f32, b: f32) -> f32 { return a + b; }");
         fs.add_file("advanced_math", "fn multiply(a: f32, b: f32) -> f32 { return a * b; }");
 
-        preprocessor.set_file_reader([&fs](const std::string& name) {
-            return fs.read_file(name);
-        });
+        preprocessor.set_file_reader([&fs](const std::string& name) { return fs.read_file(name); });
 
         std::string input = R"(
 ///ifdef USE_ADVANCED_MATH
@@ -462,27 +443,16 @@ TEST_CASE("ShaderPreprocessor - Error Handling")
     auto test_error = [](const std::string& input) {
         ShaderPreprocessor preprocessor;
         bool error_called = false;
-        preprocessor.set_error_callback([&error_called](const std::string&) {
-            error_called = true;
-        });
+        preprocessor.set_error_callback([&error_called](const std::string&) { error_called = true; });
         preprocessor.preprocess_code(input);
         REQUIRE(error_called);
     };
 
-    SECTION("Unclosed ifdef")
-    {
-        test_error("fn main() {\n///ifdef FEATURE\n    let x = 1;\n}\n");
-    }
+    SECTION("Unclosed ifdef") { test_error("fn main() {\n///ifdef FEATURE\n    let x = 1;\n}\n"); }
 
-    SECTION("endif without ifdef")
-    {
-        test_error("fn main() {\n    let x = 1;\n///endif\n}\n");
-    }
+    SECTION("endif without ifdef") { test_error("fn main() {\n    let x = 1;\n///endif\n}\n"); }
 
-    SECTION("else without ifdef")
-    {
-        test_error("fn main() {\n///else\n    let x = 1;\n///endif\n}\n");
-    }
+    SECTION("else without ifdef") { test_error("fn main() {\n///else\n    let x = 1;\n///endif\n}\n"); }
 }
 
 TEST_CASE("ShaderPreprocessor - Cache Management")
@@ -493,9 +463,7 @@ TEST_CASE("ShaderPreprocessor - Cache Management")
 
     fs.add_file("cacheable", "const VALUE: i32 = 42;");
 
-    preprocessor.set_file_reader([&fs](const std::string& name) {
-        return fs.read_file(name);
-    });
+    preprocessor.set_file_reader([&fs](const std::string& name) { return fs.read_file(name); });
 
     SECTION("Cache behavior")
     {
@@ -760,7 +728,8 @@ TEST_CASE("ShaderPreprocessor - Benchmark")
         };
     };
 
-    BENCHMARK("Preprocess all shaders (cache enabled)") {
+    BENCHMARK("Preprocess all shaders (cache enabled)")
+    {
         static ShaderPreprocessor preprocessor;
         setup_error_callback(preprocessor);
         preprocessor.set_file_reader(create_file_reader());
@@ -772,7 +741,8 @@ TEST_CASE("ShaderPreprocessor - Benchmark")
         return total;
     };
 
-    BENCHMARK("Preprocess all shaders (cache disabled)") {
+    BENCHMARK("Preprocess all shaders (cache disabled)")
+    {
         ShaderPreprocessor preprocessor;
         preprocessor.set_cache_enabled(false);
         preprocessor.set_file_reader(create_file_reader());

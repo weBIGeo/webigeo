@@ -24,12 +24,12 @@ glm::uvec3 UpsampleTexturesNode::SHADER_WORKGROUP_SIZE = { 1, 16, 16 };
 
 UpsampleTexturesNode::UpsampleTexturesNode(webgpu::Context& ctx, glm::uvec2 target_resolution, size_t capacity)
     : Node(
-        {
-            InputSocket(*this, "source textures", data_type<TileStorageTexture*>()),
-        },
-        {
-            OutputSocket(*this, "output textures", data_type<TileStorageTexture*>(), [this]() { return m_output_storage_texture.get(); }),
-        })
+          {
+              InputSocket(*this, "source textures", data_type<TileStorageTexture*>()),
+          },
+          {
+              OutputSocket(*this, "output textures", data_type<TileStorageTexture*>(), [this]() { return m_output_storage_texture.get(); }),
+          })
     , m_ctx(&ctx)
     , m_target_resolution { target_resolution }
     , m_input_indices(std::make_unique<webgpu::raii::RawBuffer<uint32_t>>(

@@ -22,29 +22,27 @@ var<private> m_seed: vec4u;
 
 fn seed(seed: vec4u) { m_seed = seed; }
 
-fn PCG(x: vec4u) -> vec4u
-{
+fn PCG(x: vec4u) -> vec4u {
     var v = x;
-    
+
     v = v * vec4(1664525) + vec4(1013904223);
-    
+
     v.x += v.y * v.w;
     v.y += v.z * v.x;
     v.z += v.x * v.y;
     v.w += v.y * v.z;
-    
+
     v ^= v >> vec4(16);
-    
+
     v.x += v.y * v.w;
     v.y += v.z * v.x;
     v.z += v.x * v.y;
     v.w += v.y * v.z;
-    
+
     return v;
 }
 
-fn rand4() -> vec4f
-{
+fn rand4() -> vec4f {
     m_seed = PCG(m_seed);
     return vec4f(m_seed) / exp2(32);
 }

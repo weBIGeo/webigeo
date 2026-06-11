@@ -21,17 +21,15 @@
 //General-purpose, dependency-free helper functions shared across shaders.
 
 //Linear falloff from 1.0 at `lower` to 0.0 at `upper`, clamped to [0, 1].
-fn calculate_falloff(dist : f32, lower : f32, upper : f32) -> f32 {
+fn calculate_falloff(dist: f32, lower: f32, upper: f32) -> f32 {
     return clamp(1.0 - (dist - lower) / (upper - lower), 0.0, 1.0);
 }
 
 //Smoothed band: 1.0 inside [min, max], falling off over `smoothf` beyond each edge.
-fn calculate_band_falloff(val : f32, min : f32, max : f32, smoothf : f32) -> f32 {
-    if (val < min)
-    {
+fn calculate_band_falloff(val: f32, min: f32, max: f32, smoothf: f32) -> f32 {
+    if val < min {
         return calculate_falloff(val, min + smoothf, min);
-    } else if (val > max)
-    {
+    } else if val > max {
         return calculate_falloff(val, max, max + smoothf);
     } else {
         return 1.0;

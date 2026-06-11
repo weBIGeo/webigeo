@@ -27,7 +27,8 @@ namespace webgpu::util {
 
 namespace {
     // Helper function to trim leading and trailing whitespace
-    inline std::string trim_whitespace(std::string str) {
+    inline std::string trim_whitespace(std::string str)
+    {
         str.erase(0, str.find_first_not_of(" \t"));
         str.erase(str.find_last_not_of(" \t") + 1);
         return str;
@@ -37,18 +38,16 @@ namespace {
     // whitespace) if the line is a directive, or npos otherwise. Cheap enough to run on
     // every line - it only scans the (usually empty) leading whitespace; the regex is then
     // matched from this offset so the anchored patterns need no change and no substring is copied.
-    inline size_t directive_offset(const std::string& line) {
+    inline size_t directive_offset(const std::string& line)
+    {
         const size_t first = line.find_first_not_of(" \t");
         if (first != std::string::npos && line.compare(first, 3, "///") == 0)
             return first;
         return std::string::npos;
     }
-}
+} // namespace
 
-ShaderPreprocessor::ShaderPreprocessor()
-{
-    initialize_platform_defines();
-}
+ShaderPreprocessor::ShaderPreprocessor() { initialize_platform_defines(); }
 
 void ShaderPreprocessor::initialize_platform_defines()
 {
@@ -82,25 +81,13 @@ void ShaderPreprocessor::initialize_platform_defines()
 #endif
 }
 
-void ShaderPreprocessor::define(const std::string& symbol)
-{
-    m_global_defines[symbol] = "1";
-}
+void ShaderPreprocessor::define(const std::string& symbol) { m_global_defines[symbol] = "1"; }
 
-void ShaderPreprocessor::define(const std::string& symbol, const std::string& value)
-{
-    m_global_defines[symbol] = value;
-}
+void ShaderPreprocessor::define(const std::string& symbol, const std::string& value) { m_global_defines[symbol] = value; }
 
-void ShaderPreprocessor::undefine(const std::string& symbol)
-{
-    m_global_defines.erase(symbol);
-}
+void ShaderPreprocessor::undefine(const std::string& symbol) { m_global_defines.erase(symbol); }
 
-bool ShaderPreprocessor::is_defined(const std::string& symbol) const
-{
-    return m_global_defines.contains(symbol);
-}
+bool ShaderPreprocessor::is_defined(const std::string& symbol) const { return m_global_defines.contains(symbol); }
 
 std::string ShaderPreprocessor::get_value(const std::string& symbol) const
 {
@@ -111,10 +98,7 @@ std::string ShaderPreprocessor::get_value(const std::string& symbol) const
     return "";
 }
 
-void ShaderPreprocessor::clear_cache()
-{
-    m_shader_name_to_code.clear();
-}
+void ShaderPreprocessor::clear_cache() { m_shader_name_to_code.clear(); }
 
 void ShaderPreprocessor::set_cache_enabled(bool enabled)
 {
@@ -124,15 +108,9 @@ void ShaderPreprocessor::set_cache_enabled(bool enabled)
     }
 }
 
-void ShaderPreprocessor::set_file_reader(std::function<std::string(const std::string&)> reader)
-{
-    m_file_reader = std::move(reader);
-}
+void ShaderPreprocessor::set_file_reader(std::function<std::string(const std::string&)> reader) { m_file_reader = std::move(reader); }
 
-void ShaderPreprocessor::set_error_callback(std::function<void(const std::string&)> callback)
-{
-    m_error_callback = std::move(callback);
-}
+void ShaderPreprocessor::set_error_callback(std::function<void(const std::string&)> callback) { m_error_callback = std::move(callback); }
 
 void ShaderPreprocessor::report_error(const std::string& message)
 {
@@ -184,7 +162,8 @@ std::string ShaderPreprocessor::process_defines(const std::string& code, std::ma
         if (std::regex_match(line.cbegin() + static_cast<std::ptrdiff_t>(off), line.cend(), match, define_regex)) {
             const std::string symbol = match[1].str();
             std::string value = trim_whitespace(match[2].str());
-            if (value.empty()) value = "1"; // default to "1"
+            if (value.empty())
+                value = "1"; // default to "1"
             local_defines[symbol] = value;
             // Don't output the #define directive itself
         } else {
@@ -195,8 +174,10 @@ std::string ShaderPreprocessor::process_defines(const std::string& code, std::ma
     return output.str();
 }
 
-std::string ShaderPreprocessor::process_includes(const std::string& code, std::unordered_set<std::string>& already_included,
-    std::map<std::string, std::string>& local_defines, const std::string& current_namespace)
+std::string ShaderPreprocessor::process_includes(const std::string& code,
+    std::unordered_set<std::string>& already_included,
+    std::map<std::string, std::string>& local_defines,
+    const std::string& current_namespace)
 {
     // ///use relpath            -> include from current_namespace
     // ///use target::relpath    -> include from the given target namespace
@@ -246,16 +227,14 @@ std::string ShaderPreprocessor::process_conditionals(const std::string& code, co
 
     // Stack to track conditional compilation state
     struct ConditionalState {
-        bool is_active;          // Should we output code in this block?
+        bool is_active; // Should we output code in this block?
         bool was_any_branch_taken; // Has any branch been taken in this if/else chain?
     };
     std::stack<ConditionalState> condition_stack;
 
     bool is_currently_active = true;
 
-    auto is_symbol_defined = [&](const std::string& symbol) -> bool {
-        return m_global_defines.contains(symbol) || local_defines.contains(symbol);
-    };
+    auto is_symbol_defined = [&](const std::string& symbol) -> bool { return m_global_defines.contains(symbol) || local_defines.contains(symbol); };
 
     auto get_symbol_value = [&](const std::string& symbol) -> std::string {
         auto it = local_defines.find(symbol);
@@ -290,7 +269,7 @@ std::string ShaderPreprocessor::process_conditionals(const std::string& code, co
             const bool parent_active = is_currently_active;
             const bool this_active = parent_active && symbol_defined;
 
-            condition_stack.push({this_active, symbol_defined});
+            condition_stack.push({ this_active, symbol_defined });
             is_currently_active = this_active;
 
         } else if (std::regex_match(dbegin, dend, match, ifndef_regex)) {
@@ -300,7 +279,7 @@ std::string ShaderPreprocessor::process_conditionals(const std::string& code, co
             const bool parent_active = is_currently_active;
             const bool this_active = parent_active && symbol_not_defined;
 
-            condition_stack.push({this_active, symbol_not_defined});
+            condition_stack.push({ this_active, symbol_not_defined });
             is_currently_active = this_active;
 
         } else if (std::regex_match(dbegin, dend, match, if_regex)) {
@@ -312,7 +291,7 @@ std::string ShaderPreprocessor::process_conditionals(const std::string& code, co
             const bool parent_active = is_currently_active;
             const bool this_active = parent_active && condition_met;
 
-            condition_stack.push({this_active, condition_met});
+            condition_stack.push({ this_active, condition_met });
             is_currently_active = this_active;
 
         } else if (std::regex_match(dbegin, dend, match, elif_regex)) {
@@ -412,8 +391,7 @@ std::string ShaderPreprocessor::replace_macros(const std::string& code, const st
     // NOTE: We process in reverse order of symbol length to handle longer symbols first
     // for the case where one symbol is a part of another (e.g., VALUE and VAL)
     std::vector<std::pair<std::string, std::string>> sorted_defines(all_defines.begin(), all_defines.end());
-    std::sort(sorted_defines.begin(), sorted_defines.end(),
-        [](const auto& a, const auto& b) { return a.first.length() > b.first.length(); });
+    std::sort(sorted_defines.begin(), sorted_defines.end(), [](const auto& a, const auto& b) { return a.first.length() > b.first.length(); });
 
     std::string result;
     result.reserve(code.length()); // Reserve space to avoid reallocations

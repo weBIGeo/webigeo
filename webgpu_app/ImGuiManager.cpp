@@ -208,9 +208,13 @@ void ImGuiManager::on_file_uploaded(const std::string& filename, const std::stri
 }
 #endif
 
-bool ImGuiManager::FilePicker(const char* dialog_id, const char* title, const char* filters,
-    bool wants_open, std::vector<std::string>& out_paths,
-    bool allow_multiple, const char* initial_path)
+bool ImGuiManager::FilePicker(const char* dialog_id,
+    const char* title,
+    const char* filters,
+    bool wants_open,
+    std::vector<std::string>& out_paths,
+    bool allow_multiple,
+    const char* initial_path)
 {
 #ifdef __EMSCRIPTEN__
     auto& state = s_picker_states[dialog_id];
@@ -237,8 +241,7 @@ bool ImGuiManager::FilePicker(const char* dialog_id, const char* title, const ch
     const ImVec2 center = ImGui::GetMainViewport()->GetCenter();
     ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
     const ImVec2 vp = ImGui::GetMainViewport()->Size;
-    const ImVec2 dialog_size(vp.x < 1000.0f ? vp.x * 0.9f : vp.x * 0.5f,
-                             vp.y < 1000.0f ? vp.y * 0.9f : vp.y * 0.5f);
+    const ImVec2 dialog_size(vp.x < 1000.0f ? vp.x * 0.9f : vp.x * 0.5f, vp.y < 1000.0f ? vp.y * 0.9f : vp.y * 0.5f);
     if (ImGuiFileDialog::Instance()->Display(dialog_id, ImGuiWindowFlags_NoCollapse, dialog_size, dialog_size)) {
         if (ImGuiFileDialog::Instance()->IsOk()) {
             for (auto& [name, path] : ImGuiFileDialog::Instance()->GetSelection())

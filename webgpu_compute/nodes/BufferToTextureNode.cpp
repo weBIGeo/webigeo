@@ -36,9 +36,9 @@ BufferToTextureNode::BufferToTextureNode(webgpu::Context& ctx, const BufferToTex
     : Node({ InputSocket(*this, "raster dimensions", data_type<glm::uvec2>()),
                InputSocket(*this, "storage buffer", data_type<webgpu::raii::RawBuffer<uint32_t>*>()),
                InputSocket(*this, "transparency buffer", data_type<webgpu::raii::RawBuffer<uint32_t>*>()) },
-        {
-            OutputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_textures[m_pingpong].get(); }),
-        })
+          {
+              OutputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_textures[m_pingpong].get(); }),
+          })
     , m_ctx(&ctx)
     , m_settings { settings }
     , m_settings_uniform(ctx.device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)
@@ -134,11 +134,12 @@ void BufferToTextureNode::run_impl()
         = []([[maybe_unused]] WGPUQueueWorkDoneStatus status, [[maybe_unused]] WGPUStringView message, void* userdata, [[maybe_unused]] void* userdata2) {
               auto* node = reinterpret_cast<BufferToTextureNode*>(userdata);
               if (node->m_settings.create_mipmaps) {
-                  const auto on_mipmaps_done
-                      = []([[maybe_unused]] WGPUQueueWorkDoneStatus status, [[maybe_unused]] WGPUStringView message, void* userdata, [[maybe_unused]] void* userdata2) {
-                            reinterpret_cast<BufferToTextureNode*>(userdata)->complete_run();
-                        };
-                  webgpu::compute_mipmaps_for_texture(*node->m_ctx, &node->m_output_textures[node->m_pingpong]->texture(),
+                  const auto on_mipmaps_done = []([[maybe_unused]] WGPUQueueWorkDoneStatus status,
+                                                   [[maybe_unused]] WGPUStringView message,
+                                                   void* userdata,
+                                                   [[maybe_unused]] void* userdata2) { reinterpret_cast<BufferToTextureNode*>(userdata)->complete_run(); };
+                  webgpu::compute_mipmaps_for_texture(*node->m_ctx,
+                      &node->m_output_textures[node->m_pingpong]->texture(),
                       WGPUQueueWorkDoneCallbackInfo {
                           .nextInChain = nullptr,
                           .mode = WGPUCallbackMode_AllowProcessEvents,

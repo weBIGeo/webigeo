@@ -38,7 +38,7 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
 
     // exit if thread id is outside image dimensions (i.e. thread is not supposed to be doing any work)
     let texture_size = textureDimensions(normals_texture);
-    if (id.x >= texture_size.x || id.y >= texture_size.y) {
+    if id.x >= texture_size.x || id.y >= texture_size.y {
         return;
     }
     let texture_pos: vec2u = id.xy; // in [0, texture_dimensions(normals_texture) - 1]

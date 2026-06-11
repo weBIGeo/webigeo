@@ -35,7 +35,7 @@ OverlayRenderNode::OverlayRenderNode(webgpu_engine::Context& context)
 OverlayRenderNode::OverlayRenderNode(webgpu_engine::Context& context, const OverlaySettings& settings)
     : Node({ InputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>()),
                InputSocket(*this, "region aabb", data_type<const radix::geometry::Aabb<2, double>*>()) },
-        {})
+          {})
     , m_context(&context)
     , m_settings(settings)
 {

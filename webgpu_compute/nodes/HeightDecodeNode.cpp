@@ -31,13 +31,13 @@ HeightDecodeNode::HeightDecodeNode(webgpu::Context& ctx)
 
 webgpu_compute::nodes::HeightDecodeNode::HeightDecodeNode(webgpu::Context& ctx, HeightDecodeSettings settings)
     : Node(
-        {
-            InputSocket(*this, "encoded texture", data_type<const webgpu::raii::TextureWithSampler*>()),
-            InputSocket(*this, "region aabb", data_type<const radix::geometry::Aabb<2, double>*>()),
-        },
-        {
-            OutputSocket(*this, "decoded texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }),
-        })
+          {
+              InputSocket(*this, "encoded texture", data_type<const webgpu::raii::TextureWithSampler*>()),
+              InputSocket(*this, "region aabb", data_type<const radix::geometry::Aabb<2, double>*>()),
+          },
+          {
+              OutputSocket(*this, "decoded texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }),
+          })
     , m_ctx(&ctx)
     , m_settings(settings)
     , m_settings_uniform(m_ctx->device(), WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst)

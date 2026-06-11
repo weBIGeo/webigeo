@@ -117,7 +117,9 @@ public:
 private:
     std::string get_file_contents_with_cache(const std::string& name);
     std::string process_defines(const std::string& code, std::map<std::string, std::string>& local_defines);
-    std::string process_includes(const std::string& code, std::unordered_set<std::string>& already_included, std::map<std::string, std::string>& local_defines,
+    std::string process_includes(const std::string& code,
+        std::unordered_set<std::string>& already_included,
+        std::map<std::string, std::string>& local_defines,
         const std::string& current_namespace);
     std::string process_conditionals(const std::string& code, const std::map<std::string, std::string>& local_defines);
     std::string replace_macros(const std::string& code, const std::map<std::string, std::string>& local_defines);
@@ -126,10 +128,10 @@ private:
     void report_error(const std::string& message);
 
 private:
-    std::map<std::string, std::string> m_shader_name_to_code;  // Cache of file contents
-    std::map<std::string, std::string> m_global_defines;       // Global preprocessor symbols and their values (persist across calls, "1" if no value specified)
+    std::map<std::string, std::string> m_shader_name_to_code; // Cache of file contents
+    std::map<std::string, std::string> m_global_defines; // Global preprocessor symbols and their values (persist across calls, "1" if no value specified)
     std::function<std::string(const std::string&)> m_file_reader; // Callback for reading files
-    std::function<void(const std::string&)> m_error_callback;   // Callback for error reporting
+    std::function<void(const std::string&)> m_error_callback; // Callback for error reporting
     bool m_cache_enabled = true;
 };
 

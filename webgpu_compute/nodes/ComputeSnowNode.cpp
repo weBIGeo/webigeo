@@ -32,14 +32,14 @@ ComputeSnowNode::ComputeSnowNode(webgpu::Context& ctx)
 
 ComputeSnowNode::ComputeSnowNode(webgpu::Context& ctx, const SnowSettings& settings)
     : Node(
-        {
-            InputSocket(*this, "bounds", data_type<const radix::geometry::Aabb<2, double>*>()),
-            InputSocket(*this, "normal texture", data_type<const webgpu::raii::TextureWithSampler*>()),
-            InputSocket(*this, "height texture", data_type<const webgpu::raii::TextureWithSampler*>()),
-        },
-        {
-            OutputSocket(*this, "snow texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_snow_texture.get(); }),
-        })
+          {
+              InputSocket(*this, "bounds", data_type<const radix::geometry::Aabb<2, double>*>()),
+              InputSocket(*this, "normal texture", data_type<const webgpu::raii::TextureWithSampler*>()),
+              InputSocket(*this, "height texture", data_type<const webgpu::raii::TextureWithSampler*>()),
+          },
+          {
+              OutputSocket(*this, "snow texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_snow_texture.get(); }),
+          })
     , m_ctx(&ctx)
     , m_settings { settings }
     , m_snow_settings_uniform_buffer(ctx.device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)

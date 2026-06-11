@@ -26,10 +26,10 @@ namespace webgpu_compute::nodes {
 
 SelectTilesNode::SelectTilesNode()
     : Node({ InputSocket(*this, "region", data_type<const radix::geometry::Aabb<3, double>*>()) },
-        {
-            OutputSocket(*this, "tile ids", data_type<const std::vector<radix::tile::Id>*>(), [this]() { return &m_output_tile_ids; }),
-            OutputSocket(*this, "region aabb", data_type<const radix::geometry::Aabb<2, double>*>(), [this]() { return &m_output_bounds; }),
-        })
+          {
+              OutputSocket(*this, "tile ids", data_type<const std::vector<radix::tile::Id>*>(), [this]() { return &m_output_tile_ids; }),
+              OutputSocket(*this, "region aabb", data_type<const radix::geometry::Aabb<2, double>*>(), [this]() { return &m_output_bounds; }),
+          })
     , m_output_bounds { glm::dvec2(std::numeric_limits<double>::max()), glm::dvec2(std::numeric_limits<double>::min()) }
 {
 }

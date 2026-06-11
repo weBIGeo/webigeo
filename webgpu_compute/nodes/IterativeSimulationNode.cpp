@@ -29,13 +29,13 @@ IterativeSimulationNode::IterativeSimulationNode(webgpu::Context& ctx)
 
 IterativeSimulationNode::IterativeSimulationNode(webgpu::Context& ctx, const IterativeSimulationSettings& settings)
     : Node(
-        {
-            InputSocket(*this, "height texture", data_type<const webgpu::raii::TextureWithSampler*>()),
-            InputSocket(*this, "release point texture", data_type<const webgpu::raii::TextureWithSampler*>()),
-        },
-        {
-            OutputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }),
-        })
+          {
+              InputSocket(*this, "height texture", data_type<const webgpu::raii::TextureWithSampler*>()),
+              InputSocket(*this, "release point texture", data_type<const webgpu::raii::TextureWithSampler*>()),
+          },
+          {
+              OutputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }),
+          })
     , m_ctx(&ctx)
     , m_settings { settings }
 {

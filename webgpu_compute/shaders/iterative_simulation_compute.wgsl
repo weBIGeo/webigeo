@@ -40,22 +40,22 @@ fn pos_to_index(pos: vec2u) -> u32 {
 
 // test model for debugging
 fn compute_flow_step_test(pos: vec2u) {
-    if (any(pos < vec2u(1)) || any(pos > textureDimensions(height_texture) - vec2u(1))) {
+    if any(pos < vec2u(1)) || any(pos > textureDimensions(height_texture) - vec2u(1)) {
         // we are near border, not all neighbors are defined
         return;
     }
 
-    if (settings.num_iteration == 0) {
+    if settings.num_iteration == 0 {
         let is_release_point = textureLoad(release_point_texture, pos, 0).a > 0;
         atomicStore(&flux[pos_to_index(pos)], u32(is_release_point));
         textureStore(output_texture, pos, vec4f(f32(is_release_point), 0, 0, f32(is_release_point)));
     } else {
-        let base_cell_flux = atomicExchange(&flux[pos_to_index(pos)], 0u);        
+        let base_cell_flux = atomicExchange(&flux[pos_to_index(pos)], 0u);
 
-        if (base_cell_flux == 0u) {
+        if base_cell_flux == 0u {
             return;
         }
-        
+
         let is_release_point = textureLoad(release_point_texture, pos, 0).a > 0;
         textureStore(output_texture, pos, vec4f(f32(is_release_point), 0, 1, 1));
 
@@ -67,7 +67,7 @@ fn compute_flow_step_test(pos: vec2u) {
         let center_right = vec2u(vec2i(pos) + vec2i(1, 0));
         let bottom_left = vec2u(vec2i(pos) + vec2i(-1, 1));
         let bottom_center = vec2u(vec2i(pos) + vec2i(0, 1));
-        let bottom_right = vec2u(vec2i(pos) + vec2i(1, 1));   
+        let bottom_right = vec2u(vec2i(pos) + vec2i(1, 1));
 
         let height_center = textureLoad(height_texture, pos, 0).r;
 
@@ -80,33 +80,32 @@ fn compute_flow_step_test(pos: vec2u) {
         let height_bottom_center = textureLoad(height_texture, bottom_center, 0).r;
         let height_bottom_right = textureLoad(height_texture, bottom_right, 0).r;
 
-        if (height_center > height_top_left) {
+        if height_center > height_top_left {
             atomicAdd(&flux[pos_to_index(top_left)], base_cell_flux);
         }
-        if (height_center > height_top_center) {
+        if height_center > height_top_center {
             atomicAdd(&flux[pos_to_index(top_center)], base_cell_flux);
         }
-        if (height_center > height_top_right) {
+        if height_center > height_top_right {
             atomicAdd(&flux[pos_to_index(top_right)], base_cell_flux);
         }
-        if (height_center > height_center_left) {
+        if height_center > height_center_left {
             atomicAdd(&flux[pos_to_index(center_left)], base_cell_flux);
         }
-        if (height_center > height_center_right) {
+        if height_center > height_center_right {
             atomicAdd(&flux[pos_to_index(center_right)], base_cell_flux);
         }
-        if (height_center > height_bottom_left) {
+        if height_center > height_bottom_left {
             atomicAdd(&flux[pos_to_index(bottom_left)], base_cell_flux);
         }
-        if (height_center > height_bottom_center) {
+        if height_center > height_bottom_center {
             atomicAdd(&flux[pos_to_index(bottom_center)], base_cell_flux);
         }
-        if (height_center > height_bottom_right) {
+        if height_center > height_bottom_right {
             atomicAdd(&flux[pos_to_index(bottom_right)], base_cell_flux);
         }
     }
 }
-
 
 fn compute_flow_step(pos: vec2u) {
     // Computes a single step of FlowPy
@@ -116,14 +115,14 @@ fn compute_flow_step(pos: vec2u) {
     //TODO basically do what avaframe.com4FlowPy.flowClass, method calc_distribution() does
 
     let parents = input_parents[pos_to_index(pos)];
-    if (parents == 0) {
+    if parents == 0 {
         return;
     }
 
     for (var i = 0u; i < 8u; i++) {
         let is_parent_set = parents & (1u << i);
         //if (is_parent_set) {
-            // last iteration, some cell added itself as parent of this cell
+        // last iteration, some cell added itself as parent of this cell
         //}
     }
 
@@ -140,10 +139,10 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
 
     // exit if thread id is outside image dimensions (i.e. thread is not supposed to be doing any work)
     let texture_size = textureDimensions(height_texture);
-    if (id.x >= texture_size.x || id.y >= texture_size.y) {
+    if id.x >= texture_size.x || id.y >= texture_size.y {
         return;
     }
     // id.xy in [0, texture_dimensions(output_tiles) - 1]
-    
+
     compute_flow_step_test(id.xy);
 }

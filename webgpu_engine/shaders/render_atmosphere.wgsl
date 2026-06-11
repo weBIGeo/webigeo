@@ -22,7 +22,7 @@
 
 ///use screen_pass_vert
 
-@group(0) @binding(0) var<uniform> camera : camera_config;
+@group(0) @binding(0) var<uniform> camera: camera_config;
 
 // const highp float infinity = 1.0 / 0.0;   // gives a warning on webassembly (and other angle based products)
 const infinity = 3.40282e+38; // https://godbolt.org/z/9o9PdbGqW
@@ -34,13 +34,13 @@ fn unproject(normalised_device_coordinates: vec2f) -> vec3f {
 }
 
 @fragment
-fn fragmentMain(vertex_out : VertexOut) -> @location(0) vec4f {
+fn fragmentMain(vertex_out: VertexOut) -> @location(0) vec4f {
 
     let origin = camera.position.xyz;
     let ray_direction = unproject(vertex_out.texcoords * vec2f(2.0, -2.0) + 1.0);
     var ray_length = 2000.0;
     let background_colour = vec3f(0.0, 0.0, 0.0);
-    if (ray_direction.z < 0.0) {
+    if ray_direction.z < 0.0 {
         ray_length = min(ray_length, -(origin.z * 0.001) / ray_direction.z);
     }
     let light_through_atmosphere = calculate_atmospheric_light(origin / 1000.0, ray_direction, ray_length, background_colour, 1000);

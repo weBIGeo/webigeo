@@ -48,7 +48,7 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
 
     // exit if thread id is outside image dimensions (i.e. thread is not supposed to be doing any work)
     let texture_size = textureDimensions(snow_texture);
-    if (id.x >= texture_size.x || id.y >= texture_size.y) {
+    if id.x >= texture_size.x || id.y >= texture_size.y {
         return;
     }
     // get texture pos and uv
@@ -56,7 +56,7 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     let row = id.y; // in [0, texture_dimension(output_tiles).y - 1]
     let texture_pos = vec2u(col, row);
     let uv = vec2f(f32(col), f32(row)) / vec2f(texture_size - 1);
-    
+
     // calculate width and height of input height texture in world space 
     let bounds_width: f32 = bounds.aabb_max.x - bounds.aabb_min.x;
     let bounds_height: f32 = bounds.aabb_max.y - bounds.aabb_min.y;
@@ -69,7 +69,7 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     let normal: vec3f = textureLoad(normal_texture, texture_pos, 0).xyz;
     let altitude_correction_factor = 1 / cos(y_to_lat(pos_y)); //TODO currently, height decode node does no altitude correciton, so we need to account for that here 
     let pos_z: f32 = altitude_correction_factor * textureLoad(height_texture, texture_pos, 0).x;
-    
+
     // compute snow and store in texture
     let snow = overlay_snow(normal, vec3f(pos_x, pos_y, pos_z), snow_settings.angle, snow_settings.alt);
     textureStore(snow_texture, texture_pos, snow);

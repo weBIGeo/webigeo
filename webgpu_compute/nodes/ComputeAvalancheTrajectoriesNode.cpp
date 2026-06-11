@@ -32,25 +32,26 @@ ComputeAvalancheTrajectoriesNode::ComputeAvalancheTrajectoriesNode(webgpu::Conte
 
 ComputeAvalancheTrajectoriesNode::ComputeAvalancheTrajectoriesNode(webgpu::Context& ctx, const AvalancheTrajectoriesSettings& settings)
     : Node(
-        {
-            InputSocket(*this, "region aabb", data_type<const radix::geometry::Aabb<2, double>*>()),
-            InputSocket(*this, "normal texture", data_type<const webgpu::raii::TextureWithSampler*>()),
-            InputSocket(*this, "height texture", data_type<const webgpu::raii::TextureWithSampler*>()),
-            InputSocket(*this, "release point texture", data_type<const webgpu::raii::TextureWithSampler*>()),
-        },
-        {
-            OutputSocket(*this, "storage buffer", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_output_storage_buffer.get(); }),
-            OutputSocket(*this, "raster dimensions", data_type<glm::uvec2>(), [this]() { return m_output_dimensions; }),
-            OutputSocket(*this, "layer1_zdelta", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_layer1_zdelta_buffer.get(); }),
-            OutputSocket(*this, "layer2_cellCounts", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_layer2_cellCounts_buffer.get(); }),
-            OutputSocket(
-                *this, "layer3_travelLength", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_layer3_travelLength_buffer.get(); }),
-            OutputSocket(*this, "layer4_travelAngle", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_layer4_travelAngle_buffer.get(); }),
-            OutputSocket(*this,
-                "layer5_altitudeDifference",
-                data_type<webgpu::raii::RawBuffer<uint32_t>*>(),
-                [this]() { return m_layer5_altitudeDifference_buffer.get(); }),
-        })
+          {
+              InputSocket(*this, "region aabb", data_type<const radix::geometry::Aabb<2, double>*>()),
+              InputSocket(*this, "normal texture", data_type<const webgpu::raii::TextureWithSampler*>()),
+              InputSocket(*this, "height texture", data_type<const webgpu::raii::TextureWithSampler*>()),
+              InputSocket(*this, "release point texture", data_type<const webgpu::raii::TextureWithSampler*>()),
+          },
+          {
+              OutputSocket(*this, "storage buffer", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_output_storage_buffer.get(); }),
+              OutputSocket(*this, "raster dimensions", data_type<glm::uvec2>(), [this]() { return m_output_dimensions; }),
+              OutputSocket(*this, "layer1_zdelta", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_layer1_zdelta_buffer.get(); }),
+              OutputSocket(*this, "layer2_cellCounts", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_layer2_cellCounts_buffer.get(); }),
+              OutputSocket(
+                  *this, "layer3_travelLength", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_layer3_travelLength_buffer.get(); }),
+              OutputSocket(
+                  *this, "layer4_travelAngle", data_type<webgpu::raii::RawBuffer<uint32_t>*>(), [this]() { return m_layer4_travelAngle_buffer.get(); }),
+              OutputSocket(*this,
+                  "layer5_altitudeDifference",
+                  data_type<webgpu::raii::RawBuffer<uint32_t>*>(),
+                  [this]() { return m_layer5_altitudeDifference_buffer.get(); }),
+          })
     , m_ctx(&ctx)
     , m_settings { settings }
     , m_settings_uniform(ctx.device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform)

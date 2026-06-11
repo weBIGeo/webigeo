@@ -35,7 +35,7 @@ struct accumulation_params {
     _padding0: vec2f,
 }
 
-@group(0) @binding(0) var<uniform> params : accumulation_params;
+@group(0) @binding(0) var<uniform> params: accumulation_params;
 @group(0) @binding(1) var current_color: texture_2d<f32>;
 @group(0) @binding(2) var current_depth: texture_2d<f32>;
 @group(0) @binding(3) var linear_sampler: sampler;
@@ -93,7 +93,7 @@ fn clip_aabb(history_color: vec3f, aabb_min: vec3f, aabb_max: vec3f) -> vec3f {
     let a_unit = abs(v_unit);
     let ma_unit = max(a_unit.x, max(a_unit.y, a_unit.z));
 
-    if (ma_unit > 1.0) {
+    if ma_unit > 1.0 {
         return p_clip + v_clip / ma_unit;
     }
     return history_color;
@@ -113,7 +113,7 @@ fn update_depth_stats(prev_data: vec2f, current_depth: f32, alpha: f32) -> vec2f
 fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
     let high_res_dims = textureDimensions(accumulation_color_w);
 
-    if (global_id.x >= high_res_dims.x || global_id.y >= high_res_dims.y) {
+    if global_id.x >= high_res_dims.x || global_id.y >= high_res_dims.y {
         return;
     }
 
@@ -128,7 +128,7 @@ fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
     let current_depth = textureLoad(current_depth, jittered_coord, 0).r;
 
     // Early exit for background/sky
-    if (current_depth <= 0.0) {
+    if current_depth <= 0.0 {
         textureStore(accumulation_color_w, high_res_coord, current_sample);
         return;
     }
@@ -154,7 +154,7 @@ fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
     // Validate reprojection
     let is_valid = all(prev_uv >= vec2f(0.0)) && all(prev_uv <= vec2f(1.0));
 
-    if (!is_valid) {
+    if !is_valid {
         textureStore(accumulation_color_w, high_res_coord, current_sample);
         return;
     }
@@ -228,7 +228,7 @@ fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
     history_weight *= max(min(trans_clip_factor, scattered_clip_factor), 0.5);
 
     // Special case: completely empty history
-    if (history_sample.a > 0.999 && current_sample.a < 0.95) {
+    if history_sample.a > 0.999 && current_sample.a < 0.95 {
         history_weight = 0.0;
     }
 

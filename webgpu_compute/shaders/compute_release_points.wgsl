@@ -25,7 +25,6 @@
 ///define USE_ROUGHNESS_FILTERING 1
 ///define ROUGHNESS_THRESHOLD 0.01
 
-
 // input
 @group(0) @binding(0) var<uniform> settings: ReleasePointSettings;
 @group(0) @binding(1) var normals_texture: texture_2d<f32>;
@@ -49,7 +48,7 @@ fn should_paint(pos: vec2u) -> bool {
 ///if USE_ROUGHNESS_FILTERING 1
 fn get_roughness(id: vec2u) -> f32 {
     // according to doi:10.5194/nhess-16-2211-2016
-    if (id.x == 0 || id.y == 0 || id.x >= textureDimensions(normals_texture).x - 1 || id.y >= textureDimensions(normals_texture).y - 1) {
+    if id.x == 0 || id.y == 0 || id.x >= textureDimensions(normals_texture).x - 1 || id.y >= textureDimensions(normals_texture).y - 1 {
         return 1.0; // no roughness at borders
     }
     var idx = 0u;
@@ -82,7 +81,7 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
 
     // exit if thread id is outside image dimensions (i.e. thread is not supposed to be doing any work)
     let texture_size = textureDimensions(release_points_texture);
-    if (id.x >= texture_size.x || id.y >= texture_size.y) {
+    if id.x >= texture_size.x || id.y >= texture_size.y {
         return;
     }
     // id.xy in [0, texture_dimensions(output_tiles) - 1]
@@ -94,14 +93,14 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
 ///if USE_ROUGHNESS_FILTERING 1
     let roughness = get_roughness(tex_pos);
 
-    if (slope_angle < settings.min_slope_angle || slope_angle > settings.max_slope_angle || !should_paint(tex_pos) || roughness > ROUGHNESS_THRESHOLD) {
-///else
-    if (slope_angle < settings.min_slope_angle || slope_angle > settings.max_slope_angle || !should_paint(tex_pos)) {
-///endif
-        textureStore(release_points_texture, tex_pos, vec4f(0, 0, 0, 0));
-    } else {
-        let color = color_mapping_bergfex(slope_angle / (PI / 2));
-        textureStore(release_points_texture, tex_pos, vec4f(color.xyz, 1));
-        //textureStore(release_points_texture, tex_pos, vec4f(1, 0, 0, 1));
+    if slope_angle < settings.min_slope_angle || slope_angle > settings.max_slope_angle || !should_paint(tex_pos) || roughness > ROUGHNESS_THRESHOLD {
+        ///else
+        if slope_angle < settings.min_slope_angle || slope_angle > settings.max_slope_angle || !should_paint(tex_pos) {
+            ///endif
+            textureStore(release_points_texture, tex_pos, vec4f(0, 0, 0, 0));
+        } else {
+            let color = color_mapping_bergfex(slope_angle / (PI / 2));
+            textureStore(release_points_texture, tex_pos, vec4f(color.xyz, 1));
+            //textureStore(release_points_texture, tex_pos, vec4f(1, 0, 0, 1));
+        }
     }
-}

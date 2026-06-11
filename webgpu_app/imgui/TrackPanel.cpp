@@ -18,8 +18,8 @@
 
 #include "TrackPanel.h"
 
-#include <webgpu_app/ImGuiManager.h>
 #include <filesystem>
+#include <webgpu_app/ImGuiManager.h>
 
 #include <IconsFontAwesome5.h>
 #include <imgui.h>
@@ -70,8 +70,8 @@ void TrackPanel::draw_panel()
         ImGui::PopStyleColor(1);
 
         m_picked_files.clear();
-        if (ImGuiManager::FilePicker("TrackFileDlgKey", "Choose GPX File", ".gpx,.*",
-                btn, m_picked_files, /*allow_multiple=*/false, m_last_dialog_directory.c_str())) {
+        if (ImGuiManager::FilePicker(
+                "TrackFileDlgKey", "Choose GPX File", ".gpx,.*", btn, m_picked_files, /*allow_multiple=*/false, m_last_dialog_directory.c_str())) {
             m_last_dialog_directory = std::filesystem::path(m_picked_files[0]).parent_path().string();
             load_track_and_focus(m_picked_files[0]);
         }

@@ -60,9 +60,8 @@ void GPXTrackNodeRenderer::render_settings_content()
 void GPXTrackNodeRenderer::render_dialogs()
 {
     m_picked_files.clear();
-    if (ImGuiManager::FilePicker(m_dialog_id.c_str(), "Choose GPX File", ".gpx,.*",
-            m_want_open_dialog, m_picked_files, /*allow_multiple=*/false,
-            m_last_dialog_directory.c_str())) {
+    if (ImGuiManager::FilePicker(
+            m_dialog_id.c_str(), "Choose GPX File", ".gpx,.*", m_want_open_dialog, m_picked_files, /*allow_multiple=*/false, m_last_dialog_directory.c_str())) {
         m_last_dialog_directory = std::filesystem::path(m_picked_files[0]).parent_path().string();
         auto settings = m_node->get_settings();
         settings.file_path = m_picked_files[0];

@@ -16,21 +16,19 @@
 * along with this program. If not, see <http : //www.gnu.org/licenses/>.
 *****************************************************************************/
 
-@group(0) @binding(0) var overlay_texture : texture_2d<u32>; //GBuffer slot 3 (packed RGBA via pack4x8unorm)
-@group(0) @binding(1) var<uniform> settings : TileDebugSettings;
-@group(0) @binding(2) var output_texture : texture_storage_2d < rgba8unorm, write>;
-@group(0) @binding(3) var prev_output : texture_2d<f32>;
+@group(0) @binding(0) var overlay_texture: texture_2d<u32>; //GBuffer slot 3 (packed RGBA via pack4x8unorm)
+@group(0) @binding(1) var<uniform> settings: TileDebugSettings;
+@group(0) @binding(2) var output_texture: texture_storage_2d<rgba8unorm, write>;
+@group(0) @binding(3) var prev_output: texture_2d<f32>;
 
 struct TileDebugSettings {
-    strength : f32,
+    strength: f32,
 }
 
 @compute @workgroup_size(16, 16, 1)
-fn computeMain(@builtin(global_invocation_id) id : vec3u)
-{
+fn computeMain(@builtin(global_invocation_id) id: vec3u) {
     let dims = vec2u(textureDimensions(output_texture));
-    if (id.x >= dims.x || id.y >= dims.y)
-    {
+    if id.x >= dims.x || id.y >= dims.y {
         return;
     }
     let tci = id.xy;

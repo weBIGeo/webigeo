@@ -62,12 +62,9 @@ namespace {
                     device, std::vector<WGPUBindGroupLayoutEntry> { input_entry, output_entry }, "mipmap creation bind group layout");
             });
     }
-}
+} // namespace
 
-void compute_mipmaps_for_texture(Context& ctx, const raii::Texture* texture)
-{
-    compute_mipmaps_for_texture(ctx, texture, {});
-}
+void compute_mipmaps_for_texture(Context& ctx, const raii::Texture* texture) { compute_mipmaps_for_texture(ctx, texture, {}); }
 
 void compute_mipmaps_for_texture(Context& ctx, const raii::Texture* texture, WGPUQueueWorkDoneCallbackInfo on_done)
 {
@@ -116,8 +113,7 @@ void compute_mipmaps_for_texture(Context& ctx, const raii::Texture* texture, WGP
             textureMipViews[i]->create_bind_group_entry(0),
             textureMipViews[i + 1]->create_bind_group_entry(1),
         };
-        bindGroups.push_back(
-            std::make_unique<raii::BindGroup>(device, reg.bind_group_layout("mipmap_creation"), bgEntries, "mipmap creation bindgroup"));
+        bindGroups.push_back(std::make_unique<raii::BindGroup>(device, reg.bind_group_layout("mipmap_creation"), bgEntries, "mipmap creation bindgroup"));
     }
 
     constexpr glm::uvec3 SHADER_WORKGROUP_SIZE = { 8, 8, 1 };

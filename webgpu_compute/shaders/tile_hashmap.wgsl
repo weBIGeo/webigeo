@@ -30,16 +30,15 @@ fn hash_tile_id(id: TileId) -> u32 {
     return hash_tile_id_vec(vec3<u32>(id.x, id.y, id.zoomlevel));
 }
 
-
-fn get_texture_array_index(tile_id: TileId, texture_array_index: ptr<function, u32>, map_key_buffer: ptr<storage, array<TileId>>, map_value_buffer: ptr<storage, array<u32>>)  -> bool {
+fn get_texture_array_index(tile_id: TileId, texture_array_index: ptr<function, u32>, map_key_buffer: ptr<storage, array<TileId>>, map_value_buffer: ptr<storage, array<u32>>) -> bool {
     // find correct hash for tile id
     var hash = hash_tile_id(tile_id);
-    while(!tile_ids_equal(map_key_buffer[hash], tile_id) && !tile_id_empty(map_key_buffer[hash])) {
+    while !tile_ids_equal(map_key_buffer[hash], tile_id) && !tile_id_empty(map_key_buffer[hash]) {
         hash++;
     }
 
     let was_found = !tile_id_empty(map_key_buffer[hash]);
-    if (was_found) {
+    if was_found {
         // retrieve array layer by hash
         *texture_array_index = map_value_buffer[hash];
     } else {
@@ -51,20 +50,20 @@ fn get_texture_array_index(tile_id: TileId, texture_array_index: ptr<function, u
 fn get_neighboring_tile_id_and_pos(texture_size: u32, tile_id: TileId, pos: vec2<i32>, out_tile_id: ptr<function, TileId>, out_pos: ptr<function, vec2<u32>>) {
     var new_pos = pos;
     var new_tile_id = tile_id;
-    
+
     // tiles overlap! in each direction, the last value of one tile equals the first of the next
     // therefore offset by 1 in respective direction
-    if (new_pos.x == -1) {
+    if new_pos.x == -1 {
         new_pos.x = i32(texture_size - 2);
         new_tile_id.x -= 1;
-    } else if (new_pos.x == i32(texture_size)) {
+    } else if new_pos.x == i32(texture_size) {
         new_pos.x = 1;
         new_tile_id.x += 1;
     }
-    if (new_pos.y == -1) {
+    if new_pos.y == -1 {
         new_pos.y = i32(texture_size - 2);
         new_tile_id.y += 1;
-    } else if (new_pos.y == i32(texture_size)) {
+    } else if new_pos.y == i32(texture_size) {
         new_pos.y = 1;
         new_tile_id.y -= 1;
     }

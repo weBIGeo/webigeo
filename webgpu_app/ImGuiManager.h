@@ -58,9 +58,13 @@ public:
     // ImGui-style file picker. Call every frame inside an ImGui frame.
     // Pass the return value of an ImGui::Button as wants_open to trigger the dialog.
     // Returns true (once) when the user has confirmed a selection; out_paths is filled with selected paths.
-    static bool FilePicker(const char* dialog_id, const char* title, const char* filters,
-        bool wants_open, std::vector<std::string>& out_paths,
-        bool allow_multiple = false, const char* initial_path = ".");
+    static bool FilePicker(const char* dialog_id,
+        const char* title,
+        const char* filters,
+        bool wants_open,
+        std::vector<std::string>& out_paths,
+        bool allow_multiple = false,
+        const char* initial_path = ".");
 
 #ifdef __EMSCRIPTEN__
 private slots:

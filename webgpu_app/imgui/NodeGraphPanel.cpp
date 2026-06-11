@@ -62,8 +62,7 @@ void NodeGraphPanel::load_preset(nodes::NodeGraph::ComputePipelineType type)
     m_owned_graph = nodes::NodeGraph::create_preset(type, m_context->webgpu_ctx());
     m_node_graph = m_owned_graph.get();
 
-    QObject::connect(
-        m_node_graph, &nodes::NodeGraph::run_completed, m_context, [this](webgpu_compute::GraphRunContext) { m_context->request_redraw(); });
+    QObject::connect(m_node_graph, &nodes::NodeGraph::run_completed, m_context, [this](webgpu_compute::GraphRunContext) { m_context->request_redraw(); });
     QObject::connect(m_node_graph, &nodes::NodeGraph::run_failed, m_context, [this](nodes::GraphRunFailureInfo info) {
         qWarning() << "graph run failed. " << info.node_name() << ": " << info.node_run_failure_info().message();
         m_error_state.text = "Execution of pipeline failed.\n\nNode \"" + info.node_name() + "\" reported \"" + info.node_run_failure_info().message() + "\"";

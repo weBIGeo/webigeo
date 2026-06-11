@@ -22,9 +22,9 @@
 
 #include <memory>
 
-#include <nucleus/tile/GpuTileId.h>
 #include <QObject>
 #include <nucleus/tile/GpuArrayHelper.h>
+#include <nucleus/tile/GpuTileId.h>
 #include <nucleus/tile/types.h>
 #include <webgpu/Buffer.h>
 #include <webgpu/Context.h>

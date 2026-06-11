@@ -73,7 +73,6 @@ fn world_to_lat_long_alt(pos_ws: vec3f) -> vec3f {
     return vec3f(latitude, longitude, altitude);
 }
 
-
 // ported from alpine maps
 fn decrease_zoom_level_by_one(
     input_tile_id: TileId,
@@ -81,14 +80,14 @@ fn decrease_zoom_level_by_one(
     output_tile_id: ptr<function, TileId>,
     output_uv: ptr<function, vec2f>,
 ) -> bool {
-    if (input_tile_id.zoomlevel == 0u) {
+    if input_tile_id.zoomlevel == 0u {
         return false;
     }
 
     let x_border = f32(input_tile_id.x & 1u) / 2.0;
     let y_border = f32((input_tile_id.y & 1u) == 0u) / 2.0;
-    
-    *output_tile_id = TileId( input_tile_id.x / 2u, input_tile_id.y / 2u, input_tile_id.zoomlevel - 1u, 0);
+
+    *output_tile_id = TileId(input_tile_id.x / 2u, input_tile_id.y / 2u, input_tile_id.zoomlevel - 1u, 0);
     *output_uv = input_uv / 2.0 + vec2f(x_border, y_border);
 
     return true;
@@ -102,7 +101,7 @@ fn decrease_zoom_level_until(
     output_tile_id: ptr<function, TileId>,
     output_uv: ptr<function, vec2f>,
 ) -> bool {
-    if (input_tile_id.zoomlevel <= zoomlevel) {
+    if input_tile_id.zoomlevel <= zoomlevel {
         *output_tile_id = input_tile_id;
         *output_uv = input_uv;
         return false;
@@ -117,12 +116,12 @@ fn decrease_zoom_level_until(
         input_tile_id.x >> z_delta,
         input_tile_id.y >> z_delta,
         input_tile_id.zoomlevel - z_delta,
-        0);
+        0
+    );
     *output_uv = input_uv / f32(1u << z_delta) + vec2f(x_border, y_border);
 
     return true;
 }
-
 
 fn increase_zoom_level_by_one(
     input_tile_id: TileId,
@@ -130,7 +129,7 @@ fn increase_zoom_level_by_one(
     output_tile_id: ptr<function, TileId>,
     output_uv: ptr<function, vec2f>,
 ) -> bool {
-    if (input_tile_id.zoomlevel == 18u) {
+    if input_tile_id.zoomlevel == 18u {
         return false;
     }
 
@@ -154,13 +153,12 @@ fn increase_zoom_level_until(
     output_tile_id: ptr<function, TileId>,
     output_uv: ptr<function, vec2f>,
 ) -> bool {
-    if (input_tile_id.zoomlevel >= zoomlevel) {
+    if input_tile_id.zoomlevel >= zoomlevel {
         return false;
     }
 
-
     var output_zoomlevel = input_tile_id.zoomlevel;
-    while (output_zoomlevel < zoomlevel) {
+    while output_zoomlevel < zoomlevel {
         increase_zoom_level_by_one(input_tile_id, input_uv, output_tile_id, output_uv);
         output_zoomlevel++;
     }
@@ -174,10 +172,10 @@ fn calc_tile_id_and_uv_for_zoom_level(
     output_tile_id: ptr<function, TileId>,
     output_uv: ptr<function, vec2f>,
 ) {
-    if (input_tile_id.zoomlevel == zoomlevel) {
+    if input_tile_id.zoomlevel == zoomlevel {
         *output_tile_id = input_tile_id;
         *output_uv = input_uv;
-    } else if (input_tile_id.zoomlevel < zoomlevel) {
+    } else if input_tile_id.zoomlevel < zoomlevel {
         increase_zoom_level_until(input_tile_id, input_uv, zoomlevel, output_tile_id, output_uv);
     } else {
         decrease_zoom_level_until(input_tile_id, input_uv, zoomlevel, output_tile_id, output_uv);

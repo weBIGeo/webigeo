@@ -38,15 +38,15 @@ fn an_optical_depth(origin_height: f32, h_delta: f32, distance: f32) -> f32 {
     const w = 0.13;
     let density_at_orign = density_at_height(origin_height);
     let density_at_end = density_at_height(end_height);
-    if (abs(h_delta) < 0.001) {
+    if abs(h_delta) < 0.001 {
         return distance * 0.5 * (density_at_orign + density_at_end);
     }
     return (1.0 / (w * h_delta)) * (density_at_orign - density_at_end);
 
-//    highp float w = 0.13;
-//    if (abs(h_delta) < 0.001)
-//        return distance * 0.5 * (density_at_height(origin_height) + density_at_height(end_height));
-//    return (1.0 / (w * h_delta)) * (exp(-origin_height * w) - exp(-end_height * w));
+    //    highp float w = 0.13;
+    //    if (abs(h_delta) < 0.001)
+    //        return distance * 0.5 * (density_at_height(origin_height) + density_at_height(end_height));
+    //    return (1.0 / (w * h_delta)) * (exp(-origin_height * w) - exp(-end_height * w));
 }
 
 fn atmospheric_inscatter_at_point(pos_km: vec3f, sun_dir: vec3f) -> vec3f {
@@ -73,7 +73,6 @@ fn evaluate_atmopshperic_light(h: f32, h_delta: f32, dist_from_start: f32) -> ve
     return local_density * transmittance;
 }
 
-
 // simpson's 1/3 rule
 fn integrate_atmoshpere_light(h_start: f32, h_delta: f32, ray_length: f32, n_numerical_integration_steps: i32) -> vec3f {
     let h_end = h_start + h_delta * ray_length;
@@ -87,7 +86,7 @@ fn integrate_atmoshpere_light(h_start: f32, h_delta: f32, ray_length: f32, n_num
         let perc = f32(i) / f32(n_numerical_integration_steps);
         let dist_from_start = perc * ray_length;
         let h = mix(h_start, h_end, perc);
-        if ((i & 1) == 0) {
+        if (i & 1) == 0 {
             in_scattered_light_2 += evaluate_atmopshperic_light(h, h_delta, dist_from_start); // even
         } else {
             in_scattered_light_4 += evaluate_atmopshperic_light(h, h_delta, dist_from_start); // odd

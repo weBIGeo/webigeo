@@ -34,11 +34,11 @@ TileStitchNode::TileStitchNode(webgpu::Context& ctx)
 
 webgpu_compute::nodes::TileStitchNode::TileStitchNode(webgpu::Context& ctx, StitchSettings settings)
     : Node(
-        {
-            InputSocket(*this, "tile ids", data_type<const std::vector<radix::tile::Id>*>()),
-            InputSocket(*this, "texture data", data_type<const std::vector<QByteArray>*>()),
-        },
-        { OutputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }) })
+          {
+              InputSocket(*this, "tile ids", data_type<const std::vector<radix::tile::Id>*>()),
+              InputSocket(*this, "texture data", data_type<const std::vector<QByteArray>*>()),
+          },
+          { OutputSocket(*this, "texture", data_type<const webgpu::raii::TextureWithSampler*>(), [this]() { return m_output_texture.get(); }) })
     , m_ctx(&ctx)
     , m_settings(settings)
 {

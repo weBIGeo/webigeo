@@ -55,7 +55,7 @@ fn vertexMain(@builtin(vertex_index) vertex_index: u32) -> VertexOut {
 fn fragmentMain(frag_in: FragIn) -> FragOut {
     var frag_out: FragOut;
 
-    if (config.track_render_mode == 1) { // no depth test
+    if config.track_render_mode == 1 { // no depth test
         frag_out.color = line_config.color;
         return frag_out;
     }
@@ -64,10 +64,10 @@ fn fragmentMain(frag_in: FragIn) -> FragOut {
     let tile_fragment_depth = textureLoad(depth_texture, depth_buffer_position, 0).x;
     let line_fragment_depth = frag_in.position.z;
 
-    if (tile_fragment_depth < line_fragment_depth) {
-        if (config.track_render_mode == 2) { // depth test
+    if tile_fragment_depth < line_fragment_depth {
+        if config.track_render_mode == 2 { // depth test
             discard;
-        } else if (config.track_render_mode == 3) { // semi-transparent if depth test failed
+        } else if config.track_render_mode == 3 { // semi-transparent if depth test failed
             frag_out.color = vec4f(line_config.color.xyz * behind_alpha * line_config.color.a, behind_alpha * line_config.color.a);
         }
     } else {

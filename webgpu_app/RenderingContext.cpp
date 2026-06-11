@@ -175,9 +175,7 @@ void RenderingContext::initialize(webgpu::Context& ctx)
     // The terminal node that forwards compute-graph results onto the overlay renderer lives in the
     // app (it bridges the compute and rendering layers). Register it once the engine context is ready.
     webgpu_compute::NodeRegistry::instance().register_node(
-        "OverlayRenderNode", [ctx = m_engine_context.get()](webgpu::Context&) {
-            return std::make_unique<webgpu_compute::nodes::OverlayRenderNode>(*ctx);
-        });
+        "OverlayRenderNode", [ctx = m_engine_context.get()](webgpu::Context&) { return std::make_unique<webgpu_compute::nodes::OverlayRenderNode>(*ctx); });
 #endif
 
     nucleus::utils::thread::async_call(this, [this]() { emit this->initialised(); });
