@@ -22,14 +22,14 @@
 #include <IconsFontAwesome5.h>
 #include <imgui.h>
 
-#include "../TerrainRenderer.h"
+#include "App.h"
 #include <nucleus/camera/PositionStorage.h>
 #include <nucleus/srs.h>
 #include <glm/gtc/type_ptr.hpp>
 
 namespace webgpu_app {
 
-CameraPanel::CameraPanel(TerrainRenderer* terrain_renderer)
+CameraPanel::CameraPanel(App* terrain_renderer)
     : m_terrain_renderer(terrain_renderer)
 {
     // Lets build a vector of std::string...

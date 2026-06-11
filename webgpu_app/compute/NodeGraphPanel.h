@@ -27,7 +27,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "ImGuiPanel.h"
+#include "ui/ImGuiPanel.h"
 #include "nodes/NodeRenderer.h"
 #include <webgpu_compute/NodeGraph.h>
 

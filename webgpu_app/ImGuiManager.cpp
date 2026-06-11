@@ -19,12 +19,12 @@
 
 #include "ImGuiManager.h"
 #include "RenderingContext.h"
-#include "TerrainRenderer.h"
+#include "App.h"
 
-#include "imgui/ImGuiPanel.h"
+#include "ui/ImGuiPanel.h"
 
 #ifdef __EMSCRIPTEN__
-#include "WebInterop.h"
+#include "util/WebInterop.h"
 #else
 #include <ImGuiFileDialog.h>
 #include <filesystem>
@@ -32,20 +32,20 @@
 
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_wgpu.h"
-#include "imgui/AboutPanel.h"
-#include "imgui/AppPanel.h"
-#include "imgui/AtmospherePanel.h"
-#include "imgui/CameraPanel.h"
-#include "imgui/CloudPanel.h"
-#include "imgui/CompassPanel.h"
-#include "imgui/LogoPanel.h"
-#include "imgui/OverlaysPanel.h"
-#include "imgui/SearchPanel.h"
-#include "imgui/ShadingPanel.h"
-#include "imgui/TimingPanel.h"
-#include "imgui/TrackPanel.h"
+#include "ui/AboutPanel.h"
+#include "ui/AppPanel.h"
+#include "atmosphere/AtmospherePanel.h"
+#include "ui/CameraPanel.h"
+#include "cloud/CloudPanel.h"
+#include "ui/CompassPanel.h"
+#include "ui/LogoPanel.h"
+#include "overlay/OverlaysPanel.h"
+#include "ui/SearchPanel.h"
+#include "ui/ShadingPanel.h"
+#include "ui/TimingPanel.h"
+#include "track/TrackPanel.h"
 #ifdef ALP_WEBGPU_APP_ENABLE_COMPUTE
-#include "imgui/NodeGraphPanel.h"
+#include "compute/NodeGraphPanel.h"
 #endif
 #include <IconsFontAwesome5.h>
 #include <imgui_internal.h>
@@ -57,7 +57,7 @@
 
 namespace webgpu_app {
 
-ImGuiManager::ImGuiManager(TerrainRenderer* terrain_renderer)
+ImGuiManager::ImGuiManager(App* terrain_renderer)
     : m_terrain_renderer(terrain_renderer)
 {
 }

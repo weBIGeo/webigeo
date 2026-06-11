@@ -18,7 +18,7 @@
 
 #include "ShadingPanel.h"
 
-#include "../ImGuiManager.h"
+#include "ImGuiManager.h"
 #include <IconsFontAwesome5.h>
 #include <glm/glm.hpp>
 #include <imgui.h>

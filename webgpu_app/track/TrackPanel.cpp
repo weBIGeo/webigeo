@@ -24,7 +24,7 @@
 #include <IconsFontAwesome5.h>
 #include <imgui.h>
 
-#include "../TerrainRenderer.h"
+#include "App.h"
 #include <nucleus/camera/Controller.h>
 #include <nucleus/camera/Definition.h>
 #include <webgpu_engine/Context.h>
@@ -32,7 +32,7 @@
 
 namespace webgpu_app {
 
-TrackPanel::TrackPanel(webgpu_engine::Context* context, TerrainRenderer* terrain_renderer)
+TrackPanel::TrackPanel(webgpu_engine::Context* context, App* terrain_renderer)
     : m_context(context)
     , m_terrain_renderer(terrain_renderer)
     , m_track_renderer(context->track_renderer())

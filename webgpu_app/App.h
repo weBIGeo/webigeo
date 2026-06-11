@@ -20,7 +20,7 @@
 #pragma once
 
 #include "ImGuiManager.h"
-#include "InputMapper.h"
+#include "util/InputMapper.h"
 #include <SDL2/SDL.h>
 #include <memory>
 
@@ -41,12 +41,12 @@
 
 namespace webgpu_app {
 
-class TerrainRenderer : public QObject {
+class App : public QObject {
     Q_OBJECT
 
 public:
-    TerrainRenderer();
-    ~TerrainRenderer() = default;
+    App();
+    ~App() = default;
 
     struct GuiPipelineUBO {
         glm::vec2 resolution;

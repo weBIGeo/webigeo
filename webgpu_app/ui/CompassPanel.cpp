@@ -18,17 +18,17 @@
 
 #include "CompassPanel.h"
 
-#include "../ImGuiManager.h"
+#include "ImGuiManager.h"
 #include <imgui.h>
 #include <imgui_internal.h>
 
-#include "../TerrainRenderer.h"
+#include "App.h"
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
 
 namespace webgpu_app {
 
-CompassPanel::CompassPanel(TerrainRenderer* terrain_renderer)
+CompassPanel::CompassPanel(App* terrain_renderer)
     : m_terrain_renderer(terrain_renderer)
 {
 }

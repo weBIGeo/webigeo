@@ -16,25 +16,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "AtmospherePanel.h"
+#pragma once
 
-#include "../ImGuiManager.h"
-#include <IconsFontAwesome5.h>
-
-#include <webgpu_engine/Context.h>
+#include "ImGuiPanel.h"
+#include <cstdint>
 
 namespace webgpu_app {
 
-AtmospherePanel::AtmospherePanel(webgpu_engine::Context* context)
-    : m_context(context)
-{
-}
+class App;
 
-void AtmospherePanel::draw()
-{
-    auto& cfg = m_context->shared_config();
-    if (ImGuiManager::FloatingToggleButton("ToggleAtmosphereButton", ICON_FA_GLOBE, "Atmosphere", &cfg.m_atmosphere_enabled))
-        m_context->request_redraw();
-}
+class AppPanel : public ImGuiPanel {
+public:
+    explicit AppPanel(App* terrain_renderer);
+
+    void ready() override;
+    void draw_panel() override;
+
+private:
+    App* m_terrain_renderer;
+    uint32_t m_max_zoom_level = 18;
+};
 
 } // namespace webgpu_app

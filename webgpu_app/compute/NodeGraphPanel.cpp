@@ -19,7 +19,7 @@
 
 #include "NodeGraphPanel.h"
 
-#include "../ImGuiManager.h"
+#include "ImGuiManager.h"
 #include "nodes/NodeRendererFactory.h"
 #include <IconsFontAwesome5.h>
 #include <imgui.h>

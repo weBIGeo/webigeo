@@ -23,13 +23,13 @@
 #include <IconsFontAwesome5.h>
 #include <imgui.h>
 
-#include "../RenderingContext.h"
-#include "../TerrainRenderer.h"
+#include "RenderingContext.h"
+#include "App.h"
 #include <QDebug>
 
 namespace webgpu_app {
 
-AppPanel::AppPanel(TerrainRenderer* terrain_renderer)
+AppPanel::AppPanel(App* terrain_renderer)
     : m_terrain_renderer(terrain_renderer)
 {
 }

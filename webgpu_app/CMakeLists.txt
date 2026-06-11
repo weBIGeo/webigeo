@@ -23,61 +23,60 @@ project(alpine-renderer-webgpu_app LANGUAGES C CXX)
 
 set(SOURCES
     main.cpp
-    TerrainRenderer.h TerrainRenderer.cpp
+    App.h App.cpp
     RenderingContext.h RenderingContext.cpp
-    InputMapper.h InputMapper.cpp
-    CloudsManager.h CloudsManager.cpp
+    ImGuiManager.h ImGuiManager.cpp
 
     util/error_logging.h util/error_logging.cpp
-
     util/dark_mode.h util/dark_mode.cpp
+    util/InputMapper.h util/InputMapper.cpp
+    util/SearchService.h util/SearchService.cpp
 
-    ImGuiManager.h ImGuiManager.cpp
+    cloud/CloudsManager.h cloud/CloudsManager.cpp
+
+    ui/ImGuiPanel.h
+    ui/TimingPanel.h ui/TimingPanel.cpp
+    ui/CameraPanel.h ui/CameraPanel.cpp
+    ui/AppPanel.h ui/AppPanel.cpp
+    ui/ShadingPanel.h ui/ShadingPanel.cpp
+    ui/AboutPanel.h ui/AboutPanel.cpp
+    ui/CompassPanel.h ui/CompassPanel.cpp
+    ui/LogoPanel.h ui/LogoPanel.cpp
+    ui/SearchPanel.h ui/SearchPanel.cpp
+
+    atmosphere/AtmospherePanel.h atmosphere/AtmospherePanel.cpp
+    cloud/CloudPanel.h cloud/CloudPanel.cpp
+    track/TrackPanel.h track/TrackPanel.cpp
+
+    overlay/OverlaysPanel.h overlay/OverlaysPanel.cpp
+    overlay/OverlayImGuiRenderer.h overlay/OverlayImGuiRenderer.cpp
+    overlay/OverlayImGuiRendererFactory.h overlay/OverlayImGuiRendererFactory.cpp
+    overlay/HeightLinesOverlayImGuiRenderer.h overlay/HeightLinesOverlayImGuiRenderer.cpp
+    overlay/ScreenSpaceSnowOverlayImGuiRenderer.h overlay/ScreenSpaceSnowOverlayImGuiRenderer.cpp
+    overlay/TextureOverlayImGuiRenderer.h overlay/TextureOverlayImGuiRenderer.cpp
+    overlay/TileDebugOverlayImGuiRenderer.h overlay/TileDebugOverlayImGuiRenderer.cpp
 )
-
-list(APPEND SOURCES
-        imgui/ImGuiPanel.h
-        imgui/TimingPanel.h imgui/TimingPanel.cpp
-        imgui/CameraPanel.h imgui/CameraPanel.cpp
-        imgui/AppPanel.h imgui/AppPanel.cpp
-        imgui/CloudPanel.h imgui/CloudPanel.cpp
-        imgui/AtmospherePanel.h imgui/AtmospherePanel.cpp
-        imgui/ShadingPanel.h imgui/ShadingPanel.cpp
-        imgui/AboutPanel.h imgui/AboutPanel.cpp
-        imgui/CompassPanel.h imgui/CompassPanel.cpp
-        imgui/LogoPanel.h imgui/LogoPanel.cpp
-        imgui/SearchPanel.h imgui/SearchPanel.cpp
-        imgui/OverlaysPanel.h imgui/OverlaysPanel.cpp
-        imgui/TrackPanel.h imgui/TrackPanel.cpp
-        imgui/overlays/OverlayImGuiRenderer.h imgui/overlays/OverlayImGuiRenderer.cpp
-        imgui/overlays/OverlayImGuiRendererFactory.h imgui/overlays/OverlayImGuiRendererFactory.cpp
-        imgui/overlays/HeightLinesOverlayImGuiRenderer.h imgui/overlays/HeightLinesOverlayImGuiRenderer.cpp
-        imgui/overlays/ScreenSpaceSnowOverlayImGuiRenderer.h imgui/overlays/ScreenSpaceSnowOverlayImGuiRenderer.cpp
-        imgui/overlays/TextureOverlayImGuiRenderer.h imgui/overlays/TextureOverlayImGuiRenderer.cpp
-        imgui/overlays/TileDebugOverlayImGuiRenderer.h imgui/overlays/TileDebugOverlayImGuiRenderer.cpp
-        SearchService.h SearchService.cpp
-    )
 
 if (ALP_WEBGPU_APP_ENABLE_COMPUTE)
     list(APPEND SOURCES
         compute/OverlayRenderNode.h compute/OverlayRenderNode.cpp
-        imgui/NodeGraphPanel.h imgui/NodeGraphPanel.cpp
-        imgui/nodes/NodeRenderer.h imgui/nodes/NodeRenderer.cpp
-        imgui/nodes/NodeRendererFactory.h imgui/nodes/NodeRendererFactory.cpp
-        imgui/nodes/ExportNodeRenderer.h imgui/nodes/ExportNodeRenderer.cpp
-        imgui/nodes/OverlayNodeRenderer.h imgui/nodes/OverlayNodeRenderer.cpp
-        imgui/nodes/BufferToTextureNodeRenderer.h imgui/nodes/BufferToTextureNodeRenderer.cpp
-        imgui/nodes/ComputeAvalancheTrajectoriesNodeRenderer.h imgui/nodes/ComputeAvalancheTrajectoriesNodeRenderer.cpp
-        imgui/nodes/ComputeReleasePointsNodeRenderer.h imgui/nodes/ComputeReleasePointsNodeRenderer.cpp
-        imgui/nodes/ComputeSnowNodeRenderer.h imgui/nodes/ComputeSnowNodeRenderer.cpp
-        imgui/nodes/RequestTilesNodeRenderer.h imgui/nodes/RequestTilesNodeRenderer.cpp
-        imgui/nodes/SelectTilesNodeRenderer.h imgui/nodes/SelectTilesNodeRenderer.cpp
-        imgui/nodes/GPXTrackNodeRenderer.h imgui/nodes/GPXTrackNodeRenderer.cpp
+        compute/NodeGraphPanel.h compute/NodeGraphPanel.cpp
+        compute/nodes/NodeRenderer.h compute/nodes/NodeRenderer.cpp
+        compute/nodes/NodeRendererFactory.h compute/nodes/NodeRendererFactory.cpp
+        compute/nodes/ExportNodeRenderer.h compute/nodes/ExportNodeRenderer.cpp
+        compute/nodes/OverlayNodeRenderer.h compute/nodes/OverlayNodeRenderer.cpp
+        compute/nodes/BufferToTextureNodeRenderer.h compute/nodes/BufferToTextureNodeRenderer.cpp
+        compute/nodes/ComputeAvalancheTrajectoriesNodeRenderer.h compute/nodes/ComputeAvalancheTrajectoriesNodeRenderer.cpp
+        compute/nodes/ComputeReleasePointsNodeRenderer.h compute/nodes/ComputeReleasePointsNodeRenderer.cpp
+        compute/nodes/ComputeSnowNodeRenderer.h compute/nodes/ComputeSnowNodeRenderer.cpp
+        compute/nodes/RequestTilesNodeRenderer.h compute/nodes/RequestTilesNodeRenderer.cpp
+        compute/nodes/SelectTilesNodeRenderer.h compute/nodes/SelectTilesNodeRenderer.cpp
+        compute/nodes/GPXTrackNodeRenderer.h compute/nodes/GPXTrackNodeRenderer.cpp
     )
 endif()
 
 if (EMSCRIPTEN)
-    list(APPEND SOURCES WebInterop.h WebInterop.cpp)
+    list(APPEND SOURCES util/WebInterop.h util/WebInterop.cpp)
 endif()
 
 qt_add_executable(webgpu_app

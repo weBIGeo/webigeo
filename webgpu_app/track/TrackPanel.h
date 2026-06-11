@@ -1,6 +1,5 @@
 /*****************************************************************************
  * weBIGeo
- * Copyright (C) 2026 Patrick Komon
  * Copyright (C) 2026 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
@@ -19,39 +18,33 @@
 
 #pragma once
 
-#include <QObject>
-#include <imgui.h>
+#include "ui/ImGuiPanel.h"
+#include <string>
 
-#include "ImGuiPanel.h"
-#include "SearchService.h"
+namespace webgpu_engine {
+class Context;
+class TrackRenderer;
+} // namespace webgpu_engine
 
 namespace webgpu_app {
 
-class TerrainRenderer; // fwd decl
+class App;
 
-class SearchPanel : public ImGuiPanel {
-    Q_OBJECT
+class TrackPanel : public ImGuiPanel {
 public:
-    explicit SearchPanel(TerrainRenderer* renderer);
-
-    void draw() override;
-
-public slots:
-    void display_search_results(const std::vector<webgpu_app::SearchResult>& search_results);
-
-signals:
-    void search_requested(const std::string& searchText);
-    void search_result_selected(double latitude, double longitude);
+    TrackPanel(webgpu_engine::Context* context, App* terrain_renderer);
+    void ready() override;
+    void draw_panel() override;
 
 private:
-    void select_result(const SearchResult& result);
-    TerrainRenderer* m_terrain_renderer;
-    std::vector<SearchResult> m_search_results;
-    std::array<char, 128> m_search_buffer {};
-    bool m_set_focus_on_text = true;
-    bool m_is_active = false;
-    bool m_show_no_results = false;
-    bool m_clear_input_requested = false;
+    // Loads the track for rendering and points the camera down at its bounding box.
+    void load_track_and_focus(const std::string& path);
+
+    webgpu_engine::Context* m_context;
+    App* m_terrain_renderer = nullptr;
+    webgpu_engine::TrackRenderer* m_track_renderer = nullptr;
+    std::string m_last_dialog_directory = ".";
+    std::vector<std::string> m_picked_files;
 };
 
 } // namespace webgpu_app

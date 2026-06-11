@@ -19,22 +19,19 @@
 #pragma once
 
 #include "ImGuiPanel.h"
-#include <cstdint>
 
 namespace webgpu_app {
 
-class TerrainRenderer;
+class App;
 
-class AppPanel : public ImGuiPanel {
+class CompassPanel : public ImGuiPanel {
 public:
-    explicit AppPanel(TerrainRenderer* terrain_renderer);
+    explicit CompassPanel(App* terrain_renderer);
 
-    void ready() override;
-    void draw_panel() override;
+    void draw() override;
 
 private:
-    TerrainRenderer* m_terrain_renderer;
-    uint32_t m_max_zoom_level = 18;
+    App* m_terrain_renderer;
 };
 
 } // namespace webgpu_app

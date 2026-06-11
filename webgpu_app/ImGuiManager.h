@@ -26,16 +26,16 @@
 #include <vector>
 #include <webgpu/webgpu.h>
 
-#include "imgui/ImGuiPanel.h"
+#include "ui/ImGuiPanel.h"
 
 namespace webgpu_app {
 
-class TerrainRenderer;
+class App;
 
 class ImGuiManager : public QObject {
     Q_OBJECT
 public:
-    explicit ImGuiManager(TerrainRenderer* terrain_renderer);
+    explicit ImGuiManager(App* terrain_renderer);
 
     void init(SDL_Window* window, WGPUDevice device, WGPUTextureFormat swapchainFormat, WGPUTextureFormat depthTextureFormat);
     void ready();
@@ -80,7 +80,7 @@ private:
 
     SDL_Window* m_window = nullptr;
     WGPUDevice m_device = {};
-    TerrainRenderer* m_terrain_renderer = nullptr;
+    App* m_terrain_renderer = nullptr;
     bool m_gui_visible = true;
 
     std::vector<std::unique_ptr<ImGuiPanel>> m_panels;

@@ -19,19 +19,23 @@
 #pragma once
 
 #include "ImGuiPanel.h"
+#include <string>
+#include <vector>
 
 namespace webgpu_app {
 
-class TerrainRenderer;
+class App;
 
-class CompassPanel : public ImGuiPanel {
+class CameraPanel : public ImGuiPanel {
 public:
-    explicit CompassPanel(TerrainRenderer* terrain_renderer);
+    explicit CameraPanel(App* terrain_renderer);
 
-    void draw() override;
+    void draw_panel() override;
 
 private:
-    TerrainRenderer* m_terrain_renderer;
+    App* m_terrain_renderer;
+    std::vector<std::string> m_camera_preset_names;
+    int m_selected_camera_preset = 0;
 };
 
 } // namespace webgpu_app

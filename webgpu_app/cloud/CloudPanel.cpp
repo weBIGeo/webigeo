@@ -19,11 +19,11 @@
 
 #include "CloudPanel.h"
 
-#include "../ImGuiManager.h"
+#include "ImGuiManager.h"
 #include <IconsFontAwesome5.h>
 #include <imgui.h>
 
-#include "../CloudsManager.h"
+#include "cloud/CloudsManager.h"
 #include <webgpu_engine/Context.h>
 #include <webgpu_engine/cloud/CloudRenderer.h>
 

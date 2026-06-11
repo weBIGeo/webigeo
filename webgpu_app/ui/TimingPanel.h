@@ -23,16 +23,16 @@
 
 namespace webgpu_app {
 
-class TerrainRenderer;
+class App;
 
 class TimingPanel : public ImGuiPanel {
 public:
-    explicit TimingPanel(TerrainRenderer* terrain_renderer);
+    explicit TimingPanel(App* terrain_renderer);
 
     void draw_panel() override;
 
 private:
-    TerrainRenderer* m_terrain_renderer;
+    App* m_terrain_renderer;
     std::set<uint32_t> m_selected_timer = {};
 
     void toggle_timer(uint32_t timer_id);

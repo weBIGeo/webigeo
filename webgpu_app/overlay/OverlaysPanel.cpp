@@ -18,7 +18,7 @@
 
 #include "OverlaysPanel.h"
 
-#include "overlays/OverlayImGuiRendererFactory.h"
+#include "OverlayImGuiRendererFactory.h"
 
 #include <IconsFontAwesome5.h>
 #include <algorithm>

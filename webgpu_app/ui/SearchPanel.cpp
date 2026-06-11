@@ -20,14 +20,14 @@
 #include "SearchPanel.h"
 
 #include "IconsFontAwesome5.h"
-#include <TerrainRenderer.h>
+#include "App.h"
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <string>
 
 namespace webgpu_app {
 
-SearchPanel::SearchPanel(TerrainRenderer* renderer)
+SearchPanel::SearchPanel(App* renderer)
     : m_terrain_renderer(renderer)
 {
 }

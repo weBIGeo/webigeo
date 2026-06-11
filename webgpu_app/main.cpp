@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "SearchService.h"
-#include "TerrainRenderer.h"
+#include "util/SearchService.h"
+#include "App.h"
 #include "util/error_logging.h"
 #include <QCoreApplication>
 
@@ -50,7 +50,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
     // Set custom logging handler for Qt
     qInstallMessageHandler(qt_logging_callback);
 
-    webgpu_app::TerrainRenderer renderer;
+    webgpu_app::App renderer;
     renderer.start();
     // NOTE: Please be aware that for WEB-Deployment renderer.start() is non-blocking!!
     // So Code at this point will run after initialization

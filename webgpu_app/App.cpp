@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "TerrainRenderer.h"
+#include "App.h"
 
 #include "webgpu_engine/Window.h"
 #include <QCoreApplication>
@@ -28,7 +28,7 @@
 #include <webgpu/webgpu_interface.hpp>
 
 #ifdef __EMSCRIPTEN__
-#include "WebInterop.h"
+#include "util/WebInterop.h"
 #include <emscripten/emscripten.h>
 #else
 #include "nucleus/utils/image_loader.h"
@@ -50,17 +50,17 @@
 
 namespace webgpu_app {
 
-TerrainRenderer::TerrainRenderer()
+App::App()
 {
 #ifdef __EMSCRIPTEN__
     // execute on window resize when canvas size changes
-    QObject::connect(&WebInterop::instance(), &WebInterop::body_size_changed, this, &TerrainRenderer::set_window_size);
+    QObject::connect(&WebInterop::instance(), &WebInterop::body_size_changed, this, &App::set_window_size);
 
     m_surface_presentmode = WGPUPresentMode_Fifo; // chrome does not want other present modes
 #endif
 }
 
-void TerrainRenderer::init_window()
+void App::init_window()
 {
     // Initializes SDL2 video subsystem
     SDL_SetMainReady();
@@ -114,7 +114,7 @@ void TerrainRenderer::init_window()
 #endif
 }
 
-void TerrainRenderer::render_gui()
+void App::render_gui()
 {
     static bool vsync_enabled = (m_surface_presentmode == WGPUPresentMode::WGPUPresentMode_Fifo);
     if (ImGui::Checkbox("VSync", &vsync_enabled)) {
@@ -131,7 +131,7 @@ void TerrainRenderer::render_gui()
     }
 }
 
-void TerrainRenderer::poll_events()
+void App::poll_events()
 {
     // TODO hack, makes animations work
     m_camera_controller->advance_camera();
@@ -175,7 +175,7 @@ void TerrainRenderer::poll_events()
     wgpuInstanceProcessEvents(m_instance);
 }
 
-void TerrainRenderer::render()
+void App::render()
 {
     // Do nothing, this checks for ongoing asynchronous operations and call their callbacks
 
@@ -255,7 +255,7 @@ void TerrainRenderer::render()
 #endif
 }
 
-void TerrainRenderer::start()
+void App::start()
 {
     init_window();
 
@@ -288,14 +288,14 @@ void TerrainRenderer::start()
     m_input_mapper = std::make_unique<InputMapper>(this, m_camera_controller.get(), m_gui_manager.get(), [this]() { return m_viewport_size; });
 
     // TODO connect this (is used from ImGuiManager to update camera when settings are changed)
-    //  connect(this, &TerrainRenderer::update_camera_requested, camera_controller, &nucleus::camera::Controller::update_camera_request);
+    //  connect(this, &App::update_camera_requested, camera_controller, &nucleus::camera::Controller::update_camera_request);
     connect(m_webgpu_window.get(),
         &webgpu_engine::Window::set_camera_definition_requested,
         m_camera_controller.get(),
         &nucleus::camera::Controller::set_model_matrix);
 
-    connect(m_webgpu_window.get(), &nucleus::AbstractRenderWindow::update_requested, this, &TerrainRenderer::schedule_update);
-    connect(m_input_mapper.get(), &InputMapper::key_pressed, this, &TerrainRenderer::handle_shortcuts);
+    connect(m_webgpu_window.get(), &nucleus::AbstractRenderWindow::update_requested, this, &App::schedule_update);
+    connect(m_input_mapper.get(), &InputMapper::key_pressed, this, &App::handle_shortcuts);
 
     m_webgpu_window->set_context(m_context->engine_context());
     m_webgpu_window->initialise_gpu();
@@ -311,7 +311,7 @@ void TerrainRenderer::start()
 
     qDebug() << "Create GUI Pipeline...";
     m_gui_ubo
-        = std::make_unique<webgpu::raii::RawBuffer<TerrainRenderer::GuiPipelineUBO>>(m_device, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst, 1, "gui ubo");
+        = std::make_unique<webgpu::raii::RawBuffer<App::GuiPipelineUBO>>(m_device, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst, 1, "gui ubo");
     m_gui_ubo->write(m_queue, &m_gui_ubo_data);
 
     webgpu::FramebufferFormat format {};
@@ -327,7 +327,7 @@ void TerrainRenderer::start()
     gui_ubo_entry.binding = 1;
     gui_ubo_entry.visibility = WGPUShaderStage_Fragment;
     gui_ubo_entry.buffer.type = WGPUBufferBindingType_Uniform;
-    gui_ubo_entry.buffer.minBindingSize = sizeof(TerrainRenderer::GuiPipelineUBO);
+    gui_ubo_entry.buffer.minBindingSize = sizeof(App::GuiPipelineUBO);
 
     m_gui_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(
         m_device, std::vector<WGPUBindGroupLayoutEntry> { backbuffer_texture_entry, gui_ubo_entry }, "gui bind group layout");
@@ -394,7 +394,7 @@ void TerrainRenderer::start()
     this->on_window_resize(m_viewport_size.x, m_viewport_size.y);
     m_initialized = true;
 
-    qInfo() << "TerrainRenderer ready";
+    qInfo() << "App ready";
     m_webgpu_window->ready();
 
     m_gui_manager->ready();
@@ -402,7 +402,7 @@ void TerrainRenderer::start()
 #if defined(__EMSCRIPTEN__)
     emscripten_set_main_loop_arg(
         [](void* userData) {
-            TerrainRenderer& renderer = *reinterpret_cast<TerrainRenderer*>(userData);
+            App& renderer = *reinterpret_cast<App*>(userData);
             renderer.poll_events();
             renderer.render();
         },
@@ -430,7 +430,7 @@ void TerrainRenderer::start()
 #endif
 }
 
-void TerrainRenderer::set_window_size(glm::uvec2 size)
+void App::set_window_size(glm::uvec2 size)
 {
     if (m_viewport_size == size)
         return;
@@ -441,7 +441,7 @@ void TerrainRenderer::set_window_size(glm::uvec2 size)
     }
 }
 
-void TerrainRenderer::handle_shortcuts(QKeyCombination key)
+void App::handle_shortcuts(QKeyCombination key)
 {
     if (key.key() == Qt::Key_F5) {
         m_webgpu_window->reload_shaders();
@@ -450,9 +450,9 @@ void TerrainRenderer::handle_shortcuts(QKeyCombination key)
     }
 }
 
-void TerrainRenderer::schedule_update() { m_force_repaint_once = true; }
+void App::schedule_update() { m_force_repaint_once = true; }
 
-void TerrainRenderer::create_framebuffer(uint32_t width, uint32_t height)
+void App::create_framebuffer(uint32_t width, uint32_t height)
 {
     qDebug() << "creating framebuffer textures for size " << width << "x" << height;
 
@@ -472,7 +472,7 @@ void TerrainRenderer::create_framebuffer(uint32_t width, uint32_t height)
     }
 }
 
-void TerrainRenderer::configure_surface(uint32_t width, uint32_t height)
+void App::configure_surface(uint32_t width, uint32_t height)
 {
     qDebug() << "configuring surface...";
 
@@ -503,9 +503,9 @@ void TerrainRenderer::configure_surface(uint32_t width, uint32_t height)
     qInfo() << "configured surface with size " << width << "x" << height << ", present mode=" << m_surface_presentmode;
 }
 
-void TerrainRenderer::update_camera() { emit update_camera_requested(); }
+void App::update_camera() { emit update_camera_requested(); }
 
-void TerrainRenderer::on_window_resize(int width, int height)
+void App::on_window_resize(int width, int height)
 {
     m_viewport_size = { width, height };
 
@@ -516,7 +516,7 @@ void TerrainRenderer::on_window_resize(int width, int height)
     m_camera_controller->set_viewport(m_viewport_size);
 }
 
-void TerrainRenderer::webgpu_create_context()
+void App::webgpu_create_context()
 {
     qDebug() << "Creating WebGPU instance...";
     m_instance_desc = {};
@@ -640,7 +640,7 @@ void TerrainRenderer::webgpu_create_context()
     m_webgpu_ctx.init(m_instance, m_device, m_adapter, m_surface, m_queue);
 }
 
-void TerrainRenderer::webgpu_release_context()
+void App::webgpu_release_context()
 {
     qDebug() << "Releasing WebGPU context...";
     wgpuSurfaceUnconfigure(m_surface);

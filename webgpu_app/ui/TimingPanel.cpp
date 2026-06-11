@@ -21,11 +21,11 @@
 #include <IconsFontAwesome5.h>
 #include <imgui.h>
 
-#include "../TerrainRenderer.h"
+#include "App.h"
 
 namespace webgpu_app {
 
-TimingPanel::TimingPanel(TerrainRenderer* terrain_renderer)
+TimingPanel::TimingPanel(App* terrain_renderer)
     : m_terrain_renderer(terrain_renderer)
 {
 }

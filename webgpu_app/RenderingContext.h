@@ -24,8 +24,8 @@
 #include <QThread>
 #include <memory>
 
-#include "CloudsManager.h"
-#include "SearchService.h"
+#include "cloud/CloudsManager.h"
+#include "util/SearchService.h"
 #include "nucleus/tile/SchedulerDirector.h"
 #include "nucleus/tile/setup.h"
 #include "webgpu/webgpu.h"
