@@ -20,6 +20,7 @@
 #include "NodeGraphPanel.h"
 
 #include "ImGuiManager.h"
+#include <nucleus/utils/easing.h>
 #include "nodes/NodeRendererFactory.h"
 #include <IconsFontAwesome5.h>
 #include <imgui.h>
@@ -31,19 +32,6 @@
 namespace webgpu_app {
 namespace nodes = webgpu_compute::nodes;
 
-// see https://easings.net/#easeOutElastic
-static float easeOutElastic(float x)
-{
-    const float pi = 3.14159265359f;
-    const float c4 = (2.0f * pi) / 3.0f;
-
-    if (x == 0.0f)
-        return 0.0f;
-    if (x == 1.0f)
-        return 1.0f;
-
-    return powf(2.0f, -10.0f * x) * sinf((x * 10.0f - 0.75f) * c4) + 1.0f;
-}
 
 NodeGraphPanel::NodeGraphPanel(webgpu_engine::Context* context)
     : m_context(context)
@@ -270,7 +258,7 @@ void NodeGraphPanel::process_animation(float dt)
     if (t >= 1.0f)
         t = 1.0f;
 
-    float smooth = easeOutElastic(t);
+    float smooth = nucleus::utils::easing::easeOutElastic(t);
 
     for (auto& [nodePtr, startPos] : m_start_layout) {
         ImVec2 endPos = m_target_layout[nodePtr];
