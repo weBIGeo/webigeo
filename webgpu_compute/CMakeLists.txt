@@ -31,7 +31,6 @@ set(SOURCES
     nodes/RequestTilesNode.h nodes/RequestTilesNode.cpp
     nodes/ComputeNormalsNode.h nodes/ComputeNormalsNode.cpp
     nodes/ComputeSnowNode.h nodes/ComputeSnowNode.cpp
-    nodes/UpsampleTexturesNode.h nodes/UpsampleTexturesNode.cpp
     nodes/ComputeAvalancheTrajectoriesNode.h nodes/ComputeAvalancheTrajectoriesNode.cpp
     nodes/ExportNode.h nodes/ExportNode.cpp
     nodes/GPXTrackNode.h nodes/GPXTrackNode.cpp
@@ -82,7 +81,6 @@ qt_add_resources(webgpu_compute "webgpu_compute_shaders"
     FILES
         "${SHADER_BASE_DIR}/normals_compute.wgsl"
         "${SHADER_BASE_DIR}/snow_compute.wgsl"
-        "${SHADER_BASE_DIR}/upsample_textures_compute.wgsl"
         "${SHADER_BASE_DIR}/avalanche_trajectories_compute.wgsl"
         "${SHADER_BASE_DIR}/buffer_to_texture_compute.wgsl"
         "${SHADER_BASE_DIR}/compute_release_points.wgsl"

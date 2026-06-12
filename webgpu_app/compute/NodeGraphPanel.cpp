@@ -116,7 +116,7 @@ void NodeGraphPanel::import_graph_json(const QByteArray& data, const std::string
         m_first_frame_after_init = false;
         m_force_node_positions_on_next_frame = true;
     }
-    // else: m_first_frame_after_init remains true → draw() auto-layouts on the next render.
+
 }
 
 void NodeGraphPanel::render_open_dialog()
@@ -432,12 +432,8 @@ void NodeGraphPanel::push_style()
 
     } else if (m_render_mode == GraphRenderingMode::White) {
         ImNodes::PushColorStyle(ImNodesCol_GridLine, IM_COL32(200, 200, 200, 40));
-        ImVec4 old_color = ImGui::GetStyleColorVec4(ImGuiCol_WindowBg);
-        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(1.0f, 1.0f, 1.0f, old_color.w)); // white, normal alpha
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
 
-    } else if (m_render_mode == GraphRenderingMode::WhiteOpaque) {
-        ImNodes::PushColorStyle(ImNodesCol_GridLine, IM_COL32(255, 255, 255, 0)); // no gridlines
-        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(1.0f, 1.0f, 1.0f, 1.0f)); // full white opaque
     }
 }
 
@@ -466,10 +462,8 @@ void NodeGraphPanel::draw()
 
     calculate_window_size();
 
-    if (m_first_frame_after_init) {
-        recenter_graph(0.0f); // Otherwise the animation would pop from top left
-        reset_graph_layout(1.0f);
-    }
+    if (m_first_frame_after_init)
+        recenter_graph(0.0f);
 
     if (m_animation_running) {
         float dt = ImGui::GetIO().DeltaTime;
@@ -554,7 +548,7 @@ void NodeGraphPanel::draw()
 void NodeGraphPanel::poll_keyboard_shortcuts()
 {
     if (ImGui::IsKeyPressed(ImGuiKey_M)) {
-        m_render_mode = static_cast<GraphRenderingMode>((static_cast<int>(m_render_mode) + 1) % 4);
+        m_render_mode = static_cast<GraphRenderingMode>((static_cast<int>(m_render_mode) + 1) % 3);
     }
     if (ImGui::IsKeyPressed(ImGuiKey_L)) {
         reset_graph_layout(1.0f);
@@ -668,14 +662,12 @@ void NodeGraphPanel::render_menu()
 
         if (ImGui::BeginMenu("View")) {
             if (ImGui::MenuItem(ICON_FA_ADJUST "  Toggle Background Mode", "M")) {
-                m_render_mode = static_cast<GraphRenderingMode>((static_cast<int>(m_render_mode) + 1) % 4);
+                m_render_mode = static_cast<GraphRenderingMode>((static_cast<int>(m_render_mode) + 1) % 3);
             }
             ImGui::Separator();
-            const char* mode_name = m_render_mode == GraphRenderingMode::Default ? "Default"
+            const char* mode_name = m_render_mode == GraphRenderingMode::Default     ? "Default"
                 : m_render_mode == GraphRenderingMode::Transparent               ? "Transparent"
-                : m_render_mode == GraphRenderingMode::White                     ? "White"
-                : m_render_mode == GraphRenderingMode::WhiteOpaque               ? "White Opaque"
-                                                                                 : "Unknown";
+                                                                                 : "White";
             ImGui::Text("Current Mode: %s", mode_name);
             ImGui::EndMenu();
         }

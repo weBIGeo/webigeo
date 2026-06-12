@@ -21,22 +21,6 @@
 #include "NodeGraph.h"
 
 #include <QDateTime>
-
-#include "NodeRegistry.h"
-#include "nodes/BufferToTextureNode.h"
-#include "nodes/ComputeAvalancheTrajectoriesNode.h"
-#include "nodes/ComputeNormalsNode.h"
-#include "nodes/ComputeReleasePointsNode.h"
-#include "nodes/ComputeSnowNode.h"
-#include "nodes/ExportNode.h"
-#include "nodes/GPXTrackNode.h"
-#include "nodes/HeightDecodeNode.h"
-#include "nodes/IterativeSimulationNode.h"
-#include "nodes/LoadTextureNode.h"
-#include "nodes/RequestTilesNode.h"
-#include "nodes/SelectTilesNode.h"
-#include "nodes/TileStitchNode.h"
-#include "nodes/UpsampleTexturesNode.h"
 #include <QDebug>
 #include <memory>
 #include <tl/expected.hpp>
@@ -80,13 +64,6 @@ std::unordered_map<std::string, std::unique_ptr<Node>>& NodeGraph::get_nodes() {
 
 const std::unordered_map<std::string, std::unique_ptr<Node>>& NodeGraph::get_nodes() const { return m_nodes; }
 
-const TileStorageTexture& NodeGraph::output_normals_texture_storage() const { return *m_output_normals_texture_storage_ptr; }
-
-TileStorageTexture& NodeGraph::output_normals_texture_storage() { return *m_output_normals_texture_storage_ptr; }
-
-const TileStorageTexture& NodeGraph::output_overlay_texture_storage() const { return *m_output_overlay_texture_storage_ptr; }
-
-TileStorageTexture& NodeGraph::output_overlay_texture_storage() { return *m_output_overlay_texture_storage_ptr; }
 
 tl::expected<std::vector<Node*>, std::string> NodeGraph::compute_topological_order()
 {
@@ -186,208 +163,6 @@ void NodeGraph::emit_graph_failure(NodeRunFailureInfo info)
     emit run_failed(GraphRunFailureInfo(it->first, info));
 }
 
-// NOTE: these builders construct nodes directly (and pass per-graph settings) for now. Every built-in
-// node is also registered in the NodeRegistry by type-name, so once graphs become data-driven they can
-// instead be created via NodeRegistry::create() + configured through the node's settings.
-static std::unique_ptr<NodeGraph> create_normal_compute_graph_unconnected(webgpu::Context& ctx)
-{
-    const glm::uvec2 input_resolution = { 65, 65 };
-
-    auto node_graph = std::make_unique<NodeGraph>("normal_compute_graph_unconnected");
-    Node* gpx_track_node = node_graph->add_node("gpx_track_node", std::make_unique<GPXTrackNode>());
-    Node* tile_select_node = node_graph->add_node("select_tiles_node", std::make_unique<SelectTilesNode>());
-    Node* height_request_node = node_graph->add_node("request_height_node", std::make_unique<RequestTilesNode>());
-
-    ComputeNormalsNode* normal_compute_node = static_cast<ComputeNormalsNode*>(node_graph->add_node("normals_node", std::make_unique<ComputeNormalsNode>(ctx)));
-
-    TileStitchNode::StitchSettings stitch_setting = { .tile_size = input_resolution,
-        .tile_has_border = true,
-        .texture_format = WGPUTextureFormat::WGPUTextureFormat_RGBA8Uint,
-        .texture_usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc };
-
-    TileStitchNode* stitch_node = static_cast<TileStitchNode*>(node_graph->add_node("stitch_node", std::make_unique<TileStitchNode>(ctx, stitch_setting)));
-
-    HeightDecodeNode::HeightDecodeSettings height_decode_settings = {
-        .texture_usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc,
-    };
-
-    HeightDecodeNode* height_decode_node
-        = static_cast<HeightDecodeNode*>(node_graph->add_node("height_decode_node", std::make_unique<HeightDecodeNode>(ctx, height_decode_settings)));
-
-    // connect tile select inputs
-    tile_select_node->input_socket("region").connect(gpx_track_node->output_socket("region"));
-
-    // connect height request inputs
-    height_request_node->input_socket("tile ids").connect(tile_select_node->output_socket("tile ids"));
-
-    // connect stitch node inputs
-    stitch_node->input_socket("tile ids").connect(tile_select_node->output_socket("tile ids"));
-    stitch_node->input_socket("texture data").connect(height_request_node->output_socket("tile data"));
-
-    // connect decode node inputs
-    height_decode_node->input_socket("region aabb").connect(tile_select_node->output_socket("region aabb"));
-    height_decode_node->input_socket("encoded texture").connect(stitch_node->output_socket("texture"));
-
-    // connect normal node inputs
-    normal_compute_node->input_socket("bounds").connect(tile_select_node->output_socket("region aabb"));
-    normal_compute_node->input_socket("height texture").connect(height_decode_node->output_socket("decoded texture"));
-
-    return node_graph;
-}
-
-static std::unique_ptr<NodeGraph> create_release_points_compute_graph_unconnected(webgpu::Context& ctx)
-{
-    auto node_graph = create_normal_compute_graph_unconnected(ctx);
-
-    // add and connect release points node
-    Node* release_points_node = node_graph->add_node("release_points_node", std::make_unique<ComputeReleasePointsNode>(ctx));
-    release_points_node->input_socket("normal texture").connect(node_graph->get_node("normals_node").output_socket("normal texture"));
-
-    return node_graph;
-}
-
-static std::unique_ptr<NodeGraph> create_trajectories_compute_graph_unconnected(webgpu::Context& ctx)
-{
-    auto node_graph = create_release_points_compute_graph_unconnected(ctx);
-
-    ComputeAvalancheTrajectoriesNode* trajectories_node = static_cast<ComputeAvalancheTrajectoriesNode*>(
-        node_graph->add_node("avalanche_trajectories_node", std::make_unique<ComputeAvalancheTrajectoriesNode>(ctx)));
-
-    BufferToTextureNode::BufferToTextureSettings buffer_to_texture_settings {
-        .texture_format = WGPUTextureFormat_RGBA8Unorm,
-        .texture_usage = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc),
-    };
-    BufferToTextureNode* buffer_to_texture_node = static_cast<BufferToTextureNode*>(
-        node_graph->add_node("buffer_to_texture_node", std::make_unique<BufferToTextureNode>(ctx, buffer_to_texture_settings)));
-
-    // connect trajectories node inputs
-    trajectories_node->input_socket("region aabb").connect(node_graph->get_node("select_tiles_node").output_socket("region aabb"));
-    trajectories_node->input_socket("normal texture").connect(node_graph->get_node("normals_node").output_socket("normal texture"));
-    trajectories_node->input_socket("height texture").connect(node_graph->get_node("height_decode_node").output_socket("decoded texture"));
-    trajectories_node->input_socket("release point texture").connect(node_graph->get_node("release_points_node").output_socket("release point texture"));
-
-    // connect buffer to texture node inputs
-    buffer_to_texture_node->input_socket("raster dimensions").connect(trajectories_node->output_socket("raster dimensions"));
-    buffer_to_texture_node->input_socket("storage buffer").connect(trajectories_node->output_socket("layer1_zdelta"));
-    buffer_to_texture_node->input_socket("transparency buffer").connect(trajectories_node->output_socket("layer2_cellCounts"));
-
-    return node_graph;
-}
-
-// Adds a terminal OverlayNode that forwards the given result texture (+ the selected
-// region aabb) to a consumer. The consuming callback is injected later by the app;
-// without it the node is a harmless no-op.
-static void add_overlay_node(NodeGraph& node_graph, webgpu::Context& ctx, const std::string& texture_node, const std::string& texture_socket)
-{
-    // Created by type-name via the registry: the concrete node (OverlayRenderNode) is defined in the
-    // renderer layer and registered by the OverlayRenderer, so the compute core needs no dependency on it.
-    Node* overlay_node = node_graph.add_node("overlay_node", NodeRegistry::instance().create("OverlayRenderNode", ctx));
-    overlay_node->input_socket("texture").connect(node_graph.get_node(texture_node).output_socket(texture_socket));
-    overlay_node->input_socket("region aabb").connect(node_graph.get_node("select_tiles_node").output_socket("region aabb"));
-}
-
-std::unique_ptr<NodeGraph> NodeGraph::create_preset(ComputePipelineType type, webgpu::Context& ctx)
-{
-    switch (type) {
-    case ComputePipelineType::Snow:
-        return create_snow_compute_graph(ctx);
-    case ComputePipelineType::AvalancheTrajectories: {
-        auto graph = create_trajectories_with_export_compute_graph(ctx);
-        graph->set_enabled_for_nodes_with_name("export", false);
-        return graph;
-    }
-    case ComputePipelineType::IterativeSimulation:
-        return create_iterative_simulation_compute_graph(ctx);
-    }
-    return nullptr;
-}
-
-std::unique_ptr<NodeGraph> NodeGraph::create_snow_compute_graph(webgpu::Context& ctx)
-{
-    auto node_graph = create_normal_compute_graph_unconnected(ctx);
-    node_graph->set_name("snow_compute_graph");
-
-    // add and connect snow compute node
-    Node* snow_compute_node = node_graph->add_node("snow_node", std::make_unique<ComputeSnowNode>(ctx));
-    snow_compute_node->input_socket("bounds").connect(node_graph->get_node("select_tiles_node").output_socket("region aabb"));
-    snow_compute_node->input_socket("height texture").connect(node_graph->get_node("height_decode_node").output_socket("decoded texture"));
-    snow_compute_node->input_socket("normal texture").connect(node_graph->get_node("normals_node").output_socket("normal texture"));
-
-    add_overlay_node(*node_graph, ctx, "snow_node", "snow texture");
-    node_graph->connect_node_signals_and_slots();
-
-    return node_graph;
-}
-
-std::unique_ptr<NodeGraph> NodeGraph::create_avalanche_trajectories_compute_graph(webgpu::Context& ctx)
-{
-    auto node_graph = create_trajectories_compute_graph_unconnected(ctx);
-    node_graph->set_name("avalanche_trajectories_compute_graph");
-    add_overlay_node(*node_graph, ctx, "buffer_to_texture_node", "texture");
-    node_graph->connect_node_signals_and_slots();
-    return node_graph;
-}
-
-std::unique_ptr<NodeGraph> NodeGraph::create_trajectories_with_export_compute_graph(webgpu::Context& ctx)
-{
-    auto node_graph = create_trajectories_compute_graph_unconnected(ctx);
-    node_graph->set_name("trajectories_with_export_compute_graph");
-
-    ExportNode* rp_export_node = static_cast<ExportNode*>(node_graph->add_node("rp_export", std::make_unique<ExportNode>(ctx)));
-
-    ExportNode* height_export_node = static_cast<ExportNode*>(node_graph->add_node("height_export", std::make_unique<ExportNode>(ctx)));
-
-    ExportNode* trajectories_export_node = static_cast<ExportNode*>(node_graph->add_node("trajectories_export", std::make_unique<ExportNode>(ctx)));
-
-    // Connect release points export node
-    rp_export_node->input_socket("texture").connect(node_graph->get_node("release_points_node").output_socket("release point texture"));
-    rp_export_node->input_socket("region aabb").connect(node_graph->get_node("select_tiles_node").output_socket("region aabb"));
-
-    // Connect height tiles export node
-    height_export_node->input_socket("texture").connect(node_graph->get_node("stitch_node").output_socket("texture"));
-    height_export_node->input_socket("region aabb").connect(node_graph->get_node("select_tiles_node").output_socket("region aabb"));
-
-    // Connect trajectories export node
-    trajectories_export_node->input_socket("texture").connect(node_graph->get_node("buffer_to_texture_node").output_socket("texture"));
-    trajectories_export_node->input_socket("region aabb").connect(node_graph->get_node("select_tiles_node").output_socket("region aabb"));
-
-    ExportNode* l1_export_node = static_cast<ExportNode*>(node_graph->add_node("l1_export_node", std::make_unique<ExportNode>(ctx)));
-
-    ExportNode* l2_export_node = static_cast<ExportNode*>(node_graph->add_node("l2_export_node", std::make_unique<ExportNode>(ctx)));
-
-    ExportNode* l3_export_node = static_cast<ExportNode*>(node_graph->add_node("l3_export_node", std::make_unique<ExportNode>(ctx)));
-
-    ExportNode* l4_export_node = static_cast<ExportNode*>(node_graph->add_node("l4_export_node", std::make_unique<ExportNode>(ctx)));
-
-    ExportNode* l5_export_node = static_cast<ExportNode*>(node_graph->add_node("l5_export_node", std::make_unique<ExportNode>(ctx)));
-
-    Node& trajectories_node = node_graph->get_node("avalanche_trajectories_node");
-    // connect l1 export node inputs
-    l1_export_node->input_socket("buffer").connect(trajectories_node.output_socket("layer1_zdelta"));
-    l1_export_node->input_socket("dimensions").connect(trajectories_node.output_socket("raster dimensions"));
-
-    // connect l2 export node inputs
-    l2_export_node->input_socket("buffer").connect(trajectories_node.output_socket("layer2_cellCounts"));
-    l2_export_node->input_socket("dimensions").connect(trajectories_node.output_socket("raster dimensions"));
-
-    // connect l3 export node inputs
-    l3_export_node->input_socket("buffer").connect(trajectories_node.output_socket("layer3_travelLength"));
-    l3_export_node->input_socket("dimensions").connect(trajectories_node.output_socket("raster dimensions"));
-
-    // connect l4 export node inputs
-    l4_export_node->input_socket("buffer").connect(trajectories_node.output_socket("layer4_travelAngle"));
-    l4_export_node->input_socket("dimensions").connect(trajectories_node.output_socket("raster dimensions"));
-
-    // connect l5 export node inputs
-    l5_export_node->input_socket("buffer").connect(trajectories_node.output_socket("layer5_altitudeDifference"));
-    l5_export_node->input_socket("dimensions").connect(trajectories_node.output_socket("raster dimensions"));
-
-    add_overlay_node(*node_graph, ctx, "buffer_to_texture_node", "texture");
-    node_graph->connect_node_signals_and_slots();
-
-    return node_graph;
-}
-
 void NodeGraph::set_enabled_for_nodes_with_name(const std::string& name_substring, bool enabled)
 {
     int set_count = 0;
@@ -398,22 +173,6 @@ void NodeGraph::set_enabled_for_nodes_with_name(const std::string& name_substrin
         }
     }
     qInfo() << (enabled ? "Enabled" : "Disabled") << set_count << "nodes with name containing:" << QString::fromStdString(name_substring);
-}
-
-std::unique_ptr<NodeGraph> NodeGraph::create_iterative_simulation_compute_graph(webgpu::Context& ctx)
-{
-    auto node_graph = create_release_points_compute_graph_unconnected(ctx);
-    node_graph->set_name("iterative_simulation_compute_graph");
-
-    IterativeSimulationNode* flowpy_node
-        = static_cast<IterativeSimulationNode*>(node_graph->add_node("flowpy", std::make_unique<IterativeSimulationNode>(ctx)));
-
-    flowpy_node->input_socket("height texture").connect(node_graph->get_node("height_decode_node").output_socket("decoded texture"));
-    flowpy_node->input_socket("release point texture").connect(node_graph->get_node("release_points_node").output_socket("release point texture"));
-
-    add_overlay_node(*node_graph, ctx, "flowpy", "texture");
-    node_graph->connect_node_signals_and_slots();
-    return node_graph;
 }
 
 } // namespace webgpu_compute::nodes

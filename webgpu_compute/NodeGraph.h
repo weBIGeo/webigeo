@@ -75,15 +75,6 @@ public:
 	// Enables or disables all nodes whose name contains the given substring.
 	void set_enabled_for_nodes_with_name(const std::string& name_substring, bool enabled);
 
-	// obtain outputs - for now all node graphs always output
-	//  - a texture array for overlay tiles
-	//  - a texture array for normals tiles
-	const TileStorageTexture& output_normals_texture_storage() const;
-	TileStorageTexture& output_normals_texture_storage();
-
-	const TileStorageTexture& output_overlay_texture_storage() const;
-	TileStorageTexture& output_overlay_texture_storage();
-
 	// finds topological order of nodes and connects run_finished and run slots accordingly
 	// safe to call multiple times
 	[[nodiscard]] tl::expected<std::vector<Node*>, std::string> compute_topological_order();
@@ -98,23 +89,10 @@ signals:
 	void run_completed(webgpu_compute::GraphRunContext context);
 	void run_failed(GraphRunFailureInfo info);
 
-public:
-	enum class ComputePipelineType { Snow, AvalancheTrajectories, IterativeSimulation };
-
-	static std::unique_ptr<NodeGraph> create_preset(ComputePipelineType type, webgpu::Context& ctx);
-
-	static std::unique_ptr<NodeGraph> create_snow_compute_graph(webgpu::Context& ctx);
-	static std::unique_ptr<NodeGraph> create_avalanche_trajectories_compute_graph(webgpu::Context& ctx);
-	static std::unique_ptr<NodeGraph> create_trajectories_with_export_compute_graph(webgpu::Context& ctx);
-	static std::unique_ptr<NodeGraph> create_iterative_simulation_compute_graph(webgpu::Context& ctx);
-
 private:
 	std::string m_name;
 	std::unordered_map<std::string, std::unique_ptr<Node>> m_nodes;
 	std::vector<QMetaObject::Connection> m_topology_connections;
-
-	TileStorageTexture* m_output_normals_texture_storage_ptr;
-	TileStorageTexture* m_output_overlay_texture_storage_ptr;
 
 	uint64_t m_run_id = 0;
 };

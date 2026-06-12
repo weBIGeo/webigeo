@@ -52,7 +52,7 @@ public:
     void ready() override;
     void draw() override;
 
-    enum class GraphRenderingMode { Default, Transparent, White, WhiteOpaque };
+    enum class GraphRenderingMode { Default, Transparent, White };
 
 private:
     // (Re)builds the node renderers for the currently loaded graph.
