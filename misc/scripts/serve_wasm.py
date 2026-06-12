@@ -63,7 +63,7 @@ def serve_wasm(port=8000):
             sys.exit(1)
 
         print(f"Auto-detected build target: {build_type}")
-        build_dir = project_root / "build" / build_type / "webgpu_app"
+        build_dir = project_root / "build" / build_type / "apps" / "webgpu_app"
 
         html_file = get_html_file(build_dir)
         if not html_file:
