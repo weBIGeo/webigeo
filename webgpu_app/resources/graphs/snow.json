@@ -2,131 +2,131 @@
     "connections": [
         {
             "from": {
-                "node": "stitch_node",
+                "node": "Stitch Tiles",
                 "socket": "texture"
             },
             "to": {
-                "node": "height_decode_node",
+                "node": "Height Decode",
                 "socket": "encoded texture"
             }
         },
         {
             "from": {
-                "node": "select_tiles_node",
+                "node": "Select Tiles",
                 "socket": "region aabb"
             },
             "to": {
-                "node": "height_decode_node",
+                "node": "Height Decode",
                 "socket": "region aabb"
             }
         },
         {
             "from": {
-                "node": "select_tiles_node",
+                "node": "Select Tiles",
                 "socket": "region aabb"
             },
             "to": {
-                "node": "normals_node",
+                "node": "Normals",
                 "socket": "bounds"
             }
         },
         {
             "from": {
-                "node": "height_decode_node",
+                "node": "Height Decode",
                 "socket": "decoded texture"
             },
             "to": {
-                "node": "normals_node",
+                "node": "Normals",
                 "socket": "height texture"
             }
         },
         {
             "from": {
-                "node": "snow_node",
+                "node": "Snow",
                 "socket": "snow texture"
             },
             "to": {
-                "node": "overlay_node",
+                "node": "Overlay",
                 "socket": "texture"
             }
         },
         {
             "from": {
-                "node": "select_tiles_node",
+                "node": "Select Tiles",
                 "socket": "region aabb"
             },
             "to": {
-                "node": "overlay_node",
+                "node": "Overlay",
                 "socket": "region aabb"
             }
         },
         {
             "from": {
-                "node": "select_tiles_node",
+                "node": "Select Tiles",
                 "socket": "tile ids"
             },
             "to": {
-                "node": "request_height_node",
+                "node": "Request Height",
                 "socket": "tile ids"
             }
         },
         {
             "from": {
-                "node": "gpx_track_node",
+                "node": "GPX Input",
                 "socket": "region"
             },
             "to": {
-                "node": "select_tiles_node",
+                "node": "Select Tiles",
                 "socket": "region"
             }
         },
         {
             "from": {
-                "node": "select_tiles_node",
+                "node": "Select Tiles",
                 "socket": "region aabb"
             },
             "to": {
-                "node": "snow_node",
+                "node": "Snow",
                 "socket": "bounds"
             }
         },
         {
             "from": {
-                "node": "normals_node",
+                "node": "Normals",
                 "socket": "normal texture"
             },
             "to": {
-                "node": "snow_node",
+                "node": "Snow",
                 "socket": "normal texture"
             }
         },
         {
             "from": {
-                "node": "height_decode_node",
+                "node": "Height Decode",
                 "socket": "decoded texture"
             },
             "to": {
-                "node": "snow_node",
+                "node": "Snow",
                 "socket": "height texture"
             }
         },
         {
             "from": {
-                "node": "select_tiles_node",
+                "node": "Select Tiles",
                 "socket": "tile ids"
             },
             "to": {
-                "node": "stitch_node",
+                "node": "Stitch Tiles",
                 "socket": "tile ids"
             }
         },
         {
             "from": {
-                "node": "request_height_node",
+                "node": "Request Height",
                 "socket": "tile data"
             },
             "to": {
-                "node": "stitch_node",
+                "node": "Stitch Tiles",
                 "socket": "texture data"
             }
         }
@@ -136,7 +136,7 @@
     "nodes": [
         {
             "enabled": true,
-            "name": "gpx_track_node",
+            "name": "GPX Input",
             "settings": {
                 "enable_caching": true,
                 "file_path": ":/gpx/breite_ries.gpx"
@@ -145,7 +145,7 @@
         },
         {
             "enabled": true,
-            "name": "height_decode_node",
+            "name": "Height Decode",
             "settings": {
                 "texture_usage": [
                     "CopySrc",
@@ -158,7 +158,7 @@
         },
         {
             "enabled": true,
-            "name": "normals_node",
+            "name": "Normals",
             "settings": {
                 "format": "RGBA8Unorm",
                 "usage": [
@@ -171,7 +171,7 @@
         },
         {
             "enabled": true,
-            "name": "overlay_node",
+            "name": "Overlay",
             "settings": {
                 "copy": false
             },
@@ -179,7 +179,7 @@
         },
         {
             "enabled": true,
-            "name": "request_height_node",
+            "name": "Request Height",
             "settings": {
                 "file_extension": ".png",
                 "tile_path": "https://alpinemaps.cg.tuwien.ac.at/tiles/at_dtm_alpinemaps/",
@@ -189,7 +189,7 @@
         },
         {
             "enabled": true,
-            "name": "select_tiles_node",
+            "name": "Select Tiles",
             "settings": {
                 "zoomlevel": 15
             },
@@ -197,7 +197,7 @@
         },
         {
             "enabled": true,
-            "name": "snow_node",
+            "name": "Snow",
             "settings": {
                 "altitude_blend": 200,
                 "altitude_variation": 200,
@@ -217,7 +217,7 @@
         },
         {
             "enabled": true,
-            "name": "stitch_node",
+            "name": "Stitch Tiles",
             "settings": {
                 "stitch_inverted_y": true,
                 "texture_format": "RGBA8Uint",
@@ -238,52 +238,52 @@
     ],
     "ui": {
         "nodes": {
-            "gpx_track_node": {
+            "GPX Input": {
                 "position": [
-                    243.15008544921875,
-                    480.5
+                    245.57504272460938,
+                    457.125
                 ]
             },
-            "height_decode_node": {
+            "Height Decode": {
                 "position": [
-                    745.1500244140625,
-                    460.75
+                    747.574951171875,
+                    393.375
                 ]
             },
-            "normals_node": {
+            "Normals": {
                 "position": [
-                    894.1500244140625,
-                    460.75
+                    898.574951171875,
+                    464.375
                 ]
             },
-            "overlay_node": {
+            "Overlay": {
                 "position": [
-                    1173.949951171875,
-                    470.75
+                    1181.3748779296875,
+                    622.375
                 ]
             },
-            "request_height_node": {
+            "Request Height": {
                 "position": [
-                    477.25006103515625,
-                    470.75
+                    472.6750183105469,
+                    325.375
                 ]
             },
-            "select_tiles_node": {
+            "Select Tiles": {
                 "position": [
-                    355.15008544921875,
-                    460.75
+                    356.5750427246094,
+                    457.375
                 ]
             },
-            "snow_node": {
+            "Snow": {
                 "position": [
-                    1034.050048828125,
-                    450.75
+                    1038.4749755859375,
+                    535.375
                 ]
             },
-            "stitch_node": {
+            "Stitch Tiles": {
                 "position": [
-                    621.2500610351562,
-                    460.75
+                    614.675048828125,
+                    352.375
                 ]
             }
         }

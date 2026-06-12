@@ -44,13 +44,14 @@ NodeGraphPanel::NodeGraphPanel(webgpu_engine::Context* context)
     : m_context(context)
     , m_presets({
           { "Snow", ":/graphs/snow.json" },
-          { "Avalanche trajectories", ":/graphs/avalanche_trajectories.json" },
+          { "Avalanche simulation", ":/graphs/avalanche_simulation.json" },
+          { "Avalanche simulation (with exports)", ":/graphs/avalanche_simulation_with_exports.json" },
           { "Iterative simulation (WIP)", ":/graphs/iterative_simulation_wip.json" },
       })
 {
 }
 
-void NodeGraphPanel::ready() { load_preset(":/graphs/avalanche_trajectories.json"); }
+void NodeGraphPanel::ready() { load_preset(":/graphs/avalanche_simulation.json"); }
 
 void NodeGraphPanel::attach_graph(std::unique_ptr<nodes::NodeGraph> graph)
 {

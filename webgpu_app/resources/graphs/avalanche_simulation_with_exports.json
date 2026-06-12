@@ -2,342 +2,342 @@
     "connections": [
         {
             "from": {
-                "node": "select_tiles_node",
+                "node": "Select Tiles",
                 "socket": "region aabb"
             },
             "to": {
-                "node": "avalanche_trajectories_node",
+                "node": "Avalanche Simulation",
                 "socket": "region aabb"
             }
         },
         {
             "from": {
-                "node": "normals_node",
+                "node": "Normals",
                 "socket": "normal texture"
             },
             "to": {
-                "node": "avalanche_trajectories_node",
+                "node": "Avalanche Simulation",
                 "socket": "normal texture"
             }
         },
         {
             "from": {
-                "node": "height_decode_node",
+                "node": "Height Decode",
                 "socket": "decoded texture"
             },
             "to": {
-                "node": "avalanche_trajectories_node",
+                "node": "Avalanche Simulation",
                 "socket": "height texture"
             }
         },
         {
             "from": {
-                "node": "release_points_node",
+                "node": "Release Points",
                 "socket": "release point texture"
             },
             "to": {
-                "node": "avalanche_trajectories_node",
+                "node": "Avalanche Simulation",
                 "socket": "release point texture"
             }
         },
         {
             "from": {
-                "node": "avalanche_trajectories_node",
+                "node": "Avalanche Simulation",
                 "socket": "raster dimensions"
             },
             "to": {
-                "node": "buffer_to_texture_node",
+                "node": "Color Mapping",
                 "socket": "raster dimensions"
             }
         },
         {
             "from": {
-                "node": "avalanche_trajectories_node",
+                "node": "Avalanche Simulation",
                 "socket": "layer1_zdelta"
             },
             "to": {
-                "node": "buffer_to_texture_node",
+                "node": "Color Mapping",
                 "socket": "storage buffer"
             }
         },
         {
             "from": {
-                "node": "avalanche_trajectories_node",
+                "node": "Avalanche Simulation",
                 "socket": "layer2_cellCounts"
             },
             "to": {
-                "node": "buffer_to_texture_node",
+                "node": "Color Mapping",
                 "socket": "transparency buffer"
             }
         },
         {
             "from": {
-                "node": "stitch_node",
+                "node": "Stitch Tiles",
                 "socket": "texture"
             },
             "to": {
-                "node": "height_decode_node",
+                "node": "Height Decode",
                 "socket": "encoded texture"
             }
         },
         {
             "from": {
-                "node": "select_tiles_node",
+                "node": "Select Tiles",
                 "socket": "region aabb"
             },
             "to": {
-                "node": "height_decode_node",
+                "node": "Height Decode",
                 "socket": "region aabb"
             }
         },
         {
             "from": {
-                "node": "stitch_node",
+                "node": "Stitch Tiles",
                 "socket": "texture"
             },
             "to": {
-                "node": "height_export",
+                "node": "Height Export",
                 "socket": "texture"
             }
         },
         {
             "from": {
-                "node": "select_tiles_node",
+                "node": "Select Tiles",
                 "socket": "region aabb"
             },
             "to": {
-                "node": "height_export",
+                "node": "Height Export",
                 "socket": "region aabb"
             }
         },
         {
             "from": {
-                "node": "avalanche_trajectories_node",
+                "node": "Avalanche Simulation",
                 "socket": "layer1_zdelta"
             },
             "to": {
-                "node": "l1_export_node",
+                "node": "L1_ZDelta",
                 "socket": "buffer"
             }
         },
         {
             "from": {
-                "node": "avalanche_trajectories_node",
+                "node": "Avalanche Simulation",
                 "socket": "raster dimensions"
             },
             "to": {
-                "node": "l1_export_node",
+                "node": "L1_ZDelta",
                 "socket": "dimensions"
             }
         },
         {
             "from": {
-                "node": "avalanche_trajectories_node",
+                "node": "Avalanche Simulation",
                 "socket": "layer2_cellCounts"
             },
             "to": {
-                "node": "l2_export_node",
+                "node": "L2_CellCounts",
                 "socket": "buffer"
             }
         },
         {
             "from": {
-                "node": "avalanche_trajectories_node",
+                "node": "Avalanche Simulation",
                 "socket": "raster dimensions"
             },
             "to": {
-                "node": "l2_export_node",
+                "node": "L2_CellCounts",
                 "socket": "dimensions"
             }
         },
         {
             "from": {
-                "node": "avalanche_trajectories_node",
+                "node": "Avalanche Simulation",
                 "socket": "layer3_travelLength"
             },
             "to": {
-                "node": "l3_export_node",
+                "node": "L3_TravelLength",
                 "socket": "buffer"
             }
         },
         {
             "from": {
-                "node": "avalanche_trajectories_node",
+                "node": "Avalanche Simulation",
                 "socket": "raster dimensions"
             },
             "to": {
-                "node": "l3_export_node",
+                "node": "L3_TravelLength",
                 "socket": "dimensions"
             }
         },
         {
             "from": {
-                "node": "avalanche_trajectories_node",
+                "node": "Avalanche Simulation",
                 "socket": "layer4_travelAngle"
             },
             "to": {
-                "node": "l4_export_node",
+                "node": "L4_TravelAngle",
                 "socket": "buffer"
             }
         },
         {
             "from": {
-                "node": "avalanche_trajectories_node",
+                "node": "Avalanche Simulation",
                 "socket": "raster dimensions"
             },
             "to": {
-                "node": "l4_export_node",
+                "node": "L4_TravelAngle",
                 "socket": "dimensions"
             }
         },
         {
             "from": {
-                "node": "avalanche_trajectories_node",
+                "node": "Avalanche Simulation",
                 "socket": "layer5_altitudeDifference"
             },
             "to": {
-                "node": "l5_export_node",
+                "node": "L5_AltitudeDiff",
                 "socket": "buffer"
             }
         },
         {
             "from": {
-                "node": "avalanche_trajectories_node",
+                "node": "Avalanche Simulation",
                 "socket": "raster dimensions"
             },
             "to": {
-                "node": "l5_export_node",
+                "node": "L5_AltitudeDiff",
                 "socket": "dimensions"
             }
         },
         {
             "from": {
-                "node": "select_tiles_node",
+                "node": "Select Tiles",
                 "socket": "region aabb"
             },
             "to": {
-                "node": "normals_node",
+                "node": "Normals",
                 "socket": "bounds"
             }
         },
         {
             "from": {
-                "node": "height_decode_node",
+                "node": "Height Decode",
                 "socket": "decoded texture"
             },
             "to": {
-                "node": "normals_node",
+                "node": "Normals",
                 "socket": "height texture"
             }
         },
         {
             "from": {
-                "node": "buffer_to_texture_node",
+                "node": "Color Mapping",
                 "socket": "texture"
             },
             "to": {
-                "node": "overlay_node",
+                "node": "Overlay",
                 "socket": "texture"
             }
         },
         {
             "from": {
-                "node": "select_tiles_node",
+                "node": "Select Tiles",
                 "socket": "region aabb"
             },
             "to": {
-                "node": "overlay_node",
+                "node": "Overlay",
                 "socket": "region aabb"
             }
         },
         {
             "from": {
-                "node": "normals_node",
-                "socket": "normal texture"
+                "node": "Color Mapping",
+                "socket": "texture"
             },
             "to": {
-                "node": "release_points_node",
-                "socket": "normal texture"
+                "node": "Overlay Export",
+                "socket": "texture"
             }
         },
         {
             "from": {
-                "node": "select_tiles_node",
-                "socket": "tile ids"
+                "node": "Select Tiles",
+                "socket": "region aabb"
             },
             "to": {
-                "node": "request_height_node",
-                "socket": "tile ids"
+                "node": "Overlay Export",
+                "socket": "region aabb"
             }
         },
         {
             "from": {
-                "node": "release_points_node",
+                "node": "Release Points",
                 "socket": "release point texture"
             },
             "to": {
-                "node": "rp_export",
+                "node": "RP Export",
                 "socket": "texture"
             }
         },
         {
             "from": {
-                "node": "select_tiles_node",
+                "node": "Select Tiles",
                 "socket": "region aabb"
             },
             "to": {
-                "node": "rp_export",
+                "node": "RP Export",
                 "socket": "region aabb"
             }
         },
         {
             "from": {
-                "node": "gpx_track_node",
+                "node": "Normals",
+                "socket": "normal texture"
+            },
+            "to": {
+                "node": "Release Points",
+                "socket": "normal texture"
+            }
+        },
+        {
+            "from": {
+                "node": "Select Tiles",
+                "socket": "tile ids"
+            },
+            "to": {
+                "node": "Request Height",
+                "socket": "tile ids"
+            }
+        },
+        {
+            "from": {
+                "node": "GPX Input",
                 "socket": "region"
             },
             "to": {
-                "node": "select_tiles_node",
+                "node": "Select Tiles",
                 "socket": "region"
             }
         },
         {
             "from": {
-                "node": "select_tiles_node",
+                "node": "Select Tiles",
                 "socket": "tile ids"
             },
             "to": {
-                "node": "stitch_node",
+                "node": "Stitch Tiles",
                 "socket": "tile ids"
             }
         },
         {
             "from": {
-                "node": "request_height_node",
+                "node": "Request Height",
                 "socket": "tile data"
             },
             "to": {
-                "node": "stitch_node",
+                "node": "Stitch Tiles",
                 "socket": "texture data"
-            }
-        },
-        {
-            "from": {
-                "node": "buffer_to_texture_node",
-                "socket": "texture"
-            },
-            "to": {
-                "node": "trajectories_export",
-                "socket": "texture"
-            }
-        },
-        {
-            "from": {
-                "node": "select_tiles_node",
-                "socket": "region aabb"
-            },
-            "to": {
-                "node": "trajectories_export",
-                "socket": "region aabb"
             }
         }
     ],
@@ -346,7 +346,7 @@
     "nodes": [
         {
             "enabled": true,
-            "name": "avalanche_trajectories_node",
+            "name": "Avalanche Simulation",
             "settings": {
                 "active_model": 0,
                 "active_runout_model": 2,
@@ -385,7 +385,7 @@
         },
         {
             "enabled": true,
-            "name": "buffer_to_texture_node",
+            "name": "Color Mapping",
             "settings": {
                 "color_map_bounds": [
                     0,
@@ -412,7 +412,7 @@
         },
         {
             "enabled": true,
-            "name": "gpx_track_node",
+            "name": "GPX Input",
             "settings": {
                 "enable_caching": true,
                 "file_path": ":/gpx/breite_ries.gpx"
@@ -421,7 +421,7 @@
         },
         {
             "enabled": true,
-            "name": "height_decode_node",
+            "name": "Height Decode",
             "settings": {
                 "texture_usage": [
                     "CopySrc",
@@ -433,58 +433,8 @@
             "type": "HeightDecodeNode"
         },
         {
-            "enabled": false,
-            "name": "height_export",
-            "settings": {
-                "aabb_output_file": "export/{run_datetime}_{run_id}/exp_aabb.txt",
-                "buffer_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_buff.png",
-                "texture_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_tex.png"
-            },
-            "type": "ExportNode"
-        },
-        {
-            "enabled": false,
-            "name": "l1_export_node",
-            "settings": {
-                "aabb_output_file": "export/{run_datetime}_{run_id}/exp_aabb.txt",
-                "buffer_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_buff.png",
-                "texture_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_tex.png"
-            },
-            "type": "ExportNode"
-        },
-        {
-            "enabled": false,
-            "name": "l2_export_node",
-            "settings": {
-                "aabb_output_file": "export/{run_datetime}_{run_id}/exp_aabb.txt",
-                "buffer_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_buff.png",
-                "texture_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_tex.png"
-            },
-            "type": "ExportNode"
-        },
-        {
-            "enabled": false,
-            "name": "l3_export_node",
-            "settings": {
-                "aabb_output_file": "export/{run_datetime}_{run_id}/exp_aabb.txt",
-                "buffer_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_buff.png",
-                "texture_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_tex.png"
-            },
-            "type": "ExportNode"
-        },
-        {
-            "enabled": false,
-            "name": "l4_export_node",
-            "settings": {
-                "aabb_output_file": "export/{run_datetime}_{run_id}/exp_aabb.txt",
-                "buffer_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_buff.png",
-                "texture_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_tex.png"
-            },
-            "type": "ExportNode"
-        },
-        {
-            "enabled": false,
-            "name": "l5_export_node",
+            "enabled": true,
+            "name": "Height Export",
             "settings": {
                 "aabb_output_file": "export/{run_datetime}_{run_id}/exp_aabb.txt",
                 "buffer_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_buff.png",
@@ -494,7 +444,57 @@
         },
         {
             "enabled": true,
-            "name": "normals_node",
+            "name": "L1_ZDelta",
+            "settings": {
+                "aabb_output_file": "export/{run_datetime}_{run_id}/exp_aabb.txt",
+                "buffer_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_buff.png",
+                "texture_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_tex.png"
+            },
+            "type": "ExportNode"
+        },
+        {
+            "enabled": true,
+            "name": "L2_CellCounts",
+            "settings": {
+                "aabb_output_file": "export/{run_datetime}_{run_id}/exp_aabb.txt",
+                "buffer_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_buff.png",
+                "texture_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_tex.png"
+            },
+            "type": "ExportNode"
+        },
+        {
+            "enabled": true,
+            "name": "L3_TravelLength",
+            "settings": {
+                "aabb_output_file": "export/{run_datetime}_{run_id}/exp_aabb.txt",
+                "buffer_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_buff.png",
+                "texture_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_tex.png"
+            },
+            "type": "ExportNode"
+        },
+        {
+            "enabled": true,
+            "name": "L4_TravelAngle",
+            "settings": {
+                "aabb_output_file": "export/{run_datetime}_{run_id}/exp_aabb.txt",
+                "buffer_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_buff.png",
+                "texture_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_tex.png"
+            },
+            "type": "ExportNode"
+        },
+        {
+            "enabled": true,
+            "name": "L5_AltitudeDiff",
+            "settings": {
+                "aabb_output_file": "export/{run_datetime}_{run_id}/exp_aabb.txt",
+                "buffer_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_buff.png",
+                "texture_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_tex.png"
+            },
+            "type": "ExportNode"
+        },
+        {
+            "enabled": true,
+            "name": "Normals",
             "settings": {
                 "format": "RGBA8Unorm",
                 "usage": [
@@ -507,7 +507,7 @@
         },
         {
             "enabled": true,
-            "name": "overlay_node",
+            "name": "Overlay",
             "settings": {
                 "copy": false
             },
@@ -515,7 +515,27 @@
         },
         {
             "enabled": true,
-            "name": "release_points_node",
+            "name": "Overlay Export",
+            "settings": {
+                "aabb_output_file": "export/{run_datetime}_{run_id}/exp_aabb.txt",
+                "buffer_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_buff.png",
+                "texture_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_tex.png"
+            },
+            "type": "ExportNode"
+        },
+        {
+            "enabled": true,
+            "name": "RP Export",
+            "settings": {
+                "aabb_output_file": "export/{run_datetime}_{run_id}/exp_aabb.txt",
+                "buffer_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_buff.png",
+                "texture_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_tex.png"
+            },
+            "type": "ExportNode"
+        },
+        {
+            "enabled": true,
+            "name": "Release Points",
             "settings": {
                 "max_slope_angle": 0.7853981852531433,
                 "min_slope_angle": 0.5235987901687622,
@@ -535,7 +555,7 @@
         },
         {
             "enabled": true,
-            "name": "request_height_node",
+            "name": "Request Height",
             "settings": {
                 "file_extension": ".png",
                 "tile_path": "https://alpinemaps.cg.tuwien.ac.at/tiles/at_dtm_alpinemaps/",
@@ -544,18 +564,8 @@
             "type": "RequestTilesNode"
         },
         {
-            "enabled": false,
-            "name": "rp_export",
-            "settings": {
-                "aabb_output_file": "export/{run_datetime}_{run_id}/exp_aabb.txt",
-                "buffer_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_buff.png",
-                "texture_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_tex.png"
-            },
-            "type": "ExportNode"
-        },
-        {
             "enabled": true,
-            "name": "select_tiles_node",
+            "name": "Select Tiles",
             "settings": {
                 "zoomlevel": 15
             },
@@ -563,7 +573,7 @@
         },
         {
             "enabled": true,
-            "name": "stitch_node",
+            "name": "Stitch Tiles",
             "settings": {
                 "stitch_inverted_y": true,
                 "texture_format": "RGBA8Uint",
@@ -580,126 +590,116 @@
                 ]
             },
             "type": "TileStitchNode"
-        },
-        {
-            "enabled": false,
-            "name": "trajectories_export",
-            "settings": {
-                "aabb_output_file": "export/{run_datetime}_{run_id}/exp_aabb.txt",
-                "buffer_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_buff.png",
-                "texture_output_file": "export/{run_datetime}_{run_id}/exp_{node_name}_tex.png"
-            },
-            "type": "ExportNode"
         }
     ],
     "ui": {
         "nodes": {
-            "avalanche_trajectories_node": {
+            "Avalanche Simulation": {
                 "position": [
-                    983.7999877929688,
-                    302
+                    911.75,
+                    322.25
                 ]
             },
-            "buffer_to_texture_node": {
+            "Color Mapping": {
                 "position": [
-                    1186.2999267578125,
-                    57
+                    1165.3001708984375,
+                    86.5
                 ]
             },
-            "gpx_track_node": {
+            "GPX Input": {
                 "position": [
-                    16.8001708984375,
-                    480.5
+                    21.1497802734375,
+                    485.5
                 ]
             },
-            "height_decode_node": {
+            "Height Decode": {
                 "position": [
-                    519.4000854492188,
+                    487.0496826171875,
+                    394.25
+                ]
+            },
+            "Height Export": {
+                "position": [
+                    487.0496826171875,
+                    523.5
+                ]
+            },
+            "L1_ZDelta": {
+                "position": [
+                    1165.3001708984375,
                     382
                 ]
             },
-            "height_export": {
+            "L2_CellCounts": {
                 "position": [
-                    519.4000854492188,
-                    519.5
+                    1165.3001708984375,
+                    234.25
                 ]
             },
-            "l1_export_node": {
+            "L3_TravelLength": {
                 "position": [
-                    1186.2999267578125,
-                    372
+                    1165.3001708984375,
+                    529.75
                 ]
             },
-            "l2_export_node": {
+            "L4_TravelAngle": {
                 "position": [
-                    1186.2999267578125,
-                    214.5
+                    1165.3001708984375,
+                    677
                 ]
             },
-            "l3_export_node": {
+            "L5_AltitudeDiff": {
                 "position": [
-                    1186.2999267578125,
-                    529.5
+                    1165.3001708984375,
+                    824.75
                 ]
             },
-            "l4_export_node": {
+            "Normals": {
                 "position": [
-                    1186.2999267578125,
-                    687
+                    624.0496826171875,
+                    467.9375
                 ]
             },
-            "l5_export_node": {
+            "Overlay": {
                 "position": [
-                    1186.2999267578125,
-                    844.5
+                    1320.8502197265625,
+                    547.5
                 ]
             },
-            "normals_node": {
+            "Overlay Export": {
                 "position": [
-                    668.4000854492188,
-                    460.75
+                    1320.8502197265625,
+                    400.25
                 ]
             },
-            "overlay_node": {
+            "RP Export": {
                 "position": [
-                    1357.1998291015625,
-                    549.5
+                    911.75,
+                    595.5
                 ]
             },
-            "release_points_node": {
+            "Release Points": {
                 "position": [
-                    808.1000366210938,
-                    470.75
+                    752.19970703125,
+                    476.9375
                 ]
             },
-            "request_height_node": {
+            "Request Height": {
                 "position": [
-                    251.70013427734375,
-                    470.75
+                    239.5997314453125,
+                    476.9375
                 ]
             },
-            "rp_export": {
+            "Select Tiles": {
                 "position": [
-                    983.7999877929688,
-                    599.5
+                    125.1497802734375,
+                    467.9375
                 ]
             },
-            "select_tiles_node": {
+            "Stitch Tiles": {
                 "position": [
-                    128.8001708984375,
-                    460.75
-                ]
-            },
-            "stitch_node": {
-                "position": [
-                    395.70013427734375,
-                    460.75
-                ]
-            },
-            "trajectories_export": {
-                "position": [
-                    1357.1998291015625,
-                    392
+                    372.5997314453125,
+                    467.9375
                 ]
             }
         }
