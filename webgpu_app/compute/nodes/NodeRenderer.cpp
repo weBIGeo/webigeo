@@ -135,12 +135,7 @@ NodeRenderer::NodeRenderer(const std::string& name, nodes::Node& node)
 
 ImVec2 NodeRenderer::get_size() const
 {
-    if (m_size.x >= 0)
-        return m_size;
-    float width = std::max(100.0f, (float)m_name_formatted.size() * 7.3f);
-    size_t num = m_node->input_sockets().size() + m_node->output_sockets().size();
-    float height = num * 20.0f;
-    return ImVec2(width, height);
+    return m_size;
 }
 
 void NodeRenderer::render(bool reset_position)
@@ -225,7 +220,7 @@ void NodeRenderer::render_sockets()
         ImNodes::PopColorStyle();
     }
 
-    const float node_content_width = get_size().x - 1;
+    const float node_content_width = m_size.x >= 0 ? m_size.x - 1.0f : 0.0f;
     for (size_t i = 0; i < m_output_socket_ids.size(); i++) {
         const nodes::DataType type = m_node->output_sockets().at(i).type();
         ImNodes::PushColorStyle(ImNodesCol_Pin, pin_color_for_type(type));

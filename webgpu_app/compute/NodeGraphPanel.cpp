@@ -21,6 +21,7 @@
 
 #include "ImGuiManager.h"
 #include "nodes/NodeRendererFactory.h"
+#include <algorithm>
 #include <IconsFontAwesome5.h>
 #include <QFile>
 #include <QJsonDocument>
@@ -116,12 +117,14 @@ void NodeGraphPanel::import_graph_json(const QByteArray& data, const std::string
             if (ui_nodes.contains(key))
                 renderer->deserialize_ui(ui_nodes[key].toObject());
         }
+        m_force_node_positions_on_next_frame = true;
     } else {
-        calculate_auto_layout();
-        for (auto& [nodePtr, pos] : m_target_layout)
-            m_node_renderers_by_node[nodePtr]->set_position(pos);
+        const ImVec2 center(m_window_size.x * 0.5f, m_window_size.y * 0.5f);
+        for (auto& [nodePtr, nr] : m_node_renderers_by_node)
+            nr->set_position(center);
+        m_force_node_positions_on_next_frame = true;
+        m_pending_auto_layout = true;
     }
-    m_force_node_positions_on_next_frame = true;
 
 }
 
@@ -501,6 +504,18 @@ void NodeGraphPanel::draw()
         return;
 
     calculate_window_size();
+
+    if (m_pending_auto_layout) {
+        const bool all_measured = std::all_of(m_node_renderers.begin(), m_node_renderers.end(),
+            [](const auto& kv) { return kv.second->is_size_known(); });
+        if (all_measured) {
+            calculate_auto_layout();
+            for (auto& [nodePtr, pos] : m_target_layout)
+                m_node_renderers_by_node[nodePtr]->set_position(pos);
+            m_force_node_positions_on_next_frame = true;
+            m_pending_auto_layout = false;
+        }
+    }
 
     push_style();
 

@@ -57,6 +57,7 @@ public:
     void set_position(const ImVec2& position) { m_position = position; }
     ImVec2 get_position() const { return m_position; }
     ImVec2 get_size() const;
+    bool is_size_known() const { return m_size.x >= 0; }
 
     nodes::Node* get_node() const { return m_node; }
 

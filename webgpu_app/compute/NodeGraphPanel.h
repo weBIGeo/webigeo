@@ -108,6 +108,7 @@ private:
     bool m_save_dialog_wants_open = false;
     bool m_open_dialog_wants_open = false;
     bool m_auto_layout_confirm_wants_open = false;
+    bool m_pending_auto_layout = false;
 
     // Add-node popup (Shift+A)
     bool m_open_add_node_request = false;
