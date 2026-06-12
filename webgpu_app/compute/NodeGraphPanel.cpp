@@ -520,7 +520,7 @@ void NodeGraphPanel::draw()
     render_menu();
 
     m_canvas_origin = ImGui::GetCursorScreenPos();
-    if (ImGuiManager::s_node_font)
+    if (m_use_small_font && ImGuiManager::s_node_font)
         ImGui::PushFont(ImGuiManager::s_node_font);
     ImNodes::BeginNodeEditor();
 
@@ -561,7 +561,7 @@ void NodeGraphPanel::draw()
 
     ImNodes::MiniMap(0.1f, ImNodesMiniMapLocation_BottomRight);
     ImNodes::EndNodeEditor();
-    if (ImGuiManager::s_node_font)
+    if (m_use_small_font && ImGuiManager::s_node_font)
         ImGui::PopFont();
 
     int start_attr_id, end_attr_id;
@@ -776,6 +776,8 @@ void NodeGraphPanel::render_menu()
                 : m_render_mode == GraphRenderingMode::Transparent               ? "Transparent"
                                                                                  : "White";
             ImGui::Text("Current Mode: %s", mode_name);
+            ImGui::Separator();
+            ImGui::MenuItem(ICON_FA_FONT "  Small Font", nullptr, &m_use_small_font);
             ImGui::EndMenu();
         }
 

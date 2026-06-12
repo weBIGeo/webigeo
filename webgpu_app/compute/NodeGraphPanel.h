@@ -106,6 +106,8 @@ private:
     // Current rendering mode for the graph background and grid.
     GraphRenderingMode m_render_mode = GraphRenderingMode::Default;
 
+    bool m_use_small_font = true;
+
     bool m_save_dialog_wants_open = false;
     bool m_open_dialog_wants_open = false;
     bool m_pending_auto_layout = false;

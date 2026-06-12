@@ -49,7 +49,7 @@ void GPXTrackNodeRenderer::render_settings_content()
         m_node->rerun();
     }
     ImGui::SameLine();
-    m_want_open_dialog = ImGui::Button("Brow#se...");
+    m_want_open_dialog = ImGui::Button("Browse...");
 
     if (ImGui::Checkbox("Cache (reload only on path change)", &settings.enable_caching)) {
         m_node->set_settings(settings);
