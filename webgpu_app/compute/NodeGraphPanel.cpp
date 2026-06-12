@@ -30,6 +30,7 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <imnodes.h>
+#include <imnodes_internal.h>
 #include <qDebug>
 #include <webgpu_compute/NodeGraphSerialization.h>
 #include <webgpu_compute/NodeRegistry.h>
@@ -534,6 +535,17 @@ void NodeGraphPanel::draw()
 
     m_canvas_origin = ImGui::GetCursorScreenPos();
     ImNodes::BeginNodeEditor();
+
+    // NOTE: This is a hack to disable interactions when the cursor is inside the settings panel.
+    // which is sadly necessary because imnodes doesnt respect the Imguis z order
+    {
+        ImGuiWindow* settings_win = ImGui::FindWindowByName("Node Settings");
+        if (settings_win && settings_win->Rect().Contains(ImGui::GetIO().MousePos)) {
+            GImNodes->MousePos = ImVec2(-FLT_MAX, -FLT_MAX);
+            GImNodes->LeftMouseClicked = false;
+            GImNodes->LeftMouseDragging = false;
+        }
+    }
 
     // draw nodes
     const bool apply_positions = m_force_node_positions_on_next_frame;
