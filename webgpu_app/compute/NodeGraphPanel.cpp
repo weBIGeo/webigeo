@@ -20,7 +20,6 @@
 #include "NodeGraphPanel.h"
 
 #include "ImGuiManager.h"
-#include <nucleus/utils/easing.h>
 #include "nodes/NodeRendererFactory.h"
 #include <IconsFontAwesome5.h>
 #include <QFile>
@@ -112,15 +111,17 @@ void NodeGraphPanel::import_graph_json(const QByteArray& data, const std::string
     attach_graph(std::move(*result));
 
     if (!ui_nodes.isEmpty()) {
-        // Restore saved positions; suppress the auto-layout that draw() would otherwise trigger.
         for (auto& [name, renderer] : m_node_renderers) {
             const QString key = QString::fromStdString(name);
             if (ui_nodes.contains(key))
                 renderer->deserialize_ui(ui_nodes[key].toObject());
         }
-        m_first_frame_after_init = false;
-        m_force_node_positions_on_next_frame = true;
+    } else {
+        calculate_auto_layout();
+        for (auto& [nodePtr, pos] : m_target_layout)
+            m_node_renderers_by_node[nodePtr]->set_position(pos);
     }
+    m_force_node_positions_on_next_frame = true;
 
 }
 
@@ -160,7 +161,6 @@ void NodeGraphPanel::init(nodes::NodeGraph& node_graph)
     rebuild_socket_id_maps();
     rebuild_links();
 
-    m_first_frame_after_init = true;
 }
 
 static std::string type_to_default_name(const std::string& type_name)
@@ -414,86 +414,23 @@ void NodeGraphPanel::calculate_auto_layout()
     center_target_layout();
 }
 
-void NodeGraphPanel::apply_node_layout(float animation_duration)
-{
-    // Create start_layout with current positions
-    m_start_layout.clear();
-    for (auto& [nodePtr, nr] : m_node_renderers_by_node)
-        m_start_layout[nodePtr] = nr->get_position();
-
-    // Compare start_layout with target_layout and remove nodes that change less than an epsilon
-    const float epsilon = 2.0f; // pixels
-    for (auto it = m_target_layout.begin(); it != m_target_layout.end();) {
-        auto& nodePtr = it->first;
-        ImVec2 startPos = m_start_layout[nodePtr];
-        ImVec2 targetPos = it->second;
-
-        if (fabsf(startPos.x - targetPos.x) < epsilon && fabsf(startPos.y - targetPos.y) < epsilon) {
-            it = m_target_layout.erase(it);
-            m_start_layout.erase(nodePtr);
-        } else {
-            ++it;
-        }
-    }
-
-    // if no nodes need to be moved, skip animation
-    if (m_target_layout.empty()) {
-        return;
-    }
-
-    if (animation_duration <= 0.001f) {
-        // apply instantly
-        for (auto& [nodePtr, pos] : m_target_layout)
-            m_node_renderers_by_node[nodePtr]->set_position(pos);
-
-        m_force_node_positions_on_next_frame = true;
-        return;
-    }
-
-    // Prepare animation
-    m_animation_running = true;
-    m_animation_duration = animation_duration;
-    m_animation_runtime = 0.0f;
-}
-
-void NodeGraphPanel::process_animation(float dt)
-{
-    if (!m_animation_running)
-        return;
-
-    m_animation_runtime += dt;
-    float t = m_animation_runtime / m_animation_duration;
-    if (t >= 1.0f)
-        t = 1.0f;
-
-    float smooth = nucleus::utils::easing::easeOutElastic(t);
-
-    for (auto& [nodePtr, startPos] : m_start_layout) {
-        ImVec2 endPos = m_target_layout[nodePtr];
-        ImVec2 p;
-        p.x = startPos.x + (endPos.x - startPos.x) * smooth;
-        p.y = startPos.y + (endPos.y - startPos.y) * smooth;
-
-        m_node_renderers_by_node[nodePtr]->set_position(p);
-    }
-    m_force_node_positions_on_next_frame = true;
-    if (t >= 1.0f)
-        m_animation_running = false;
-}
-
-void NodeGraphPanel::recenter_graph(float animation_duration)
+void NodeGraphPanel::recenter_graph()
 {
     m_target_layout.clear();
     for (auto& [nodePtr, nr] : m_node_renderers_by_node)
         m_target_layout[nodePtr] = nr->get_position();
     center_target_layout();
-    apply_node_layout(animation_duration);
+    for (auto& [nodePtr, pos] : m_target_layout)
+        m_node_renderers_by_node[nodePtr]->set_position(pos);
+    m_force_node_positions_on_next_frame = true;
 }
 
-void NodeGraphPanel::reset_graph_layout(float animation_duration)
+void NodeGraphPanel::reset_graph_layout()
 {
     calculate_auto_layout();
-    apply_node_layout(animation_duration);
+    for (auto& [nodePtr, pos] : m_target_layout)
+        m_node_renderers_by_node[nodePtr]->set_position(pos);
+    m_force_node_positions_on_next_frame = true;
 }
 
 void NodeGraphPanel::center_target_layout()
@@ -563,14 +500,6 @@ void NodeGraphPanel::draw()
         return;
 
     calculate_window_size();
-
-    if (m_first_frame_after_init)
-        recenter_graph(0.0f);
-
-    if (m_animation_running) {
-        float dt = ImGui::GetIO().DeltaTime;
-        process_animation(dt);
-    }
 
     push_style();
 
@@ -644,7 +573,6 @@ void NodeGraphPanel::draw()
     poll_keyboard_shortcuts();
 
     m_force_node_positions_on_next_frame = false;
-    m_first_frame_after_init = false;
 }
 
 void NodeGraphPanel::poll_keyboard_shortcuts()
@@ -652,9 +580,9 @@ void NodeGraphPanel::poll_keyboard_shortcuts()
     if (ImGui::IsKeyPressed(ImGuiKey_M))
         m_render_mode = static_cast<GraphRenderingMode>((static_cast<int>(m_render_mode) + 1) % 3);
     if (ImGui::IsKeyPressed(ImGuiKey_L))
-        reset_graph_layout(1.0f);
+        reset_graph_layout();
     if (ImGui::IsKeyPressed(ImGuiKey_C))
-        recenter_graph(1.0f);
+        recenter_graph();
     if (ImGui::IsKeyPressed(ImGuiKey_R))
         m_node_graph->run();
     if (!ImGui::GetIO().WantTextInput && ImGui::GetIO().KeyShift && ImGui::IsKeyPressed(ImGuiKey_A, false)) {
@@ -747,10 +675,10 @@ void NodeGraphPanel::render_menu()
             }
             ImGui::Separator();
             if (ImGui::MenuItem(ICON_FA_TH "  Reset Layout", "L")) {
-                reset_graph_layout(1.0f);
+                reset_graph_layout();
             }
             if (ImGui::MenuItem(ICON_FA_COMPRESS_ARROWS_ALT "  Recenter Graph", "C")) {
-                recenter_graph(1.0f);
+                recenter_graph();
             }
             ImGui::EndMenu();
         }

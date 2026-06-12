@@ -90,13 +90,8 @@ private:
     std::string m_window_title;
 
     std::unordered_map<const nodes::Node*, ImVec2> m_target_layout;
-    std::unordered_map<const nodes::Node*, ImVec2> m_start_layout;
 
-    bool m_animation_running = false;
-    float m_animation_duration = 0.0f;
-    float m_animation_runtime = 0.0f;
     bool m_force_node_positions_on_next_frame = false;
-    bool m_first_frame_after_init = false;
 
     ImVec2 m_initial_node_spacing = ImVec2(50.0f, 50.0f);
 
@@ -138,10 +133,8 @@ private:
     void center_target_layout();
     void calculate_auto_layout();
 
-    void apply_node_layout(float animation_duration);
-    void process_animation(float dt);
-    void recenter_graph(float animation_duration);
-    void reset_graph_layout(float animation_duration);
+    void recenter_graph();
+    void reset_graph_layout();
 
     void push_style();
     void pop_style();
