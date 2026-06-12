@@ -19,10 +19,7 @@
 #include "NodeGraphSerialization.h"
 
 #include "NodeRegistry.h"
-#include <QFile>
 #include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonParseError>
 #include <algorithm>
 #include <vector>
 
@@ -154,24 +151,6 @@ tl::expected<std::unique_ptr<NodeGraph>, std::string> deserialize_node_graph(con
 
     graph->connect_node_signals_and_slots();
     return graph;
-}
-
-tl::expected<std::unique_ptr<NodeGraph>, std::string> load_node_graph_from_file(const std::string& path, webgpu::Context& ctx)
-{
-    QFile file(QString::fromStdString(path));
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
-        return tl::unexpected("cannot open file: " + path);
-
-    QJsonParseError parse_err;
-    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &parse_err);
-    file.close();
-
-    if (doc.isNull())
-        return tl::unexpected("JSON parse error: " + parse_err.errorString().toStdString());
-    if (!doc.isObject())
-        return tl::unexpected("JSON root is not an object");
-
-    return deserialize_node_graph(doc.object(), ctx);
 }
 
 } // namespace webgpu_compute::nodes

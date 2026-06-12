@@ -181,16 +181,4 @@ void NodeGraph::emit_graph_failure(NodeRunFailureInfo info)
     emit run_failed(GraphRunFailureInfo(it->first, info));
 }
 
-void NodeGraph::set_enabled_for_nodes_with_name(const std::string& name_substring, bool enabled)
-{
-    int set_count = 0;
-    for (auto& [name, node] : m_nodes) {
-        if (name.find(name_substring) != std::string::npos) {
-            node->set_enabled(enabled);
-            set_count++;
-        }
-    }
-    qInfo() << (enabled ? "Enabled" : "Disabled") << set_count << "nodes with name containing:" << QString::fromStdString(name_substring);
-}
-
 } // namespace webgpu_compute::nodes

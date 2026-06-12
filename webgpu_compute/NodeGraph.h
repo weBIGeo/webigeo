@@ -73,9 +73,6 @@ public:
 		return static_cast<const NodeType&>(get_node(node_name));
 	}
 
-	// Enables or disables all nodes whose name contains the given substring.
-	void set_enabled_for_nodes_with_name(const std::string& name_substring, bool enabled);
-
 	// finds topological order of nodes and connects run_finished and run slots accordingly
 	// safe to call multiple times
 	[[nodiscard]] tl::expected<std::vector<Node*>, std::string> compute_topological_order();

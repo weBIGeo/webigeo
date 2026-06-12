@@ -51,8 +51,4 @@ inline constexpr int NODE_GRAPH_JSON_VERSION = 1;
 /// graph is fully wired (connect_node_signals_and_slots has been called). Ignores "ui".
 [[nodiscard]] tl::expected<std::unique_ptr<NodeGraph>, std::string> deserialize_node_graph(const QJsonObject& root, webgpu::Context& ctx);
 
-/// Reads and deserializes a graph file via QFile (supports Qt resources ":/graphs/..."
-/// and regular/MEMFS paths).
-[[nodiscard]] tl::expected<std::unique_ptr<NodeGraph>, std::string> load_node_graph_from_file(const std::string& path, webgpu::Context& ctx);
-
 } // namespace webgpu_compute::nodes
