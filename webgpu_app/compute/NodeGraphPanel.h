@@ -94,6 +94,7 @@ private:
     bool m_force_node_positions_on_next_frame = false;
 
     ImVec2 m_initial_node_spacing = ImVec2(50.0f, 50.0f);
+    ImVec2 m_canvas_origin = { 0, 0 }; // screen-space top-left of the ImNodes canvas
 
     std::unordered_map<std::string, std::unique_ptr<NodeRenderer>> m_node_renderers;
     std::unordered_map<const nodes::Node*, NodeRenderer*> m_node_renderers_by_node;

@@ -248,7 +248,12 @@ void NodeGraphPanel::render_add_node_popup()
             m_node_graph->add_node(name, std::move(node));
             auto renderer = NodeRendererFactory::create(name, m_node_graph->get_node(name));
             ImVec2 pan = ImNodes::EditorContextGetPanning();
-            renderer->set_position(ImVec2(-pan.x + m_window_size.x * 0.5f, -pan.y + m_window_size.y * 0.5f));
+            ImVec2 pos;
+            if (!m_open_add_node_modal)
+                pos = ImVec2(m_add_node_popup_pos.x - m_canvas_origin.x - pan.x, m_add_node_popup_pos.y - m_canvas_origin.y - pan.y);
+            else
+                pos = ImVec2(m_window_size.x * 0.5f - m_canvas_origin.x - pan.x, m_window_size.y * 0.5f - m_canvas_origin.y - pan.y);
+            renderer->set_position(pos);
             m_node_renderers_by_node.emplace(&m_node_graph->get_node(name), renderer.get());
             m_node_renderers.emplace(name, std::move(renderer));
             rebuild_socket_id_maps();
@@ -527,11 +532,14 @@ void NodeGraphPanel::draw()
 
     render_menu();
 
+    m_canvas_origin = ImGui::GetCursorScreenPos();
     ImNodes::BeginNodeEditor();
 
     // draw nodes
+    const bool apply_positions = m_force_node_positions_on_next_frame;
+    m_force_node_positions_on_next_frame = false;
     for (auto& [name, node_renderer] : m_node_renderers) {
-        node_renderer->render(m_force_node_positions_on_next_frame);
+        node_renderer->render(apply_positions);
     }
 
     // draw links
@@ -586,8 +594,6 @@ void NodeGraphPanel::draw()
 
     poll_keyboard_shortcuts();
     render_add_node_popup();
-
-    m_force_node_positions_on_next_frame = false;
 }
 
 void NodeGraphPanel::poll_keyboard_shortcuts()
