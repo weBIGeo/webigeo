@@ -20,7 +20,7 @@ def auto_detect_build_type(project_root):
     build_dirs = {}
 
     for target in SUPPORTED_TARGETS:
-        target_dir = project_root / "build" / target / "webgpu_app"
+        target_dir = project_root / "build" / target / "apps" / "webgpu_app"
         if target_dir.exists():
             build_dirs[target] = target_dir.stat().st_mtime
 
@@ -54,7 +54,7 @@ def open_browser(url):
 
 
 def serve_wasm(port=8000):
-    project_root = Path(__file__).parent.parent
+    project_root = Path(__file__).parent.parent.parent
 
     while True:
         build_type = auto_detect_build_type(project_root)
