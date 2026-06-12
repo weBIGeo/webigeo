@@ -107,11 +107,11 @@ private:
 
     bool m_save_dialog_wants_open = false;
     bool m_open_dialog_wants_open = false;
-    bool m_auto_layout_confirm_wants_open = false;
     bool m_pending_auto_layout = false;
 
-    // Add-node popup (Shift+A)
+    // Add-node popup (Shift+A) and modal (menu)
     bool m_open_add_node_request = false;
+    bool m_open_add_node_modal = false;
     ImVec2 m_add_node_popup_pos = { 0, 0 };
     std::vector<std::string> m_registered_node_types; // populated lazily on first open
     int m_add_node_selected_idx = 0;
@@ -123,7 +123,6 @@ private:
     void render_save_dialog();
     void render_open_dialog();
     void render_add_node_popup();
-    void render_auto_layout_confirm_modal();
 
     // Takes ownership of a new graph, wires run/error signals, and calls init().
     void attach_graph(std::unique_ptr<nodes::NodeGraph> graph);

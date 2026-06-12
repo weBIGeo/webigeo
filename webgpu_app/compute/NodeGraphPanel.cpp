@@ -180,14 +180,11 @@ static std::string type_to_default_name(const std::string& type_name)
 
 void NodeGraphPanel::render_add_node_popup()
 {
-    static const char* POPUP_ID = "##add_node_popup";
+    static const char* POPUP_ID = "Add Node";
 
     if (m_open_add_node_request) {
-        // Populate type list lazily (OverlayRenderNode is registered after panel construction)
         if (m_registered_node_types.empty())
             m_registered_node_types = webgpu_compute::NodeRegistry::instance().get_registered_types();
-
-        // Pre-fill name suggestion for the selected type
         const std::string base = type_to_default_name(m_registered_node_types[m_add_node_selected_idx]);
         std::string suggestion = base;
         for (int n = 2; m_node_graph->exists_node(suggestion); ++n)
@@ -195,16 +192,17 @@ void NodeGraphPanel::render_add_node_popup()
         strncpy(m_add_node_name_buf, suggestion.c_str(), sizeof(m_add_node_name_buf) - 1);
         m_add_node_name_buf[sizeof(m_add_node_name_buf) - 1] = '\0';
 
-        ImGui::SetNextWindowPos(m_add_node_popup_pos);
         ImGui::OpenPopup(POPUP_ID);
         m_open_add_node_request = false;
     }
 
-    if (!ImGui::BeginPopup(POPUP_ID))
+    if (!m_open_add_node_modal)
+        ImGui::SetNextWindowPos(m_add_node_popup_pos, ImGuiCond_Appearing);
+    const bool open = m_open_add_node_modal
+        ? ImGui::BeginPopupModal(POPUP_ID, nullptr, ImGuiWindowFlags_AlwaysAutoResize)
+        : ImGui::BeginPopup(POPUP_ID);
+    if (!open)
         return;
-
-    ImGui::TextUnformatted("Add Node");
-    ImGui::Separator();
 
     const auto& types = m_registered_node_types;
     ImGui::SetNextItemWidth(260.0f);
@@ -213,7 +211,6 @@ void NodeGraphPanel::render_add_node_popup()
             const bool sel = (i == m_add_node_selected_idx);
             if (ImGui::Selectable(types[i].c_str(), sel) && !sel) {
                 m_add_node_selected_idx = i;
-                // Refresh name suggestion when type changes
                 const std::string b = type_to_default_name(types[i]);
                 std::string s = b;
                 for (int n = 2; m_node_graph->exists_node(s); ++n)
@@ -239,16 +236,17 @@ void NodeGraphPanel::render_add_node_popup()
     ImGui::BeginDisabled(!valid);
     const bool add_pressed = ImGui::Button("Add") || (valid && ImGui::IsKeyPressed(ImGuiKey_Enter, false));
     ImGui::EndDisabled();
-    ImGui::SameLine();
-    if (ImGui::Button("Cancel"))
-        ImGui::CloseCurrentPopup();
+    if (m_open_add_node_modal) {
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel"))
+            ImGui::CloseCurrentPopup();
+    }
 
     if (add_pressed) {
         auto node = webgpu_compute::NodeRegistry::instance().try_create(types[m_add_node_selected_idx], m_context->webgpu_ctx());
         if (node) {
             m_node_graph->add_node(name, std::move(node));
             auto renderer = NodeRendererFactory::create(name, m_node_graph->get_node(name));
-            // Place new node near the center of the current editor view
             ImVec2 pan = ImNodes::EditorContextGetPanning();
             renderer->set_position(ImVec2(-pan.x + m_window_size.x * 0.5f, -pan.y + m_window_size.y * 0.5f));
             m_node_renderers_by_node.emplace(&m_node_graph->get_node(name), renderer.get());
@@ -260,6 +258,8 @@ void NodeGraphPanel::render_add_node_popup()
     }
 
     ImGui::EndPopup();
+    if (!ImGui::IsPopupOpen(POPUP_ID))
+        m_open_add_node_modal = false;
 }
 
 QByteArray NodeGraphPanel::export_graph_json() const
@@ -495,10 +495,8 @@ void NodeGraphPanel::draw()
 
     ImGuiManager::FloatingToggleButton("###ToggleGraphRenderer", ICON_FA_NETWORK_WIRED, "Toggle compute graph editor", &m_editor_visible);
     render_error_modal();
-    render_auto_layout_confirm_modal();
     render_save_dialog();
     render_open_dialog();
-    render_add_node_popup();
 
     if (!m_editor_visible)
         return;
@@ -587,6 +585,7 @@ void NodeGraphPanel::draw()
     }
 
     poll_keyboard_shortcuts();
+    render_add_node_popup();
 
     m_force_node_positions_on_next_frame = false;
 }
@@ -594,18 +593,21 @@ void NodeGraphPanel::draw()
 void NodeGraphPanel::poll_keyboard_shortcuts()
 {
     if (!ImGui::GetIO().WantTextInput) {
-        if (ImGui::IsKeyPressed(ImGuiKey_M))
+        const bool alt = ImGui::GetIO().KeyAlt;
+        const bool shift = ImGui::GetIO().KeyShift;
+        if (alt && ImGui::IsKeyPressed(ImGuiKey_M, false))
             m_render_mode = static_cast<GraphRenderingMode>((static_cast<int>(m_render_mode) + 1) % 3);
-        if (ImGui::IsKeyPressed(ImGuiKey_L))
-            m_auto_layout_confirm_wants_open = true;
-        if (ImGui::IsKeyPressed(ImGuiKey_C))
+        if (alt && ImGui::IsKeyPressed(ImGuiKey_F, false))
+            reset_graph_layout();
+        if (alt && ImGui::IsKeyPressed(ImGuiKey_C, false))
             recenter_graph();
-        if (ImGui::IsKeyPressed(ImGuiKey_R))
+        if (shift && ImGui::IsKeyPressed(ImGuiKey_R, false))
             m_node_graph->run();
         if (ImGui::IsKeyPressed(ImGuiKey_Delete))
             delete_selected_nodes();
-        if (ImGui::GetIO().KeyShift && ImGui::IsKeyPressed(ImGuiKey_A, false)) {
+        if (shift && ImGui::IsKeyPressed(ImGuiKey_A, false)) {
             m_add_node_popup_pos = ImGui::GetMousePos();
+            m_open_add_node_modal = false;
             m_open_add_node_request = true;
         }
     }
@@ -701,31 +703,6 @@ void NodeGraphPanel::render_error_modal()
     }
 }
 
-void NodeGraphPanel::render_auto_layout_confirm_modal()
-{
-    if (m_auto_layout_confirm_wants_open) {
-        ImGui::OpenPopup("Apply Auto-Layout");
-        m_auto_layout_confirm_wants_open = false;
-    }
-
-    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-
-    if (ImGui::BeginPopupModal("Apply Auto-Layout", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::TextUnformatted("This will discard all manual node positions.");
-        ImGui::TextUnformatted("Continue?");
-        ImGui::Separator();
-        if (ImGui::Button("Apply", ImVec2(120, 0))) {
-            reset_graph_layout();
-            ImGui::CloseCurrentPopup();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Cancel", ImVec2(120, 0)))
-            ImGui::CloseCurrentPopup();
-        ImGui::EndPopup();
-    }
-}
-
 void NodeGraphPanel::render_menu()
 {
     if (ImGui::BeginMenuBar()) {
@@ -749,21 +726,25 @@ void NodeGraphPanel::render_menu()
         }
 
         if (ImGui::BeginMenu("Graph")) {
-            if (ImGui::MenuItem(ICON_FA_PLAY "  Run Full Graph", "R")) {
+            if (ImGui::MenuItem(ICON_FA_PLAY "  Run Full Graph", "Shift+R"))
                 m_node_graph->run();
-            }
             ImGui::Separator();
-            if (ImGui::MenuItem(ICON_FA_TH "  Apply Auto-Layout", "L")) {
-                m_auto_layout_confirm_wants_open = true;
+            if (ImGui::MenuItem(ICON_FA_PLUS "  Add Node", "Shift+A")) {
+                m_open_add_node_modal = true;
+                m_open_add_node_request = true;
             }
-            if (ImGui::MenuItem(ICON_FA_COMPRESS_ARROWS_ALT "  Recenter Graph", "C")) {
+            if (ImGui::MenuItem(ICON_FA_TRASH "  Delete Selected", "Del", false, ImNodes::NumSelectedNodes() > 0))
+                delete_selected_nodes();
+            ImGui::Separator();
+            if (ImGui::MenuItem(ICON_FA_TH "  Apply Auto-Layout", "Alt+F"))
+                reset_graph_layout();
+            if (ImGui::MenuItem(ICON_FA_COMPRESS_ARROWS_ALT "  Recenter Graph", "Alt+C"))
                 recenter_graph();
-            }
             ImGui::EndMenu();
         }
 
         if (ImGui::BeginMenu("View")) {
-            if (ImGui::MenuItem(ICON_FA_ADJUST "  Toggle Background Mode", "M")) {
+            if (ImGui::MenuItem(ICON_FA_ADJUST "  Toggle Background Mode", "Alt+M")) {
                 m_render_mode = static_cast<GraphRenderingMode>((static_cast<int>(m_render_mode) + 1) % 3);
             }
             ImGui::Separator();
