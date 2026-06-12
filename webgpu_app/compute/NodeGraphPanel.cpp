@@ -578,18 +578,56 @@ void NodeGraphPanel::draw()
 
 void NodeGraphPanel::poll_keyboard_shortcuts()
 {
-    if (ImGui::IsKeyPressed(ImGuiKey_M))
-        m_render_mode = static_cast<GraphRenderingMode>((static_cast<int>(m_render_mode) + 1) % 3);
-    if (ImGui::IsKeyPressed(ImGuiKey_L))
-        m_auto_layout_confirm_wants_open = true;
-    if (ImGui::IsKeyPressed(ImGuiKey_C))
-        recenter_graph();
-    if (ImGui::IsKeyPressed(ImGuiKey_R))
-        m_node_graph->run();
-    if (!ImGui::GetIO().WantTextInput && ImGui::GetIO().KeyShift && ImGui::IsKeyPressed(ImGuiKey_A, false)) {
-        m_add_node_popup_pos = ImGui::GetMousePos();
-        m_open_add_node_request = true;
+    if (!ImGui::GetIO().WantTextInput) {
+        if (ImGui::IsKeyPressed(ImGuiKey_M))
+            m_render_mode = static_cast<GraphRenderingMode>((static_cast<int>(m_render_mode) + 1) % 3);
+        if (ImGui::IsKeyPressed(ImGuiKey_L))
+            m_auto_layout_confirm_wants_open = true;
+        if (ImGui::IsKeyPressed(ImGuiKey_C))
+            recenter_graph();
+        if (ImGui::IsKeyPressed(ImGuiKey_R))
+            m_node_graph->run();
+        if (ImGui::IsKeyPressed(ImGuiKey_Delete))
+            delete_selected_nodes();
+        if (ImGui::GetIO().KeyShift && ImGui::IsKeyPressed(ImGuiKey_A, false)) {
+            m_add_node_popup_pos = ImGui::GetMousePos();
+            m_open_add_node_request = true;
+        }
     }
+}
+
+void NodeGraphPanel::delete_selected_nodes()
+{
+    const int num_selected = ImNodes::NumSelectedNodes();
+    if (num_selected == 0)
+        return;
+
+    std::vector<int> selected_ids(num_selected);
+    ImNodes::GetSelectedNodes(selected_ids.data());
+
+    std::vector<std::string> to_delete;
+    for (int node_id : selected_ids) {
+        for (auto& [name, renderer] : m_node_renderers) {
+            if (renderer->get_node_id() == node_id) {
+                to_delete.push_back(name);
+                break;
+            }
+        }
+    }
+
+    for (const auto& name : to_delete) {
+        auto it = m_node_renderers.find(name);
+        if (it == m_node_renderers.end())
+            continue;
+        m_node_renderers_by_node.erase(it->second->get_node());
+        m_node_renderers.erase(it);
+        m_node_graph->remove_node(name);
+    }
+
+    rebuild_socket_id_maps();
+    rebuild_links();
+    if (!m_node_graph->get_nodes().empty())
+        m_node_graph->connect_node_signals_and_slots();
 }
 
 void NodeGraphPanel::rebuild_links()

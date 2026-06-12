@@ -50,6 +50,24 @@ Node* NodeGraph::add_node(const std::string& name, std::unique_ptr<Node> node)
     return m_nodes.at(name).get();
 }
 
+void NodeGraph::remove_node(const std::string& name)
+{
+    auto it = m_nodes.find(name);
+    assert(it != m_nodes.end());
+    Node* node = it->second.get();
+
+    for (auto& socket : node->input_sockets())
+        socket.disconnect();
+
+    for (auto& socket : node->output_sockets()) {
+        auto connected = socket.connected_sockets();
+        for (auto* input : connected)
+            input->disconnect();
+    }
+
+    m_nodes.erase(it);
+}
+
 Node& NodeGraph::get_node(const std::string& node_name) { return *m_nodes.at(node_name); }
 
 const Node& NodeGraph::get_node(const std::string& node_name) const { return *m_nodes.at(node_name); }

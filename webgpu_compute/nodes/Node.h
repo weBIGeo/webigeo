@@ -105,6 +105,7 @@ public:
     InputSocket(Node& node, const std::string& name, DataType type);
 
     void connect(OutputSocket& output_socket);
+    void disconnect();
 
     [[nodiscard]] bool is_socket_connected() const;
     [[nodiscard]] OutputSocket& connected_socket();

@@ -51,6 +51,7 @@ public:
 	NodeGraph(const std::string& name);
 
 	Node* add_node(const std::string& name, std::unique_ptr<Node> node);
+	void remove_node(const std::string& name);
 
 	[[nodiscard]] Node& get_node(const std::string& node_name);
 	[[nodiscard]] const Node& get_node(const std::string& node_name) const;

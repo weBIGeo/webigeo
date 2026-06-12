@@ -147,6 +147,7 @@ private:
 
     void rebuild_links();
     void rebuild_socket_id_maps();
+    void delete_selected_nodes();
 
     NodeRenderer* find_selected_node_renderer() const;
 };

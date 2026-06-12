@@ -49,6 +49,14 @@ void InputSocket::connect(OutputSocket& output_socket)
     m_connected_socket = &output_socket;
     output_socket.m_connected_sockets.push_back(this);
 }
+void InputSocket::disconnect()
+{
+    if (m_connected_socket) {
+        m_connected_socket->remove_connected_socket(*this);
+        m_connected_socket = nullptr;
+    }
+}
+
 bool InputSocket::is_socket_connected() const { return m_connected_socket != nullptr; }
 OutputSocket& InputSocket::connected_socket() { return *m_connected_socket; }
 const OutputSocket& InputSocket::connected_socket() const { return *m_connected_socket; }
