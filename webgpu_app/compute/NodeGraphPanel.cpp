@@ -492,6 +492,7 @@ void NodeGraphPanel::draw()
 
     ImGuiManager::FloatingToggleButton("###ToggleGraphRenderer", ICON_FA_NETWORK_WIRED, "Toggle compute graph editor", &m_editor_visible);
     render_error_modal();
+    render_auto_layout_confirm_modal();
     render_save_dialog();
     render_open_dialog();
     render_add_node_popup();
@@ -580,7 +581,7 @@ void NodeGraphPanel::poll_keyboard_shortcuts()
     if (ImGui::IsKeyPressed(ImGuiKey_M))
         m_render_mode = static_cast<GraphRenderingMode>((static_cast<int>(m_render_mode) + 1) % 3);
     if (ImGui::IsKeyPressed(ImGuiKey_L))
-        reset_graph_layout();
+        m_auto_layout_confirm_wants_open = true;
     if (ImGui::IsKeyPressed(ImGuiKey_C))
         recenter_graph();
     if (ImGui::IsKeyPressed(ImGuiKey_R))
@@ -647,6 +648,31 @@ void NodeGraphPanel::render_error_modal()
     }
 }
 
+void NodeGraphPanel::render_auto_layout_confirm_modal()
+{
+    if (m_auto_layout_confirm_wants_open) {
+        ImGui::OpenPopup("Apply Auto-Layout");
+        m_auto_layout_confirm_wants_open = false;
+    }
+
+    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+
+    if (ImGui::BeginPopupModal("Apply Auto-Layout", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::TextUnformatted("This will discard all manual node positions.");
+        ImGui::TextUnformatted("Continue?");
+        ImGui::Separator();
+        if (ImGui::Button("Apply", ImVec2(120, 0))) {
+            reset_graph_layout();
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel", ImVec2(120, 0)))
+            ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
+}
+
 void NodeGraphPanel::render_menu()
 {
     if (ImGui::BeginMenuBar()) {
@@ -674,8 +700,8 @@ void NodeGraphPanel::render_menu()
                 m_node_graph->run();
             }
             ImGui::Separator();
-            if (ImGui::MenuItem(ICON_FA_TH "  Reset Layout", "L")) {
-                reset_graph_layout();
+            if (ImGui::MenuItem(ICON_FA_TH "  Apply Auto-Layout", "L")) {
+                m_auto_layout_confirm_wants_open = true;
             }
             if (ImGui::MenuItem(ICON_FA_COMPRESS_ARROWS_ALT "  Recenter Graph", "C")) {
                 recenter_graph();

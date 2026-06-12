@@ -107,6 +107,7 @@ private:
 
     bool m_save_dialog_wants_open = false;
     bool m_open_dialog_wants_open = false;
+    bool m_auto_layout_confirm_wants_open = false;
 
     // Add-node popup (Shift+A)
     bool m_open_add_node_request = false;
@@ -121,6 +122,7 @@ private:
     void render_save_dialog();
     void render_open_dialog();
     void render_add_node_popup();
+    void render_auto_layout_confirm_modal();
 
     // Takes ownership of a new graph, wires run/error signals, and calls init().
     void attach_graph(std::unique_ptr<nodes::NodeGraph> graph);
