@@ -182,7 +182,7 @@ void ImGuiManager::install_fonts()
         icons_config.PixelSnapH = true;
         icons_config.GlyphMinAdvanceX = smallIconFontSize;
         icons_config.FontDataOwnedByAtlas = false;
-        io.Fonts->AddFontFromMemoryTTF(faData.data(), faData.size(), nodeIconFontSize, &icons_config, icons_ranges);
+        io.Fonts->AddFontFromMemoryTTF(faData.data(), faData.size(), smallIconFontSize, &icons_config, icons_ranges);
     }
 }
 
