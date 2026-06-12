@@ -78,7 +78,11 @@ void NodeGraphPanel::load_preset(const std::string& resource_path)
     const QByteArray data = file.readAll();
     file.close();
     import_graph_json(data, resource_path);
-    m_active_preset_path = resource_path;
+}
+
+void NodeGraphPanel::new_graph()
+{
+    attach_graph(std::make_unique<nodes::NodeGraph>("Untitled"));
 }
 
 void NodeGraphPanel::import_graph_json(const QByteArray& data, const std::string& source_name)
@@ -719,34 +723,27 @@ void NodeGraphPanel::render_menu()
 {
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("File")) {
-            if (ImGui::BeginMenu(ICON_FA_FOLDER_OPEN "  Load Graph")) {
+            if (ImGui::MenuItem(ICON_FA_FILE "  New Graph"))
+                new_graph();
+            ImGui::Separator();
+            if (ImGui::BeginMenu(ICON_FA_FOLDER_OPEN "  Load Preset")) {
                 for (const auto& preset : m_presets) {
-                    const bool active = (m_active_preset_path == preset.resource_path);
-                    if (ImGui::MenuItem(preset.name.c_str(), nullptr, active))
+                    if (ImGui::MenuItem(preset.name.c_str()))
                         m_pending_preset_path = preset.resource_path;
                 }
-                ImGui::Separator();
-                if (ImGui::MenuItem(ICON_FA_FILE_IMPORT "  From File..."))
-                    m_open_dialog_wants_open = true;
                 ImGui::EndMenu();
             }
-            if (ImGui::MenuItem(ICON_FA_SAVE "  Save Graph"))
+            if (ImGui::MenuItem(ICON_FA_FILE_IMPORT "  Load from File..."))
+                m_open_dialog_wants_open = true;
+            ImGui::Separator();
+            if (ImGui::MenuItem(ICON_FA_SAVE "  Save to File..."))
                 m_save_dialog_wants_open = true;
-            if (ImGui::BeginMenu(ICON_FA_LAYER_GROUP "  Configurations")) {
-                if (ImGui::MenuItem(ICON_FA_PLUS "  New Configuration")) {
-                    // TODO: new configuration
-                }
-                ImGui::EndMenu();
-            }
             ImGui::EndMenu();
         }
 
         if (ImGui::BeginMenu("Graph")) {
             if (ImGui::MenuItem(ICON_FA_PLAY "  Run Full Graph", "R")) {
                 m_node_graph->run();
-            }
-            if (ImGui::MenuItem(ICON_FA_TRASH "  Clear Output")) {
-                // TODO: clear output
             }
             ImGui::Separator();
             if (ImGui::MenuItem(ICON_FA_TH "  Reset Layout", "L")) {

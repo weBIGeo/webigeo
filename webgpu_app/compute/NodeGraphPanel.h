@@ -61,6 +61,9 @@ private:
     // Loads a preset graph from a Qt resource path, wires signals, and inits.
     void load_preset(const std::string& resource_path);
 
+    // Replaces the current graph with a new empty graph.
+    void new_graph();
+
     struct GraphPreset {
         std::string name;
         std::string resource_path;
@@ -73,7 +76,6 @@ private:
     nodes::NodeGraph* m_node_graph = nullptr;
 
     std::vector<GraphPreset> m_presets;
-    std::string m_active_preset_path;
     std::optional<std::string> m_pending_preset_path;
 
     uint32_t m_editor_visible = 0;
