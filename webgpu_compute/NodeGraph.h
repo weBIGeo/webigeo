@@ -52,6 +52,7 @@ public:
 
 	Node* add_node(const std::string& name, std::unique_ptr<Node> node);
 	void remove_node(const std::string& name);
+	void rename_node(const std::string& old_name, const std::string& new_name);
 
 	[[nodiscard]] Node& get_node(const std::string& node_name);
 	[[nodiscard]] const Node& get_node(const std::string& node_name) const;

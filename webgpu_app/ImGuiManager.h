@@ -20,6 +20,8 @@
 
 #include <QObject>
 #include <SDL2/SDL.h>
+
+struct ImFont;
 #include <cstdint>
 #include <string>
 #include <unordered_map>
@@ -51,6 +53,9 @@ public:
 
     // Top-left Y for the next floating tool button
     static float s_tool_button_y;
+
+    // Smaller font for compact UIs like the node graph editor (12 px)
+    static ImFont* s_node_font;
 
     // Draws a floating 48x48 icon tool button at the next bottom-left stack slot (claims s_tool_button_y).
     static bool FloatingToggleButton(const char* id, const char* icon, const char* tooltip, uint32_t* enabled);

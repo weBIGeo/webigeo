@@ -68,6 +68,16 @@ void NodeGraph::remove_node(const std::string& name)
     m_nodes.erase(it);
 }
 
+void NodeGraph::rename_node(const std::string& old_name, const std::string& new_name)
+{
+    assert(m_nodes.contains(old_name));
+    assert(!m_nodes.contains(new_name));
+    auto node = std::move(m_nodes.at(old_name));
+    m_nodes.erase(old_name);
+    node->set_node_name(new_name);
+    m_nodes.emplace(new_name, std::move(node));
+}
+
 Node& NodeGraph::get_node(const std::string& node_name) { return *m_nodes.at(node_name); }
 
 const Node& NodeGraph::get_node(const std::string& node_name) const { return *m_nodes.at(node_name); }

@@ -116,7 +116,10 @@ private:
     ImVec2 m_add_node_popup_pos = { 0, 0 };
     std::vector<std::string> m_registered_node_types; // populated lazily on first open
     int m_add_node_selected_idx = 0;
-    char m_add_node_name_buf[128] = {};
+
+    // Inline rename state (settings panel)
+    char m_rename_buf[128] = {};
+    std::string m_rename_current_node; // raw name of node whose name is in m_rename_buf
 
 private:
     // Serializes the current graph (engine + UI positions) as indented JSON bytes.
@@ -149,6 +152,7 @@ private:
     void rebuild_links();
     void rebuild_socket_id_maps();
     void delete_selected_nodes();
+    void rename_selected_node(const std::string& old_name, const std::string& new_name);
 
     NodeRenderer* find_selected_node_renderer() const;
 };

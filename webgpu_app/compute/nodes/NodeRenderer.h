@@ -49,7 +49,8 @@ public:
     virtual void deserialize_ui(const QJsonObject& obj);
 
     int get_node_id() const { return m_node_id; }
-    const std::string& get_name_formatted() const { return m_name_formatted; }
+    const std::string& get_name() const { return m_name; }
+    void rename(const std::string& new_name);
 
     int get_input_socket_id(const std::string& input_socket_name) const;
     int get_output_socket_id(const std::string& output_socket_name) const;
@@ -61,9 +62,6 @@ public:
 
     nodes::Node* get_node() const { return m_node; }
 
-    // Removes optional "_node" and formats the name with capitalization.
-    // e.g., "request_height_node" → "Request Height"
-    static std::string format_node_name(const std::string& name);
     static std::string format_ms(int duration_in_ms);
 
     static ImU32 pin_color_for_type(nodes::DataType type);
@@ -71,7 +69,6 @@ public:
 
 private:
     std::string m_name;
-    std::string m_name_formatted;
     nodes::Node* m_node = nullptr;
     int m_node_id = 0;
     std::vector<int> m_input_socket_ids;

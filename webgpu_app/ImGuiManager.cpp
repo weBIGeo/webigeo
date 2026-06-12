@@ -132,36 +132,57 @@ void ImGuiManager::install_fonts()
 
     float baseFontSize = 16.0f;
     float iconFontSize = 14.0f;
+    float smallFontSize = 14.0f;
+    float smallIconFontSize = 12.0f;
 
+    QByteArray robotoData;
     {
         QFile file(":/fonts/Roboto-Regular.ttf");
         if (!file.open(QIODevice::ReadOnly)) {
             throw std::runtime_error("Failed to open Main Font.");
         }
-        QByteArray byteArray = file.readAll();
+        robotoData = file.readAll();
         file.close();
-
-        ImFontConfig font_cfg;
-        font_cfg.FontDataOwnedByAtlas = false;
-        io.Fonts->AddFontFromMemoryTTF(byteArray.data(), byteArray.size(), baseFontSize, &font_cfg);
     }
 
+    QByteArray faData;
     {
         QFile file(":/fonts/fa5-solid-900.ttf");
         if (!file.open(QIODevice::ReadOnly)) {
             throw std::runtime_error("Failed to open glyph font.");
         }
-        QByteArray byteArray = file.readAll();
+        faData = file.readAll();
         file.close();
+    }
 
-        // merge in icons from Font Awesome
-        static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
+    static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
+
+    // Default UI font (16 px Roboto + FA icons)
+    {
+        ImFontConfig font_cfg;
+        font_cfg.FontDataOwnedByAtlas = false;
+        io.Fonts->AddFontFromMemoryTTF(robotoData.data(), robotoData.size(), baseFontSize, &font_cfg);
+
         ImFontConfig icons_config;
         icons_config.MergeMode = true;
         icons_config.PixelSnapH = true;
         icons_config.GlyphMinAdvanceX = iconFontSize;
         icons_config.FontDataOwnedByAtlas = false;
-        io.Fonts->AddFontFromMemoryTTF(byteArray.data(), byteArray.size(), iconFontSize, &icons_config, icons_ranges);
+        io.Fonts->AddFontFromMemoryTTF(faData.data(), faData.size(), iconFontSize, &icons_config, icons_ranges);
+    }
+
+    // Small font (14 px Roboto + FA icons)
+    {
+        ImFontConfig font_cfg;
+        font_cfg.FontDataOwnedByAtlas = false;
+        s_node_font = io.Fonts->AddFontFromMemoryTTF(robotoData.data(), robotoData.size(), smallFontSize, &font_cfg);
+
+        ImFontConfig icons_config;
+        icons_config.MergeMode = true;
+        icons_config.PixelSnapH = true;
+        icons_config.GlyphMinAdvanceX = smallIconFontSize;
+        icons_config.FontDataOwnedByAtlas = false;
+        io.Fonts->AddFontFromMemoryTTF(faData.data(), faData.size(), nodeIconFontSize, &icons_config, icons_ranges);
     }
 }
 
@@ -197,6 +218,7 @@ void ImGuiManager::set_gui_visibility(bool visible) { m_gui_visible = visible; }
 bool ImGuiManager::get_gui_visibility() const { return m_gui_visible; }
 
 float ImGuiManager::s_tool_button_y = 0.0f;
+ImFont* ImGuiManager::s_node_font = nullptr;
 std::unordered_map<std::string, ImGuiManager::FilePickerState> ImGuiManager::s_picker_states;
 
 #ifdef __EMSCRIPTEN__

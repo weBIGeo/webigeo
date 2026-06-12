@@ -31,28 +31,6 @@ namespace nodes = webgpu_compute::nodes;
 
 static std::hash<std::string> hasher;
 
-std::string NodeRenderer::format_node_name(const std::string& name)
-{
-    std::string n = name;
-    while (n.find("_node") != std::string::npos)
-        n.erase(n.find("_node"), 5);
-
-    for (char& c : n)
-        if (c == '_')
-            c = ' ';
-
-    bool cap = true;
-    for (char& c : n)
-        if (std::isspace((unsigned char)c))
-            cap = true;
-        else if (cap) {
-            c = std::toupper((unsigned char)c);
-            cap = false;
-        }
-
-    return n;
-}
-
 ImU32 NodeRenderer::pin_color_for_type(nodes::DataType type)
 {
     switch (type) {
@@ -118,7 +96,6 @@ std::string NodeRenderer::format_ms(int duration_in_ms)
 
 NodeRenderer::NodeRenderer(const std::string& name, nodes::Node& node)
     : m_name(name)
-    , m_name_formatted(NodeRenderer::format_node_name(m_name))
     , m_node(&node)
     , m_node_id(int(hasher(m_name)))
 {
@@ -162,7 +139,7 @@ void NodeRenderer::render(bool reset_position)
     ImNodes::BeginNode(m_node_id);
 
     ImNodes::BeginNodeTitleBar();
-    ImGui::TextUnformatted(m_name_formatted.c_str());
+    ImGui::TextUnformatted(m_name.c_str());
     ImNodes::EndNodeTitleBar();
 
     render_sockets();
@@ -249,6 +226,12 @@ void NodeRenderer::deserialize_ui(const QJsonObject& obj)
         if (arr.size() == 2)
             m_position = { static_cast<float>(arr[0].toDouble()), static_cast<float>(arr[1].toDouble()) };
     }
+}
+
+void NodeRenderer::rename(const std::string& new_name)
+{
+    m_name = new_name;
+    // Node ID and socket IDs are intentionally left unchanged to keep imnodes selection stable.
 }
 
 int NodeRenderer::get_input_socket_id(const std::string& input_socket_name) const
