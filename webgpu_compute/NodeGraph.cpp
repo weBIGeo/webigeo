@@ -37,11 +37,6 @@ const std::string& GraphRunFailureInfo::node_name() const { return m_node_name; 
 
 const NodeRunFailureInfo& GraphRunFailureInfo::node_run_failure_info() const { return m_node_run_failure_info; }
 
-NodeGraph::NodeGraph(const std::string& name)
-    : m_name(name)
-{
-}
-
 Node* NodeGraph::add_node(const std::string& name, std::unique_ptr<Node> node)
 {
     assert(!m_nodes.contains(name));
@@ -83,10 +78,6 @@ Node& NodeGraph::get_node(const std::string& node_name) { return *m_nodes.at(nod
 const Node& NodeGraph::get_node(const std::string& node_name) const { return *m_nodes.at(node_name); }
 
 bool NodeGraph::exists_node(const std::string& node_name) const { return m_nodes.find(node_name) != m_nodes.end(); }
-
-const std::string& NodeGraph::get_name() const { return m_name; }
-
-void NodeGraph::set_name(const std::string& name) { m_name = name; }
 
 std::unordered_map<std::string, std::unique_ptr<Node>>& NodeGraph::get_nodes() { return m_nodes; }
 

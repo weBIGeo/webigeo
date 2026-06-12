@@ -83,7 +83,7 @@ void NodeGraphPanel::load_preset(const std::string& resource_path)
 
 void NodeGraphPanel::new_graph()
 {
-    attach_graph(std::make_unique<nodes::NodeGraph>("Untitled"));
+    attach_graph(std::make_unique<nodes::NodeGraph>());
 }
 
 void NodeGraphPanel::import_graph_json(const QByteArray& data, const std::string& source_name)
@@ -148,8 +148,6 @@ void NodeGraphPanel::render_open_dialog()
 
 void NodeGraphPanel::init(nodes::NodeGraph& node_graph)
 {
-    m_window_title = "Compute Graph Editor - " + node_graph.get_name();
-
     m_node_renderers.clear();
     m_node_renderers_by_node.clear();
     m_links.clear();
@@ -271,9 +269,8 @@ QByteArray NodeGraphPanel::export_graph_json() const
 void NodeGraphPanel::render_save_dialog()
 {
     std::vector<std::string> save_paths;
-    const std::string default_name = m_node_graph->get_name() + ".json";
     if (ImGuiManager::FilePicker("save_graph_dialog", "Save Graph", "Graph files{.json}", m_save_dialog_wants_open,
-            save_paths, false, ".", ImGuiManager::FilePickerMode::Save, default_name.c_str())) {
+            save_paths, false, ".", ImGuiManager::FilePickerMode::Save, "graph.json")) {
         QFile file(QString::fromStdString(save_paths[0]));
         if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
             file.write(export_graph_json());
@@ -512,7 +509,7 @@ void NodeGraphPanel::draw()
     ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
     ImGui::SetNextWindowSize(m_window_size, ImGuiCond_Always);
 
-    ImGui::Begin(m_window_title.c_str(),
+    ImGui::Begin("Compute Graph Editor",
         nullptr,
         ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus
             | ImGuiWindowFlags_NoTitleBar);

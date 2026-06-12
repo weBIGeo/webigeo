@@ -48,7 +48,7 @@ class NodeGraph : public QObject {
 	Q_OBJECT
 
 public:
-	NodeGraph(const std::string& name);
+	NodeGraph() = default;
 
 	Node* add_node(const std::string& name, std::unique_ptr<Node> node);
 	void remove_node(const std::string& name);
@@ -57,8 +57,6 @@ public:
 	[[nodiscard]] Node& get_node(const std::string& node_name);
 	[[nodiscard]] const Node& get_node(const std::string& node_name) const;
 	[[nodiscard]] bool exists_node(const std::string& node_name) const;
-	[[nodiscard]] const std::string& get_name() const;
-	void set_name(const std::string& name);
 
 	[[nodiscard]] std::unordered_map<std::string, std::unique_ptr<Node>>& get_nodes();
 	[[nodiscard]] const std::unordered_map<std::string, std::unique_ptr<Node>>& get_nodes() const;
@@ -89,7 +87,6 @@ signals:
 	void run_failed(GraphRunFailureInfo info);
 
 private:
-	std::string m_name;
 	std::unordered_map<std::string, std::unique_ptr<Node>> m_nodes;
 	std::vector<QMetaObject::Connection> m_topology_connections;
 

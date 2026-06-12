@@ -30,7 +30,6 @@ QJsonObject serialize_node_graph(const NodeGraph& graph)
     QJsonObject root;
     root["format"] = QLatin1String(NODE_GRAPH_JSON_FORMAT);
     root["version"] = NODE_GRAPH_JSON_VERSION;
-    root["name"] = QString::fromStdString(graph.get_name());
 
     // m_nodes is an unordered_map; sort by name for stable, diffable output
     std::vector<std::pair<std::string, const Node*>> sorted_nodes;
@@ -83,8 +82,7 @@ tl::expected<std::unique_ptr<NodeGraph>, std::string> deserialize_node_graph(con
     if (root["version"].toInt(-1) != NODE_GRAPH_JSON_VERSION)
         return tl::unexpected(std::string("unsupported version (expected ") + std::to_string(NODE_GRAPH_JSON_VERSION) + ")");
 
-    const std::string graph_name = root["name"].toString("unnamed").toStdString();
-    auto graph = std::make_unique<NodeGraph>(graph_name);
+    auto graph = std::make_unique<NodeGraph>();
 
     // Create nodes
     const QJsonArray nodes_array = root["nodes"].toArray();

@@ -87,7 +87,6 @@ private:
     ErrorModalState m_error_state;
 
     ImVec2 m_window_size = ImVec2(0, 0);
-    std::string m_window_title;
 
     std::unordered_map<const nodes::Node*, ImVec2> m_target_layout;
 
