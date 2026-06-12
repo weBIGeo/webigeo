@@ -58,12 +58,12 @@ private:
     // (Re)builds the node renderers for the currently loaded graph.
     void init(nodes::NodeGraph& node_graph);
 
-    // Builds the graph for the preset, stores it in the context, wires run/error signals, and inits.
-    void load_preset(nodes::NodeGraph::ComputePipelineType type);
+    // Loads a preset graph from a Qt resource path, wires signals, and inits.
+    void load_preset(const std::string& resource_path);
 
-    struct PipelinePreset {
+    struct GraphPreset {
         std::string name;
-        nodes::NodeGraph::ComputePipelineType type;
+        std::string resource_path;
     };
 
     void render_error_modal();
@@ -72,9 +72,9 @@ private:
     std::unique_ptr<nodes::NodeGraph> m_owned_graph; // the panel owns the active compute graph
     nodes::NodeGraph* m_node_graph = nullptr;
 
-    std::vector<PipelinePreset> m_presets;
-    nodes::NodeGraph::ComputePipelineType m_active_preset = nodes::NodeGraph::ComputePipelineType::AvalancheTrajectories;
-    std::optional<nodes::NodeGraph::ComputePipelineType> m_pending_preset;
+    std::vector<GraphPreset> m_presets;
+    std::string m_active_preset_path;
+    std::optional<std::string> m_pending_preset_path;
 
     uint32_t m_editor_visible = 0;
 

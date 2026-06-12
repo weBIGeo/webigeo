@@ -41,14 +41,14 @@ namespace nodes = webgpu_compute::nodes;
 NodeGraphPanel::NodeGraphPanel(webgpu_engine::Context* context)
     : m_context(context)
     , m_presets({
-          { "Snow", nodes::NodeGraph::ComputePipelineType::Snow },
-          { "Avalanche trajectories", nodes::NodeGraph::ComputePipelineType::AvalancheTrajectories },
-          { "Iterative simulation (WIP)", nodes::NodeGraph::ComputePipelineType::IterativeSimulation },
+          { "Snow", ":/graphs/snow.json" },
+          { "Avalanche trajectories", ":/graphs/avalanche_trajectories.json" },
+          { "Iterative simulation (WIP)", ":/graphs/iterative_simulation_wip.json" },
       })
 {
 }
 
-void NodeGraphPanel::ready() { load_preset(nodes::NodeGraph::ComputePipelineType::AvalancheTrajectories); }
+void NodeGraphPanel::ready() { load_preset(":/graphs/avalanche_trajectories.json"); }
 
 void NodeGraphPanel::attach_graph(std::unique_ptr<nodes::NodeGraph> graph)
 {
@@ -66,10 +66,18 @@ void NodeGraphPanel::attach_graph(std::unique_ptr<nodes::NodeGraph> graph)
     init(*m_node_graph);
 }
 
-void NodeGraphPanel::load_preset(nodes::NodeGraph::ComputePipelineType type)
+void NodeGraphPanel::load_preset(const std::string& resource_path)
 {
-    attach_graph(nodes::NodeGraph::create_preset(type, m_context->webgpu_ctx()));
-    m_active_preset = type;
+    QFile file(QString::fromStdString(resource_path));
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        m_error_state.text = "Cannot open preset resource:\n" + resource_path;
+        m_error_state.should_open = true;
+        return;
+    }
+    const QByteArray data = file.readAll();
+    file.close();
+    import_graph_json(data, resource_path);
+    m_active_preset_path = resource_path;
 }
 
 void NodeGraphPanel::import_graph_json(const QByteArray& data, const std::string& source_name)
@@ -442,9 +450,9 @@ void NodeGraphPanel::pop_style()
 
 void NodeGraphPanel::draw()
 {
-    if (m_pending_preset) {
-        load_preset(*m_pending_preset);
-        m_pending_preset.reset();
+    if (m_pending_preset_path) {
+        load_preset(*m_pending_preset_path);
+        m_pending_preset_path.reset();
         m_context->request_redraw();
     }
 
@@ -621,9 +629,9 @@ void NodeGraphPanel::render_menu()
         if (ImGui::BeginMenu("File")) {
             if (ImGui::BeginMenu(ICON_FA_FOLDER_OPEN "  Load Graph")) {
                 for (const auto& preset : m_presets) {
-                    const bool active = (m_active_preset == preset.type);
+                    const bool active = (m_active_preset_path == preset.resource_path);
                     if (ImGui::MenuItem(preset.name.c_str(), nullptr, active))
-                        m_pending_preset = preset.type;
+                        m_pending_preset_path = preset.resource_path;
                 }
                 ImGui::Separator();
                 if (ImGui::MenuItem(ICON_FA_FILE_IMPORT "  From File..."))

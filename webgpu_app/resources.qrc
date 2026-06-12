@@ -12,4 +12,9 @@
     <qresource prefix="/gpx">
         <file alias="breite_ries.gpx">resources/gpx/breite_ries.gpx</file>
     </qresource>
+    <qresource prefix="/graphs">
+        <file alias="avalanche_trajectories.json">resources/graphs/avalanche_trajectories.json</file>
+        <file alias="snow.json">resources/graphs/snow.json</file>
+        <file alias="iterative_simulation_wip.json">resources/graphs/iterative_simulation_wip.json</file>
+    </qresource>
 </RCC>

@@ -1,0 +1,306 @@
+{
+    "connections": [
+        {
+            "from": {
+                "node": "height_decode_node",
+                "socket": "decoded texture"
+            },
+            "to": {
+                "node": "flowpy",
+                "socket": "height texture"
+            }
+        },
+        {
+            "from": {
+                "node": "release_points_node",
+                "socket": "release point texture"
+            },
+            "to": {
+                "node": "flowpy",
+                "socket": "release point texture"
+            }
+        },
+        {
+            "from": {
+                "node": "stitch_node",
+                "socket": "texture"
+            },
+            "to": {
+                "node": "height_decode_node",
+                "socket": "encoded texture"
+            }
+        },
+        {
+            "from": {
+                "node": "select_tiles_node",
+                "socket": "region aabb"
+            },
+            "to": {
+                "node": "height_decode_node",
+                "socket": "region aabb"
+            }
+        },
+        {
+            "from": {
+                "node": "select_tiles_node",
+                "socket": "region aabb"
+            },
+            "to": {
+                "node": "normals_node",
+                "socket": "bounds"
+            }
+        },
+        {
+            "from": {
+                "node": "height_decode_node",
+                "socket": "decoded texture"
+            },
+            "to": {
+                "node": "normals_node",
+                "socket": "height texture"
+            }
+        },
+        {
+            "from": {
+                "node": "flowpy",
+                "socket": "texture"
+            },
+            "to": {
+                "node": "overlay_node",
+                "socket": "texture"
+            }
+        },
+        {
+            "from": {
+                "node": "select_tiles_node",
+                "socket": "region aabb"
+            },
+            "to": {
+                "node": "overlay_node",
+                "socket": "region aabb"
+            }
+        },
+        {
+            "from": {
+                "node": "normals_node",
+                "socket": "normal texture"
+            },
+            "to": {
+                "node": "release_points_node",
+                "socket": "normal texture"
+            }
+        },
+        {
+            "from": {
+                "node": "select_tiles_node",
+                "socket": "tile ids"
+            },
+            "to": {
+                "node": "request_height_node",
+                "socket": "tile ids"
+            }
+        },
+        {
+            "from": {
+                "node": "gpx_track_node",
+                "socket": "region"
+            },
+            "to": {
+                "node": "select_tiles_node",
+                "socket": "region"
+            }
+        },
+        {
+            "from": {
+                "node": "select_tiles_node",
+                "socket": "tile ids"
+            },
+            "to": {
+                "node": "stitch_node",
+                "socket": "tile ids"
+            }
+        },
+        {
+            "from": {
+                "node": "request_height_node",
+                "socket": "tile data"
+            },
+            "to": {
+                "node": "stitch_node",
+                "socket": "texture data"
+            }
+        }
+    ],
+    "format": "webigeo/node-graph",
+    "name": "iterative_simulation_compute_graph",
+    "nodes": [
+        {
+            "enabled": true,
+            "name": "flowpy",
+            "settings": {
+                "max_num_iterations": 16
+            },
+            "type": "IterativeSimulationNode"
+        },
+        {
+            "enabled": true,
+            "name": "gpx_track_node",
+            "settings": {
+                "enable_caching": true,
+                "file_path": ":/gpx/breite_ries.gpx"
+            },
+            "type": "GPXTrackNode"
+        },
+        {
+            "enabled": true,
+            "name": "height_decode_node",
+            "settings": {
+                "texture_usage": [
+                    "CopySrc",
+                    "CopyDst",
+                    "TextureBinding",
+                    "StorageBinding"
+                ]
+            },
+            "type": "HeightDecodeNode"
+        },
+        {
+            "enabled": true,
+            "name": "normals_node",
+            "settings": {
+                "format": "RGBA8Unorm",
+                "usage": [
+                    "CopyDst",
+                    "TextureBinding",
+                    "StorageBinding"
+                ]
+            },
+            "type": "ComputeNormalsNode"
+        },
+        {
+            "enabled": true,
+            "name": "overlay_node",
+            "settings": {
+                "copy": false
+            },
+            "type": "OverlayRenderNode"
+        },
+        {
+            "enabled": true,
+            "name": "release_points_node",
+            "settings": {
+                "max_slope_angle": 0.7853981852531433,
+                "min_slope_angle": 0.5235987901687622,
+                "sampling_interval": [
+                    8,
+                    8
+                ],
+                "texture_format": "RGBA8Unorm",
+                "texture_usage": [
+                    "CopySrc",
+                    "CopyDst",
+                    "TextureBinding",
+                    "StorageBinding"
+                ]
+            },
+            "type": "ComputeReleasePointsNode"
+        },
+        {
+            "enabled": true,
+            "name": "request_height_node",
+            "settings": {
+                "file_extension": ".png",
+                "tile_path": "https://alpinemaps.cg.tuwien.ac.at/tiles/at_dtm_alpinemaps/",
+                "url_pattern": "ZXY"
+            },
+            "type": "RequestTilesNode"
+        },
+        {
+            "enabled": true,
+            "name": "select_tiles_node",
+            "settings": {
+                "zoomlevel": 15
+            },
+            "type": "SelectTilesNode"
+        },
+        {
+            "enabled": true,
+            "name": "stitch_node",
+            "settings": {
+                "stitch_inverted_y": true,
+                "texture_format": "RGBA8Uint",
+                "texture_usage": [
+                    "CopySrc",
+                    "CopyDst",
+                    "TextureBinding",
+                    "StorageBinding"
+                ],
+                "tile_has_border": true,
+                "tile_size": [
+                    65,
+                    65
+                ]
+            },
+            "type": "TileStitchNode"
+        }
+    ],
+    "ui": {
+        "nodes": {
+            "flowpy": {
+                "position": [
+                    1104.300048828125,
+                    460.75
+                ]
+            },
+            "gpx_track_node": {
+                "position": [
+                    137.0999755859375,
+                    480.5
+                ]
+            },
+            "height_decode_node": {
+                "position": [
+                    639.2999877929688,
+                    460.5
+                ]
+            },
+            "normals_node": {
+                "position": [
+                    788.2999877929688,
+                    460.75
+                ]
+            },
+            "overlay_node": {
+                "position": [
+                    1280.0999755859375,
+                    470.75
+                ]
+            },
+            "release_points_node": {
+                "position": [
+                    928.2999877929688,
+                    470.75
+                ]
+            },
+            "request_height_node": {
+                "position": [
+                    371.29998779296875,
+                    470.75
+                ]
+            },
+            "select_tiles_node": {
+                "position": [
+                    249.0999755859375,
+                    460.75
+                ]
+            },
+            "stitch_node": {
+                "position": [
+                    515.2999877929688,
+                    460.75
+                ]
+            }
+        }
+    },
+    "version": 1
+}
