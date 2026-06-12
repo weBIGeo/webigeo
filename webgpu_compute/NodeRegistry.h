@@ -34,6 +34,7 @@ public:
 
     void register_node(const std::string& type_name, NodeFactory factory);
     [[nodiscard]] bool is_registered(const std::string& type_name) const;
+    [[nodiscard]] std::vector<std::string> get_registered_types() const;
 
     // Creates a node of the given registered type. Asserts if the type is unknown.
     [[nodiscard]] std::unique_ptr<nodes::Node> create(const std::string& type_name, webgpu::Context& ctx) const;

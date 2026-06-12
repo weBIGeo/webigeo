@@ -111,11 +111,19 @@ private:
     bool m_save_dialog_wants_open = false;
     bool m_open_dialog_wants_open = false;
 
+    // Add-node popup (Shift+A)
+    bool m_open_add_node_request = false;
+    ImVec2 m_add_node_popup_pos = { 0, 0 };
+    std::vector<std::string> m_registered_node_types; // populated lazily on first open
+    int m_add_node_selected_idx = 0;
+    char m_add_node_name_buf[128] = {};
+
 private:
     // Serializes the current graph (engine + UI positions) as indented JSON bytes.
     QByteArray export_graph_json() const;
     void render_save_dialog();
     void render_open_dialog();
+    void render_add_node_popup();
 
     // Takes ownership of a new graph, wires run/error signals, and calls init().
     void attach_graph(std::unique_ptr<nodes::NodeGraph> graph);

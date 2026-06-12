@@ -150,7 +150,7 @@ void OverlaysPanel::draw_panel()
     if (!ImGui::CollapsingHeader(ICON_FA_LAYER_GROUP "  Overlays", ImGuiTreeNodeFlags_DefaultOpen))
         return;
 
-    if (ImGui::Button(ICON_FA_PLUS "  Add Overlay [Shift + A]", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
+    if (ImGui::Button(ICON_FA_PLUS "  Add Overlay [Shift + O]", ImVec2(ImGui::GetContentRegionAvail().x, 0.0f))) {
         m_add_popup_modal = true;
         m_open_chooser_request = true;
     }
@@ -259,7 +259,7 @@ void OverlaysPanel::draw_panel()
 
 void OverlaysPanel::draw()
 {
-    if (!ImGui::GetIO().WantTextInput && ImGui::GetIO().KeyShift && ImGui::IsKeyPressed(ImGuiKey_A, false)) {
+    if (!ImGui::GetIO().WantTextInput && ImGui::GetIO().KeyShift && ImGui::IsKeyPressed(ImGuiKey_O, false)) {
         m_add_popup_modal = false;
         m_add_popup_pos = ImGui::GetMousePos();
         m_open_chooser_request = true;

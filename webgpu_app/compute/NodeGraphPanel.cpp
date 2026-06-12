@@ -32,6 +32,7 @@
 #include <imnodes.h>
 #include <qDebug>
 #include <webgpu_compute/NodeGraphSerialization.h>
+#include <webgpu_compute/NodeRegistry.h>
 #include <webgpu_engine/Context.h>
 
 namespace webgpu_app {
@@ -156,6 +157,102 @@ void NodeGraphPanel::init(nodes::NodeGraph& node_graph)
     rebuild_links();
 
     m_first_frame_after_init = true;
+}
+
+static std::string type_to_default_name(const std::string& type_name)
+{
+    // "ComputeSnowNode" -> "compute_snow_node"
+    std::string result;
+    for (size_t i = 0; i < type_name.size(); ++i) {
+        if (i > 0 && std::isupper((unsigned char)type_name[i]))
+            result += '_';
+        result += (char)std::tolower((unsigned char)type_name[i]);
+    }
+    return result;
+}
+
+void NodeGraphPanel::render_add_node_popup()
+{
+    static const char* POPUP_ID = "##add_node_popup";
+
+    if (m_open_add_node_request) {
+        // Populate type list lazily (OverlayRenderNode is registered after panel construction)
+        if (m_registered_node_types.empty())
+            m_registered_node_types = webgpu_compute::NodeRegistry::instance().get_registered_types();
+
+        // Pre-fill name suggestion for the selected type
+        const std::string base = type_to_default_name(m_registered_node_types[m_add_node_selected_idx]);
+        std::string suggestion = base;
+        for (int n = 2; m_node_graph->exists_node(suggestion); ++n)
+            suggestion = base + "_" + std::to_string(n);
+        strncpy(m_add_node_name_buf, suggestion.c_str(), sizeof(m_add_node_name_buf) - 1);
+        m_add_node_name_buf[sizeof(m_add_node_name_buf) - 1] = '\0';
+
+        ImGui::SetNextWindowPos(m_add_node_popup_pos);
+        ImGui::OpenPopup(POPUP_ID);
+        m_open_add_node_request = false;
+    }
+
+    if (!ImGui::BeginPopup(POPUP_ID))
+        return;
+
+    ImGui::TextUnformatted("Add Node");
+    ImGui::Separator();
+
+    const auto& types = m_registered_node_types;
+    ImGui::SetNextItemWidth(260.0f);
+    if (ImGui::BeginCombo("Type", types[m_add_node_selected_idx].c_str())) {
+        for (int i = 0; i < (int)types.size(); ++i) {
+            const bool sel = (i == m_add_node_selected_idx);
+            if (ImGui::Selectable(types[i].c_str(), sel) && !sel) {
+                m_add_node_selected_idx = i;
+                // Refresh name suggestion when type changes
+                const std::string b = type_to_default_name(types[i]);
+                std::string s = b;
+                for (int n = 2; m_node_graph->exists_node(s); ++n)
+                    s = b + "_" + std::to_string(n);
+                strncpy(m_add_node_name_buf, s.c_str(), sizeof(m_add_node_name_buf) - 1);
+                m_add_node_name_buf[sizeof(m_add_node_name_buf) - 1] = '\0';
+            }
+            if (sel)
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+
+    ImGui::SetNextItemWidth(260.0f);
+    ImGui::InputText("Name", m_add_node_name_buf, sizeof(m_add_node_name_buf));
+
+    const std::string name(m_add_node_name_buf);
+    const bool duplicate = m_node_graph->exists_node(name);
+    if (duplicate)
+        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Name already exists");
+
+    const bool valid = !name.empty() && !duplicate;
+    ImGui::BeginDisabled(!valid);
+    const bool add_pressed = ImGui::Button("Add") || (valid && ImGui::IsKeyPressed(ImGuiKey_Enter, false));
+    ImGui::EndDisabled();
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel"))
+        ImGui::CloseCurrentPopup();
+
+    if (add_pressed) {
+        auto node = webgpu_compute::NodeRegistry::instance().try_create(types[m_add_node_selected_idx], m_context->webgpu_ctx());
+        if (node) {
+            m_node_graph->add_node(name, std::move(node));
+            auto renderer = NodeRendererFactory::create(name, m_node_graph->get_node(name));
+            // Place new node near the center of the current editor view
+            ImVec2 pan = ImNodes::EditorContextGetPanning();
+            renderer->set_position(ImVec2(-pan.x + m_window_size.x * 0.5f, -pan.y + m_window_size.y * 0.5f));
+            m_node_renderers_by_node.emplace(&m_node_graph->get_node(name), renderer.get());
+            m_node_renderers.emplace(name, std::move(renderer));
+            rebuild_socket_id_maps();
+            m_force_node_positions_on_next_frame = true;
+        }
+        ImGui::CloseCurrentPopup();
+    }
+
+    ImGui::EndPopup();
 }
 
 QByteArray NodeGraphPanel::export_graph_json() const
@@ -456,6 +553,7 @@ void NodeGraphPanel::draw()
     render_error_modal();
     render_save_dialog();
     render_open_dialog();
+    render_add_node_popup();
 
     if (!m_editor_visible)
         return;
@@ -547,17 +645,17 @@ void NodeGraphPanel::draw()
 
 void NodeGraphPanel::poll_keyboard_shortcuts()
 {
-    if (ImGui::IsKeyPressed(ImGuiKey_M)) {
+    if (ImGui::IsKeyPressed(ImGuiKey_M))
         m_render_mode = static_cast<GraphRenderingMode>((static_cast<int>(m_render_mode) + 1) % 3);
-    }
-    if (ImGui::IsKeyPressed(ImGuiKey_L)) {
+    if (ImGui::IsKeyPressed(ImGuiKey_L))
         reset_graph_layout(1.0f);
-    }
-    if (ImGui::IsKeyPressed(ImGuiKey_C)) {
+    if (ImGui::IsKeyPressed(ImGuiKey_C))
         recenter_graph(1.0f);
-    }
-    if (ImGui::IsKeyPressed(ImGuiKey_R)) {
+    if (ImGui::IsKeyPressed(ImGuiKey_R))
         m_node_graph->run();
+    if (!ImGui::GetIO().WantTextInput && ImGui::GetIO().KeyShift && ImGui::IsKeyPressed(ImGuiKey_A, false)) {
+        m_add_node_popup_pos = ImGui::GetMousePos();
+        m_open_add_node_request = true;
     }
 }
 

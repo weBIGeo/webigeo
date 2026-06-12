@@ -18,6 +18,7 @@
 
 #include "NodeRegistry.h"
 
+#include <algorithm>
 #include "nodes/BufferToTextureNode.h"
 #include "nodes/ComputeAvalancheTrajectoriesNode.h"
 #include "nodes/ComputeNormalsNode.h"
@@ -63,6 +64,16 @@ NodeRegistry& NodeRegistry::instance()
 void NodeRegistry::register_node(const std::string& type_name, NodeFactory factory) { m_factories[type_name] = std::move(factory); }
 
 bool NodeRegistry::is_registered(const std::string& type_name) const { return m_factories.find(type_name) != m_factories.end(); }
+
+std::vector<std::string> NodeRegistry::get_registered_types() const
+{
+    std::vector<std::string> types;
+    types.reserve(m_factories.size());
+    for (const auto& [name, _] : m_factories)
+        types.push_back(name);
+    std::sort(types.begin(), types.end());
+    return types;
+}
 
 std::unique_ptr<nodes::Node> NodeRegistry::create(const std::string& type_name, webgpu::Context& ctx) const
 {
