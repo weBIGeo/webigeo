@@ -1,7 +1,7 @@
 /*****************************************************************************
- * Alpine Renderer
+ * weBIGeo
  * Copyright (C) 2024 Patrick Komon
- * Copyright (C) 2025 Gerald Kimmersdorfer
+ * Copyright (C) 2024 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,21 +19,33 @@
 
 #pragma once
 
-#include "webgpu/webgpu.h"
-#include <webgpu/base/Context.h>
+#include <webgpu/base/raii/RawBuffer.h>
+#include <webgpu/webgpu.h>
+#include <webgpu/base/webgpu_interface.hpp>
 
-struct UnittestWebgpuContext {
-    WGPULimits default_limits();
+namespace webgpu {
 
-    UnittestWebgpuContext(bool use_default_limits = true, WGPULimits required_limits = {});
+/// Generic class for buffers that are backed by a member variable.
+template <typename T>
+class Buffer {
+public:
+    // Creates a Buffer object representing a region in GPU memory.
+    Buffer(WGPUDevice device, WGPUBufferUsage flags)
+        : m_raw_buffer(device, flags, 1)
+    {
+    }
 
-    WGPUInstanceDescriptor instance_desc;
+    // Refills the GPU Buffer
+    void update_gpu_data(WGPUQueue queue) { m_raw_buffer.write(queue, &data, 1, 0); }
 
-    WGPUInstance instance = nullptr;
-    WGPUSurface surface = nullptr;
-    WGPUAdapter adapter = nullptr;
-    WGPUDevice device = nullptr;
-    WGPUQueue queue = nullptr;
+    const webgpu::raii::RawBuffer<T>& raw_buffer() const { return m_raw_buffer; }
 
-    webgpu::Context ctx;
+public:
+    // Contains the buffer data
+    T data;
+
+protected:
+    webgpu::raii::RawBuffer<T> m_raw_buffer;
 };
+
+} // namespace webgpu

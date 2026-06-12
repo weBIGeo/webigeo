@@ -1,7 +1,6 @@
 /*****************************************************************************
- * Alpine Renderer
- * Copyright (C) 2024 Patrick Komon
- * Copyright (C) 2025 Gerald Kimmersdorfer
+ * weBIGeo
+ * Copyright (C) 2026 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,23 +16,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#pragma once
+#include "AtmospherePanel.h"
 
-#include "webgpu/webgpu.h"
-#include <webgpu/base/Context.h>
+#include "ImGuiManager.h"
+#include <IconsFontAwesome5.h>
 
-struct UnittestWebgpuContext {
-    WGPULimits default_limits();
+#include <webgpu/engine/Context.h>
 
-    UnittestWebgpuContext(bool use_default_limits = true, WGPULimits required_limits = {});
+namespace webgpu_app {
 
-    WGPUInstanceDescriptor instance_desc;
+AtmospherePanel::AtmospherePanel(webgpu_engine::Context* context)
+    : m_context(context)
+{
+}
 
-    WGPUInstance instance = nullptr;
-    WGPUSurface surface = nullptr;
-    WGPUAdapter adapter = nullptr;
-    WGPUDevice device = nullptr;
-    WGPUQueue queue = nullptr;
+void AtmospherePanel::draw()
+{
+    auto& cfg = m_context->shared_config();
+    if (ImGuiManager::FloatingToggleButton("ToggleAtmosphereButton", ICON_FA_GLOBE, "Atmosphere", &cfg.m_atmosphere_enabled))
+        m_context->request_redraw();
+}
 
-    webgpu::Context ctx;
-};
+} // namespace webgpu_app

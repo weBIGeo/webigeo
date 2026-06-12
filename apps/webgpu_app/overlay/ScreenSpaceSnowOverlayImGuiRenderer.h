@@ -1,7 +1,6 @@
 /*****************************************************************************
- * Alpine Renderer
- * Copyright (C) 2024 Patrick Komon
- * Copyright (C) 2025 Gerald Kimmersdorfer
+ * weBIGeo
+ * Copyright (C) 2026 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,21 +18,20 @@
 
 #pragma once
 
-#include "webgpu/webgpu.h"
-#include <webgpu/base/Context.h>
+#include "OverlayImGuiRenderer.h"
+#include <webgpu/engine/overlay/ScreenSpaceSnowOverlay.h>
 
-struct UnittestWebgpuContext {
-    WGPULimits default_limits();
+namespace webgpu_app {
 
-    UnittestWebgpuContext(bool use_default_limits = true, WGPULimits required_limits = {});
+class ScreenSpaceSnowOverlayImGuiRenderer : public OverlayImGuiRenderer {
+public:
+    explicit ScreenSpaceSnowOverlayImGuiRenderer(webgpu_engine::ScreenSpaceSnowOverlay& overlay);
 
-    WGPUInstanceDescriptor instance_desc;
+    std::string display_name() const override { return "Screen-Space Snow"; }
+    bool render_custom_settings() override;
 
-    WGPUInstance instance = nullptr;
-    WGPUSurface surface = nullptr;
-    WGPUAdapter adapter = nullptr;
-    WGPUDevice device = nullptr;
-    WGPUQueue queue = nullptr;
-
-    webgpu::Context ctx;
+private:
+    webgpu_engine::ScreenSpaceSnowOverlay* m_snow_overlay;
 };
+
+} // namespace webgpu_app

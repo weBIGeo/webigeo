@@ -1,7 +1,6 @@
 /*****************************************************************************
- * Alpine Renderer
- * Copyright (C) 2024 Patrick Komon
- * Copyright (C) 2025 Gerald Kimmersdorfer
+ * weBIGeo
+ * Copyright (C) 2026 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,21 +18,29 @@
 
 #pragma once
 
-#include "webgpu/webgpu.h"
-#include <webgpu/base/Context.h>
+#include "NodeRenderer.h"
+#include <string>
+#include <vector>
+#include <webgpu/compute/nodes/RequestTilesNode.h>
 
-struct UnittestWebgpuContext {
-    WGPULimits default_limits();
+namespace webgpu_app {
+namespace nodes = webgpu_compute::nodes;
 
-    UnittestWebgpuContext(bool use_default_limits = true, WGPULimits required_limits = {});
+class RequestTilesNodeRenderer : public NodeRenderer {
+public:
+    struct TileSourceOption {
+        std::string name;
+        nodes::RequestTilesNode::RequestTilesNodeSettings settings;
+    };
 
-    WGPUInstanceDescriptor instance_desc;
+    RequestTilesNodeRenderer(const std::string& name, nodes::RequestTilesNode& node);
+    bool has_settings() const override { return true; }
+    void render_settings_content() override;
 
-    WGPUInstance instance = nullptr;
-    WGPUSurface surface = nullptr;
-    WGPUAdapter adapter = nullptr;
-    WGPUDevice device = nullptr;
-    WGPUQueue queue = nullptr;
-
-    webgpu::Context ctx;
+private:
+    nodes::RequestTilesNode* m_node;
+    std::vector<TileSourceOption> m_options;
+    int m_selected_index = 0;
 };
+
+} // namespace webgpu_app

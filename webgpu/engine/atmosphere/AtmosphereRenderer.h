@@ -1,7 +1,7 @@
 /*****************************************************************************
- * Alpine Renderer
+ * weBIGeo
  * Copyright (C) 2024 Patrick Komon
- * Copyright (C) 2025 Gerald Kimmersdorfer
+ * Copyright (C) 2026 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,21 +19,34 @@
 
 #pragma once
 
-#include "webgpu/webgpu.h"
+#include <memory>
+
+#include <QObject>
 #include <webgpu/base/Context.h>
+#include <webgpu/base/Framebuffer.h>
+#include <webgpu/base/raii/Pipeline.h>
+#include <webgpu/base/raii/TextureView.h>
+#include <webgpu/webgpu.h>
 
-struct UnittestWebgpuContext {
-    WGPULimits default_limits();
+namespace webgpu_engine {
 
-    UnittestWebgpuContext(bool use_default_limits = true, WGPULimits required_limits = {});
+class AtmosphereRenderer : public QObject {
+    Q_OBJECT
+public:
+    explicit AtmosphereRenderer();
 
-    WGPUInstanceDescriptor instance_desc;
+    void init(webgpu::Context& ctx);
 
-    WGPUInstance instance = nullptr;
-    WGPUSurface surface = nullptr;
-    WGPUAdapter adapter = nullptr;
-    WGPUDevice device = nullptr;
-    WGPUQueue queue = nullptr;
+    void resize(int w, int h);
 
-    webgpu::Context ctx;
+    void draw(const WGPUCommandEncoder& command_encoder, const WGPUBindGroup& camera_bind_group);
+
+    [[nodiscard]] const webgpu::raii::TextureView* result_view() const;
+
+private:
+    webgpu::Context* m_ctx = nullptr;
+    std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_pipeline;
+    std::unique_ptr<webgpu::Framebuffer> m_atmosphere_framebuffer;
 };
+
+} // namespace webgpu_engine
