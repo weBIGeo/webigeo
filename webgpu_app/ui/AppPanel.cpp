@@ -23,8 +23,8 @@
 #include <IconsFontAwesome5.h>
 #include <imgui.h>
 
-#include "RenderingContext.h"
 #include "App.h"
+#include "RenderingContext.h"
 #include <QDebug>
 
 namespace webgpu_app {

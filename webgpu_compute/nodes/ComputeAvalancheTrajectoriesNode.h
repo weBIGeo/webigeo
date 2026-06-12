@@ -54,7 +54,6 @@ public:
         float mass = 10.0f;
         float friction_coeff = 0.155f;
         float drag_coeff = 4000.f;
-
     };
 
     struct RunoutPerlaParams {
@@ -62,13 +61,11 @@ public:
         float md = 40.0f; // M/D mass-to-drag ratio (in m)
         float l = 1.0f; // distance between grid cells (in m)
         float g = 9.81f; // acceleration due to gravity (in m/s^2)
-
     };
 
     /* FlowPy runout model */
     struct RunoutFlowPyParams {
         float alpha = 25.0f; // in degrees
-
     };
 
     struct OutputLayerParams {
@@ -77,7 +74,6 @@ public:
         uint32_t layer3_travelLength_enabled = 1u;
         uint32_t layer4_travelAngle_enabled = 1u;
         uint32_t layer5_altitudeDifference_enabled = 1u;
-
     };
 
     struct AvalancheTrajectoriesSettings {
@@ -112,7 +108,6 @@ public:
         OutputLayerParams output_layer;
 
         uint32_t random_seed = 1u;
-
     };
 
 private:

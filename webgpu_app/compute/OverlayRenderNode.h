@@ -42,7 +42,6 @@ public:
         // false: link the source texture directly (non-owning).
         // true: copy the source into the overlay's own texture (requires CopySrc on the source).
         bool copy = false;
-
     };
 
     explicit OverlayRenderNode(webgpu_engine::Context& context);
@@ -52,7 +51,11 @@ public:
     void set_settings(const OverlaySettings& settings) { m_settings = settings; }
     const OverlaySettings& get_settings() const { return m_settings; }
     void serialize_settings(QJsonObject& out) const override { out["copy"] = m_settings.copy; }
-    void deserialize_settings(const QJsonObject& in) override { if (in.contains("copy")) m_settings.copy = in["copy"].toBool(m_settings.copy); }
+    void deserialize_settings(const QJsonObject& in) override
+    {
+        if (in.contains("copy"))
+            m_settings.copy = in["copy"].toBool(m_settings.copy);
+    }
 
 public slots:
     void run_impl() override;

@@ -110,10 +110,7 @@ NodeRenderer::NodeRenderer(const std::string& name, nodes::Node& node)
     }
 }
 
-ImVec2 NodeRenderer::get_size() const
-{
-    return m_size;
-}
+ImVec2 NodeRenderer::get_size() const { return m_size; }
 
 void NodeRenderer::render(bool reset_position)
 {
@@ -214,10 +211,7 @@ void NodeRenderer::render_sockets()
     }
 }
 
-QJsonObject NodeRenderer::serialize_ui() const
-{
-    return QJsonObject { { "position", QJsonArray { m_position.x, m_position.y } } };
-}
+QJsonObject NodeRenderer::serialize_ui() const { return QJsonObject { { "position", QJsonArray { m_position.x, m_position.y } } }; }
 
 void NodeRenderer::deserialize_ui(const QJsonObject& obj)
 {

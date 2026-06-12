@@ -18,7 +18,6 @@
 
 #include "NodeRegistry.h"
 
-#include <algorithm>
 #include "nodes/BufferToTextureNode.h"
 #include "nodes/ComputeAvalancheTrajectoriesNode.h"
 #include "nodes/ComputeNormalsNode.h"
@@ -33,6 +32,7 @@
 #include "nodes/SelectTilesNode.h"
 #include "nodes/TileStitchNode.h"
 #include <QDebug>
+#include <algorithm>
 #include <cassert>
 
 namespace webgpu_compute {

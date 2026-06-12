@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "util/SearchService.h"
 #include "App.h"
+#include "util/SearchService.h"
 #include "util/error_logging.h"
 #include <QCoreApplication>
 

@@ -46,48 +46,63 @@ void write_timings_to_json_file(const NodeGraph& node_graph, const std::filesyst
 
 namespace {
 
-    struct TextureFormatEntry { WGPUTextureFormat format; const char* name; };
+    struct TextureFormatEntry {
+        WGPUTextureFormat format;
+        const char* name;
+    };
     constexpr TextureFormatEntry texture_format_table[] = {
-        { WGPUTextureFormat_R8Unorm,     "R8Unorm"     },
-        { WGPUTextureFormat_R8Uint,      "R8Uint"      },
-        { WGPUTextureFormat_R32Float,    "R32Float"    },
-        { WGPUTextureFormat_RG8Unorm,    "RG8Unorm"    },
-        { WGPUTextureFormat_RG32Float,   "RG32Float"   },
-        { WGPUTextureFormat_RGBA8Unorm,  "RGBA8Unorm"  },
-        { WGPUTextureFormat_RGBA8Uint,   "RGBA8Uint"   },
-        { WGPUTextureFormat_RGBA8Sint,   "RGBA8Sint"   },
-        { WGPUTextureFormat_BGRA8Unorm,  "BGRA8Unorm"  },
+        { WGPUTextureFormat_R8Unorm, "R8Unorm" },
+        { WGPUTextureFormat_R8Uint, "R8Uint" },
+        { WGPUTextureFormat_R32Float, "R32Float" },
+        { WGPUTextureFormat_RG8Unorm, "RG8Unorm" },
+        { WGPUTextureFormat_RG32Float, "RG32Float" },
+        { WGPUTextureFormat_RGBA8Unorm, "RGBA8Unorm" },
+        { WGPUTextureFormat_RGBA8Uint, "RGBA8Uint" },
+        { WGPUTextureFormat_RGBA8Sint, "RGBA8Sint" },
+        { WGPUTextureFormat_BGRA8Unorm, "BGRA8Unorm" },
         { WGPUTextureFormat_RGBA16Float, "RGBA16Float" },
         { WGPUTextureFormat_RGBA32Float, "RGBA32Float" },
     };
 
-    struct TextureUsageFlagEntry { uint64_t flag; const char* name; };
+    struct TextureUsageFlagEntry {
+        uint64_t flag;
+        const char* name;
+    };
     const TextureUsageFlagEntry texture_usage_table[] = {
-        { static_cast<uint64_t>(WGPUTextureUsage_CopySrc),         "CopySrc"         },
-        { static_cast<uint64_t>(WGPUTextureUsage_CopyDst),         "CopyDst"         },
-        { static_cast<uint64_t>(WGPUTextureUsage_TextureBinding),  "TextureBinding"  },
-        { static_cast<uint64_t>(WGPUTextureUsage_StorageBinding),  "StorageBinding"  },
-        { static_cast<uint64_t>(WGPUTextureUsage_RenderAttachment),"RenderAttachment"},
+        { static_cast<uint64_t>(WGPUTextureUsage_CopySrc), "CopySrc" },
+        { static_cast<uint64_t>(WGPUTextureUsage_CopyDst), "CopyDst" },
+        { static_cast<uint64_t>(WGPUTextureUsage_TextureBinding), "TextureBinding" },
+        { static_cast<uint64_t>(WGPUTextureUsage_StorageBinding), "StorageBinding" },
+        { static_cast<uint64_t>(WGPUTextureUsage_RenderAttachment), "RenderAttachment" },
     };
 
-    struct FilterModeEntry { WGPUFilterMode mode; const char* name; };
+    struct FilterModeEntry {
+        WGPUFilterMode mode;
+        const char* name;
+    };
     constexpr FilterModeEntry filter_mode_table[] = {
         { WGPUFilterMode_Nearest, "Nearest" },
-        { WGPUFilterMode_Linear,  "Linear"  },
+        { WGPUFilterMode_Linear, "Linear" },
     };
 
-    struct MipmapFilterModeEntry { WGPUMipmapFilterMode mode; const char* name; };
+    struct MipmapFilterModeEntry {
+        WGPUMipmapFilterMode mode;
+        const char* name;
+    };
     constexpr MipmapFilterModeEntry mipmap_filter_mode_table[] = {
         { WGPUMipmapFilterMode_Nearest, "Nearest" },
-        { WGPUMipmapFilterMode_Linear,  "Linear"  },
+        { WGPUMipmapFilterMode_Linear, "Linear" },
     };
 
-    struct UrlPatternEntry { nucleus::tile::TileLoadService::UrlPattern pattern; const char* name; };
+    struct UrlPatternEntry {
+        nucleus::tile::TileLoadService::UrlPattern pattern;
+        const char* name;
+    };
     constexpr UrlPatternEntry url_pattern_table[] = {
-        { nucleus::tile::TileLoadService::UrlPattern::ZXY,               "ZXY"               },
-        { nucleus::tile::TileLoadService::UrlPattern::ZYX,               "ZYX"               },
-        { nucleus::tile::TileLoadService::UrlPattern::ZXY_yPointingSouth,"ZXY_yPointingSouth"},
-        { nucleus::tile::TileLoadService::UrlPattern::ZYX_yPointingSouth,"ZYX_yPointingSouth"},
+        { nucleus::tile::TileLoadService::UrlPattern::ZXY, "ZXY" },
+        { nucleus::tile::TileLoadService::UrlPattern::ZYX, "ZYX" },
+        { nucleus::tile::TileLoadService::UrlPattern::ZXY_yPointingSouth, "ZXY_yPointingSouth" },
+        { nucleus::tile::TileLoadService::UrlPattern::ZYX_yPointingSouth, "ZYX_yPointingSouth" },
     };
 
 } // namespace
@@ -219,10 +234,7 @@ nucleus::tile::TileLoadService::UrlPattern url_pattern_from_string(const QString
 
 // ---- glm helpers ----
 
-QJsonArray vec2_to_json(glm::vec2 v)
-{
-    return { static_cast<double>(v.x), static_cast<double>(v.y) };
-}
+QJsonArray vec2_to_json(glm::vec2 v) { return { static_cast<double>(v.x), static_cast<double>(v.y) }; }
 
 glm::vec2 vec2_from_json(const QJsonArray& arr, glm::vec2 fallback)
 {
@@ -233,10 +245,7 @@ glm::vec2 vec2_from_json(const QJsonArray& arr, glm::vec2 fallback)
     return { static_cast<float>(arr[0].toDouble()), static_cast<float>(arr[1].toDouble()) };
 }
 
-QJsonArray uvec2_to_json(glm::uvec2 v)
-{
-    return { static_cast<int>(v.x), static_cast<int>(v.y) };
-}
+QJsonArray uvec2_to_json(glm::uvec2 v) { return { static_cast<int>(v.x), static_cast<int>(v.y) }; }
 
 glm::uvec2 uvec2_from_json(const QJsonArray& arr, glm::uvec2 fallback)
 {

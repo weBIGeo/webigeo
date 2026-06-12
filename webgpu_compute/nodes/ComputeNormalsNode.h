@@ -37,7 +37,6 @@ public:
     struct NormalSettings {
         WGPUTextureFormat format = WGPUTextureFormat_RGBA8Unorm;
         WGPUTextureUsage usage = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst);
-
     };
 
     struct NormalsSettingsUniform {

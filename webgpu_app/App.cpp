@@ -310,8 +310,7 @@ void App::start()
     }
 
     qDebug() << "Create GUI Pipeline...";
-    m_gui_ubo
-        = std::make_unique<webgpu::raii::RawBuffer<App::GuiPipelineUBO>>(m_device, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst, 1, "gui ubo");
+    m_gui_ubo = std::make_unique<webgpu::raii::RawBuffer<App::GuiPipelineUBO>>(m_device, WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst, 1, "gui ubo");
     m_gui_ubo->write(m_queue, &m_gui_ubo_data);
 
     webgpu::FramebufferFormat format {};

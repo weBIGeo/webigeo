@@ -26,7 +26,7 @@
 namespace webgpu::raii {
 class Texture;
 class TextureView;
-}
+} // namespace webgpu::raii
 
 namespace webgpu_app {
 

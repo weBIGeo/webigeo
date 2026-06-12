@@ -18,8 +18,8 @@
  *****************************************************************************/
 
 #include "ImGuiManager.h"
-#include "RenderingContext.h"
 #include "App.h"
+#include "RenderingContext.h"
 
 #include "ui/ImGuiPanel.h"
 
@@ -30,20 +30,20 @@
 #include <filesystem>
 #endif
 
+#include "atmosphere/AtmospherePanel.h"
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_wgpu.h"
+#include "cloud/CloudPanel.h"
+#include "overlay/OverlaysPanel.h"
+#include "track/TrackPanel.h"
 #include "ui/AboutPanel.h"
 #include "ui/AppPanel.h"
-#include "atmosphere/AtmospherePanel.h"
 #include "ui/CameraPanel.h"
-#include "cloud/CloudPanel.h"
 #include "ui/CompassPanel.h"
 #include "ui/LogoPanel.h"
-#include "overlay/OverlaysPanel.h"
 #include "ui/SearchPanel.h"
 #include "ui/ShadingPanel.h"
 #include "ui/TimingPanel.h"
-#include "track/TrackPanel.h"
 #ifdef ALP_WEBGPU_APP_ENABLE_COMPUTE
 #include "compute/NodeGraphPanel.h"
 #endif

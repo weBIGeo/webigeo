@@ -39,7 +39,6 @@ public:
         std::string buffer_output_file = "export/{run_datetime}_{run_id}/exp_{node_name}_buff.png";
         std::string texture_output_file = "export/{run_datetime}_{run_id}/exp_{node_name}_tex.png";
         std::string aabb_output_file = "export/{run_datetime}_{run_id}/exp_aabb.txt";
-
     };
 
     explicit ExportNode(webgpu::Context& ctx);

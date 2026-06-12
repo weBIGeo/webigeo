@@ -148,10 +148,7 @@ void HeightDecodeNode::run_impl()
     complete_run();
 }
 
-void HeightDecodeNode::serialize_settings(QJsonObject& out) const
-{
-    out["texture_usage"] = wgpu_usage_to_json(m_settings.texture_usage);
-}
+void HeightDecodeNode::serialize_settings(QJsonObject& out) const { out["texture_usage"] = wgpu_usage_to_json(m_settings.texture_usage); }
 
 void HeightDecodeNode::deserialize_settings(const QJsonObject& in)
 {

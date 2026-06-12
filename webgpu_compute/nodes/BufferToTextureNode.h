@@ -64,7 +64,6 @@ public:
         glm::vec2 transparency_map_bounds = { 0.0f, 1.0f }; // x gets mapped to fully invisible, y to fully visible
         bool use_bin_interpolation = false; // if true, use linear interpolation between color bins
         bool use_transparency_buffer = true; // if true, the transparency texture is used to evaluate an alpha factor based on the alpha_remap_bounds
-
     };
 
     struct BufferToTextureSettingsUniform {

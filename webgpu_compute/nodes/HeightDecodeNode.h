@@ -36,7 +36,6 @@ public:
     struct HeightDecodeSettings {
         // The usage flags of the output texture
         WGPUTextureUsage texture_usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
-
     };
 
     struct HeightDecodeSettingsUniform {

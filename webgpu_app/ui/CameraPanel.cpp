@@ -23,9 +23,9 @@
 #include <imgui.h>
 
 #include "App.h"
+#include <glm/gtc/type_ptr.hpp>
 #include <nucleus/camera/PositionStorage.h>
 #include <nucleus/srs.h>
-#include <glm/gtc/type_ptr.hpp>
 
 namespace webgpu_app {
 

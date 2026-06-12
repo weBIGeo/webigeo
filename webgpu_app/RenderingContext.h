@@ -25,9 +25,9 @@
 #include <memory>
 
 #include "cloud/CloudsManager.h"
-#include "util/SearchService.h"
 #include "nucleus/tile/SchedulerDirector.h"
 #include "nucleus/tile/setup.h"
+#include "util/SearchService.h"
 #include "webgpu/webgpu.h"
 
 namespace webgpu {

@@ -28,8 +28,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "ui/ImGuiPanel.h"
 #include "nodes/NodeRenderer.h"
+#include "ui/ImGuiPanel.h"
 #include <webgpu_compute/NodeGraph.h>
 
 namespace webgpu_engine {

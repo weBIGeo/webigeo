@@ -83,7 +83,6 @@ std::unordered_map<std::string, std::unique_ptr<Node>>& NodeGraph::get_nodes() {
 
 const std::unordered_map<std::string, std::unique_ptr<Node>>& NodeGraph::get_nodes() const { return m_nodes; }
 
-
 tl::expected<std::vector<Node*>, std::string> NodeGraph::compute_topological_order()
 {
     // basic idea: find topological ordering by counting in-coming edges (in-degree)

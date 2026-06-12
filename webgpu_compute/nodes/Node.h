@@ -175,8 +175,8 @@ public:
 
     virtual std::string get_type_name() const = 0;
 
-    virtual void serialize_settings(QJsonObject& out) const {}
-    virtual void deserialize_settings(const QJsonObject& in) {}
+    virtual void serialize_settings(QJsonObject& out) const { }
+    virtual void deserialize_settings(const QJsonObject& in) { }
 
     [[nodiscard]] bool has_input_socket(const std::string& name) const;
     [[nodiscard]] InputSocket& input_socket(const std::string& name);

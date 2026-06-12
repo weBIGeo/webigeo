@@ -112,12 +112,12 @@ tl::expected<std::unique_ptr<NodeGraph>, std::string> deserialize_node_graph(con
     for (const QJsonValue& val : connections_array) {
         const QJsonObject conn = val.toObject();
         const QJsonObject from_obj = conn["from"].toObject();
-        const QJsonObject to_obj   = conn["to"].toObject();
+        const QJsonObject to_obj = conn["to"].toObject();
 
-        const std::string from_node   = from_obj["node"].toString().toStdString();
+        const std::string from_node = from_obj["node"].toString().toStdString();
         const std::string from_socket = from_obj["socket"].toString().toStdString();
-        const std::string to_node     = to_obj["node"].toString().toStdString();
-        const std::string to_socket   = to_obj["socket"].toString().toStdString();
+        const std::string to_node = to_obj["node"].toString().toStdString();
+        const std::string to_socket = to_obj["socket"].toString().toStdString();
 
         if (!graph->exists_node(from_node))
             return tl::unexpected("connection references unknown source node \"" + from_node + "\"");
@@ -133,11 +133,10 @@ tl::expected<std::unique_ptr<NodeGraph>, std::string> deserialize_node_graph(con
             return tl::unexpected("node \"" + to_node + "\" has no input socket \"" + to_socket + "\"");
 
         OutputSocket& output = src.output_socket(from_socket);
-        InputSocket&  input  = dst.input_socket(to_socket);
+        InputSocket& input = dst.input_socket(to_socket);
 
         if (output.type() != input.type())
-            return tl::unexpected(
-                "type mismatch: \"" + from_node + "\":\"" + from_socket + "\" -> \"" + to_node + "\":\"" + to_socket + "\"");
+            return tl::unexpected("type mismatch: \"" + from_node + "\":\"" + from_socket + "\" -> \"" + to_node + "\":\"" + to_socket + "\"");
 
         input.connect(output);
     }

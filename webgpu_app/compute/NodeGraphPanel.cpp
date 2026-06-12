@@ -21,12 +21,12 @@
 
 #include "ImGuiManager.h"
 #include "nodes/NodeRendererFactory.h"
-#include <algorithm>
 #include <IconsFontAwesome5.h>
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonParseError>
+#include <algorithm>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <imnodes.h>
@@ -38,7 +38,6 @@
 
 namespace webgpu_app {
 namespace nodes = webgpu_compute::nodes;
-
 
 NodeGraphPanel::NodeGraphPanel(webgpu_engine::Context* context)
     : m_context(context)
@@ -82,10 +81,7 @@ void NodeGraphPanel::load_preset(const std::string& resource_path)
     import_graph_json(data, resource_path);
 }
 
-void NodeGraphPanel::new_graph()
-{
-    attach_graph(std::make_unique<nodes::NodeGraph>());
-}
+void NodeGraphPanel::new_graph() { attach_graph(std::make_unique<nodes::NodeGraph>()); }
 
 void NodeGraphPanel::import_graph_json(const QByteArray& data, const std::string& source_name)
 {
@@ -127,7 +123,6 @@ void NodeGraphPanel::import_graph_json(const QByteArray& data, const std::string
         m_force_node_positions_on_next_frame = true;
         m_pending_auto_layout = true;
     }
-
 }
 
 void NodeGraphPanel::render_open_dialog()
@@ -163,7 +158,6 @@ void NodeGraphPanel::init(nodes::NodeGraph& node_graph)
 
     rebuild_socket_id_maps();
     rebuild_links();
-
 }
 
 static std::string type_to_default_name(const std::string& type_name)
@@ -180,7 +174,7 @@ static std::string type_to_default_name(const std::string& type_name)
 
 static std::string generate_node_name(const std::string& type_base, const webgpu_compute::nodes::NodeGraph* graph)
 {
-    for (int n = 1; ; ++n) {
+    for (int n = 1;; ++n) {
         std::string candidate = type_base + "_" + std::to_string(n);
         if (!graph->exists_node(candidate))
             return candidate;
@@ -200,9 +194,7 @@ void NodeGraphPanel::render_add_node_popup()
 
     if (!m_open_add_node_modal)
         ImGui::SetNextWindowPos(m_add_node_popup_pos, ImGuiCond_Appearing);
-    const bool open = m_open_add_node_modal
-        ? ImGui::BeginPopupModal(POPUP_ID, nullptr, ImGuiWindowFlags_AlwaysAutoResize)
-        : ImGui::BeginPopup(POPUP_ID);
+    const bool open = m_open_add_node_modal ? ImGui::BeginPopupModal(POPUP_ID, nullptr, ImGuiWindowFlags_AlwaysAutoResize) : ImGui::BeginPopup(POPUP_ID);
     if (!open)
         return;
 
@@ -270,8 +262,15 @@ QByteArray NodeGraphPanel::export_graph_json() const
 void NodeGraphPanel::render_save_dialog()
 {
     std::vector<std::string> save_paths;
-    if (ImGuiManager::FilePicker("save_graph_dialog", "Save Graph", "Graph files{.json}", m_save_dialog_wants_open,
-            save_paths, false, ".", ImGuiManager::FilePickerMode::Save, "graph.json")) {
+    if (ImGuiManager::FilePicker("save_graph_dialog",
+            "Save Graph",
+            "Graph files{.json}",
+            m_save_dialog_wants_open,
+            save_paths,
+            false,
+            ".",
+            ImGuiManager::FilePickerMode::Save,
+            "graph.json")) {
         QFile file(QString::fromStdString(save_paths[0]));
         if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
             file.write(export_graph_json());
@@ -464,7 +463,6 @@ void NodeGraphPanel::push_style()
     } else if (m_render_mode == GraphRenderingMode::White) {
         ImNodes::PushColorStyle(ImNodesCol_GridLine, IM_COL32(200, 200, 200, 40));
         ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
-
     }
 }
 
@@ -494,8 +492,7 @@ void NodeGraphPanel::draw()
     calculate_window_size();
 
     if (m_pending_auto_layout) {
-        const bool all_measured = std::all_of(m_node_renderers.begin(), m_node_renderers.end(),
-            [](const auto& kv) { return kv.second->is_size_known(); });
+        const bool all_measured = std::all_of(m_node_renderers.begin(), m_node_renderers.end(), [](const auto& kv) { return kv.second->is_size_known(); });
         if (all_measured) {
             calculate_auto_layout();
             for (auto& [nodePtr, pos] : m_target_layout)
@@ -770,7 +767,7 @@ void NodeGraphPanel::render_menu()
                 m_render_mode = static_cast<GraphRenderingMode>((static_cast<int>(m_render_mode) + 1) % 3);
             }
             ImGui::Separator();
-            const char* mode_name = m_render_mode == GraphRenderingMode::Default     ? "Default"
+            const char* mode_name = m_render_mode == GraphRenderingMode::Default ? "Default"
                 : m_render_mode == GraphRenderingMode::Transparent               ? "Transparent"
                                                                                  : "White";
             ImGui::Text("Current Mode: %s", mode_name);

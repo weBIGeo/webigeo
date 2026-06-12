@@ -47,7 +47,6 @@ public:
 
         // The usage flags of the output texture
         WGPUTextureUsage texture_usage = WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
-
     };
 
     explicit TileStitchNode(webgpu::Context& ctx); // default-configured; for the NodeRegistry

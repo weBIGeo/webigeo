@@ -230,7 +230,8 @@ void BufferToTextureNode::deserialize_settings(const QJsonObject& in)
     if (in.contains("texture_filter_mode"))
         m_settings.texture_filter_mode = wgpu_filter_mode_from_string(in["texture_filter_mode"].toString(), m_settings.texture_filter_mode);
     if (in.contains("texture_mipmap_filter_mode"))
-        m_settings.texture_mipmap_filter_mode = wgpu_mipmap_filter_mode_from_string(in["texture_mipmap_filter_mode"].toString(), m_settings.texture_mipmap_filter_mode);
+        m_settings.texture_mipmap_filter_mode
+            = wgpu_mipmap_filter_mode_from_string(in["texture_mipmap_filter_mode"].toString(), m_settings.texture_mipmap_filter_mode);
     if (in.contains("texture_max_aniostropy"))
         m_settings.texture_max_aniostropy = static_cast<uint16_t>(in["texture_max_aniostropy"].toInt(m_settings.texture_max_aniostropy));
     if (in.contains("create_mipmaps"))

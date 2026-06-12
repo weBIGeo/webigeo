@@ -35,7 +35,6 @@ public:
 
     struct IterativeSimulationSettings {
         uint32_t max_num_iterations = 16;
-
     };
 
     struct IterativeSimulationSettingsUniform {

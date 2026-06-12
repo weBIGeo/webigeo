@@ -37,7 +37,6 @@ public:
         WGPUTextureFormat format = WGPUTextureFormat_RGBA8Uint;
         WGPUTextureUsage usage
             = (WGPUTextureUsage)(WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc);
-
     };
 
     LoadTextureNode(webgpu::Context& ctx);

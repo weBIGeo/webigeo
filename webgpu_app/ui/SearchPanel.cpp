@@ -19,8 +19,8 @@
 
 #include "SearchPanel.h"
 
-#include "IconsFontAwesome5.h"
 #include "App.h"
+#include "IconsFontAwesome5.h"
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <string>

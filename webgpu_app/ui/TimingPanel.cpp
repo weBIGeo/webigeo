@@ -69,8 +69,11 @@ void TimingPanel::draw_panel()
                         toggle_timer(tmr_id);
                     }
                     ImGui::SameLine();
-                    ImGui::Text("%s: %s ±%s [%zu]", tmr.name.c_str(), webgpu::timing::format_time(tmr.timer->get_average()).c_str(),
-                        webgpu::timing::format_time(tmr.timer->get_standard_deviation()).c_str(), tmr.timer->get_sample_count());
+                    ImGui::Text("%s: %s ±%s [%zu]",
+                        tmr.name.c_str(),
+                        webgpu::timing::format_time(tmr.timer->get_average()).c_str(),
+                        webgpu::timing::format_time(tmr.timer->get_standard_deviation()).c_str(),
+                        tmr.timer->get_sample_count());
                 }
             }
             if (group.name != "")
@@ -94,9 +97,6 @@ void TimingPanel::toggle_timer(uint32_t timer_id)
     }
 }
 
-bool TimingPanel::is_timer_selected(uint32_t timer_id) const
-{
-    return m_selected_timer.find(timer_id) != m_selected_timer.end();
-}
+bool TimingPanel::is_timer_selected(uint32_t timer_id) const { return m_selected_timer.find(timer_id) != m_selected_timer.end(); }
 
 } // namespace webgpu_app

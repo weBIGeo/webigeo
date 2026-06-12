@@ -45,7 +45,6 @@ public:
         float min_altitude = 1000; // minimal altitude in meters
         float altitude_variation = 200; // TODO doc
         float altitude_blend = 200; // TODO doc
-
     };
 
     struct SnowSettingsUniform {

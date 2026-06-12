@@ -26,7 +26,7 @@
 #include <functional>
 
 namespace nucleus::camera {
-    class Controller;
+class Controller;
 }
 
 namespace webgpu_app {
@@ -47,7 +47,6 @@ signals:
     void mouse_pressed(nucleus::event_parameter::Mouse mouse);
     void wheel_turned(nucleus::event_parameter::Wheel wheel);
     void touch(nucleus::event_parameter::Touch touch);
-
 
 private:
     ImGuiManager* m_gui_manager = nullptr;
