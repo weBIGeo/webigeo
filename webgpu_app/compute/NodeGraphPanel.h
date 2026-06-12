@@ -109,11 +109,20 @@ private:
     GraphRenderingMode m_render_mode = GraphRenderingMode::Default;
 
     bool m_save_dialog_wants_open = false;
+    bool m_open_dialog_wants_open = false;
 
 private:
     // Serializes the current graph (engine + UI positions) as indented JSON bytes.
     QByteArray export_graph_json() const;
     void render_save_dialog();
+    void render_open_dialog();
+
+    // Takes ownership of a new graph, wires run/error signals, and calls init().
+    void attach_graph(std::unique_ptr<nodes::NodeGraph> graph);
+
+    // Parses JSON bytes, deserializes the graph, applies UI positions (or auto-layouts),
+    // and swaps it in. Shows the error modal and keeps the current graph on any failure.
+    void import_graph_json(const QByteArray& data, const std::string& source_name);
 
     void calculate_window_size();
     void center_target_layout();

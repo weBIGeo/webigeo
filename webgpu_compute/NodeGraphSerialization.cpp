@@ -18,7 +18,11 @@
 
 #include "NodeGraphSerialization.h"
 
+#include "NodeRegistry.h"
+#include <QFile>
 #include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonParseError>
 #include <algorithm>
 #include <vector>
 
@@ -74,7 +78,100 @@ QJsonObject serialize_node_graph(const NodeGraph& graph)
     return root;
 }
 
-// deserialize_node_graph and load_node_graph_from_file are implemented in the load-path
-// phase; the declarations exist so the API surface is complete.
+tl::expected<std::unique_ptr<NodeGraph>, std::string> deserialize_node_graph(const QJsonObject& root, webgpu::Context& ctx)
+{
+    // Format / version guard
+    if (root["format"].toString() != QLatin1String(NODE_GRAPH_JSON_FORMAT))
+        return tl::unexpected(std::string("invalid format tag (expected \"") + NODE_GRAPH_JSON_FORMAT + "\")");
+    if (root["version"].toInt(-1) != NODE_GRAPH_JSON_VERSION)
+        return tl::unexpected(std::string("unsupported version (expected ") + std::to_string(NODE_GRAPH_JSON_VERSION) + ")");
+
+    const std::string graph_name = root["name"].toString("unnamed").toStdString();
+    auto graph = std::make_unique<NodeGraph>(graph_name);
+
+    // Create nodes
+    const QJsonArray nodes_array = root["nodes"].toArray();
+    for (const QJsonValue& val : nodes_array) {
+        const QJsonObject node_obj = val.toObject();
+        const std::string node_name = node_obj["name"].toString().toStdString();
+        const std::string type_name = node_obj["type"].toString().toStdString();
+
+        if (node_name.empty())
+            return tl::unexpected(std::string("node entry is missing \"name\""));
+        if (graph->exists_node(node_name))
+            return tl::unexpected("duplicate node name: \"" + node_name + "\"");
+
+        auto node = NodeRegistry::instance().try_create(type_name, ctx);
+        if (!node)
+            return tl::unexpected("unknown node type: \"" + type_name + "\"");
+
+        node->set_enabled(node_obj["enabled"].toBool(true));
+        if (node_obj.contains("settings"))
+            node->deserialize_settings(node_obj["settings"].toObject());
+
+        graph->add_node(node_name, std::move(node));
+    }
+
+    // Wire connections
+    const QJsonArray connections_array = root["connections"].toArray();
+    for (const QJsonValue& val : connections_array) {
+        const QJsonObject conn = val.toObject();
+        const QJsonObject from_obj = conn["from"].toObject();
+        const QJsonObject to_obj   = conn["to"].toObject();
+
+        const std::string from_node   = from_obj["node"].toString().toStdString();
+        const std::string from_socket = from_obj["socket"].toString().toStdString();
+        const std::string to_node     = to_obj["node"].toString().toStdString();
+        const std::string to_socket   = to_obj["socket"].toString().toStdString();
+
+        if (!graph->exists_node(from_node))
+            return tl::unexpected("connection references unknown source node \"" + from_node + "\"");
+        if (!graph->exists_node(to_node))
+            return tl::unexpected("connection references unknown destination node \"" + to_node + "\"");
+
+        Node& src = graph->get_node(from_node);
+        Node& dst = graph->get_node(to_node);
+
+        if (!src.has_output_socket(from_socket))
+            return tl::unexpected("node \"" + from_node + "\" has no output socket \"" + from_socket + "\"");
+        if (!dst.has_input_socket(to_socket))
+            return tl::unexpected("node \"" + to_node + "\" has no input socket \"" + to_socket + "\"");
+
+        OutputSocket& output = src.output_socket(from_socket);
+        InputSocket&  input  = dst.input_socket(to_socket);
+
+        if (output.type() != input.type())
+            return tl::unexpected(
+                "type mismatch: \"" + from_node + "\":\"" + from_socket + "\" -> \"" + to_node + "\":\"" + to_socket + "\"");
+
+        input.connect(output);
+    }
+
+    // Cycle / empty check before wiring Qt signals
+    auto topo = graph->compute_topological_order();
+    if (!topo)
+        return tl::unexpected(topo.error());
+
+    graph->connect_node_signals_and_slots();
+    return graph;
+}
+
+tl::expected<std::unique_ptr<NodeGraph>, std::string> load_node_graph_from_file(const std::string& path, webgpu::Context& ctx)
+{
+    QFile file(QString::fromStdString(path));
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+        return tl::unexpected("cannot open file: " + path);
+
+    QJsonParseError parse_err;
+    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &parse_err);
+    file.close();
+
+    if (doc.isNull())
+        return tl::unexpected("JSON parse error: " + parse_err.errorString().toStdString());
+    if (!doc.isObject())
+        return tl::unexpected("JSON root is not an object");
+
+    return deserialize_node_graph(doc.object(), ctx);
+}
 
 } // namespace webgpu_compute::nodes

@@ -26,6 +26,7 @@
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonParseError>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <imnodes.h>
@@ -49,9 +50,9 @@ NodeGraphPanel::NodeGraphPanel(webgpu_engine::Context* context)
 
 void NodeGraphPanel::ready() { load_preset(nodes::NodeGraph::ComputePipelineType::AvalancheTrajectories); }
 
-void NodeGraphPanel::load_preset(nodes::NodeGraph::ComputePipelineType type)
+void NodeGraphPanel::attach_graph(std::unique_ptr<nodes::NodeGraph> graph)
 {
-    m_owned_graph = nodes::NodeGraph::create_preset(type, m_context->webgpu_ctx());
+    m_owned_graph = std::move(graph);
     m_node_graph = m_owned_graph.get();
 
     QObject::connect(m_node_graph, &nodes::NodeGraph::run_completed, m_context, [this](webgpu_compute::GraphRunContext) { m_context->request_redraw(); });
@@ -63,7 +64,68 @@ void NodeGraphPanel::load_preset(nodes::NodeGraph::ComputePipelineType type)
     });
 
     init(*m_node_graph);
+}
+
+void NodeGraphPanel::load_preset(nodes::NodeGraph::ComputePipelineType type)
+{
+    attach_graph(nodes::NodeGraph::create_preset(type, m_context->webgpu_ctx()));
     m_active_preset = type;
+}
+
+void NodeGraphPanel::import_graph_json(const QByteArray& data, const std::string& source_name)
+{
+    QJsonParseError parse_err;
+    const QJsonDocument doc = QJsonDocument::fromJson(data, &parse_err);
+    if (doc.isNull()) {
+        m_error_state.text = "Failed to parse \"" + source_name + "\":\n" + parse_err.errorString().toStdString();
+        m_error_state.should_open = true;
+        return;
+    }
+    if (!doc.isObject()) {
+        m_error_state.text = "Invalid graph file \"" + source_name + "\": JSON root is not an object";
+        m_error_state.should_open = true;
+        return;
+    }
+
+    auto result = webgpu_compute::nodes::deserialize_node_graph(doc.object(), m_context->webgpu_ctx());
+    if (!result) {
+        m_error_state.text = "Failed to load \"" + source_name + "\":\n" + result.error();
+        m_error_state.should_open = true;
+        return;
+    }
+
+    const QJsonObject ui_nodes = doc.object()["ui"].toObject()["nodes"].toObject();
+
+    attach_graph(std::move(*result));
+
+    if (!ui_nodes.isEmpty()) {
+        // Restore saved positions; suppress the auto-layout that draw() would otherwise trigger.
+        for (auto& [name, renderer] : m_node_renderers) {
+            const QString key = QString::fromStdString(name);
+            if (ui_nodes.contains(key))
+                renderer->deserialize_ui(ui_nodes[key].toObject());
+        }
+        m_first_frame_after_init = false;
+        m_force_node_positions_on_next_frame = true;
+    }
+    // else: m_first_frame_after_init remains true → draw() auto-layouts on the next render.
+}
+
+void NodeGraphPanel::render_open_dialog()
+{
+    std::vector<std::string> open_paths;
+    if (ImGuiManager::FilePicker("open_graph_dialog", "Load Graph", "Graph files{.json}", m_open_dialog_wants_open, open_paths)) {
+        QFile file(QString::fromStdString(open_paths[0]));
+        if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            const QByteArray data = file.readAll();
+            file.close();
+            import_graph_json(data, open_paths[0]);
+        } else {
+            m_error_state.text = "Cannot open file:\n" + open_paths[0];
+            m_error_state.should_open = true;
+        }
+    }
+    m_open_dialog_wants_open = false;
 }
 
 void NodeGraphPanel::init(nodes::NodeGraph& node_graph)
@@ -389,6 +451,7 @@ void NodeGraphPanel::draw()
     ImGuiManager::FloatingToggleButton("###ToggleGraphRenderer", ICON_FA_NETWORK_WIRED, "Toggle compute graph editor", &m_editor_visible);
     render_error_modal();
     render_save_dialog();
+    render_open_dialog();
 
     if (!m_editor_visible)
         return;
@@ -562,6 +625,9 @@ void NodeGraphPanel::render_menu()
                     if (ImGui::MenuItem(preset.name.c_str(), nullptr, active))
                         m_pending_preset = preset.type;
                 }
+                ImGui::Separator();
+                if (ImGui::MenuItem(ICON_FA_FILE_IMPORT "  From File..."))
+                    m_open_dialog_wants_open = true;
                 ImGui::EndMenu();
             }
             if (ImGui::MenuItem(ICON_FA_SAVE "  Save Graph"))
