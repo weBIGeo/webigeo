@@ -12,8 +12,7 @@ https://discord.gg/p8T9XzVwRa
 
 # Documentation
 - [Setup](docs/Setup.md)
-- [Usage](docs/Usage.md)
-- [Technical documentation](docs/Technical.md)
+- [WebGPU App structure](docs/webgpu-app.md)
 
 # Code style
 We adhere to the coding guidelines of [AlpineMaps.org](https://github.com/AlpineMapsOrg/renderer?tab=readme-ov-file#code-style).
