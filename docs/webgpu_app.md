@@ -16,6 +16,8 @@ weBIGeo can be deployed to the web via emscripten and additionally we support na
 |--------|-------------|
 | **msvc-debug** | MSVC Debug build for Windows (native) |
 | **msvc-release** | MSVC Release build for Windows (native) |
+| **msvc-debug-test** | MSVC Debug build for unit tests |
+| **msvc-release-test** | MSVC Release build for unit tests |
 | **wasm-debug** | WebAssembly Debug build |
 | **wasm-release** | WebAssembly Release build |
 | **wasm-publish** | WebAssembly Production build with minified shaders and no debug output |
