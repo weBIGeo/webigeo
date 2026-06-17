@@ -4,7 +4,7 @@
 
 `webgpu_app` (branded as **weBIGeo**) is a research application built on the AlpineMaps.org rendering infrastructure, focused on real-time 3D computer graphics, large data visualization, and human-computer interaction over geographical datasets. Further information: [netidee.at/webigeo](https://www.netidee.at/webigeo).
 
-For an in-depth look at the internal architecture (ImGuiManager, Panels, Overlay, Compute graph), see the [Developer Guide](webgpu-app-dev.md).
+For an in-depth look at the internal architecture (ImGuiManager, Panels, Overlay, Compute graph), see the [Developer Guide](webgpu_app_dev.md).
 
 ## Setup
 

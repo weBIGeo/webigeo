@@ -7,7 +7,7 @@ This is a mono-repository containing the [AlpineMaps.org](https://alpinemaps.org
 ### <img src="app/icons/icon.png" width="20" height="20"/> [AlpineMaps.org (`app`)](docs/app.md)
 Qt Quick / OpenGL frontend, the original alpinemaps.org client.
 
-### <img src="apps/webgpu_app/shell/webigeo_logo.svg" width="20" height="20"/> [weBIGeo (`webgpu_app`)](docs/webgpu-app.md)
+### <img src="apps/webgpu_app/shell/webigeo_logo.svg" width="20" height="20"/> [weBIGeo (`webgpu_app`)](docs/webgpu_app.md)
 WebGPU rendering engine with ImGui UI and GPU compute graph.
 
 [If looking at the issues, best to filter out projects!](https://github.com/AlpineMapsOrg/renderer/issues?q=is%3Aissue%20state%3Aopen%20no%3Aproject)
@@ -37,7 +37,7 @@ graph TD
     webgpu --> nucleus
 
     click app "docs/app.md"
-    click webgpu_app "docs/webgpu-app.md"
+    click webgpu_app "docs/webgpu_app.md"
 ```
 
 *...only top-level dependencies are shown.*
