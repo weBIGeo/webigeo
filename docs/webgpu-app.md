@@ -1,57 +1,106 @@
-# WebGPU App structure
+# <img src="../apps/webgpu_app/shell/webigeo_logo.svg" width="40" height="40" align="left" style="margin-right:8px"/> weBIGeo (webgpu_app)
 
-This document gives a brief overview of `apps/webgpu_app`, the main weBIGeo application, and how it relates to the underlying libraries (`nucleus`, `webgpu_engine`, `webgpu_compute`).
+[![Discord](https://img.shields.io/badge/discord-join-5865F2?logo=discord&logoColor=white)](https://discord.gg/p8T9XzVwRa) [![Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://webigeo.alpinemaps.org/)
 
-## Library dependencies
+`webgpu_app` (branded as **weBIGeo**) is a research application built on the AlpineMaps.org rendering infrastructure, focused on real-time 3D computer graphics, large data visualization, and human-computer interaction over geographical datasets. Further information: [netidee.at/webigeo](https://www.netidee.at/webigeo).
 
-```mermaid
-graph TD
-    webgpu_app --> nucleus
-    webgpu_app --> webgpu_engine
-    webgpu_app --> webgpu
-    webgpu_app -->|optional| webgpu_compute
-    webgpu_engine --> nucleus
-    webgpu_engine --> webgpu
-    webgpu_compute --> nucleus
-    webgpu_compute --> webgpu
+For an in-depth look at the internal architecture (ImGuiManager, Panels, Overlay, Compute graph), see the [Developer Guide](webgpu-app-dev.md).
 
-    linkStyle 3 stroke:#e8590c,stroke-width:2px,stroke-dasharray: 6 4
-    classDef optional fill:#fff3e0,stroke:#e8590c,stroke-width:2px,color:#e8590c
-    class webgpu_compute optional
+## Setup
+
+weBIGeo can be deployed to the web via emscripten and additionally we support native builds on Windows, using [Dawn](https://dawn.googlesource.com/) and [SDL2](https://github.com/libsdl-org/SDL/tree/SDL2).
+
+### CMake Presets
+| Preset | Description |
+|--------|-------------|
+| **msvc-debug** | MSVC Debug build for Windows (native) |
+| **msvc-release** | MSVC Release build for Windows (native) |
+| **wasm-debug** | WebAssembly Debug build |
+| **wasm-release** | WebAssembly Release build |
+| **wasm-publish** | WebAssembly Production build with minified shaders and no debug output |
+
+### Building the web version
+
+#### Dependencies
+* Qt 6.10.1 with
+  * WebAssembly (multi-threaded) pre-built binaries
+* Python 3
+* cmake and ninja (come with Qt)
+* emsdk 4.0.7 ([emscripten](https://emscripten.org/docs/getting_started/downloads.html))
+   ```
+   git clone https://github.com/emscripten-core/emsdk.git
+   cd emsdk
+   emsdk install 4.0.7
+   emsdk activate 4.0.7
+   ```
+
+#### Configuration
+> [!IMPORTANT]
+> If you're using Qt Creator, you can simply use the default kit *WebAssembly Qt 6.10.1 (multi-threaded)* - no additional setup is needed.
+
+Before building, you need to ensure the following paths are correctly configured in [CMakePresets.json](../CMakePresets.json):
+
+1. **Ninja**: Make sure Ninja is in your system PATH, OR update the `PATH` environment variable in the `emscripten-base` preset to point to your Ninja installation (e.g., `C:/Qt/Tools/Ninja`).
+
+2. **EMSDK**: The `EMSDK` environment variable in the `emscripten-base` preset must point to your emsdk installation directory (e.g., `C:/tmp/webigeo/emsdk`).
+
+3. **Toolchain file**: The `toolchainFile` path in the `emscripten-base` preset might need to be adapted depending on where Qt is installed (e.g., `C:/Qt/6.10.1/wasm_multithread/lib/cmake/Qt6/qt.toolchain.cmake`).
+
+#### Serving the WASM Build
+After building, you can use the `serve_wasm.py` script to serve the build files for the WebAssembly build locally. This script sets up a local server with the correct headers required for WebAssembly.
+
+### Building the native version
+
+#### Dependencies
+* Windows
+* Qt 6.10.1 with
+  * MSVC2022 pre-built binaries
+* Python 3
+* Microsoft Visual C++ Compiler 17.6 (aka. MSVC2022, comes with Visual Studio 2022)
+* cmake and ninja (come with Qt)
+
+#### Configuration
+> [!IMPORTANT]
+> If you're using Qt Creator, you can simply use the default kit *Desktop Qt 6.10.1 MSVC2022 (64-bit)* - no additional setup is needed.
+
+Before building, you need to ensure the following paths are correctly configured in [CMakePresets.json](../CMakePresets.json):
+
+1. **Qt6_DIR**: Verify that the `Qt6_DIR` in the `msvc-base` preset points to your actual Qt installation's CMake directory (e.g., `C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6`).
+
+#### Troubleshoot
+- MY CONFIGURATION TAKES FOREVER: Upon first cmake configuration DAWN as well as SDL is being pulled, build and installed. This might take a while. (~10-40 min)
+- Dawn and SDL installation as well as fetching the custom dawn port for emscripten now happens in the python scripts inside the respective folder. They get executed by the CMAKE-Setup. A change requires a reconfiguration of CMAKE as well as the deletion of the directory in the `extern` directory.
+- If you have issues with your currently installed Vulkan SDK you may try one or all of the following:
+  - disable `DDAWN_FORCE_SYSTEM_COMPONENT_LOAD`
+  - Try with a different DAWN backend
+  - copying the include files from your sdk into the respective folders in the dawn binaries `dawn\third_party\vulkan-utility-libraries\src\include\vulkan\utility\` and `dawn\third_party\vulkan-headers\src\include\vulkan\` and rebuild dawn.
+
+#### About DAWN Backends
+Per default we opt for an only Vulkan-Backend Build for two reasons:
+- Vulkan is probably the most supported Backend running on most devices
+- We have more knowledge about Vulkan which comes to play when we use GPU debuggers
+
+That being said you may enable different Backends in the `install_dawn.py` script.
+
+### Install Targets
+Install targets are now available for both web and native builds. These targets install all necessary files into the install directory, making it easy to deploy or distribute the built application.
+
+To use the install target:
+```bash
+cmake --build build/<preset-name> --target install
 ```
 
-- `webgpu` is the base library wrapping the WebGPU API (device, pipelines, buffers, ...) and is used by everything else.
-- `nucleus` provides the shared base infrastructure (tile management, camera, data structures, ...) and is used by everything else.
-- `webgpu_engine` implements the terrain rendering pipeline (tiles, shading, overlays) on top of `nucleus`/`webgpu`.
-- `webgpu_compute` implements GPU compute nodes (e.g. avalanche simulation, snow, trajectory computation) on top of `nucleus`/`webgpu`.
-- `webgpu_engine` and `webgpu_compute` do **not** depend on each other.
-- The dashed edge marks the only optional link: `webgpu_app` links `webgpu_compute` (and the node-graph UI that goes with it) only if the CMake option `ALP_WEBGPU_APP_ENABLE_COMPUTE` is set (see `apps/webgpu_app/CMakeLists.txt`). When off, the app only renders terrain and overlays, without any compute/simulation features.
+The install directory is automatically configured in the CMake presets and will be located at:
+- Native builds: `install/msvc-debug` or `install/msvc-release`
+- Web builds: `install/wasm-debug`, `install/wasm-release`, or `install/wasm-publish`
 
-## Application structure
+### Tested Coding Environments
+The following development environments have been tested and are known to work with this project:
 
-`apps/webgpu_app/main.cpp` creates the `webgpu_app::App`, which owns the SDL window, the WebGPU device, and the per-frame `render()` loop (`App.cpp`). Each frame:
-
-1. The 3D scene (terrain, overlays) is rendered via `webgpu_engine`.
-2. `ImGuiManager::render()` records the ImGui draw commands for the UI on top of the scene.
-
-### ImGuiManager
-
-`ImGuiManager` (`apps/webgpu_app/ImGuiManager.h/.cpp`) is the central piece tying the UI together:
-- Initializes the Dear ImGui / ImNodes contexts and fonts.
-- Owns the list of `ImGuiPanel`s and draws them every frame.
-- Forwards SDL events to ImGui and exposes whether ImGui wants to capture input.
-- Can toggle the whole UI on/off.
-
-### Panels (`apps/webgpu_app/ui`)
-
-Panels are UI windows/sidebar sections, all implementing the `ImGuiPanel` interface (`draw_panel()` for sidebar content, `draw()` for floating windows). Examples: `AppPanel` (general settings), `CameraPanel`, `ShadingPanel`, `TimingPanel`, `SearchPanel`, `CompassPanel`, `LogoPanel`, `AboutPanel`.
-
-If `ALP_WEBGPU_APP_ENABLE_COMPUTE` is enabled, an additional `NodeGraphPanel` (`apps/webgpu_app/compute`) is registered, providing a visual node-graph editor for the `webgpu_compute` nodes (release points, avalanche trajectories, snow, tile I/O, ...).
-
-### Overlay (`apps/webgpu_app/overlay`)
-
-"Overlay" here refers to data visualized on top of the terrain in the 3D viewport (height lines, screen-space snow, textures, tile debug info) — not a UI overlay. `OverlaysPanel` is the ImGui panel used to configure which overlays are active and their settings; the actual rendering is done by the corresponding `webgpu_engine::OverlayRenderer`s. Each overlay has a small `OverlayImGuiRenderer` subclass that draws its settings controls.
-
-### Compute (`apps/webgpu_app/compute`)
-
-Only compiled when `ALP_WEBGPU_APP_ENABLE_COMPUTE` is enabled. Contains the `NodeGraphPanel` and a `NodeRenderer` per `webgpu_compute` node type, providing the visual/interactive representation of the compute graph (e.g. `AvalancheTrajectoriesNode`, `ReleasePointsNode`, `SnowNode`, `RequestTilesNode`, `ExportNode`). These nodes can route their output to overlays via `OverlayRenderNode`.
+- **Qt Creator 18** [recommended]
+  - With Qt Creator we recommend using the default Kits (see above)
+- **Visual Studio Code** with the following extensions:
+  - [C/C++](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools)
+  - [CMake Tools](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cmake-tools)
+  - [WGSL](https://marketplace.visualstudio.com/items?itemName=PolyMeilex.wgsl)
+- **Visual Studio 2022 Community**
