@@ -82,14 +82,14 @@ If no specific subclass is registered, the base `OverlayImGuiRenderer` serves as
 
 The `NodeGraphPanel` (`apps/webgpu_app/compute/`) manages the active `NodeGraph` and owns one `NodeRenderer` per node instance, providing the visual/interactive representation in the node-graph editor. Each node type can have a matching `NodeRenderer` subclass (`apps/webgpu_app/compute/nodes/`)
 
-`NodeRendererFactory::create()` maps compute node types to their renderer via `dynamic_cast`. If no specific subclass is registered, the base `NodeRenderer` is used as a fallback (renders the node with sockets but no settings panel).
+If no specific subclass is registered, the base `NodeRenderer` is used as a fallback (renders the node with sockets but no settings panel).
 
 > [!NOTE]
 > When adding a new compute node type, three files must be touched:
-> 1. **Compute node** — create a `Node` subclass in `webgpu/compute/nodes/` (the engine-side compute logic).
-> 2. **Node registry** — call `register_node()` in `NodeRegistry::NodeRegistry()` (`webgpu/compute/NodeRegistry.cpp`) so the node can be instantiated by name (required for graph serialization / the add-node dialog).
-> 3. **UI renderer** — optionally create a `NodeRenderer` subclass in `apps/webgpu_app/compute/nodes/` and add a `dynamic_cast` branch in `NodeRendererFactory::create()` (`apps/webgpu_app/compute/nodes/NodeRendererFactory.cpp`).
+> 1. **Compute node**: create a `Node` subclass in `webgpu/compute/nodes/` (the engine-side compute logic).
+> 2. **Node registry**: call `register_node()` in `NodeRegistry::NodeRegistry()` so the node can be instantiated by name (required for graph serialization / the add-node dialog).
+> 3. **UI renderer**: optionally create a `NodeRenderer` subclass in `apps/webgpu_app/compute/nodes/` and add a `dynamic_cast` branch in `NodeRendererFactory::create()`
 
 #### OverlayRenderNode
 
-`OverlayRenderNode` (`apps/webgpu_app/compute/OverlayRenderNode.h`) is a special sink node that bridges the compute graph and the rendering system. Unlike regular compute nodes it lives in the app layer because it holds a reference to `webgpu_engine::Context`. When executed, it forwards the graph's output texture to a `TextureOverlay` managed by the engine's `OverlayRenderer`, making compute results visible in the 3D viewport.
+`OverlayRenderNode` (`apps/webgpu_app/compute/OverlayRenderNode.h`) is a special node that bridges the compute graph and the rendering system. Unlike regular compute nodes it lives in the app layer because it holds a reference to `webgpu_engine::Context`. When executed, it forwards the graph's output texture to a `TextureOverlay` managed by the engine's `OverlayRenderer`, making compute results visible in the 3D viewport.
