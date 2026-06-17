@@ -43,28 +43,16 @@ graph LR
 `Window::paint()` drives the frame in this fixed order:
 
 ```mermaid
-graph TB
+graph LR
     classDef highlight fill:#e8a838,stroke:#b07a1a,color:#000
 
-    Atm("AtmosphereRenderer")
-    Tile("TileMeshRenderer")
-    Cloud("CloudRenderer")
-    Ovl("OverlayRenderer")
-    ColBuf(["colour buffer"])
-    GBuf(["G-buffer"])
-    OvlTex(["overlay textures"])
-    Compose("Compose pass"):::highlight
+    Atm(["AtmosphereRenderer"])
+    Tile(["TileMeshRenderer"])
+    Cloud(["CloudRenderer"])
+    Ovl(["OverlayRenderer"])
+    Compose(["Compose pass"]):::highlight
 
-    
     Atm --> Tile --> Cloud --> Ovl --> Compose
-    Atm -.- ColBuf
-
-    
-    Tile -.- GBuf
-    GBuf -...- Compose
-    Ovl -.- OvlTex
-    ColBuf -....- Compose
-    OvlTex -.- Compose
 ```
 
 ## Renderers
