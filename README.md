@@ -4,30 +4,31 @@
 
 This is a mono-repository containing the [AlpineMaps.org](https://alpinemaps.org) and [weBIGeo](https://webigeo.alpinemaps.org/) projects alongside their shared dependencies. Both are under active development and aim to provide state-of-the-art real-time rendering and processing for large-scale, tile-based geodata.
 
-[If looking at the issues, best to filter out projects!](https://github.com/AlpineMapsOrg/renderer/issues?q=is%3Aissue%20state%3Aopen%20no%3Aproject)
-
-We are in discord, talk to us!
-https://discord.gg/p8T9XzVwRa
-
-## Applications
-
 ### <img src="app/icons/icon.png" width="20" height="20"/> [AlpineMaps.org (`app`)](docs/app.md)
 Qt Quick / OpenGL frontend, the original alpinemaps.org client.
 
 ### <img src="apps/webgpu_app/shell/webigeo_logo.svg" width="20" height="20"/> [weBIGeo (`webgpu_app`)](docs/webgpu-app.md)
 WebGPU rendering engine with ImGui UI and GPU compute graph.
 
+[If looking at the issues, best to filter out projects!](https://github.com/AlpineMapsOrg/renderer/issues?q=is%3Aissue%20state%3Aopen%20no%3Aproject)
+
+We are in discord, talk to us!
+https://discord.gg/p8T9XzVwRa
+
+
 ## Architecture
 
 ```mermaid
 graph TD
-    app(["`AlpineMaps.org (**app**)`"])
-    webgpu_app(["`weBIGeo (**webgpu_app**)`"])
-    gl_engine(["`**gl_engine**`"])
+    app["AlpineMaps.org [app]"]
+    webgpu_app["weBIGeo [webgpu_app]"]
+    gl_engine(["gl_engine"])
+    webgpu_compute(["webgpu_compute"])
+    webgpu(["webgpu"])
+    nucleus(["nucleus"])
+    webgpu_engine(["webgpu_engine"])
 
-    app --> gl_engine
-    webgpu_app --> nucleus
-    webgpu_app --> webgpu
+    app ---> gl_engine
     webgpu_app --> webgpu_engine
     webgpu_app --> webgpu_compute
     gl_engine --> nucleus
@@ -35,22 +36,19 @@ graph TD
     webgpu_engine --> webgpu
     webgpu_compute --> nucleus
     webgpu_compute --> webgpu
-
-    linkStyle 4 stroke:#e8590c,stroke-width:2px,stroke-dasharray: 6 4
-    classDef optional fill:#fff3e0,stroke:#e8590c,stroke-width:2px,color:#e8590c
-    class webgpu_compute optional
-    classDef appNode fill:#e8f4fd,stroke:#1a73e8,stroke-width:2px
-    class app,webgpu_app appNode
+    webgpu --> nucleus
 
     click app "docs/app.md"
     click webgpu_app "docs/webgpu-app.md"
 ```
 
-- `nucleus` — shared core: tile management, camera, data structures
-- `webgpu` — base WebGPU wrapper (device, pipelines, buffers)
-- `gl_engine` — OpenGL rendering engine (used by the QML app)
-- `webgpu_engine` — terrain rendering pipeline on top of `nucleus`/`webgpu`
-- `webgpu_compute` — GPU compute nodes (avalanche, snow, trajectories); optional, enabled via `ALP_WEBGPU_APP_ENABLE_COMPUTE`
+| Module | Description |
+|--------|-------------|
+| `nucleus` | Shared core: tile management, camera, data structures |
+| `webgpu` | Base WebGPU wrapper (device, pipelines, buffers) |
+| `gl_engine` | OpenGL rendering engine (used by the QML app) |
+| `webgpu_engine` | WebGPU rendering engine (used by the webgpu_app) |
+| `webgpu_compute` | CPU/GPU compute node graph library |
 
 ## Code style
 * class names are CamelCase, method, function and variable names are snake_case.
