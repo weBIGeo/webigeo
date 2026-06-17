@@ -36,8 +36,7 @@ graph TD
     webgpu_compute --> webgpu
     webgpu --> nucleus
 
-    click app "docs/app.md"
-    click webgpu_app "docs/webgpu_app.md"
+
 ```
 
 *...only top-level dependencies are shown.*
@@ -45,9 +44,9 @@ graph TD
 | Module | Description |
 |--------|-------------|
 | `nucleus` | Shared core: tile management, camera, data structures |
-| `webgpu` | Offers basic WebGPU wrappers (device, pipelines, buffers), a wgsl preprocessor and webgpu object registry |
+| [`webgpu`](docs/webgpu_base.md) | RAII WebGPU wrappers (device, pipelines, buffers), WGSL preprocessor and GPU resource registry |
 | `gl_engine` | OpenGL rendering engine (used by the QML app) |
-| `webgpu_engine` | WebGPU rendering engine (used by the webgpu_app) |
+| [`webgpu_engine`](docs/webgpu_engine.md) | WebGPU rendering engine (used by the webgpu_app) |
 | `webgpu_compute` | CPU/GPU compute node graph library |
 
 ## Code style
