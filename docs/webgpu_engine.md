@@ -2,7 +2,7 @@
 
 ## Overview
 
-`webgpu_engine` implements the 3D rendering pipeline for the terrain viewer. The central ownership structure is `webgpu_engine::Context`, which holds all renderers as `std::shared_ptr`. `webgpu_engine::Window` acts as the glue layer that drives the per-frame render sequence by calling into Context in a fixed order.
+`webgpu_engine` implements the 3D rendering pipeline for the terrain viewer. It builds on top of [webgpu_base](webgpu_base.md) for shader preprocessing, GPU resource management, and RAII wrappers. The central ownership structure is `webgpu_engine::Context`, which holds all renderers as `std::shared_ptr`. `webgpu_engine::Window` acts as the glue layer that drives the per-frame render sequence by calling into Context in a fixed order.
 
 ```mermaid
 graph LR
@@ -94,7 +94,7 @@ Current overlay implementations:
 | `TextureOverlay` | `webgpu/engine/overlay/` | Overlays Rasterdata when provided appropriate AABB data |
 | `TileDebugOverlay` | `webgpu/engine/overlay/` | Debug visualisation for gbuffer |
 
- `webgpu_engine::Context` | `OverlayRenderer` |
+
 
 > [!NOTE]
 > When adding a new **Overlay**, register it via `OverlayRenderer::add_overlay()` and optionally create a matching `OverlayImGuiRenderer` subclass in `apps/webgpu_app/overlay/` for settings UI (see [webgpu_app_dev.md](webgpu_app_dev.md#overlayimguirenderer)).

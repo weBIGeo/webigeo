@@ -5,7 +5,7 @@
 `apps/webgpu_app/main.cpp` creates the `webgpu_app::App`, which owns the SDL window, the WebGPU device, and the render loop (`App.cpp`). Each frame:
 
 1. `ImGuiManager::render()` records the ImGui draw commands for the UI on top of the scene.
-2. The 3D scene (terrain, overlays) is rendered via [`webgpu_engine`](webgpu_engine.md) only on demand (e.g. on camera change).
+2. The 3D scene (terrain, overlays) is rendered via [`webgpu_engine`](webgpu_engine.md) only on demand (e.g. on camera change). Both `webgpu_engine` and the compute graph depend on [`webgpu_base`](webgpu_base.md) for shader preprocessing, GPU resource management, and RAII wrappers.
 
 ```mermaid
 graph LR
@@ -69,7 +69,7 @@ In general we follow a feature-based directory layout - each feature folder owns
 
 If no specific subclass is registered, the base `OverlayImGuiRenderer` serves as a fallback.
 
-> [!IMPORTANT]
+> [!NOTE]
 > After adding a new Overlay to the engine you have to:
 > - **`OverlaysPanel.cpp`**: extend the `AddType` enum and `ADD_ITEMS[]` array and add a branch in `add_overlay_of_type()` to instantiate the new type.
 >
@@ -84,7 +84,7 @@ The `NodeGraphPanel` (`apps/webgpu_app/compute/`) manages the active `NodeGraph`
 
 `NodeRendererFactory::create()` maps compute node types to their renderer via `dynamic_cast`. If no specific subclass is registered, the base `NodeRenderer` is used as a fallback (renders the node with sockets but no settings panel).
 
-> [!IMPORTANT]
+> [!NOTE]
 > When adding a new compute node type, three files must be touched:
 > 1. **Compute node** — create a `Node` subclass in `webgpu/compute/nodes/` (the engine-side compute logic).
 > 2. **Node registry** — call `register_node()` in `NodeRegistry::NodeRegistry()` (`webgpu/compute/NodeRegistry.cpp`) so the node can be instantiated by name (required for graph serialization / the add-node dialog).
