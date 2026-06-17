@@ -1,4 +1,4 @@
-# <img src="../apps/webgpu_app/shell/webigeo_logo.svg" width="40" height="40" align="left" style="margin-right:8px"/> weBIGeo — Developer Guide
+# <img src="../apps/webgpu_app/shell/webigeo_logo.svg" width="40" height="40" align="left" style="margin-right:8px"/> webgpu_app - Developer Guide
 
 ## Application structure
 
