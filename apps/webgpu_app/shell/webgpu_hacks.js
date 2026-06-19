@@ -52,10 +52,19 @@ class WeBIGeoHacks {
       this.webgpuAvailable = false;
       return;
     }
-    const deviceDescriptor = {};
-    if (adapter.features.has('timestamp-query'))
-      deviceDescriptor.requiredFeatures = ['timestamp-query'];
-    const device = await adapter.requestDevice(deviceDescriptor);
+    let device = null;
+    if (adapter.features.has('timestamp-query')) {
+      try {
+        device = await adapter.requestDevice({ requiredFeatures: ['timestamp-query'] });
+      } catch (e) {
+      }
+    }
+    if (!device) {
+      try {
+        device = await adapter.requestDevice();
+      } catch (e) {
+      }
+    }
     if (!device) {
       this.webgpuAvailable = false;
       return;
