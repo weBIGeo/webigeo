@@ -41,8 +41,9 @@ void SkyRenderer::init(webgpu::Context& context)
     m_registry = &context.resource_registry();
 
     // z-up earth atmosphere; Henyey-Greenstein + Draine Mie phase (matches the fixed shader variant).
+    // center is set every frame in update() from the camera position; init to origin until first update().
     m_atmosphere = params::makeEarthAtmosphere(false); // bottomRadius=6360km, height=100km
-    m_atmosphere.center = { 1.42688e+06f / 1000.0f, 5.95053e+06f / 1000.0f, -m_atmosphere.bottomRadius };
+    m_atmosphere.center = { 0.0f, 0.0f, -m_atmosphere.bottomRadius };
 }
 
 void SkyRenderer::resize(uint32_t width, uint32_t height, const webgpu::raii::Texture& depth_texture, const webgpu::raii::TextureView& depth_view,
@@ -85,6 +86,11 @@ void SkyRenderer::update(const nucleus::camera::Definition& camera, const glm::v
     m_uniforms.camera.inverseView = glm::mat4(glm::inverse(camera.camera_matrix()));
     m_uniforms.camera.position = glm::vec3(camera.position());
     m_uniforms.sun.direction = glm::normalize(sun_direction);
+
+    // Planet center follows the camera in x/y so view_height stays correct at any location.
+    // z is always derived from bottomRadius (planet surface sits at z=0 in world space).
+    const glm::vec3 cam_km = glm::vec3(camera.position()) / FROM_KM_SCALE;
+    m_atmosphere.center = { cam_km.x, cam_km.y, -m_atmosphere.bottomRadius };
 }
 
 void SkyRenderer::render(WGPUCommandEncoder command_encoder)
@@ -99,9 +105,10 @@ void SkyRenderer::render(WGPUCommandEncoder command_encoder)
     compute_pass_desc.label = sv("sky luts + render compute pass");
     webgpu::raii::ComputePassEncoder compute_pass(command_encoder, compute_pass_desc);
 
+    // center is updated every frame in update(); push the full struct so the GPU sees the new center.
+    m_renderer->update_atmosphere(m_atmosphere);
+
     if (m_atmosphere_dirty) {
-        m_atmosphere.center.z = -m_atmosphere.bottomRadius; // keep derived invariant
-        m_renderer->update_atmosphere(m_atmosphere);
         m_renderer->render_constant_luts(compute_pass.handle());
         m_atmosphere_dirty = false;
     }

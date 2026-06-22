@@ -151,7 +151,12 @@ fn get_tile_info(tile_id: vec2i) -> tile_info {
 }
 
 fn sample_volume(pos_world: vec3f, lod: f32, tile_id: vec2i, tile: tile_info, atlas_sampler: sampler) -> f32 {
-    let height_adjusted = pos_world.z * cos(y_to_lat(pos_world.y));
+    // Sphere correction: at horizontal camera distance d, the visual surface drops by d^2/(2R).
+    // Subtract that from the absolute altitude so cloud height is measured above the curved surface.
+    let rel_xy = pos_world.xy - params.camera.position.xy;
+    let d_sq = dot(rel_xy, rel_xy);
+    let curvature_drop = d_sq / (2.0 * sconf.planet_radius_m);
+    let height_adjusted = (pos_world.z + curvature_drop) * cos(y_to_lat(pos_world.y));
     if height_adjusted < 0.0 || height_adjusted > 14000.0 || tile.zoom == 0u {
         return 0.0;
     }
