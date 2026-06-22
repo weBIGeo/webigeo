@@ -41,9 +41,7 @@ void SkyRenderer::init(webgpu::Context& context)
     m_registry = &context.resource_registry();
 
     // z-up earth atmosphere; Henyey-Greenstein + Draine Mie phase (matches the fixed shader variant).
-    m_atmosphere = params::makeEarthAtmosphere(false);
-    m_atmosphere.bottomRadius = 6360.0f * 100.0f;
-    m_atmosphere.height = 100.0f;
+    m_atmosphere = params::makeEarthAtmosphere(false); // bottomRadius=6360km, height=100km
     m_atmosphere.center = { 1.42688e+06f / 1000.0f, 5.95053e+06f / 1000.0f, -m_atmosphere.bottomRadius };
 }
 
@@ -102,6 +100,7 @@ void SkyRenderer::render(WGPUCommandEncoder command_encoder)
     webgpu::raii::ComputePassEncoder compute_pass(command_encoder, compute_pass_desc);
 
     if (m_atmosphere_dirty) {
+        m_atmosphere.center.z = -m_atmosphere.bottomRadius; // keep derived invariant
         m_renderer->update_atmosphere(m_atmosphere);
         m_renderer->render_constant_luts(compute_pass.handle());
         m_atmosphere_dirty = false;

@@ -140,6 +140,10 @@ fn compute_vertex(
     let adjusted_altitude: f32 = altitude_tex * altitude_correction_factor;
     (*position).z = adjusted_altitude - camera.position.z;
 
+    // Earth curvature correction: drop each vertex by d^2 / (2R) where d=distance to camera
+    let d_sq = (*position).x * (*position).x + (*position).y * (*position).y;
+    (*position).z -= d_sq / (2.0 * config.planet_radius_m);
+
     if curtain_vertex_id >= 0 {
         const curtain_height = 1000.0;
         (*position).z = (*position).z - curtain_height;

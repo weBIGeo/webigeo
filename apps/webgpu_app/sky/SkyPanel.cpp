@@ -67,7 +67,10 @@ void SkyPanel::draw_panel()
     bool redraw = false;
 
     ImGui::SeparatorText("Planet (world scale)");
-    atmosphere_changed |= ImGui::DragFloat("Bottom radius (km)", &atm.bottomRadius, 100.0f, 1.0f, 1.0e7f, "%.1f");
+    if (ImGui::DragFloat("Bottom radius (km)", &atm.bottomRadius, 100.0f, 1.0f, 1.0e7f, "%.1f")) {
+        cfg.m_planet_radius_m = atm.bottomRadius * 1000.0f; // keep terrain curvature in sync
+        atmosphere_changed = true;
+    }
     atmosphere_changed |= ImGui::DragFloat("Atmosphere height (km)", &atm.height, 1.0f, 0.1f, 2000.0f, "%.2f");
     redraw |= ImGui::DragFloat3("Center (km)", glm::value_ptr(atm.center), 10.0f); // per-frame only, no LUT re-render
 

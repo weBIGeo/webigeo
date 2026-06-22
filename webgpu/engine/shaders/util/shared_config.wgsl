@@ -30,7 +30,7 @@ struct shared_config {
     overlay_mode: u32,
     track_render_mode: u32,
     sky_mode: u32,
-    _padding1: u32,
+    planet_radius_m: f32,
 }
 
 ;
