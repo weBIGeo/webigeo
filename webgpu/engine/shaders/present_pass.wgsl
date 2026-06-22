@@ -1,7 +1,6 @@
 /*****************************************************************************
  * weBIGeo
- * Copyright (C) 2024 Patrick Komon
- * Copyright (C) 2023 Gerald Kimmersdorfer
+ * Copyright (C) 2026 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,20 +16,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-struct shared_config {
-    sun_light: vec4f,
-    sun_light_dir: vec4f,
-    amb_light: vec4f,
-    material_color: vec4f,
-    material_light_response: vec4f,
-    atmosphere_enabled: u32,
-    clouds_enabled: u32,
-    shading_enabled: u32,
-    normal_mode: u32,
-    overlay_mode: u32,
-    track_render_mode: u32,
-    sky_mode: u32,
-    _padding1: u32,
-}
+// Trivial full-screen blit used to copy the (legacy gradient or LUT-sky) result texture to the swapchain.
 
-;
+///use screen_pass_vert
+
+@group(0) @binding(0) var src_texture: texture_2d<f32>;
+
+@fragment
+fn fragmentMain(vertex_out: VertexOut) -> @location(0) vec4f {
+    let dims = textureDimensions(src_texture);
+    let tci = min(vec2u(vertex_out.texcoords * vec2f(dims)), dims - vec2u(1u));
+    return vec4f(textureLoad(src_texture, tci, 0).rgb, 1.0);
+}

@@ -26,6 +26,7 @@
 #include "nucleus/EngineContext.h"
 #include "nucleus/track/Manager.h"
 #include "overlay/OverlayRenderer.h"
+#include "sky/SkyRenderer.h"
 #include "tile_mesh/TileMeshRenderer.h"
 #include "track/TrackRenderer.h"
 #include <webgpu/base/Context.h>
@@ -48,6 +49,9 @@ public:
 
     AtmosphereRenderer* atmosphere_renderer() const;
     void set_atmosphere_renderer(std::shared_ptr<AtmosphereRenderer> new_atmosphere_renderer);
+
+    sky::SkyRenderer* sky_renderer() const;
+    void set_sky_renderer(std::shared_ptr<sky::SkyRenderer> new_sky_renderer);
 
     OverlayRenderer* overlay_renderer() const;
     void set_overlay_renderer(std::shared_ptr<OverlayRenderer> new_overlay_renderer);
@@ -80,6 +84,7 @@ private:
     std::shared_ptr<TileMeshRenderer> m_tile_mesh_renderer;
     std::shared_ptr<CloudRenderer> m_cloud_renderer;
     std::shared_ptr<AtmosphereRenderer> m_atmosphere_renderer;
+    std::shared_ptr<sky::SkyRenderer> m_sky_renderer;
     std::shared_ptr<OverlayRenderer> m_overlay_renderer;
     std::shared_ptr<TrackRenderer> m_track_renderer;
     // std::shared_ptr<TextureLayer> m_ortho_layer;

@@ -22,6 +22,15 @@ override USE_MOON: bool = false;
 override WORKGROUP_SIZE_X: u32 = 16;
 override WORKGROUP_SIZE_Y: u32 = 16;
 
+// weBIGeo integration: the sky LUTs store HDR luminance, but weBIGeo's back buffer (terrain) is already
+// LDR display color. We therefore tonemap the atmosphere contribution to LDR *before* blending it over
+// the LDR back buffer (the present pass is then a plain blit). Matches the reference port's tonemap.
+fn webigeo_tonemap(rgb: vec3<f32>) -> vec3<f32> {
+	let white_point = vec3<f32>(1.08241, 0.96756, 0.95003);
+	let exposure = 10.0;
+	return pow(vec3<f32>(1.0) - exp(-rgb / white_point * exposure), vec3<f32>(1.0 / 2.2));
+}
+
 @group(0) @binding(0) var<uniform> atmosphere_buffer: Atmosphere;
 @group(0) @binding(1) var<uniform> config_buffer: Uniforms;
 @group(0) @binding(2) var lut_sampler: sampler;
@@ -105,6 +114,7 @@ fn render_sky_atmosphere(@builtin(global_invocation_id) global_id: vec3<u32>) {
 	if output_size.x <= global_id.x || output_size.y <= global_id.y {
 		return;
 	}
-	blend(global_id.xy, render_sky(global_id.xy));
+	let result = render_sky(global_id.xy);
+	blend(global_id.xy, vec4<f32>(webigeo_tonemap(result.rgb), result.a));
 }
 

@@ -78,6 +78,7 @@ private:
     void create_buffers();
     void create_bind_groups();
     void recreate_compose_bind_group();
+    void recreate_present_bind_groups();
 
     // A helper function for the depth and position method.
     // ATTENTION: This function is synchronous and will hold rendering. Use with caution!
@@ -105,7 +106,15 @@ private:
     webgpu::FramebufferFormat m_gbuffer_format;
     std::unique_ptr<webgpu::Framebuffer> m_gbuffer;
 
+    // Compose renders into this intermediate (instead of directly to the swapchain) so the LUT sky
+    // compute pass can read the lit scene as its back buffer. A final present pass blits the result
+    // (legacy: scene color, LUT sky: sky render target) to the swapchain.
+    std::unique_ptr<webgpu::Framebuffer> m_scene_color_framebuffer;
+
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_compose_pipeline;
+    std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_present_pipeline; // raw blit to swapchain (both modes)
+    std::unique_ptr<webgpu::raii::BindGroup> m_present_bind_group_legacy; // samples scene color
+    std::unique_ptr<webgpu::raii::BindGroup> m_present_bind_group_sky; // samples the LUT sky render target
 
     // ToDo: Swapchain should get a raii class and the size could be saved in there
     glm::vec2 m_swapchain_size = glm::vec2(0.0f);

@@ -157,10 +157,21 @@ void Context::internal_initialise()
             "compose bind group layout");
     });
 
+    reg.register_bind_group_layout("present", [](WGPUDevice device) {
+        WGPUBindGroupLayoutEntry source_entry {};
+        source_entry.binding = 0;
+        source_entry.visibility = WGPUShaderStage_Fragment;
+        source_entry.texture.sampleType = WGPUTextureSampleType_Float;
+        source_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+        return std::make_unique<webgpu::raii::BindGroupLayout>(device, std::vector<WGPUBindGroupLayoutEntry> { source_entry }, "present bind group layout");
+    });
+
     if (m_tile_mesh_renderer)
         m_tile_mesh_renderer->init(webgpu_ctx());
     if (m_atmosphere_renderer)
         m_atmosphere_renderer->init(webgpu_ctx());
+    if (m_sky_renderer)
+        m_sky_renderer->init(webgpu_ctx());
     if (m_cloud_renderer)
         m_cloud_renderer->init(webgpu_ctx());
     if (m_overlay_renderer)
@@ -178,6 +189,7 @@ void Context::internal_destroy()
     m_track_renderer.reset();
     m_overlay_renderer.reset();
     m_cloud_renderer.reset();
+    m_sky_renderer.reset();
     m_atmosphere_renderer.reset();
     m_tile_mesh_renderer.reset();
 }
@@ -204,6 +216,14 @@ void Context::set_atmosphere_renderer(std::shared_ptr<AtmosphereRenderer> new_at
 {
     assert(!is_alive()); // only set before init is called.
     m_atmosphere_renderer = std::move(new_atmosphere_renderer);
+}
+
+sky::SkyRenderer* Context::sky_renderer() const { return m_sky_renderer.get(); }
+
+void Context::set_sky_renderer(std::shared_ptr<sky::SkyRenderer> new_sky_renderer)
+{
+    assert(!is_alive()); // only set before init is called.
+    m_sky_renderer = std::move(new_sky_renderer);
 }
 
 OverlayRenderer* Context::overlay_renderer() const { return m_overlay_renderer.get(); }

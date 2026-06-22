@@ -66,6 +66,21 @@ void Window::initialise_gpu()
             });
     });
 
+    reg.register_shader("present_pass", "webgpu_engine::present_pass");
+    reg.register_pipeline([this](WGPUDevice dev, const webgpu::RenderResourceRegistry& reg) {
+        webgpu::FramebufferFormat format {};
+        format.depth_format = WGPUTextureFormat_Depth24Plus;
+        format.color_formats.emplace_back(m_context->webgpu_ctx().surface_texture_format());
+        m_present_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(dev,
+            reg.shader("present_pass"),
+            reg.shader("present_pass"),
+            std::vector<webgpu::util::SingleVertexBufferInfo> {},
+            format,
+            std::vector<const webgpu::raii::BindGroupLayout*> {
+                &reg.bind_group_layout("present"),
+            });
+    });
+
     m_context->webgpu_ctx().resource_registry().recreate_all(m_context->webgpu_ctx().device());
 
     create_bind_groups();
@@ -142,7 +157,18 @@ void Window::resize_framebuffer(int w, int h)
     m_gbuffer_format.size = glm::uvec2 { w, h };
     m_gbuffer = std::make_unique<webgpu::Framebuffer>(m_context->webgpu_ctx().device(), m_gbuffer_format);
 
+    // Intermediate target compose renders into (surface format + depth, matching the compose pipeline).
+    webgpu::FramebufferFormat scene_color_format {};
+    scene_color_format.size = glm::uvec2 { w, h };
+    scene_color_format.depth_format = WGPUTextureFormat_Depth24Plus;
+    scene_color_format.color_formats.emplace_back(m_context->webgpu_ctx().surface_texture_format());
+    m_scene_color_framebuffer = std::make_unique<webgpu::Framebuffer>(m_context->webgpu_ctx().device(), scene_color_format);
+
     m_context->atmosphere_renderer()->resize(w, h);
+
+    // Recreate the LUT sky renderer for the new viewport: back buffer = scene color, depth = gbuffer depth.
+    m_context->sky_renderer()->resize(uint32_t(w), uint32_t(h), m_gbuffer->depth_texture(), m_gbuffer->depth_texture_view(),
+        m_scene_color_framebuffer->color_texture(0), m_scene_color_framebuffer->color_texture_view(0));
 
     m_depth_texture_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
         m_context->webgpu_ctx().resource_registry().bind_group_layout("depth_texture"),
@@ -154,6 +180,7 @@ void Window::resize_framebuffer(int w, int h)
     m_context->overlay_renderer()->resize(w, h);
 
     recreate_compose_bind_group(); // Do late
+    recreate_present_bind_groups();
 }
 
 void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_encoder)
@@ -196,9 +223,9 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         m_shared_config_bind_group->handle(),
         m_camera_bind_group->handle());
 
-    // render geometry buffers to target framebuffer
+    // render geometry buffers into the intermediate scene color target
     {
-        std::unique_ptr<webgpu::raii::RenderPassEncoder> render_pass = framebuffer->begin_render_pass(command_encoder);
+        std::unique_ptr<webgpu::raii::RenderPassEncoder> render_pass = m_scene_color_framebuffer->begin_render_pass(command_encoder);
         wgpuRenderPassEncoderSetPipeline(render_pass->handle(), m_compose_pipeline->pipeline().handle());
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 0, m_shared_config_bind_group->handle(), 0, nullptr);
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 1, m_camera_bind_group->handle(), 0, nullptr);
@@ -206,10 +233,28 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         wgpuRenderPassEncoderDraw(render_pass->handle(), 3, 1, 0, 0);
     }
 
-    // render lines to color buffer
+    // render lines into the scene color target (so they become part of the LUT sky back buffer)
     if (m_context->shared_config().m_track_render_mode > 0) {
-        m_context->track_renderer()->render(
-            command_encoder, *m_shared_config_bind_group, *m_camera_bind_group, *m_depth_texture_bind_group, framebuffer->color_texture_view(0));
+        m_context->track_renderer()->render(command_encoder, *m_shared_config_bind_group, *m_camera_bind_group, *m_depth_texture_bind_group,
+            m_scene_color_framebuffer->color_texture_view(0));
+    }
+
+    const bool lut_sky = m_context->shared_config().m_sky_mode == 1;
+
+    // LUT-based sky: layer physically-based atmosphere over the scene color back buffer
+    if (lut_sky) {
+        const glm::vec3 sun_direction = -glm::vec3(m_context->shared_config().m_sun_light_dir);
+        m_context->sky_renderer()->update(m_camera, sun_direction);
+        m_context->sky_renderer()->render(command_encoder);
+    }
+
+    // present: blit the chosen result (LUT sky render target or scene color) to the swapchain
+    {
+        std::unique_ptr<webgpu::raii::RenderPassEncoder> render_pass = framebuffer->begin_render_pass(command_encoder);
+        wgpuRenderPassEncoderSetPipeline(render_pass->handle(), m_present_pipeline->pipeline().handle());
+        wgpuRenderPassEncoderSetBindGroup(
+            render_pass->handle(), 0, (lut_sky ? m_present_bind_group_sky : m_present_bind_group_legacy)->handle(), 0, nullptr);
+        wgpuRenderPassEncoderDraw(render_pass->handle(), 3, 1, 0, 0);
     }
 
     m_paint_number++;
@@ -295,6 +340,7 @@ void Window::reload_shaders()
 {
     m_context->webgpu_ctx().resource_registry().recreate_all(m_context->webgpu_ctx().device());
     recreate_compose_bind_group();
+    recreate_present_bind_groups();
     qDebug() << "reloading shaders done";
     request_redraw();
 }
@@ -340,6 +386,21 @@ void Window::recreate_compose_bind_group()
                 m_context->overlay_renderer()->result_pre_view()->create_bind_group_entry(11), // overlay pre-shading output
             });
     }
+}
+
+void Window::recreate_present_bind_groups()
+{
+    m_present_bind_group_legacy = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
+        m_context->webgpu_ctx().resource_registry().bind_group_layout("present"),
+        std::initializer_list<WGPUBindGroupEntry> {
+            m_scene_color_framebuffer->color_texture_view(0).create_bind_group_entry(0),
+        });
+
+    m_present_bind_group_sky = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
+        m_context->webgpu_ctx().resource_registry().bind_group_layout("present"),
+        std::initializer_list<WGPUBindGroupEntry> {
+            m_context->sky_renderer()->result_view()->create_bind_group_entry(0),
+        });
 }
 
 void Window::update_required_gpu_limits(WGPULimits& limits, const WGPULimits& supported_limits)

@@ -45,8 +45,8 @@ public:
 
     uint32_t m_overlay_mode = 0; // per-tile debug data packed into GBuffer slot 3 (see TileDebugOverlay)
     uint32_t m_track_render_mode = 1; // 0...none, 1...without depth test, 2...with depth test, 3 semi-transparent if behind terrain
-    uint32_t m_padding0 = 0; // std140: pad the trailing scalar block to a 16-byte boundary
-    uint32_t m_padding1 = 0;
+    uint32_t m_sky_mode = 1; // 0...legacy gradient atmosphere (composited here), 1...LUT-based sky (composited in a later compute pass)
+    uint32_t m_padding1 = 0; // std140: pad the trailing scalar block to a 16-byte boundary
 };
 
 struct uboCameraConfig {

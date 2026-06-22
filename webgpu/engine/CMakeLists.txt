@@ -38,6 +38,7 @@ set(SOURCES
     sky/pipelines.h sky/pipelines.cpp
     sky/lut_renderer.h sky/lut_renderer.cpp
     sky/sky_renderer.h sky/sky_renderer.cpp
+    sky/SkyRenderer.h sky/SkyRenderer.cpp
     sky/atmosphere.h
     overlay/OverlayRenderer.h overlay/OverlayRenderer.cpp
     overlay/Overlay.h
@@ -89,6 +90,7 @@ qt_add_resources(webgpu_engine "shaders"
         "${SHADER_BASE_DIR}/render_atmosphere.wgsl"
         "${SHADER_BASE_DIR}/render_lines.wgsl"
         "${SHADER_BASE_DIR}/compose_pass.wgsl"
+        "${SHADER_BASE_DIR}/present_pass.wgsl"
         "${SHADER_BASE_DIR}/screen_pass_vert.wgsl"
         "${SHADER_BASE_DIR}/render_clouds.wgsl"
         "${SHADER_BASE_DIR}/upscale_clouds.wgsl"

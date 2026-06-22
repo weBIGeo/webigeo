@@ -187,17 +187,22 @@ fn fragmentMain(vertex_out: VertexOut) -> @location(0) vec4f {
         if bool(conf.shading_enabled) {
             shaded_color = calculate_illumination(shaded_color, origin, pos_ws, normal, conf.sun_light, conf.amb_light, conf.sun_light_dir.xyz, material_light_response, amb_occlusion, shadow_term);
         }
-        if bool(conf.atmosphere_enabled) {
+        // Legacy gradient atmosphere is applied here only in legacy sky mode; in LUT-sky mode the
+        // dedicated sky compute pass layers physically-based atmosphere over this back buffer instead.
+        if conf.sky_mode == 0u && bool(conf.atmosphere_enabled) {
             shaded_color = calculate_atmospheric_light(origin / 1000.0, ray_direction, dist / 1000.0, shaded_color, 10);
         }
         shaded_color = max(vec3(0.0), shaded_color);
-        if dist > 0 && bool(conf.atmosphere_enabled) {
+        if dist > 0 && conf.sky_mode == 0u && bool(conf.atmosphere_enabled) {
             let atmosphere_blend = calculate_falloff(dist, 300000.0, 600000.0);
             shaded_color = mix(atmospheric_color, shaded_color, atmosphere_blend);
         }
         out_Color = vec4(shaded_color, 1.0);
     } else {
-        if bool(conf.atmosphere_enabled) {
+        if conf.sky_mode == 1u {
+            // background for the LUT sky pass (it fills the sky for pixels without geometry)
+            out_Color = vec4(0.0, 0.0, 0.0, 1.0);
+        } else if bool(conf.atmosphere_enabled) {
             out_Color = vec4(atmospheric_color, 1.0);
         } else {
             out_Color = vec4(1.0);
@@ -219,8 +224,8 @@ fn fragmentMain(vertex_out: VertexOut) -> @location(0) vec4f {
         let straight_rgb = clouds_color.rgb / safe_alpha;
         var tonemapped_rgb = straight_rgb / (straight_rgb + 1.0);
 
-        //atmosphere
-        if clouds_depth > 0.0 && bool(conf.atmosphere_enabled) {
+        //atmosphere (legacy gradient only; LUT-sky mode handles atmosphere in the sky compute pass)
+        if clouds_depth > 0.0 && conf.sky_mode == 0u && bool(conf.atmosphere_enabled) {
             let atmosphere_blend = calculate_falloff(clouds_depth, 300000.0, 600000.0);
             tonemapped_rgb = mix(atmospheric_color, tonemapped_rgb, atmosphere_blend);
         }
