@@ -70,6 +70,7 @@ void SkyRenderer::resize(uint32_t width, uint32_t height, const webgpu::raii::Te
     config.initializeConstantLuts = true;
     config.skyRenderer.depthBuffer.texture = &depth_texture;
     config.skyRenderer.depthBuffer.view = &depth_view;
+    config.skyRenderer.depthBuffer.reverseZ = true; // weBIGeo uses reverse-Z (sky depth = 0)
     config.skyRenderer.backBuffer.texture = &back_buffer_texture;
     config.skyRenderer.backBuffer.view = &back_buffer_view;
     config.skyRenderer.renderTarget.texture = m_render_target.get();
