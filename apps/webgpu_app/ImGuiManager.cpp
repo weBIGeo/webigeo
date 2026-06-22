@@ -31,6 +31,7 @@
 #endif
 
 #include "atmosphere/AtmospherePanel.h"
+#include "sky/SkyPanel.h"
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_wgpu.h"
 #include "cloud/CloudPanel.h"
@@ -101,6 +102,7 @@ void ImGuiManager::init(
     m_panels.push_back(std::make_unique<AppPanel>(m_terrain_renderer));
     m_panels.push_back(std::make_unique<CloudPanel>(engine_ctx, rc->clouds_manager(), engine_ctx->cloud_renderer()));
     m_panels.push_back(std::make_unique<AtmospherePanel>(engine_ctx));
+    m_panels.push_back(std::make_unique<SkyPanel>(engine_ctx, engine_ctx->sky_renderer()));
     m_panels.push_back(std::make_unique<ShadingPanel>(engine_ctx));
     m_panels.push_back(std::make_unique<TrackPanel>(engine_ctx, m_terrain_renderer));
 #ifdef ALP_WEBGPU_APP_ENABLE_COMPUTE

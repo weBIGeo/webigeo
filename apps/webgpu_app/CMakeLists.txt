@@ -45,6 +45,7 @@ set(SOURCES
     ui/SearchPanel.h ui/SearchPanel.cpp
 
     atmosphere/AtmospherePanel.h atmosphere/AtmospherePanel.cpp
+    sky/SkyPanel.h sky/SkyPanel.cpp
     cloud/CloudPanel.h cloud/CloudPanel.cpp
     track/TrackPanel.h track/TrackPanel.cpp
 
