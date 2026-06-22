@@ -4,6 +4,16 @@
  * SPDX-License-Identifier: MIT
  */
 
+///use webgpu_engine::sky/common/shadow
+///use webgpu_engine::sky/common/constants
+///use webgpu_engine::sky/common/intersection
+///use webgpu_engine::sky/common/medium
+///use webgpu_engine::sky/common/phase
+///use webgpu_engine::sky/common/uv
+///use webgpu_engine::sky/common/uniforms
+///use webgpu_engine::sky/common/coordinate_system
+///use webgpu_engine::sky/common/multiple_scattering
+
 override SKY_VIEW_LUT_RES_X: f32 = 192.0;
 override SKY_VIEW_LUT_RES_Y: f32 = 108.0;
 

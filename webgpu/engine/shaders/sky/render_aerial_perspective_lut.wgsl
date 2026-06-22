@@ -4,6 +4,18 @@
  * SPDX-License-Identifier: MIT
  */
 
+///use webgpu_engine::sky/common/shadow
+///use webgpu_engine::sky/common/constants
+///use webgpu_engine::sky/common/intersection
+///use webgpu_engine::sky/common/medium
+///use webgpu_engine::sky/common/phase
+///use webgpu_engine::sky/common/uv
+///use webgpu_engine::sky/common/uniforms
+///use webgpu_engine::sky/common/coordinate_system
+///use webgpu_engine::sky/common/multiple_scattering
+///use webgpu_engine::sky/common/aerial_perspective
+///use webgpu_engine::sky/common/sample_sagment_t
+
 override USE_MOON: bool = false;
 
 override WORKGROUP_SIZE_X: u32 = 16;

@@ -10,8 +10,8 @@ override MIE_USE_HG_DRAINE_DYNAMIC: bool = false;
 // https://research.nvidia.com/labs/rtr/approximate-mie/publications/approximate-mie.pdf
 // cloud water droplet diameter in µm (should be 5 µm < d < 50 µm)
 override HG_DRAINE_DROPLET_DIAMETER: f32 = 3.4;
-// include hg_draine_size
-// include hg_draine_const
+///use webgpu_engine::sky/common/hg_draine_mid2
+///use webgpu_engine::sky/common/hg_draine_phase_const
 
 const one_over_four_pi = 1.0 / (2.0 * tau);
 

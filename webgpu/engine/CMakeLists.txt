@@ -35,6 +35,10 @@ set(SOURCES
     sky/config.h sky/config.cpp
     sky/util.h sky/util.cpp
     sky/resources.h sky/resources.cpp
+    sky/pipelines.h sky/pipelines.cpp
+    sky/lut_renderer.h sky/lut_renderer.cpp
+    sky/sky_renderer.h sky/sky_renderer.cpp
+    sky/atmosphere.h
     overlay/OverlayRenderer.h overlay/OverlayRenderer.cpp
     overlay/Overlay.h
     overlay/HeightLinesOverlay.h overlay/HeightLinesOverlay.cpp
@@ -120,6 +124,7 @@ qt_add_resources(webgpu_engine "shaders"
         "${SHADER_BASE_DIR}/sky/common/multiple_scattering.wgsl"
         "${SHADER_BASE_DIR}/sky/common/phase.wgsl"
         "${SHADER_BASE_DIR}/sky/common/sample_sagment_t.wgsl"
+        "${SHADER_BASE_DIR}/sky/common/shadow.wgsl"
         "${SHADER_BASE_DIR}/sky/common/shadow_base.wgsl"
         "${SHADER_BASE_DIR}/sky/common/sky_view.wgsl"
         "${SHADER_BASE_DIR}/sky/common/sun_disk.wgsl"
