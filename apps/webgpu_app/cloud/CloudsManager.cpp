@@ -20,11 +20,11 @@
 #include "CloudsManager.h"
 
 #include <QDebug>
-#include <cstdio>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkReply>
+#include <cstdio>
 
 namespace webgpu_app::clouds {
 
@@ -44,9 +44,9 @@ APIService::APIService(QObject* parent)
 {
 }
 
-const QVector<TileSetInfo>& APIService::get_slots() const { return m_slots; }
+const QVector<TileSetInfo>& APIService::get_tilesets() const { return m_slots; }
 
-const QHash<QString, int>& APIService::get_slots_map() const { return m_id_to_index; }
+const QHash<QString, int>& APIService::get_tilesets_map() const { return m_id_to_index; }
 
 TileSetInfo APIService::get_slot(const QString& id) const
 {
@@ -153,19 +153,8 @@ Manager::Manager(QObject* parent)
 
     connect(m_api_service.get(), &APIService::tileset_list_loaded, this, [this](bool ok) {
         m_loading = false;
-        if (!ok)
-            return;
-
-        const auto& tilesets = m_api_service->get_slots();
-        auto current_date = QDateTime::currentDateTimeUtc();
-        auto ymd = QCalendar().partsFromDate(current_date.date());
-        int hour = current_date.time().hour();
-        for (const auto& slot : tilesets) {
-            if (slot.date.year == ymd.year && slot.date.month == ymd.month && slot.date.day == ymd.day && slot.date.hour == hour) {
-                select_time_slot(slot);
-                break;
-            }
-        }
+        if (ok)
+            emit tileset_list_ready();
     });
 
     m_api_service->refresh_tileset_list();
@@ -188,7 +177,25 @@ void Manager::refresh_tileset_list()
 
 TileSetInfo Manager::selected_time_slot() const { return m_api_service->get_slot(m_selected_slot_id); }
 
-const QVector<TileSetInfo>& Manager::get_slots() const { return m_api_service->get_slots(); }
+const QVector<TileSetInfo>& Manager::get_tilesets() const { return m_api_service->get_tilesets(); }
+
+const TileSetInfo* Manager::find_best_tileset(int year, int month, int day, int hour, int minute) const
+{
+    const auto& tilesets = get_tilesets();
+    const TileSetInfo* best = nullptr;
+    int best_diff = INT_MAX;
+    int target_minutes = hour * 60 + minute;
+    for (const auto& ts : tilesets) {
+        if (ts.date.year == year && ts.date.month == month && ts.date.day == day) {
+            int diff = std::abs(ts.date.hour * 60 - target_minutes);
+            if (diff < best_diff) {
+                best_diff = diff;
+                best = &ts;
+            }
+        }
+    }
+    return best;
+}
 
 const QString& Manager::server_url() const { return m_api_service->server_url(); }
 

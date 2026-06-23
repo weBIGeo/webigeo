@@ -41,6 +41,7 @@
 #include "ui/AppPanel.h"
 #include "ui/CameraPanel.h"
 #include "ui/CompassPanel.h"
+#include "ui/DateTimePanel.h"
 #include "ui/LogoPanel.h"
 #include "ui/SearchPanel.h"
 #include "ui/ShadingPanel.h"
@@ -101,15 +102,24 @@ void ImGuiManager::init(
     m_panels.push_back(std::make_unique<CameraPanel>(m_terrain_renderer));
     m_panels.push_back(std::make_unique<AppPanel>(m_terrain_renderer));
     m_panels.push_back(std::make_unique<CloudPanel>(engine_ctx, rc->clouds_manager(), engine_ctx->cloud_renderer()));
+    CloudPanel& cloud_panel = static_cast<CloudPanel&>(*m_panels.back());
     m_panels.push_back(std::make_unique<AtmospherePanel>(engine_ctx));
     m_panels.push_back(std::make_unique<SkyPanel>(engine_ctx, engine_ctx->sky_renderer()));
     m_panels.push_back(std::make_unique<ShadingPanel>(engine_ctx));
+    ShadingPanel& shading_panel = static_cast<ShadingPanel&>(*m_panels.back());
+    m_panels.push_back(std::make_unique<DateTimePanel>(m_terrain_renderer, engine_ctx, rc->clouds_manager()));
+    DateTimePanel& datetime_panel = static_cast<DateTimePanel&>(*m_panels.back());
     m_panels.push_back(std::make_unique<TrackPanel>(engine_ctx, m_terrain_renderer));
 #ifdef ALP_WEBGPU_APP_ENABLE_COMPUTE
     m_panels.push_back(std::make_unique<NodeGraphPanel>(engine_ctx));
 #endif
     m_panels.push_back(std::make_unique<OverlaysPanel>(engine_ctx));
 
+    for (auto& p : m_panels)
+        p->m_manager = this;
+
+    connect(&shading_panel, &ShadingPanel::sun_dir_manually_changed, &datetime_panel, &DateTimePanel::disable_sun_link);
+    connect(&cloud_panel, &CloudPanel::tileset_manually_selected, &datetime_panel, &DateTimePanel::disable_cloud_link);
     connect(&search_panel, &SearchPanel::search_requested, rc->search_service(), &SearchService::search);
     connect(&search_panel,
         &SearchPanel::search_result_selected,
@@ -218,6 +228,14 @@ void ImGuiManager::on_sdl_event(SDL_Event& event) { ImGui_ImplSDL2_ProcessEvent(
 void ImGuiManager::set_gui_visibility(bool visible) { m_gui_visible = visible; }
 
 bool ImGuiManager::get_gui_visibility() const { return m_gui_visible; }
+
+void ImGuiManager::request_window_open(ImGuiPanel* panel) { m_active_window_panel = panel; }
+
+void ImGuiManager::request_window_close() { m_active_window_panel = nullptr; }
+
+bool ImGuiManager::is_window_open() const { return m_active_window_panel != nullptr; }
+
+ImVec2 ImGuiManager::get_window_size() const { return m_current_window_size; }
 
 float ImGuiManager::s_tool_button_y = 0.0f;
 ImFont* ImGuiManager::s_node_font = nullptr;
@@ -346,18 +364,63 @@ void ImGuiManager::draw()
     if (!m_gui_visible)
         return;
 
+    const ImVec2 display = ImGui::GetIO().DisplaySize;
+    constexpr float sidebar_w = 430.0f;
+    constexpr float tab_w = 22.0f;
+    constexpr float tab_h = 60.0f;
+
     // Reset the floating tool-button stack for this frame (bottom-left, stacking upward).
-    s_tool_button_y = ImGui::GetIO().DisplaySize.y - 48.0f - 40.0f;
+    s_tool_button_y = display.y - 48.0f - 40.0f;
 
-    // Main sidebar window with CollapsingHeader sections.
-    ImGui::SetNextWindowPos(ImVec2(ImGui::GetIO().DisplaySize.x - 430, 0)); // Set position to top-right corner
-    ImGui::SetNextWindowSize(ImVec2(430, ImGui::GetIO().DisplaySize.y)); // Set height to full screen height, width as desired
-    ImGui::Begin("weBIGeo", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar);
+    // Always reflect current available area so panels can query it at any time.
+    m_current_window_size = ImVec2(m_sidebar_visible ? display.x - sidebar_w : display.x, display.y);
 
-    for (auto& panel : m_panels)
-        panel->draw_panel();
+    // Sidebar show/hide tab
+    {
+        const float sidebar_x = m_sidebar_visible ? display.x - sidebar_w : display.x;
+        ImGui::SetNextWindowPos(ImVec2(sidebar_x - tab_w, (display.y - tab_h) * 0.5f), ImGuiCond_Always);
+        ImGui::SetNextWindowSizeConstraints(ImVec2(tab_w, tab_h), ImVec2(tab_w, tab_h));
+        ImGui::SetNextWindowBgAlpha(0.5f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        ImGui::Begin("##sidebar_toggle",
+            nullptr,
+            ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse
+                | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
 
-    ImGui::End();
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.0f, 0.0f, 0.0f, 0.2f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.0f, 0.0f, 0.0f, 0.2f));
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
+
+        const char* chevron = m_sidebar_visible ? ICON_FA_CHEVRON_RIGHT : ICON_FA_CHEVRON_LEFT;
+        if (s_node_font)
+            ImGui::PushFont(s_node_font);
+        if (ImGui::Button(chevron, ImVec2(tab_w, tab_h)))
+            m_sidebar_visible = !m_sidebar_visible;
+        if (s_node_font)
+            ImGui::PopFont();
+
+        ImGui::PopStyleColor(4);
+        ImGui::End();
+        ImGui::PopStyleVar();
+    }
+
+    // Main sidebar window (only when visible).
+    if (m_sidebar_visible) {
+        ImGui::SetNextWindowPos(ImVec2(display.x - sidebar_w, 0));
+        ImGui::SetNextWindowSize(ImVec2(sidebar_w, display.y));
+        ImGui::Begin("weBIGeo", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar);
+
+        for (auto& panel : m_panels)
+            panel->draw_panel();
+
+        ImGui::End();
+    }
+
+    // Full-screen window for the active panel (covers non-sidebar area).
+    if (m_active_window_panel)
+        m_active_window_panel->draw_window();
 
     for (auto& panel : m_panels)
         panel->draw();

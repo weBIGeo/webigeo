@@ -19,6 +19,7 @@
 
 #include "LogoPanel.h"
 
+#include "ImGuiManager.h"
 #include <imgui.h>
 #include <imgui_internal.h>
 
@@ -54,7 +55,10 @@ void LogoPanel::init_logo()
 }
 
 void LogoPanel::draw()
-{ // weBIGeo LOGO
+{
+    if (m_manager && m_manager->is_window_open())
+        return;
+
     ImVec2 viewportSize = ImGui::GetMainViewport()->Size;
     float viewportWidth = viewportSize.x;
     const float minWidth = 800.0f;
@@ -62,27 +66,23 @@ void LogoPanel::draw()
 
     float scaleFactor = 1.0f;
     if (viewportWidth <= minWidth) {
-        scaleFactor = 0.5f;
+        return;
     } else if (viewportWidth >= maxWidth) {
         scaleFactor = 1.0f;
     } else {
         scaleFactor = 0.5f + 0.5f * ((viewportWidth - minWidth) / (maxWidth - minWidth));
     }
     ImVec2 scaledSize = ImVec2(m_webigeo_logo_size.x * scaleFactor * 0.75f, m_webigeo_logo_size.y * scaleFactor * 0.75f);
-    const float padX = 20.0f;
-    const float padY = 10.0f;
-    const float offsetY = 30.0f;
+    const float padX = 30.0f;
+    const float padY = 20.0f;
+    const float offsetY = 0.0f;
     const float topRightSkew = 50.0f;
 
     float bgRight = padX + scaledSize.x + padX;
     float bgBottom = offsetY + padY + scaledSize.y + padY;
-    ImU32 bgColor = ImGui::GetColorU32(ImGuiCol_WindowBg, 0.5f);
+    ImU32 bgColor = ImGui::GetColorU32(ImGuiCol_WindowBg, 0.8f);
     ImGui::GetBackgroundDrawList()->AddQuadFilled(
-        ImVec2(0.0f, offsetY),
-        ImVec2(bgRight + topRightSkew, offsetY),
-        ImVec2(bgRight, bgBottom),
-        ImVec2(0.0f, bgBottom),
-        bgColor);
+        ImVec2(0.0f, offsetY), ImVec2(bgRight + topRightSkew, offsetY), ImVec2(bgRight, bgBottom), ImVec2(0.0f, bgBottom), bgColor);
 
     ImGui::SetNextWindowPos(ImVec2(0, offsetY), ImGuiCond_Always);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(padX, padY));

@@ -51,6 +51,7 @@ public:
     // Loads the default pipeline preset into the contexts compute graph (called after init).
     void ready() override;
     void draw() override;
+    void draw_window() override;
 
     enum class GraphRenderingMode { Default, Transparent, White };
 
@@ -144,7 +145,6 @@ private:
     // and swaps it in. Shows the error modal and keeps the current graph on any failure.
     void import_graph_json(const QByteArray& data, const std::string& source_name);
 
-    void calculate_window_size();
     void center_target_layout();
     void calculate_auto_layout();
 

@@ -33,11 +33,15 @@ namespace clouds {
 }
 
 class CloudPanel : public ImGuiPanel {
+    Q_OBJECT
 public:
     CloudPanel(webgpu_engine::Context* context, clouds::Manager* clouds_manager, webgpu_engine::CloudRenderer* cloud_renderer);
 
     void draw() override;
     void draw_panel() override;
+
+signals:
+    void tileset_manually_selected();
 
 private:
     webgpu_engine::Context* m_context;
