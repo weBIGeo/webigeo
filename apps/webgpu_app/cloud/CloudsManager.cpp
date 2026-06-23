@@ -20,11 +20,11 @@
 #include "CloudsManager.h"
 
 #include <QDebug>
-#include <cstdio>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkReply>
+#include <cstdio>
 
 namespace webgpu_app::clouds {
 
@@ -188,7 +188,10 @@ const TileSetInfo* Manager::find_best_tileset(int year, int month, int day, int 
     for (const auto& ts : tilesets) {
         if (ts.date.year == year && ts.date.month == month && ts.date.day == day) {
             int diff = std::abs(ts.date.hour * 60 - target_minutes);
-            if (diff < best_diff) { best_diff = diff; best = &ts; }
+            if (diff < best_diff) {
+                best_diff = diff;
+                best = &ts;
+            }
         }
     }
     return best;

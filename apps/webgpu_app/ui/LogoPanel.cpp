@@ -82,11 +82,7 @@ void LogoPanel::draw()
     float bgBottom = offsetY + padY + scaledSize.y + padY;
     ImU32 bgColor = ImGui::GetColorU32(ImGuiCol_WindowBg, 0.8f);
     ImGui::GetBackgroundDrawList()->AddQuadFilled(
-        ImVec2(0.0f, offsetY),
-        ImVec2(bgRight + topRightSkew, offsetY),
-        ImVec2(bgRight, bgBottom),
-        ImVec2(0.0f, bgBottom),
-        bgColor);
+        ImVec2(0.0f, offsetY), ImVec2(bgRight + topRightSkew, offsetY), ImVec2(bgRight, bgBottom), ImVec2(0.0f, bgBottom), bgColor);
 
     ImGui::SetNextWindowPos(ImVec2(0, offsetY), ImGuiCond_Always);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(padX, padY));

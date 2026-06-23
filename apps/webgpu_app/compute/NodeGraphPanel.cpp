@@ -22,6 +22,7 @@
 #include "ImGuiManager.h"
 #include "nodes/NodeRendererFactory.h"
 #include <IconsFontAwesome5.h>
+#include <QDebug>
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -31,7 +32,6 @@
 #include <imgui_internal.h>
 #include <imnodes.h>
 #include <imnodes_internal.h>
-#include <QDebug>
 #include <webgpu/compute/NodeGraphSerialization.h>
 #include <webgpu/compute/NodeRegistry.h>
 #include <webgpu/engine/Context.h>
@@ -115,7 +115,7 @@ void NodeGraphPanel::import_graph_json(const QByteArray& data, const std::string
     const QJsonObject ui_nodes = root["ui"].toObject()["nodes"].toObject();
 
     const QString notice = root["first_run_notice"].toString();
-    m_pending_first_run_notice = notice.isEmpty() ? std::string{} : notice.toStdString();
+    m_pending_first_run_notice = notice.isEmpty() ? std::string {} : notice.toStdString();
 
     attach_graph(std::move(*result));
 

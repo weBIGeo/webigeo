@@ -46,8 +46,6 @@ public slots:
 private:
     enum class CloudLinkState { Unavailable, Green, Yellow, Red };
 
-    // load_cloud=false: update sun dir + indicator only (real-time while dragging)
-    // load_cloud=true:  also call select_time_slot (on release / discrete changes)
     void recalculate_and_apply(bool load_cloud);
 
     App* m_terrain_renderer;
@@ -57,11 +55,10 @@ private:
     bool m_sun_linked = true;
     bool m_cloud_linked = true;
 
-    // Cached — updated every recalculate_and_apply call
     CloudLinkState m_cloud_link_state = CloudLinkState::Unavailable;
-    int m_cloud_tileset_local_hour = -1;  // -1 when no same-day tileset found; local time
+    int m_cloud_tileset_local_hour = -1; // -1 when no same-day tileset found; local time
 
-    tm m_date {};   // tm_year = years since 1900, tm_mon = 0-based, tm_mday = 1-based
+    tm m_date {}; // tm_year = years since 1900, tm_mon = 0-based, tm_mday = 1-based
     int m_hour = 12, m_minute = 0;
 };
 

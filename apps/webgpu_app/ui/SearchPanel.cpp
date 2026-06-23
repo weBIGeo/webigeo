@@ -20,8 +20,8 @@
 #include "SearchPanel.h"
 
 #include "App.h"
-#include "ImGuiManager.h"
 #include "IconsFontAwesome5.h"
+#include "ImGuiManager.h"
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <string>

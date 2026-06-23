@@ -28,6 +28,7 @@ class ImGuiManager;
 class ImGuiPanel : public QObject {
     Q_OBJECT
     friend class ImGuiManager;
+
 public:
     virtual ~ImGuiPanel() = default;
 

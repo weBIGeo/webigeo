@@ -40,9 +40,9 @@
 #include "ui/AppPanel.h"
 #include "ui/CameraPanel.h"
 #include "ui/CompassPanel.h"
+#include "ui/DateTimePanel.h"
 #include "ui/LogoPanel.h"
 #include "ui/SearchPanel.h"
-#include "ui/DateTimePanel.h"
 #include "ui/ShadingPanel.h"
 #include "ui/TimingPanel.h"
 #ifdef ALP_WEBGPU_APP_ENABLE_COMPUTE
@@ -117,7 +117,7 @@ void ImGuiManager::init(
         p->m_manager = this;
 
     connect(&shading_panel, &ShadingPanel::sun_dir_manually_changed, &datetime_panel, &DateTimePanel::disable_sun_link);
-    connect(&cloud_panel,   &CloudPanel::tileset_manually_selected,  &datetime_panel, &DateTimePanel::disable_cloud_link);
+    connect(&cloud_panel, &CloudPanel::tileset_manually_selected, &datetime_panel, &DateTimePanel::disable_cloud_link);
     connect(&search_panel, &SearchPanel::search_requested, rc->search_service(), &SearchService::search);
     connect(&search_panel,
         &SearchPanel::search_result_selected,
@@ -373,17 +373,17 @@ void ImGuiManager::draw()
     // Always reflect current available area so panels can query it at any time.
     m_current_window_size = ImVec2(m_sidebar_visible ? display.x - sidebar_w : display.x, display.y);
 
-    // Sidebar toggle tab — same visual style as FloatingToggleButton, attached to the sidebar's left edge.
+    // Sidebar show/hide tab
     {
         const float sidebar_x = m_sidebar_visible ? display.x - sidebar_w : display.x;
         ImGui::SetNextWindowPos(ImVec2(sidebar_x - tab_w, (display.y - tab_h) * 0.5f), ImGuiCond_Always);
         ImGui::SetNextWindowSizeConstraints(ImVec2(tab_w, tab_h), ImVec2(tab_w, tab_h));
         ImGui::SetNextWindowBgAlpha(0.5f);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-        ImGui::Begin("##sidebar_toggle", nullptr,
-            ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar
-                | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBringToFrontOnFocus
-                | ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::Begin("##sidebar_toggle",
+            nullptr,
+            ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse
+                | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_AlwaysAutoResize);
         ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
 
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
