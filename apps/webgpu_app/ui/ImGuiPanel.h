@@ -23,8 +23,11 @@
 
 namespace webgpu_app {
 
+class ImGuiManager;
+
 class ImGuiPanel : public QObject {
     Q_OBJECT
+    friend class ImGuiManager;
 public:
     virtual ~ImGuiPanel() = default;
 
@@ -36,6 +39,13 @@ public:
 
     // Called inside the main sidebar ImGui::Begin/End block
     virtual void draw_panel() { }
+
+    // Called when this panel is the active full-screen window.
+    // width/height cover the non-sidebar area; pos_x/pos_y are always 0.
+    virtual void draw_window(float /*width*/, float /*height*/, float /*pos_x*/, float /*pos_y*/) { }
+
+protected:
+    ImGuiManager* m_manager = nullptr;
 };
 
 } // namespace webgpu_app

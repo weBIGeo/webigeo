@@ -51,6 +51,10 @@ public:
     void set_gui_visibility(bool visible);
     bool get_gui_visibility() const;
 
+    void request_window_open(ImGuiPanel* panel);
+    void request_window_close();
+    bool is_window_open() const;
+
     // Top-left Y for the next floating tool button
     static float s_tool_button_y;
 
@@ -95,6 +99,8 @@ private:
     WGPUDevice m_device = {};
     App* m_terrain_renderer = nullptr;
     bool m_gui_visible = true;
+    bool m_sidebar_visible = false;
+    ImGuiPanel* m_active_window_panel = nullptr;
 
     std::vector<std::unique_ptr<ImGuiPanel>> m_panels;
 
