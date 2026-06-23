@@ -19,6 +19,7 @@
 
 #include "LogoPanel.h"
 
+#include "ImGuiManager.h"
 #include <imgui.h>
 #include <imgui_internal.h>
 
@@ -54,7 +55,10 @@ void LogoPanel::init_logo()
 }
 
 void LogoPanel::draw()
-{ // weBIGeo LOGO
+{
+    if (m_manager && m_manager->is_window_open())
+        return;
+
     ImVec2 viewportSize = ImGui::GetMainViewport()->Size;
     float viewportWidth = viewportSize.x;
     const float minWidth = 800.0f;
@@ -76,7 +80,7 @@ void LogoPanel::draw()
 
     float bgRight = padX + scaledSize.x + padX;
     float bgBottom = offsetY + padY + scaledSize.y + padY;
-    ImU32 bgColor = ImGui::GetColorU32(ImGuiCol_WindowBg, 0.5f);
+    ImU32 bgColor = ImGui::GetColorU32(ImGuiCol_WindowBg, 0.8f);
     ImGui::GetBackgroundDrawList()->AddQuadFilled(
         ImVec2(0.0f, offsetY),
         ImVec2(bgRight + topRightSkew, offsetY),

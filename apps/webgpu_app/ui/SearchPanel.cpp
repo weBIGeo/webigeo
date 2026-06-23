@@ -20,6 +20,7 @@
 #include "SearchPanel.h"
 
 #include "App.h"
+#include "ImGuiManager.h"
 #include "IconsFontAwesome5.h"
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -34,6 +35,9 @@ SearchPanel::SearchPanel(App* renderer)
 
 void SearchPanel::draw()
 {
+    if (m_manager && m_manager->is_window_open())
+        return;
+
     const size_t max_num_search_results_at_once = 10;
     const int window_height = ImGui::GetTextLineHeightWithSpacing() + 2 * ImGui::GetStyle().WindowPadding.y + 2 * 3
         + std::min(m_search_results.size(), max_num_search_results_at_once) * ImGui::GetTextLineHeightWithSpacing() + (m_search_results.empty() ? 0 : 12)
