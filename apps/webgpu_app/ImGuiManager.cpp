@@ -363,6 +363,9 @@ void ImGuiManager::draw()
     // Reset the floating tool-button stack for this frame (bottom-left, stacking upward).
     s_tool_button_y = display.y - 48.0f - 40.0f;
 
+    // Always reflect current available area so panels can query it at any time.
+    m_current_window_size = ImVec2(m_sidebar_visible ? display.x - sidebar_w : display.x, display.y);
+
     // Sidebar toggle tab — same visual style as FloatingToggleButton, attached to the sidebar's left edge.
     {
         const float sidebar_x = m_sidebar_visible ? display.x - sidebar_w : display.x;
@@ -407,10 +410,8 @@ void ImGuiManager::draw()
     }
 
     // Full-screen window for the active panel (covers non-sidebar area).
-    if (m_active_window_panel) {
-        m_current_window_size = ImVec2(m_sidebar_visible ? display.x - sidebar_w : display.x, display.y);
+    if (m_active_window_panel)
         m_active_window_panel->draw_window();
-    }
 
     for (auto& panel : m_panels)
         panel->draw();

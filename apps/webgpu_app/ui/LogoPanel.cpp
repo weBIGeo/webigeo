@@ -66,16 +66,16 @@ void LogoPanel::draw()
 
     float scaleFactor = 1.0f;
     if (viewportWidth <= minWidth) {
-        scaleFactor = 0.5f;
+        return;
     } else if (viewportWidth >= maxWidth) {
         scaleFactor = 1.0f;
     } else {
         scaleFactor = 0.5f + 0.5f * ((viewportWidth - minWidth) / (maxWidth - minWidth));
     }
     ImVec2 scaledSize = ImVec2(m_webigeo_logo_size.x * scaleFactor * 0.75f, m_webigeo_logo_size.y * scaleFactor * 0.75f);
-    const float padX = 20.0f;
-    const float padY = 10.0f;
-    const float offsetY = 30.0f;
+    const float padX = 30.0f;
+    const float padY = 20.0f;
+    const float offsetY = 0.0f;
     const float topRightSkew = 50.0f;
 
     float bgRight = padX + scaledSize.x + padX;
