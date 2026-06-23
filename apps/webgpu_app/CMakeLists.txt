@@ -122,6 +122,10 @@ if (NOT EMSCRIPTEN)
     target_link_libraries(webgpu_app PRIVATE ImGuiFileDialog)
 endif()
 
+alp_add_git_repository(ImGuiDatePicker URL https://github.com/AlpineMapsOrgDependencies/ImGuiDatePicker_slim.git COMMITISH b2a47b34dfd93dd971df09bb4e0253f9d8de4fb0)
+target_link_libraries(ImGuiDatePicker PRIVATE imgui)
+target_link_libraries(webgpu_app PRIVATE ImGuiDatePicker)
+
 # Copy necessary DLLs to the output directory on Windows
 if (WIN32 AND NOT EMSCRIPTEN)
     include("${CMAKE_SOURCE_DIR}/cmake/alp_provide_dawn_dxc.cmake")

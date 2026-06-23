@@ -153,19 +153,8 @@ Manager::Manager(QObject* parent)
 
     connect(m_api_service.get(), &APIService::tileset_list_loaded, this, [this](bool ok) {
         m_loading = false;
-        if (!ok)
-            return;
-
-        const auto& tilesets = m_api_service->get_tilesets();
-        auto current_date = QDateTime::currentDateTimeUtc();
-        auto ymd = QCalendar().partsFromDate(current_date.date());
-        int hour = current_date.time().hour();
-        for (const auto& slot : tilesets) {
-            if (slot.date.year == ymd.year && slot.date.month == ymd.month && slot.date.day == ymd.day && slot.date.hour == hour) {
-                select_time_slot(slot);
-                break;
-            }
-        }
+        if (ok)
+            emit tileset_list_ready();
     });
 
     m_api_service->refresh_tileset_list();
@@ -190,14 +179,15 @@ TileSetInfo Manager::selected_time_slot() const { return m_api_service->get_slot
 
 const QVector<TileSetInfo>& Manager::get_tilesets() const { return m_api_service->get_tilesets(); }
 
-const TileSetInfo* Manager::find_best_tileset(int year, int month, int day, int hour) const
+const TileSetInfo* Manager::find_best_tileset(int year, int month, int day, int hour, int minute) const
 {
     const auto& tilesets = get_tilesets();
     const TileSetInfo* best = nullptr;
     int best_diff = INT_MAX;
+    int target_minutes = hour * 60 + minute;
     for (const auto& ts : tilesets) {
         if (ts.date.year == year && ts.date.month == month && ts.date.day == day) {
-            int diff = std::abs(ts.date.hour - hour);
+            int diff = std::abs(ts.date.hour * 60 - target_minutes);
             if (diff < best_diff) { best_diff = diff; best = &ts; }
         }
     }
