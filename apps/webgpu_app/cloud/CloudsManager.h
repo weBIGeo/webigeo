@@ -50,8 +50,8 @@ public:
 
     void refresh_tileset_list();
 
-    [[nodiscard]] const QVector<TileSetInfo>& get_slots() const;
-    [[nodiscard]] const QHash<QString, int>& get_slots_map() const;
+    [[nodiscard]] const QVector<TileSetInfo>& get_tilesets() const;
+    [[nodiscard]] const QHash<QString, int>& get_tilesets_map() const;
     [[nodiscard]] TileSetInfo get_slot(const QString& id) const;
 
     [[nodiscard]] const QString& server_url() const { return m_server_url; }
@@ -86,13 +86,17 @@ public:
     void refresh_tileset_list();
 
     [[nodiscard]] TileSetInfo selected_time_slot() const;
-    [[nodiscard]] const QVector<TileSetInfo>& get_slots() const;
+    [[nodiscard]] const QVector<TileSetInfo>& get_tilesets() const;
+    // Returns the best-matching slot for the given date/time (all values in UTC), or nullptr if
+    // no same-day data exists. month is 1-based. Comparison uses total minutes for correct rounding.
+    [[nodiscard]] const TileSetInfo* find_best_tileset(int year, int month, int day, int hour, int minute = 0) const;
     [[nodiscard]] bool is_loading() const { return m_loading; }
     [[nodiscard]] const QString& server_url() const;
 
 signals:
     void slot_ready(const TileSetInfo& slot);
     void shadow_texture_ready(const QByteArray& data);
+    void tileset_list_ready();
 
 private:
     std::unique_ptr<APIService> m_api_service;

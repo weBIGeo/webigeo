@@ -51,7 +51,8 @@ void ShadingPanel::draw_panel()
         ImGui::Separator();
         changed |= ImGui::ColorEdit3("Light Color", (float*)&cfg.m_sun_light);
         changed |= ImGui::SliderFloat("Light Intensity", &cfg.m_sun_light.w, 0.0f, 10.0f);
-        changed |= ImGui::DragFloat3("Light Direction", (float*)&cfg.m_sun_light_dir, 0.01f, -1.0f, 1.0f);
+        bool sun_dir_changed = ImGui::DragFloat3("Light Direction", (float*)&cfg.m_sun_light_dir, 0.01f, -1.0f, 1.0f);
+        changed |= sun_dir_changed;
         ImGui::Separator();
         changed |= ImGui::ColorEdit3("Ambient Color", (float*)&cfg.m_amb_light);
         changed |= ImGui::SliderFloat("Ambient Intensity", &cfg.m_amb_light.w, 0.0f, 10.0f);
@@ -66,6 +67,8 @@ void ShadingPanel::draw_panel()
         if (changed) {
             cfg.m_sun_light_dir = glm::normalize(cfg.m_sun_light_dir);
             m_context->request_redraw();
+            if (sun_dir_changed)
+                emit sun_dir_manually_changed();
         }
     }
 }

@@ -48,7 +48,7 @@ void CloudPanel::draw_panel()
     if (!m_context->shared_config().m_clouds_enabled)
         return;
 
-    const auto& tilesets = m_clouds_manager->get_slots();
+    const auto& tilesets = m_clouds_manager->get_tilesets();
     auto selected_slot = m_clouds_manager->selected_time_slot();
 
     if (ImGui::CollapsingHeader(ICON_FA_CLOUD "  Clouds")) {
@@ -78,6 +78,7 @@ void CloudPanel::draw_panel()
                     std::string label = slot.format_string();
                     if (ImGui::Selectable(label.c_str(), is_selected)) {
                         m_clouds_manager->select_time_slot(tilesets[n]);
+                        emit tileset_manually_selected();
                     }
                     if (is_selected)
                         ImGui::SetItemDefaultFocus();

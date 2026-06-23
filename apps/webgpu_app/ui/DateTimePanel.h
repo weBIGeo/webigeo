@@ -17,27 +17,49 @@
  *****************************************************************************/
 
 #pragma once
-
-#include "ImGuiPanel.h"
+#include "ui/ImGuiPanel.h"
+#include <ctime>
 
 namespace webgpu_engine {
 class Context;
 }
 
+namespace webgpu_app::clouds {
+class Manager;
+}
+
 namespace webgpu_app {
 
-class ShadingPanel : public ImGuiPanel {
+class App;
+
+class DateTimePanel : public ImGuiPanel {
     Q_OBJECT
 public:
-    explicit ShadingPanel(webgpu_engine::Context* context);
+    explicit DateTimePanel(App* terrain_renderer, webgpu_engine::Context* context, clouds::Manager* clouds_manager);
     void draw() override;
-    void draw_panel() override;
+    void ready() override;
 
-signals:
-    void sun_dir_manually_changed();
+public slots:
+    void disable_sun_link();
+    void disable_cloud_link();
 
 private:
+    enum class CloudLinkState { Unavailable, Green, Yellow, Red };
+
+    void recalculate_and_apply(bool load_cloud);
+
+    App* m_terrain_renderer;
     webgpu_engine::Context* m_context;
+    clouds::Manager* m_clouds_manager;
+
+    bool m_sun_linked = true;
+    bool m_cloud_linked = true;
+
+    CloudLinkState m_cloud_link_state = CloudLinkState::Unavailable;
+    int m_cloud_tileset_local_hour = -1; // -1 when no same-day tileset found; local time
+
+    tm m_date {}; // tm_year = years since 1900, tm_mon = 0-based, tm_mday = 1-based
+    int m_hour = 12, m_minute = 0;
 };
 
 } // namespace webgpu_app

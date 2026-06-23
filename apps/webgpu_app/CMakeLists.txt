@@ -39,6 +39,7 @@ set(SOURCES
     ui/CameraPanel.h ui/CameraPanel.cpp
     ui/AppPanel.h ui/AppPanel.cpp
     ui/ShadingPanel.h ui/ShadingPanel.cpp
+    ui/DateTimePanel.h ui/DateTimePanel.cpp
     ui/AboutPanel.h ui/AboutPanel.cpp
     ui/CompassPanel.h ui/CompassPanel.cpp
     ui/LogoPanel.h ui/LogoPanel.cpp
@@ -111,12 +112,19 @@ endif()
     set(BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS_SAVED})
 
     target_link_libraries(webgpu_app PRIVATE imgui imnodes)
+    # Must be defined before imgui.h - usually thats not necessary but because of the moc
+    # which runs before compile definitions in headers are applied, we need to set it globally.
+    target_compile_definitions(webgpu_app PRIVATE IMGUI_DEFINE_MATH_OPERATORS) 
 
 if (NOT EMSCRIPTEN)
     alp_add_git_repository(ImGuiFileDialog URL https://github.com/AlpineMapsOrgDependencies/ImGuiFileDialog_slim.git COMMITISH 39f98eb131ee00d476f1002336fc7e9e1795ccc5)
     target_link_libraries(ImGuiFileDialog PRIVATE imgui)
     target_link_libraries(webgpu_app PRIVATE ImGuiFileDialog)
 endif()
+
+alp_add_git_repository(ImGuiDatePicker URL https://github.com/AlpineMapsOrgDependencies/ImGuiDatePicker_slim.git COMMITISH ac5bf9829e297eebb9b58d7b6b264e233ce85a19)
+target_link_libraries(ImGuiDatePicker PRIVATE imgui)
+target_link_libraries(webgpu_app PRIVATE ImGuiDatePicker)
 
 # Copy necessary DLLs to the output directory on Windows
 if (WIN32 AND NOT EMSCRIPTEN)

@@ -22,6 +22,7 @@
 #include "ImGuiManager.h"
 #include "nodes/NodeRendererFactory.h"
 #include <IconsFontAwesome5.h>
+#include <QDebug>
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -31,7 +32,6 @@
 #include <imgui_internal.h>
 #include <imnodes.h>
 #include <imnodes_internal.h>
-#include <QDebug>
 #include <webgpu/compute/NodeGraphSerialization.h>
 #include <webgpu/compute/NodeRegistry.h>
 #include <webgpu/engine/Context.h>
@@ -115,7 +115,7 @@ void NodeGraphPanel::import_graph_json(const QByteArray& data, const std::string
     const QJsonObject ui_nodes = root["ui"].toObject()["nodes"].toObject();
 
     const QString notice = root["first_run_notice"].toString();
-    m_pending_first_run_notice = notice.isEmpty() ? std::string{} : notice.toStdString();
+    m_pending_first_run_notice = notice.isEmpty() ? std::string {} : notice.toStdString();
 
     attach_graph(std::move(*result));
 
@@ -292,16 +292,6 @@ void NodeGraphPanel::render_save_dialog()
         }
     }
     m_save_dialog_wants_open = false;
-}
-
-void NodeGraphPanel::calculate_window_size()
-{
-    if (!ImGui::GetCurrentContext()) {
-        m_window_size = ImVec2(0.0f, 0.0f);
-        return;
-    }
-    m_window_size = ImGui::GetIO().DisplaySize;
-    m_window_size.x -= 430;
 }
 
 void NodeGraphPanel::calculate_auto_layout()
@@ -491,16 +481,21 @@ void NodeGraphPanel::draw()
         m_context->request_redraw();
     }
 
-    ImGuiManager::FloatingToggleButton("###ToggleGraphRenderer", ICON_FA_NETWORK_WIRED, "Toggle compute graph editor", &m_editor_visible);
+    if (ImGuiManager::FloatingToggleButton("###ToggleGraphRenderer", ICON_FA_NETWORK_WIRED, "Toggle compute graph editor", &m_editor_visible)) {
+        if (m_editor_visible && m_manager)
+            m_manager->request_window_open(this);
+        else if (!m_editor_visible && m_manager)
+            m_manager->request_window_close();
+    }
+
     render_error_modal();
     render_first_run_notice_modal();
-    render_save_dialog();
-    render_open_dialog();
+}
 
-    if (!m_editor_visible)
-        return;
-
-    calculate_window_size();
+void NodeGraphPanel::draw_window()
+{
+    m_window_size = m_manager->get_window_size();
+    const ImVec2 position(0.0f, 0.0f);
 
     if (m_pending_auto_layout) {
         const bool all_measured = std::all_of(m_node_renderers.begin(), m_node_renderers.end(), [](const auto& kv) { return kv.second->is_size_known(); });
@@ -513,9 +508,12 @@ void NodeGraphPanel::draw()
         }
     }
 
+    render_save_dialog();
+    render_open_dialog();
+
     push_style();
 
-    ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
+    ImGui::SetNextWindowPos(position, ImGuiCond_Always);
     ImGui::SetNextWindowSize(m_window_size, ImGuiCond_Always);
 
     ImGui::Begin("Compute Graph Editor",
