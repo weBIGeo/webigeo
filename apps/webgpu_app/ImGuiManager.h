@@ -20,6 +20,7 @@
 
 #include <QObject>
 #include <SDL2/SDL.h>
+#include <imgui.h>
 
 struct ImFont;
 #include <cstdint>
@@ -54,6 +55,8 @@ public:
     void request_window_open(ImGuiPanel* panel);
     void request_window_close();
     bool is_window_open() const;
+
+    ImVec2 get_window_size() const;
 
     // Top-left Y for the next floating tool button
     static float s_tool_button_y;
@@ -101,6 +104,7 @@ private:
     bool m_gui_visible = true;
     bool m_sidebar_visible = false;
     ImGuiPanel* m_active_window_panel = nullptr;
+    ImVec2 m_current_window_size;
 
     std::vector<std::unique_ptr<ImGuiPanel>> m_panels;
 

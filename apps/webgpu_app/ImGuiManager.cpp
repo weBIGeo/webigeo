@@ -226,6 +226,8 @@ void ImGuiManager::request_window_close() { m_active_window_panel = nullptr; }
 
 bool ImGuiManager::is_window_open() const { return m_active_window_panel != nullptr; }
 
+ImVec2 ImGuiManager::get_window_size() const { return m_current_window_size; }
+
 float ImGuiManager::s_tool_button_y = 0.0f;
 ImFont* ImGuiManager::s_node_font = nullptr;
 std::unordered_map<std::string, ImGuiManager::FilePickerState> ImGuiManager::s_picker_states;
@@ -406,8 +408,8 @@ void ImGuiManager::draw()
 
     // Full-screen window for the active panel (covers non-sidebar area).
     if (m_active_window_panel) {
-        const float window_w = m_sidebar_visible ? display.x - sidebar_w : display.x;
-        m_active_window_panel->draw_window(window_w, display.y, 0.0f, 0.0f);
+        m_current_window_size = ImVec2(m_sidebar_visible ? display.x - sidebar_w : display.x, display.y);
+        m_active_window_panel->draw_window();
     }
 
     for (auto& panel : m_panels)

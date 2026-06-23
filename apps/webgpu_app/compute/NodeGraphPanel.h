@@ -51,7 +51,7 @@ public:
     // Loads the default pipeline preset into the contexts compute graph (called after init).
     void ready() override;
     void draw() override;
-    void draw_window(float width, float height, float pos_x, float pos_y) override;
+    void draw_window() override;
 
     enum class GraphRenderingMode { Default, Transparent, White };
 

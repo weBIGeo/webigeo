@@ -41,8 +41,8 @@ public:
     virtual void draw_panel() { }
 
     // Called when this panel is the active full-screen window.
-    // width/height cover the non-sidebar area; pos_x/pos_y are always 0.
-    virtual void draw_window(float /*width*/, float /*height*/, float /*pos_x*/, float /*pos_y*/) { }
+    // Query m_manager->get_window_size() for the available area
+    virtual void draw_window() { }
 
 protected:
     ImGuiManager* m_manager = nullptr;

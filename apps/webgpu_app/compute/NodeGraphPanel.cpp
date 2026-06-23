@@ -492,10 +492,10 @@ void NodeGraphPanel::draw()
     render_first_run_notice_modal();
 }
 
-void NodeGraphPanel::draw_window(float width, float height, float pos_x, float pos_y)
+void NodeGraphPanel::draw_window()
 {
-    m_window_size = ImVec2(width, height);
-    const ImVec2 position(pos_x, pos_y);
+    m_window_size = m_manager->get_window_size();
+    const ImVec2 position(0.0f, 0.0f);
 
     if (m_pending_auto_layout) {
         const bool all_measured = std::all_of(m_node_renderers.begin(), m_node_renderers.end(), [](const auto& kv) { return kv.second->is_size_known(); });
