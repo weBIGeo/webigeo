@@ -101,9 +101,12 @@ void ImGuiManager::init(
     m_panels.push_back(std::make_unique<CameraPanel>(m_terrain_renderer));
     m_panels.push_back(std::make_unique<AppPanel>(m_terrain_renderer));
     m_panels.push_back(std::make_unique<CloudPanel>(engine_ctx, rc->clouds_manager(), engine_ctx->cloud_renderer()));
+    CloudPanel& cloud_panel = static_cast<CloudPanel&>(*m_panels.back());
     m_panels.push_back(std::make_unique<AtmospherePanel>(engine_ctx));
     m_panels.push_back(std::make_unique<ShadingPanel>(engine_ctx));
-    m_panels.push_back(std::make_unique<DateTimePanel>(m_terrain_renderer, engine_ctx));
+    ShadingPanel& shading_panel = static_cast<ShadingPanel&>(*m_panels.back());
+    m_panels.push_back(std::make_unique<DateTimePanel>(m_terrain_renderer, engine_ctx, rc->clouds_manager()));
+    DateTimePanel& datetime_panel = static_cast<DateTimePanel&>(*m_panels.back());
     m_panels.push_back(std::make_unique<TrackPanel>(engine_ctx, m_terrain_renderer));
 #ifdef ALP_WEBGPU_APP_ENABLE_COMPUTE
     m_panels.push_back(std::make_unique<NodeGraphPanel>(engine_ctx));
@@ -113,6 +116,8 @@ void ImGuiManager::init(
     for (auto& p : m_panels)
         p->m_manager = this;
 
+    connect(&shading_panel, &ShadingPanel::sun_dir_manually_changed, &datetime_panel, &DateTimePanel::disable_sun_link);
+    connect(&cloud_panel,   &CloudPanel::tileset_manually_selected,  &datetime_panel, &DateTimePanel::disable_cloud_link);
     connect(&search_panel, &SearchPanel::search_requested, rc->search_service(), &SearchService::search);
     connect(&search_panel,
         &SearchPanel::search_result_selected,

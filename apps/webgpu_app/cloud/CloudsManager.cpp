@@ -44,9 +44,9 @@ APIService::APIService(QObject* parent)
 {
 }
 
-const QVector<TileSetInfo>& APIService::get_slots() const { return m_slots; }
+const QVector<TileSetInfo>& APIService::get_tilesets() const { return m_slots; }
 
-const QHash<QString, int>& APIService::get_slots_map() const { return m_id_to_index; }
+const QHash<QString, int>& APIService::get_tilesets_map() const { return m_id_to_index; }
 
 TileSetInfo APIService::get_slot(const QString& id) const
 {
@@ -156,7 +156,7 @@ Manager::Manager(QObject* parent)
         if (!ok)
             return;
 
-        const auto& tilesets = m_api_service->get_slots();
+        const auto& tilesets = m_api_service->get_tilesets();
         auto current_date = QDateTime::currentDateTimeUtc();
         auto ymd = QCalendar().partsFromDate(current_date.date());
         int hour = current_date.time().hour();
@@ -188,7 +188,21 @@ void Manager::refresh_tileset_list()
 
 TileSetInfo Manager::selected_time_slot() const { return m_api_service->get_slot(m_selected_slot_id); }
 
-const QVector<TileSetInfo>& Manager::get_slots() const { return m_api_service->get_slots(); }
+const QVector<TileSetInfo>& Manager::get_tilesets() const { return m_api_service->get_tilesets(); }
+
+const TileSetInfo* Manager::find_best_tileset(int year, int month, int day, int hour) const
+{
+    const auto& tilesets = get_tilesets();
+    const TileSetInfo* best = nullptr;
+    int best_diff = INT_MAX;
+    for (const auto& ts : tilesets) {
+        if (ts.date.year == year && ts.date.month == month && ts.date.day == day) {
+            int diff = std::abs(ts.date.hour - hour);
+            if (diff < best_diff) { best_diff = diff; best = &ts; }
+        }
+    }
+    return best;
+}
 
 const QString& Manager::server_url() const { return m_api_service->server_url(); }
 

@@ -18,9 +18,14 @@
 
 #pragma once
 #include "ui/ImGuiPanel.h"
+#include <imgui.h>
 
 namespace webgpu_engine {
 class Context;
+}
+
+namespace webgpu_app::clouds {
+class Manager;
 }
 
 namespace webgpu_app {
@@ -28,15 +33,30 @@ namespace webgpu_app {
 class App;
 
 class DateTimePanel : public ImGuiPanel {
+    Q_OBJECT
 public:
-    explicit DateTimePanel(App* terrain_renderer, webgpu_engine::Context* context);
+    explicit DateTimePanel(App* terrain_renderer, webgpu_engine::Context* context, clouds::Manager* clouds_manager);
     void draw() override;
+    void ready() override;
+
+public slots:
+    void disable_sun_link();
+    void disable_cloud_link();
 
 private:
+    enum class CloudLinkState { Green, Yellow, Red };
+
     void recalculate_and_apply();
 
     App* m_terrain_renderer;
     webgpu_engine::Context* m_context;
+    clouds::Manager* m_clouds_manager;
+
+    bool m_sun_linked = true;
+    bool m_cloud_linked = true;
+
+    // Cached — updated only in recalculate_and_apply()
+    CloudLinkState m_cloud_link_state = CloudLinkState::Red;
 
     // month is 0-based (combo index); QDate expects 1-based
     int m_year = 2026, m_month = 5, m_day = 21;
