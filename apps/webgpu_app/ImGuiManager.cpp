@@ -42,6 +42,7 @@
 #include "ui/CompassPanel.h"
 #include "ui/LogoPanel.h"
 #include "ui/SearchPanel.h"
+#include "ui/DateTimePanel.h"
 #include "ui/ShadingPanel.h"
 #include "ui/TimingPanel.h"
 #ifdef ALP_WEBGPU_APP_ENABLE_COMPUTE
@@ -102,6 +103,7 @@ void ImGuiManager::init(
     m_panels.push_back(std::make_unique<CloudPanel>(engine_ctx, rc->clouds_manager(), engine_ctx->cloud_renderer()));
     m_panels.push_back(std::make_unique<AtmospherePanel>(engine_ctx));
     m_panels.push_back(std::make_unique<ShadingPanel>(engine_ctx));
+    m_panels.push_back(std::make_unique<DateTimePanel>(m_terrain_renderer, engine_ctx));
     m_panels.push_back(std::make_unique<TrackPanel>(engine_ctx, m_terrain_renderer));
 #ifdef ALP_WEBGPU_APP_ENABLE_COMPUTE
     m_panels.push_back(std::make_unique<NodeGraphPanel>(engine_ctx));

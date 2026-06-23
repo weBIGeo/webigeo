@@ -39,6 +39,7 @@ set(SOURCES
     ui/CameraPanel.h ui/CameraPanel.cpp
     ui/AppPanel.h ui/AppPanel.cpp
     ui/ShadingPanel.h ui/ShadingPanel.cpp
+    ui/DateTimePanel.h ui/DateTimePanel.cpp
     ui/AboutPanel.h ui/AboutPanel.cpp
     ui/CompassPanel.h ui/CompassPanel.cpp
     ui/LogoPanel.h ui/LogoPanel.cpp
