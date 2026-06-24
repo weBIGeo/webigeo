@@ -81,6 +81,15 @@ void Window::initialise_gpu()
             });
     });
 
+    reg.register_shader("cloud_composite_pass", "webgpu_engine::cloud_composite_pass");
+    reg.register_pipeline([this](WGPUDevice dev, const webgpu::RenderResourceRegistry& reg) {
+        m_cloud_composite_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(
+            dev,
+            reg.shader("cloud_composite_pass"),
+            std::vector<const webgpu::raii::BindGroupLayout*> { &reg.bind_group_layout("cloud_composite") },
+            "cloud composite pipeline");
+    });
+
     m_context->webgpu_ctx().resource_registry().recreate_all(m_context->webgpu_ctx().device());
 
     create_bind_groups();
@@ -179,7 +188,20 @@ void Window::resize_framebuffer(int w, int h)
     m_context->cloud_renderer()->resize(w, h);
     m_context->overlay_renderer()->resize(w, h);
 
+    // Cloud composite output: same size + format as sky render target (TextureBinding for present, StorageBinding for write).
+    WGPUTextureDescriptor composite_desc {};
+    composite_desc.label = WGPUStringView { .data = "cloud composite texture", .length = WGPU_STRLEN };
+    composite_desc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_StorageBinding;
+    composite_desc.dimension = WGPUTextureDimension_2D;
+    composite_desc.format = WGPUTextureFormat_RGBA16Float;
+    composite_desc.size = { static_cast<uint32_t>(w), static_cast<uint32_t>(h), 1 };
+    composite_desc.mipLevelCount = 1;
+    composite_desc.sampleCount = 1;
+    m_cloud_composite_texture = std::make_unique<webgpu::raii::Texture>(m_context->webgpu_ctx().device(), composite_desc);
+    m_cloud_composite_view = m_cloud_composite_texture->create_view();
+
     recreate_compose_bind_group(); // Do late
+    recreate_cloud_composite_bind_groups();
     recreate_present_bind_groups();
 }
 
@@ -240,20 +262,38 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
     }
 
     const bool lut_sky = m_context->shared_config().m_sky_mode == 1;
+    const bool clouds_enabled = m_context->shared_config().m_clouds_enabled;
 
     // LUT-based sky: layer physically-based atmosphere over the scene color back buffer
     if (lut_sky) {
         const glm::vec3 sun_direction = -glm::vec3(m_context->shared_config().m_sun_light_dir);
         m_context->sky_renderer()->update(m_camera, sun_direction);
         m_context->sky_renderer()->render(command_encoder);
+
+        // Blend clouds on top of the sky result (deferred from compose pass)
+        if (clouds_enabled && m_cloud_composite_pipeline) {
+            m_cloud_composite_pipeline->set_binding(0, *m_cloud_composite_bind_groups[m_paint_number % 2]);
+            const glm::uvec3 workgroups {
+                (static_cast<uint32_t>(m_swapchain_size.x) + 15u) / 16u,
+                (static_cast<uint32_t>(m_swapchain_size.y) + 15u) / 16u,
+                1u
+            };
+            WGPUComputePassDescriptor composite_pass_desc {};
+            composite_pass_desc.label = WGPUStringView { .data = "cloud composite pass", .length = WGPU_STRLEN };
+            webgpu::raii::ComputePassEncoder composite_pass(command_encoder, composite_pass_desc);
+            m_cloud_composite_pipeline->run(composite_pass, workgroups);
+        }
     }
 
-    // present: blit the chosen result (LUT sky render target or scene color) to the swapchain
+    // present: blit the chosen result to the swapchain
+    const webgpu::raii::BindGroup* present_bg = m_present_bind_group_legacy.get();
+    if (lut_sky) {
+        present_bg = (clouds_enabled ? m_present_bind_group_sky_clouds : m_present_bind_group_sky).get();
+    }
     {
         std::unique_ptr<webgpu::raii::RenderPassEncoder> render_pass = framebuffer->begin_render_pass(command_encoder);
         wgpuRenderPassEncoderSetPipeline(render_pass->handle(), m_present_pipeline->pipeline().handle());
-        wgpuRenderPassEncoderSetBindGroup(
-            render_pass->handle(), 0, (lut_sky ? m_present_bind_group_sky : m_present_bind_group_legacy)->handle(), 0, nullptr);
+        wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 0, present_bg->handle(), 0, nullptr);
         wgpuRenderPassEncoderDraw(render_pass->handle(), 3, 1, 0, 0);
     }
 
@@ -340,6 +380,7 @@ void Window::reload_shaders()
 {
     m_context->webgpu_ctx().resource_registry().recreate_all(m_context->webgpu_ctx().device());
     recreate_compose_bind_group();
+    recreate_cloud_composite_bind_groups();
     recreate_present_bind_groups();
     qDebug() << "reloading shaders done";
     request_redraw();
@@ -388,6 +429,20 @@ void Window::recreate_compose_bind_group()
     }
 }
 
+void Window::recreate_cloud_composite_bind_groups()
+{
+    if (!m_cloud_composite_view || !m_context->sky_renderer()->result_view()) return;
+    for (int i = 0; i < 2; ++i) {
+        m_cloud_composite_bind_groups[i] = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
+            m_context->webgpu_ctx().resource_registry().bind_group_layout("cloud_composite"),
+            std::initializer_list<WGPUBindGroupEntry> {
+                m_context->sky_renderer()->result_view()->create_bind_group_entry(0),
+                m_context->cloud_renderer()->result_color_view(i)->create_bind_group_entry(1),
+                m_cloud_composite_view->create_bind_group_entry(2),
+            });
+    }
+}
+
 void Window::recreate_present_bind_groups()
 {
     m_present_bind_group_legacy = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
@@ -400,6 +455,12 @@ void Window::recreate_present_bind_groups()
         m_context->webgpu_ctx().resource_registry().bind_group_layout("present"),
         std::initializer_list<WGPUBindGroupEntry> {
             m_context->sky_renderer()->result_view()->create_bind_group_entry(0),
+        });
+
+    m_present_bind_group_sky_clouds = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
+        m_context->webgpu_ctx().resource_registry().bind_group_layout("present"),
+        std::initializer_list<WGPUBindGroupEntry> {
+            m_cloud_composite_view->create_bind_group_entry(0),
         });
 }
 

@@ -213,8 +213,9 @@ fn fragmentMain(vertex_out: VertexOut) -> @location(0) vec4f {
     let post_overlay_color = textureLoad(overlay_renderer_post_texture, tci, 0);
     out_Color = vec4f(out_Color.rgb * (1.0 - post_overlay_color.a) + post_overlay_color.rgb, out_Color.a);
 
-    //Clouds
-    if bool(conf.clouds_enabled) {
+    // Clouds: in LUT-sky mode clouds are composited after the sky pass (cloud_composite_pass.wgsl)
+    // so they sit on top of the atmosphere rather than underneath it.
+    if bool(conf.clouds_enabled) && conf.sky_mode == 0u {
         let clouds_color = textureLoad(clouds_texture, tci, 0);
         let clouds_depth = textureLoad(clouds_depth_texture, tci / 2).x;
 

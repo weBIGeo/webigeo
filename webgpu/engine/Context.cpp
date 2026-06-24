@@ -166,6 +166,31 @@ void Context::internal_initialise()
         return std::make_unique<webgpu::raii::BindGroupLayout>(device, std::vector<WGPUBindGroupLayoutEntry> { source_entry }, "present bind group layout");
     });
 
+    reg.register_bind_group_layout("cloud_composite", [](WGPUDevice device) {
+        WGPUBindGroupLayoutEntry sky_entry {};
+        sky_entry.binding = 0;
+        sky_entry.visibility = WGPUShaderStage_Compute;
+        sky_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
+        sky_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+        WGPUBindGroupLayoutEntry cloud_entry {};
+        cloud_entry.binding = 1;
+        cloud_entry.visibility = WGPUShaderStage_Compute;
+        cloud_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
+        cloud_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+        WGPUBindGroupLayoutEntry out_entry {};
+        out_entry.binding = 2;
+        out_entry.visibility = WGPUShaderStage_Compute;
+        out_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
+        out_entry.storageTexture.format = WGPUTextureFormat_RGBA16Float;
+        out_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+
+        return std::make_unique<webgpu::raii::BindGroupLayout>(device,
+            std::vector<WGPUBindGroupLayoutEntry> { sky_entry, cloud_entry, out_entry },
+            "cloud composite bind group layout");
+    });
+
     if (m_tile_mesh_renderer)
         m_tile_mesh_renderer->init(webgpu_ctx());
     if (m_atmosphere_renderer)
