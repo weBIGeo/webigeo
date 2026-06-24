@@ -20,6 +20,7 @@
 #include "CloudPanel.h"
 
 #include "ImGuiManager.h"
+#include <glm/trigonometric.hpp>
 #include <IconsFontAwesome5.h>
 #include <imgui.h>
 
@@ -100,36 +101,47 @@ void CloudPanel::draw_panel()
 
         ImGui::SeparatorText("Shading");
         auto& shader_params = m_cloud_renderer->shader_params;
+        bool changed = false;
         ImGui::Text("Step Size");
         ImGui::Indent();
-        ImGui::DragFloat("Minimum", &shader_params.step_size_min, 1.0f, 0.0f, 10000.0f);
+        changed |= ImGui::DragFloat("Minimum", &shader_params.step_size_min, 1.0f, 0.0f, 10000.0f);
         float inv_dist_fact = 1.0f / shader_params.step_size_distance_factor;
         if (ImGui::DragFloat("Distance Factor", &inv_dist_fact, 1.0f, 0.0f, 10000.0f)) {
             shader_params.step_size_distance_factor = 1.0f / inv_dist_fact;
+            changed = true;
         }
-        ImGui::DragFloat("Horizon Factor", &shader_params.step_size_horizon_factor, 1.0f, 0.0f, 10000.0f);
+        changed |= ImGui::DragFloat("Horizon Factor", &shader_params.step_size_horizon_factor, 1.0f, 0.0f, 10000.0f);
         ImGui::Unindent();
         ImGui::Text("Scattering");
         ImGui::Indent();
-        ImGui::SliderFloat("Scattering Coeff", &shader_params.scattering_coeff, -1.0f, 1.0f);
-        ImGui::SliderFloat("Extinction Coeff", &shader_params.extinction_coeff, 0.0f, 1.0f, "%.5f");
-        ImGui::SliderFloat("Albedo", &shader_params.albedo, 0.0f, 1.0f);
+        changed |= ImGui::SliderFloat("Scattering Coeff", &shader_params.scattering_coeff, -1.0f, 1.0f);
+        changed |= ImGui::SliderFloat("Extinction Coeff", &shader_params.extinction_coeff, 0.0f, 1.0f, "%.5f");
+        changed |= ImGui::SliderFloat("Albedo", &shader_params.albedo, 0.0f, 1.0f);
         ImGui::Unindent();
         ImGui::Text("Lighting");
         ImGui::Indent();
-        ImGui::DragFloat("Sun Light Scale", &shader_params.sun_light_scale, 1.0f, 0.0f, 10000.0f);
-        ImGui::DragFloat("Ambient Light Scale", &shader_params.ambient_light_scale, 0.01f, 0.0f, 10000.0f);
-ImGui::DragFloat("Shadow Extinction Scale", &shader_params.shadow_extinction_scale, 0.01f, 0.0f, 10000.0f);
-        ImGui::SliderFloat("Powder Effect Scale", &shader_params.powder_scale, 0.0f, 1.0f);
+        changed |= ImGui::DragFloat("Sun Light Scale", &shader_params.sun_light_scale, 1.0f, 0.0f, 10000.0f);
+        changed |= ImGui::DragFloat("Ambient Light Scale", &shader_params.ambient_light_scale, 0.01f, 0.0f, 10000.0f);
+        changed |= ImGui::DragFloat("Shadow Extinction Scale", &shader_params.shadow_extinction_scale, 0.01f, 0.0f, 10000.0f);
+        changed |= ImGui::SliderFloat("Powder Effect Scale", &shader_params.powder_scale, 0.0f, 1.0f);
+        {
+            float deg = glm::degrees(glm::asin(glm::clamp(shader_params.horizon_softness, 0.0f, 1.0f)));
+            if (ImGui::SliderFloat("Horizon Softness", &deg, 0.0f, 15.0f, "%.1f deg")) {
+                shader_params.horizon_softness = glm::sin(glm::radians(deg));
+                changed = true;
+            }
+        }
         ImGui::Unindent();
         ImGui::Text("Visibility");
         ImGui::Indent();
-        ImGui::SliderFloat("Fade", &shader_params.fade_factor, 0.001f, 1.0f);
+        changed |= ImGui::SliderFloat("Fade", &shader_params.fade_factor, 0.001f, 1.0f);
         ImGui::Unindent();
         ImGui::Text("Accumulation");
         ImGui::Indent();
-        ImGui::SliderInt("Stable Frames Limit", &shader_params.stable_frames_limit, 1, 256);
+        changed |= ImGui::SliderInt("Stable Frames Limit", &shader_params.stable_frames_limit, 1, 256);
         ImGui::Unindent();
+        if (changed)
+            m_context->request_redraw();
     }
 }
 
