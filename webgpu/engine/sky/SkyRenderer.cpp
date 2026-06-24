@@ -120,6 +120,16 @@ void SkyRenderer::mark_atmosphere_dirty() { m_atmosphere_dirty = true; }
 
 const webgpu::raii::TextureView* SkyRenderer::result_view() const { return m_render_target_view.get(); }
 
+const webgpu::raii::TextureView* SkyRenderer::transmittance_lut_view() const {
+    return m_renderer ? &m_renderer->resources().transmittance_lut().view() : nullptr;
+}
+const webgpu::raii::Sampler* SkyRenderer::transmittance_lut_sampler() const {
+    return m_renderer ? &m_renderer->resources().lut_sampler() : nullptr;
+}
+WGPUBuffer SkyRenderer::atmosphere_uniform_buffer() const {
+    return m_renderer ? m_renderer->resources().atmosphere_buffer().raw_buffer().handle() : nullptr;
+}
+
 params::Atmosphere& SkyRenderer::atmosphere() { return m_atmosphere; }
 const params::Atmosphere& SkyRenderer::atmosphere() const { return m_atmosphere; }
 uniforms::Uniforms& SkyRenderer::uniforms() { return m_uniforms; }

@@ -18,6 +18,9 @@
 
 ///use webgpu::tile_util
 ///use util/shared_config
+///use webgpu_engine::sky/common/medium
+///use webgpu_engine::sky/common/uv
+
 
 struct tile_info {
     index: u32,
@@ -46,7 +49,7 @@ struct shader_params {
     fade_factor: f32,
     sun_light_scale: f32,
     ambient_light_scale: f32,
-    atm_light_scale: f32,
+    _padding1: f32,
     shadow_extinction_scale: f32,
     jitter: vec2f,
     powder_scale: f32,
@@ -77,6 +80,10 @@ struct ray_accumulator {
 @group(1) @binding(0) var depth_texture: texture_2d<f32>;
 
 @group(2) @binding(0) var<uniform> sconf: shared_config;
+
+@group(3) @binding(0) var<uniform> atmosphere: Atmosphere;
+@group(3) @binding(1) var transmittance_lut: texture_2d<f32>;
+@group(3) @binding(2) var transmittance_sampler: sampler;
 
 // tile size at zoom level 10
 override tile_size_xy = 39135.7584820102;
@@ -324,6 +331,16 @@ fn get_ray_offset(pixel: vec2u, frame: u32) -> f32 {
     return fract(spatial + temporal);
 }
 
+// Returns solar transmittance through the atmosphere above a world-space cloud point (world in meters).
+fn sample_sun_transmittance(pos_world: vec3f, dir: vec3f) -> vec3f {
+    // world (m) → atmosphere space (km), relative to planet center
+    let pos_atm = pos_world / 1000.0 - atmosphere.planet_center;
+    let view_height = length(pos_atm);
+    let cos_zenith = dot(dir, pos_atm / view_height);
+    let uv = transmittance_lut_params_to_uv(atmosphere, view_height, cos_zenith);
+    return textureSampleLevel(transmittance_lut, transmittance_sampler, uv, 0).rgb;
+}
+
 fn calculate_point_radiance(
     pos: vec3f,
     beta: f32,
@@ -339,19 +356,16 @@ fn calculate_point_radiance(
 
     let cloud_sun_transmittance = sample_light_energy(pos, sun_dir, params.extinction_coeff, lod, step_size, cos_angle);
 
-    let sun_radiance = sconf.sun_light.rgb * sconf.sun_light.a * params.sun_light_scale;
+    // Sun: attenuate by atmosphere above this cloud point — gives correct sunset/altitude coloring.
+    let atm_sun_transmittance = sample_sun_transmittance(pos, sun_dir);
+    let sun_radiance = sconf.sun_light.rgb * sconf.sun_light.a * params.sun_light_scale * atm_sun_transmittance;
     let cloud_sun_inscatter = sun_radiance * cloud_sun_transmittance * cloud_phase;
 
-    // --- Ambient ---
-    // Ambient: only modulate by height, since we have no way to estimate
-    // depth-into-cloud from density alone. Cloud tops receive more sky light.
-    let height_factor = saturate(pos.z / params.bounds_max.z);
-    let ambient_occlusion = mix(0.3, 1.0, height_factor);
-
-    let ambient_radiance = sconf.amb_light.rgb * sconf.amb_light.a * params.ambient_light_scale;
-    var ambient_color = ambient_radiance;
-
-    let cloud_ambient_inscatter = ambient_color * ambient_occlusion;
+    // Ambient: upward transmittance as sky-light proxy — replaces the old height_factor hack.
+    let atm_sky_transmittance = sample_sun_transmittance(pos, vec3f(0.0, 0.0, 1.0));
+    let ambient_occlusion = mix(0.3, 1.0, atm_sky_transmittance.r);
+    let ambient_radiance = sconf.amb_light.rgb * sconf.amb_light.a * params.ambient_light_scale * atm_sky_transmittance;
+    let cloud_ambient_inscatter = ambient_radiance * ambient_occlusion;
 
     let cloud_total_inscatter = cloud_sun_inscatter + cloud_ambient_inscatter;
     return cloud_total_inscatter * cloud_scattering * step_size;

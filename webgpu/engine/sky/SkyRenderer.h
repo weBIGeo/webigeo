@@ -72,6 +72,11 @@ public:
     /// The full-resolution RGBA16Float texture the sky pass writes into (nullptr before the first resize).
     const webgpu::raii::TextureView* result_view() const;
 
+    /// LUT resources for cloud lighting — valid after the first resize, regardless of m_sky_enabled.
+    const webgpu::raii::TextureView* transmittance_lut_view() const;
+    const webgpu::raii::Sampler* transmittance_lut_sampler() const;
+    WGPUBuffer atmosphere_uniform_buffer() const;
+
     params::Atmosphere& atmosphere();
     const params::Atmosphere& atmosphere() const;
     uniforms::Uniforms& uniforms();

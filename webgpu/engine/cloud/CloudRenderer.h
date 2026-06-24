@@ -30,6 +30,8 @@
 #include <webgpu/base/raii/BindGroup.h>
 #include <webgpu/base/raii/BindGroupLayout.h>
 #include <webgpu/base/raii/CombinedComputePipeline.h>
+#include <webgpu/base/raii/Sampler.h>
+#include <webgpu/base/raii/TextureView.h>
 #include <webgpu/base/raii/TextureWithSampler.h>
 #include <webgpu/webgpu.h>
 
@@ -70,7 +72,6 @@ public:
         float albedo = 0.99f;
         float sun_light_scale = 800.0f;
         float ambient_light_scale = 1.0f;
-        float atmospheric_light_scale = 1.0f;
         float shadow_extinction_scale = 0.5f;
         float powder_scale = 0.9f;
         float fade_factor = 0.0f;
@@ -89,7 +90,10 @@ public:
         const WGPUBindGroup& depth_texture_bind_group,
         const WGPUBindGroup& shared_config_bind_group,
         const nucleus::camera::Definition& camera,
-        uint32_t frame_number);
+        uint32_t frame_number,
+        const webgpu::raii::TextureView& transmittance_lut_view,
+        const webgpu::raii::Sampler& transmittance_lut_sampler,
+        WGPUBuffer atmosphere_buffer);
 
     [[nodiscard]] bool needs_redraw() const { return m_stable_frames <= static_cast<uint32_t>(shader_params.stable_frames_limit); }
 
@@ -136,7 +140,7 @@ private:
 
         float sun_light_scale;
         float ambient_light_scale;
-        float atm_light_scale;
+        float _padding1;
         float shadow_extinction_scale;
 
         glm::vec2 jitter;
@@ -193,6 +197,7 @@ private:
     std::unique_ptr<webgpu::raii::BindGroup> m_upscale_clouds_bind_group_a;
     std::unique_ptr<webgpu::raii::BindGroup> m_upscale_clouds_bind_group_b;
     std::unique_ptr<webgpu::raii::BindGroup> m_camera_bind_group;
+    std::unique_ptr<webgpu::raii::BindGroup> m_atmosphere_bind_group;
 
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_render_clouds_pipeline;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_upscale_clouds_pipeline;

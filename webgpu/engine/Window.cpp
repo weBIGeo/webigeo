@@ -227,8 +227,10 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
 
     // render clouds
     if (m_context->shared_config().m_clouds_enabled) {
+        auto* sky = m_context->sky_renderer();
         m_context->cloud_renderer()->draw(
-            command_encoder, m_depth_texture_bind_group->handle(), m_shared_config_bind_group->handle(), m_camera, m_paint_number);
+            command_encoder, m_depth_texture_bind_group->handle(), m_shared_config_bind_group->handle(), m_camera, m_paint_number,
+            *sky->transmittance_lut_view(), *sky->transmittance_lut_sampler(), sky->atmosphere_uniform_buffer());
         m_needs_redraw |= m_context->cloud_renderer()->needs_redraw(); // Repaint for TAAU
     }
 

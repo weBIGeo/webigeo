@@ -119,8 +119,7 @@ void CloudPanel::draw_panel()
         ImGui::Indent();
         ImGui::DragFloat("Sun Light Scale", &shader_params.sun_light_scale, 1.0f, 0.0f, 10000.0f);
         ImGui::DragFloat("Ambient Light Scale", &shader_params.ambient_light_scale, 0.01f, 0.0f, 10000.0f);
-        ImGui::DragFloat("Atmospheric Light Scale", &shader_params.atmospheric_light_scale, 0.01f, 0.0f, 10000.0f);
-        ImGui::DragFloat("Shadow Extinction Scale", &shader_params.shadow_extinction_scale, 0.01f, 0.0f, 10000.0f);
+ImGui::DragFloat("Shadow Extinction Scale", &shader_params.shadow_extinction_scale, 0.01f, 0.0f, 10000.0f);
         ImGui::SliderFloat("Powder Effect Scale", &shader_params.powder_scale, 0.0f, 1.0f);
         ImGui::Unindent();
         ImGui::Text("Visibility");
