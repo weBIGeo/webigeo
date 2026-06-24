@@ -448,7 +448,7 @@ void CloudRenderer::draw(const WGPUCommandEncoder& command_encoder,
         m_render_shader_params_ubo->data.albedo = shader_params.albedo;
         m_render_shader_params_ubo->data.sun_light_scale = shader_params.sun_light_scale;
         m_render_shader_params_ubo->data.ambient_light_scale = shader_params.ambient_light_scale;
-        m_render_shader_params_ubo->data._padding1 = 0.0f;
+        m_render_shader_params_ubo->data.horizon_softness = shader_params.horizon_softness;
         m_render_shader_params_ubo->data.shadow_extinction_scale = shader_params.shadow_extinction_scale;
         m_render_shader_params_ubo->data.fade_factor = shader_params.fade_factor;
         m_render_shader_params_ubo->data.powder_scale = shader_params.powder_scale;

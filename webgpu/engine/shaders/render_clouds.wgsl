@@ -1,5 +1,6 @@
 /*****************************************************************************
  * weBIGeo
+ * Copyright (C) 2026 Gerald Kimmersdorfer
  * Copyright (C) 2026 Wendelin Muth
  *
  * This program is free software: you can redistribute it and/or modify
@@ -49,7 +50,7 @@ struct shader_params {
     fade_factor: f32,
     sun_light_scale: f32,
     ambient_light_scale: f32,
-    _padding1: f32,
+    horizon_softness: f32,
     shadow_extinction_scale: f32,
     jitter: vec2f,
     powder_scale: f32,
@@ -236,16 +237,14 @@ fn cloud_phase_function(cos_angle: f32) -> f32 {
 // Calculate how much light reaches a point from the sun (light transmittance)
 // Uses cone-based sampling with decreasing LOD as per Nubis/Guerrilla Games approach
 fn sample_light_energy(pos: vec3f, sun_dir: vec3f, extinction_coeff: f32, base_lod: f32, start_t: f32, cos_angle: f32) -> f32 {
-    if sun_dir.z <= 0.0 {
-        return 0.0;
-    }
-
     if pos.z >= params.bounds_max.z {
         return 1.0;
     }
 
-    // Calculate maximum ray length to volume boundary
-    let max_ray_length = min((params.bounds_max.z - pos.z) / sun_dir.z, 10000.0);
+    // Distance to the top of the cloud slab along the sun ray. The caller only invokes this when the
+    // sun is at/above the point's local horizon, but for elevated points that can mean sun_dir.z is
+    // ~0 or slightly negative (near-horizontal ray), so clamp the divisor to keep the length positive.
+    let max_ray_length = min((params.bounds_max.z - pos.z) / max(sun_dir.z, 0.05), 10000.0);
     // Initial step size derived from geometric series sum to exactly span max_ray_length
     const GROWTH_FACTOR = 1.5;
     const STEP_SIZE_CONSTANT = (GROWTH_FACTOR - 1.0) / (pow(GROWTH_FACTOR, f32(MAX_LIGHT_STEPS)) - 1.0);
@@ -331,14 +330,14 @@ fn get_ray_offset(pixel: vec2u, frame: u32) -> f32 {
     return fract(spatial + temporal);
 }
 
-// Returns solar transmittance through the atmosphere above a world-space cloud point (world in meters).
-fn sample_sun_transmittance(pos_world: vec3f, dir: vec3f) -> vec3f {
-    // world (m) → atmosphere space (km), relative to planet center
-    let pos_atm = pos_world / 1000.0 - atmosphere.planet_center;
-    let view_height = length(pos_atm);
-    let cos_zenith = dot(dir, pos_atm / view_height);
-    let uv = transmittance_lut_params_to_uv(atmosphere, view_height, cos_zenith);
-    return textureSampleLevel(transmittance_lut, transmittance_sampler, uv, 0).rgb;
+// Transmittance LUT lookup with pre-computed atmosphere-space quantities to avoid redundant sqrt calls.
+// view_height, cos_zenith, rho, and h must be derived from the same point and direction.
+fn lookup_transmittance(view_height: f32, cos_zenith: f32, rho: f32, h: f32) -> vec3f {
+    let discriminant = view_height * view_height * (cos_zenith * cos_zenith - 1.0) + atmosphere.top_radius * atmosphere.top_radius;
+    let d = max(0.0, -view_height * cos_zenith + sqrt(max(discriminant, 0.0)));
+    let x_mu = (d - (atmosphere.top_radius - view_height)) / (rho + h);
+    let x_r = rho / h;
+    return textureSampleLevel(transmittance_lut, transmittance_sampler, vec2f(x_mu, x_r), 0).rgb;
 }
 
 fn calculate_point_radiance(
@@ -354,15 +353,34 @@ fn calculate_point_radiance(
     let cloud_extinction = beta * params.extinction_coeff;
     let cloud_scattering = cloud_extinction * params.albedo;
 
-    let cloud_sun_transmittance = sample_light_energy(pos, sun_dir, params.extinction_coeff, lod, step_size, cos_angle);
+    // Pre-compute atmosphere-space position once; shared by horizon test, sun transmittance, sky transmittance.
+    // world (m) → atmosphere space (km), relative to planet center
+    let pos_atm = pos / 1000.0 - atmosphere.planet_center;
+    let view_height = length(pos_atm);              // 1 sqrt — shared by all three callers below
+    let pos_atm_norm = pos_atm / view_height;
+    let rho = sqrt(max(0.0, view_height * view_height - atmosphere.bottom_radius * atmosphere.bottom_radius)); // 1 sqrt — shared
+    let h = sqrt(max(0.0, atmosphere.top_radius * atmosphere.top_radius - atmosphere.bottom_radius * atmosphere.bottom_radius)); // 1 sqrt — shared
 
-    // Sun: attenuate by atmosphere above this cloud point — gives correct sunset/altitude coloring.
-    let atm_sun_transmittance = sample_sun_transmittance(pos, sun_dir);
-    let sun_radiance = sconf.sun_light.rgb * sconf.sun_light.a * params.sun_light_scale * atm_sun_transmittance;
-    let cloud_sun_inscatter = sun_radiance * cloud_sun_transmittance * cloud_phase;
+    // Height-aware horizon: higher cloud points catch the sun before lower ones, and the terminator is
+    // a smooth ramp rather than a global hard switch at the world horizon. Skip the costly light march
+    // entirely once the sun is below this point's local horizon.
+    let cos_zenith_sun = dot(sun_dir, pos_atm_norm);
+    let cos_horizon = -rho / view_height;
+    let softness = max(params.horizon_softness, 1e-4);
+    let sun_visibility = smoothstep(cos_horizon - softness, cos_horizon + softness, cos_zenith_sun);
 
-    // Ambient: upward transmittance as sky-light proxy — replaces the old height_factor hack.
-    let atm_sky_transmittance = sample_sun_transmittance(pos, vec3f(0.0, 0.0, 1.0));
+    var cloud_sun_inscatter = vec3f(0.0);
+    if sun_visibility > 0.0 {
+        let cloud_sun_transmittance = sample_light_energy(pos, sun_dir, params.extinction_coeff, lod, step_size, cos_angle);
+
+        // Sun: attenuate by atmosphere above this cloud point — gives correct sunset/altitude coloring.
+        let atm_sun_transmittance = lookup_transmittance(view_height, cos_zenith_sun, rho, h);
+        let sun_radiance = sconf.sun_light.rgb * sconf.sun_light.a * params.sun_light_scale * atm_sun_transmittance * sun_visibility;
+        cloud_sun_inscatter = sun_radiance * cloud_sun_transmittance * cloud_phase;
+    }
+
+    // Ambient: upward transmittance as sky-light proxy. pos_atm_norm.z == dot(vec3(0,0,1), pos_atm_norm).
+    let atm_sky_transmittance = lookup_transmittance(view_height, pos_atm_norm.z, rho, h);
     let ambient_occlusion = mix(0.3, 1.0, atm_sky_transmittance.r);
     let ambient_radiance = sconf.amb_light.rgb * sconf.amb_light.a * params.ambient_light_scale * atm_sky_transmittance;
     let cloud_ambient_inscatter = ambient_radiance * ambient_occlusion;

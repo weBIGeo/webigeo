@@ -75,6 +75,7 @@ public:
         float shadow_extinction_scale = 0.5f;
         float powder_scale = 0.9f;
         float fade_factor = 0.0f;
+        float horizon_softness = 0.1f; // half-width of the sunrise terminator ramp (zenith-cosine units, ~5.7°)
         int stable_frames_limit = 1; // originally 64, but not necessary anymore due to improvements Wendelin made
     };
 
@@ -140,7 +141,7 @@ private:
 
         float sun_light_scale;
         float ambient_light_scale;
-        float _padding1;
+        float horizon_softness;
         float shadow_extinction_scale;
 
         glm::vec2 jitter;
