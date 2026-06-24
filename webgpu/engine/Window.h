@@ -28,6 +28,7 @@
 #include <webgpu/base/Buffer.h>
 #include <webgpu/base/raii/BindGroup.h>
 #include <webgpu/base/raii/CombinedComputePipeline.h>
+#include <webgpu/base/raii/Pipeline.h>
 #include <webgpu/webgpu.h>
 
 class QOpenGLFramebufferObject;
@@ -113,7 +114,8 @@ private:
     // (legacy: scene color, LUT sky: sky render target) to the swapchain.
     std::unique_ptr<webgpu::Framebuffer> m_scene_color_framebuffer;
 
-    std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_compose_pipeline;
+    std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_compose_pipeline;
+    std::unique_ptr<webgpu::raii::BindGroup> m_compose_output_bind_group;
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_present_pipeline; // raw blit to swapchain (both modes)
     std::unique_ptr<webgpu::raii::BindGroup> m_present_bind_group_sky;          // sky on, no clouds
     std::unique_ptr<webgpu::raii::BindGroup> m_present_bind_group_sky_clouds;    // sky on, clouds on top

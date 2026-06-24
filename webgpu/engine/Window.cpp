@@ -51,19 +51,16 @@ void Window::initialise_gpu()
     auto& reg = m_context->webgpu_ctx().resource_registry();
     reg.register_shader("compose_pass", "webgpu_engine::compose_pass");
     reg.register_pipeline([this](WGPUDevice dev, const webgpu::RenderResourceRegistry& reg) {
-        webgpu::FramebufferFormat format {};
-        format.depth_format = WGPUTextureFormat_Depth24Plus;
-        format.color_formats.emplace_back(m_context->webgpu_ctx().surface_texture_format());
-        m_compose_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(dev,
+        m_compose_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(
+            dev,
             reg.shader("compose_pass"),
-            reg.shader("compose_pass"),
-            std::vector<webgpu::util::SingleVertexBufferInfo> {},
-            format,
             std::vector<const webgpu::raii::BindGroupLayout*> {
                 &reg.bind_group_layout("shared_config"),
                 &reg.bind_group_layout("camera"),
                 &reg.bind_group_layout("compose"),
-            });
+                &reg.bind_group_layout("compose_output"),
+            },
+            "compose compute pipeline");
     });
 
     reg.register_shader("present_pass", "webgpu_engine::present_pass");
@@ -166,11 +163,12 @@ void Window::resize_framebuffer(int w, int h)
     m_gbuffer_format.size = glm::uvec2 { w, h };
     m_gbuffer = std::make_unique<webgpu::Framebuffer>(m_context->webgpu_ctx().device(), m_gbuffer_format);
 
-    // Intermediate target compose renders into (surface format + depth, matching the compose pipeline).
+    // Intermediate target compose renders into (RGBA16Float required for StorageBinding in compute compose).
     webgpu::FramebufferFormat scene_color_format {};
     scene_color_format.size = glm::uvec2 { w, h };
     scene_color_format.depth_format = WGPUTextureFormat_Depth24Plus;
-    scene_color_format.color_formats.emplace_back(m_context->webgpu_ctx().surface_texture_format());
+    scene_color_format.color_formats.emplace_back(WGPUTextureFormat_RGBA16Float);
+    scene_color_format.extra_color_usage = WGPUTextureUsage_StorageBinding;
     m_scene_color_framebuffer = std::make_unique<webgpu::Framebuffer>(m_context->webgpu_ctx().device(), scene_color_format);
 
     // Recreate the LUT sky renderer for the new viewport: back buffer = scene color, depth = gbuffer depth.
@@ -242,14 +240,21 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         m_shared_config_bind_group->handle(),
         m_camera_bind_group->handle());
 
-    // render geometry buffers into the intermediate scene color target
+    // render geometry buffers into the intermediate scene color target (compute)
     {
-        std::unique_ptr<webgpu::raii::RenderPassEncoder> render_pass = m_scene_color_framebuffer->begin_render_pass(command_encoder);
-        wgpuRenderPassEncoderSetPipeline(render_pass->handle(), m_compose_pipeline->pipeline().handle());
-        wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 0, m_shared_config_bind_group->handle(), 0, nullptr);
-        wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 1, m_camera_bind_group->handle(), 0, nullptr);
-        wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 2, m_compose_bind_groups[m_paint_number % 2]->handle(), 0, nullptr);
-        wgpuRenderPassEncoderDraw(render_pass->handle(), 3, 1, 0, 0);
+        const glm::uvec3 compose_workgroups {
+            (static_cast<uint32_t>(m_swapchain_size.x) + 15u) / 16u,
+            (static_cast<uint32_t>(m_swapchain_size.y) + 15u) / 16u,
+            1u
+        };
+        WGPUComputePassDescriptor compose_pass_desc {};
+        compose_pass_desc.label = WGPUStringView { .data = "compose compute pass", .length = WGPU_STRLEN };
+        webgpu::raii::ComputePassEncoder compose_pass(command_encoder, compose_pass_desc);
+        m_compose_pipeline->set_binding(0, *m_shared_config_bind_group);
+        m_compose_pipeline->set_binding(1, *m_camera_bind_group);
+        m_compose_pipeline->set_binding(2, *m_compose_bind_groups[m_paint_number % 2]);
+        m_compose_pipeline->set_binding(3, *m_compose_output_bind_group);
+        m_compose_pipeline->run(compose_pass, compose_workgroups);
     }
 
     // render lines into the scene color target (so they become part of the LUT sky back buffer)
@@ -426,6 +431,12 @@ void Window::recreate_compose_bind_group()
                 m_context->overlay_renderer()->result_pre_view()->create_bind_group_entry(8), // overlay pre-shading output
             });
     }
+
+    m_compose_output_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
+        m_context->webgpu_ctx().resource_registry().bind_group_layout("compose_output"),
+        std::initializer_list<WGPUBindGroupEntry> {
+            m_scene_color_framebuffer->color_texture_view(0).create_bind_group_entry(0),
+        });
 }
 
 void Window::recreate_cloud_composite_bind_groups()

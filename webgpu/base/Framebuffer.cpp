@@ -80,7 +80,7 @@ void Framebuffer::recreate_color_texture(size_t index)
     texture_desc.mipLevelCount = 1;
     texture_desc.sampleCount = 1;
     texture_desc.size = { m_format.size.x, m_format.size.y, 1 };
-    texture_desc.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc;
+    texture_desc.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopySrc | m_format.extra_color_usage;
     texture_desc.viewFormatCount = 1;
     texture_desc.viewFormats = &m_format.color_formats[index];
 

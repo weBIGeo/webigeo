@@ -24,8 +24,6 @@
 ///use webgpu::general
 ///use webgpu::tile_util
 
-///use screen_pass_vert
-
 @group(0) @binding(0) var<uniform> conf: shared_config;
 @group(1) @binding(0) var<uniform> camera: camera_config;
 
@@ -39,6 +37,8 @@
 @group(2) @binding(6) var depth_texture: texture_2d<f32>;
 @group(2) @binding(7) var overlay_renderer_post_texture: texture_2d<f32>;
 @group(2) @binding(8) var overlay_renderer_pre_texture: texture_2d<f32>;
+
+@group(3) @binding(0) var output_color: texture_storage_2d<rgba16float, write>;
 
 const CLOUD_SHADOW_AABB_MIN = vec3f(1045658.54694121, 5811660.13457852, 0.0);
 const CLOUD_SHADOW_AABB_MAX = vec3f(1937220.04485951, 6309418.06277159, 14000.0);
@@ -101,7 +101,7 @@ fn get_cloud_shadow_occlusion(world_pos: vec3f) -> f32 {
         (CLOUD_SHADOW_AABB_MAX.y - world_pos.y) / (CLOUD_SHADOW_AABB_MAX.y - CLOUD_SHADOW_AABB_MIN.y)
     );
 
-    let shadow_map_val = textureSample(cloud_shadow_texture, cloud_shadow_sampler, uv).r;
+    let shadow_map_val = textureSampleLevel(cloud_shadow_texture, cloud_shadow_sampler, uv, 0.0).r;
 
     let height_adjusted = world_pos.z / cos(y_to_lat(world_pos.y));
     let h_receiver_norm = height_adjusted / CLOUD_SHADOW_AABB_MAX.z + SHADOW_BIAS;
@@ -118,9 +118,11 @@ fn get_cloud_shadow_occlusion(world_pos: vec3f) -> f32 {
     return 1.0 - shadow_factor;
 }
 
-@fragment
-fn fragmentMain(vertex_out: VertexOut) -> @location(0) vec4f {
-    let tci: vec2<u32> = vec2u(vertex_out.texcoords * camera.viewport_size);
+@compute @workgroup_size(16, 16, 1)
+fn computeMain(@builtin(global_invocation_id) gid: vec3u) {
+    let dims = textureDimensions(output_color);
+    if gid.x >= dims.x || gid.y >= dims.y { return; }
+    let tci = gid.xy;
 
     var albedo: vec3f = unpack4x8unorm(textureLoad(albedo_texture, tci, 0).r).xyz;
     let pos_dist = textureLoad(position_texture, tci, 0);
@@ -171,5 +173,5 @@ fn fragmentMain(vertex_out: VertexOut) -> @location(0) vec4f {
     let post_overlay_color = textureLoad(overlay_renderer_post_texture, tci, 0);
     out_Color = vec4f(out_Color.rgb * (1.0 - post_overlay_color.a) + post_overlay_color.rgb, out_Color.a);
 
-    return out_Color;
+    textureStore(output_color, gid.xy, out_Color);
 }

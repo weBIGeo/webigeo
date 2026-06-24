@@ -69,54 +69,54 @@ void Context::internal_initialise()
     reg.register_bind_group_layout("compose", [](WGPUDevice device) {
         WGPUBindGroupLayoutEntry albedo_entry {};
         albedo_entry.binding = 0;
-        albedo_entry.visibility = WGPUShaderStage_Fragment;
+        albedo_entry.visibility = WGPUShaderStage_Compute;
         albedo_entry.texture.sampleType = WGPUTextureSampleType_Uint;
         albedo_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry position_entry {};
         position_entry.binding = 1;
-        position_entry.visibility = WGPUShaderStage_Fragment;
+        position_entry.visibility = WGPUShaderStage_Compute;
         position_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
         position_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry normal_entry {};
         normal_entry.binding = 2;
-        normal_entry.visibility = WGPUShaderStage_Fragment;
+        normal_entry.visibility = WGPUShaderStage_Compute;
         normal_entry.texture.sampleType = WGPUTextureSampleType_Uint;
         normal_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry overlay_entry {};
         overlay_entry.binding = 3;
-        overlay_entry.visibility = WGPUShaderStage_Fragment;
+        overlay_entry.visibility = WGPUShaderStage_Compute;
         overlay_entry.texture.sampleType = WGPUTextureSampleType_Uint;
         overlay_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry shadow_texture_entry {};
         shadow_texture_entry.binding = 4;
-        shadow_texture_entry.visibility = WGPUShaderStage_Fragment;
+        shadow_texture_entry.visibility = WGPUShaderStage_Compute;
         shadow_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
         shadow_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry shadow_sampler_entry {};
         shadow_sampler_entry.binding = 5;
-        shadow_sampler_entry.visibility = WGPUShaderStage_Fragment;
+        shadow_sampler_entry.visibility = WGPUShaderStage_Compute;
         shadow_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
 
         WGPUBindGroupLayoutEntry depth_texture_entry {};
         depth_texture_entry.binding = 6;
-        depth_texture_entry.visibility = WGPUShaderStage_Fragment;
+        depth_texture_entry.visibility = WGPUShaderStage_Compute;
         depth_texture_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
         depth_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry overlay_renderer_post_entry {};
         overlay_renderer_post_entry.binding = 7;
-        overlay_renderer_post_entry.visibility = WGPUShaderStage_Fragment;
+        overlay_renderer_post_entry.visibility = WGPUShaderStage_Compute;
         overlay_renderer_post_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
         overlay_renderer_post_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry overlay_renderer_pre_entry {};
         overlay_renderer_pre_entry.binding = 8;
-        overlay_renderer_pre_entry.visibility = WGPUShaderStage_Fragment;
+        overlay_renderer_pre_entry.visibility = WGPUShaderStage_Compute;
         overlay_renderer_pre_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
         overlay_renderer_pre_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
@@ -133,6 +133,17 @@ void Context::internal_initialise()
                 overlay_renderer_pre_entry,
             },
             "compose bind group layout");
+    });
+
+    reg.register_bind_group_layout("compose_output", [](WGPUDevice device) {
+        WGPUBindGroupLayoutEntry output_entry {};
+        output_entry.binding = 0;
+        output_entry.visibility = WGPUShaderStage_Compute;
+        output_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
+        output_entry.storageTexture.format = WGPUTextureFormat_RGBA16Float;
+        output_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+        return std::make_unique<webgpu::raii::BindGroupLayout>(
+            device, std::vector<WGPUBindGroupLayoutEntry> { output_entry }, "compose output bind group layout");
     });
 
     reg.register_bind_group_layout("present", [](WGPUDevice device) {
