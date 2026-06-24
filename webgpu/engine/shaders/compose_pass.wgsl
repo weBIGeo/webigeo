@@ -23,6 +23,8 @@
 ///use webgpu::encoder
 ///use webgpu::general
 ///use webgpu::tile_util
+///use webgpu_engine::sky/common/medium
+///use webgpu_engine::sky/common/transmittance
 
 @group(0) @binding(0) var<uniform> conf: shared_config;
 @group(1) @binding(0) var<uniform> camera: camera_config;
@@ -38,7 +40,10 @@
 @group(2) @binding(7) var overlay_renderer_post_texture: texture_2d<f32>;
 @group(2) @binding(8) var overlay_renderer_pre_texture: texture_2d<f32>;
 
-@group(3) @binding(0) var output_color: texture_storage_2d<rgba16float, write>;
+@group(3) @binding(0) var output_color:          texture_storage_2d<rgba16float, write>;
+@group(3) @binding(1) var<uniform> atmosphere:   Atmosphere;
+@group(3) @binding(2) var transmittance_lut:     texture_2d<f32>;
+@group(3) @binding(3) var transmittance_sampler: sampler;
 
 const CLOUD_SHADOW_AABB_MIN = vec3f(1045658.54694121, 5811660.13457852, 0.0);
 const CLOUD_SHADOW_AABB_MAX = vec3f(1937220.04485951, 6309418.06277159, 14000.0);
@@ -158,9 +163,22 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3u) {
         let pre_overlay_color = textureLoad(overlay_renderer_pre_texture, tci, 0);
         albedo = albedo * (1.0 - pre_overlay_color.a) + pre_overlay_color.rgb;
 
+        // Atmosphere-derived sun light: physical reddening from transmittance LUT + horizon cutoff.
+        let pos_atm      = pos_ws / 1000.0 - atmosphere.planet_center;
+        let view_height  = length(pos_atm);
+        let pos_atm_norm = pos_atm / view_height;
+        let rho   = sqrt(max(0.0, view_height*view_height - atmosphere.bottom_radius*atmosphere.bottom_radius));
+        let atm_h = sqrt(max(0.0, atmosphere.top_radius*atmosphere.top_radius - atmosphere.bottom_radius*atmosphere.bottom_radius));
+        let cos_zenith_sun = dot(-normalize(conf.sun_light_dir.xyz), pos_atm_norm);
+        var effective_sun_light = vec4f(0.0);
+        if cos_zenith_sun > -rho / view_height {
+            let atm_transmittance = lookup_transmittance(view_height, cos_zenith_sun, rho, atm_h);
+            effective_sun_light = vec4f(atm_transmittance * conf.sun_light.a, 1.0);
+        }
+
         var shaded_color = albedo;
         if bool(conf.shading_enabled) {
-            shaded_color = calculate_illumination(shaded_color, origin, pos_ws, normal, conf.sun_light, conf.amb_light, conf.sun_light_dir.xyz, conf.material_light_response, amb_occlusion, shadow_term);
+            shaded_color = calculate_illumination(shaded_color, origin, pos_ws, normal, effective_sun_light, conf.amb_light, conf.sun_light_dir.xyz, conf.material_light_response, amb_occlusion, shadow_term);
         }
         shaded_color = max(vec3(0.0), shaded_color);
         out_Color = vec4(shaded_color, 1.0);

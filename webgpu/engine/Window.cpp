@@ -432,10 +432,21 @@ void Window::recreate_compose_bind_group()
             });
     }
 
+    auto* sky = m_context->sky_renderer();
+    if (!sky->transmittance_lut_view()) return;
+
+    WGPUBindGroupEntry atm_buf_entry {};
+    atm_buf_entry.binding = 1;
+    atm_buf_entry.buffer = sky->atmosphere_uniform_buffer();
+    atm_buf_entry.size = WGPU_WHOLE_SIZE;
+
     m_compose_output_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
         m_context->webgpu_ctx().resource_registry().bind_group_layout("compose_output"),
         std::initializer_list<WGPUBindGroupEntry> {
             m_scene_color_framebuffer->color_texture_view(0).create_bind_group_entry(0),
+            atm_buf_entry,
+            sky->transmittance_lut_view()->create_bind_group_entry(2),
+            sky->transmittance_lut_sampler()->create_bind_group_entry(3),
         });
 }
 

@@ -21,6 +21,7 @@
 ///use util/shared_config
 ///use webgpu_engine::sky/common/medium
 ///use webgpu_engine::sky/common/uv
+///use webgpu_engine::sky/common/transmittance
 
 
 struct tile_info {
@@ -332,14 +333,6 @@ fn get_ray_offset(pixel: vec2u, frame: u32) -> f32 {
 
 // Transmittance LUT lookup with pre-computed atmosphere-space quantities to avoid redundant sqrt calls.
 // view_height, cos_zenith, rho, and h must be derived from the same point and direction.
-fn lookup_transmittance(view_height: f32, cos_zenith: f32, rho: f32, h: f32) -> vec3f {
-    let discriminant = view_height * view_height * (cos_zenith * cos_zenith - 1.0) + atmosphere.top_radius * atmosphere.top_radius;
-    let d = max(0.0, -view_height * cos_zenith + sqrt(max(discriminant, 0.0)));
-    let x_mu = (d - (atmosphere.top_radius - view_height)) / (rho + h);
-    let x_r = rho / h;
-    return textureSampleLevel(transmittance_lut, transmittance_sampler, vec2f(x_mu, x_r), 0).rgb;
-}
-
 fn calculate_point_radiance(
     pos: vec3f,
     beta: f32,
