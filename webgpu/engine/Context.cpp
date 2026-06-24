@@ -85,56 +85,37 @@ void Context::internal_initialise()
         normal_entry.texture.sampleType = WGPUTextureSampleType_Uint;
         normal_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
-        WGPUBindGroupLayoutEntry atmosphere_entry {};
-        atmosphere_entry.binding = 3;
-        atmosphere_entry.visibility = WGPUShaderStage_Fragment;
-        atmosphere_entry.texture.sampleType = WGPUTextureSampleType_Float;
-        atmosphere_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
-
         WGPUBindGroupLayoutEntry overlay_entry {};
-        overlay_entry.binding = 4;
+        overlay_entry.binding = 3;
         overlay_entry.visibility = WGPUShaderStage_Fragment;
         overlay_entry.texture.sampleType = WGPUTextureSampleType_Uint;
         overlay_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
-        WGPUBindGroupLayoutEntry clouds_texture_entry {};
-        clouds_texture_entry.binding = 5;
-        clouds_texture_entry.visibility = WGPUShaderStage_Fragment;
-        clouds_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
-        clouds_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
-
-        WGPUBindGroupLayoutEntry clouds_depth_entry {};
-        clouds_depth_entry.binding = 6;
-        clouds_depth_entry.visibility = WGPUShaderStage_Fragment;
-        clouds_depth_entry.storageTexture.access = WGPUStorageTextureAccess_ReadOnly;
-        clouds_depth_entry.storageTexture.format = WGPUTextureFormat_R32Float;
-        clouds_depth_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
-
         WGPUBindGroupLayoutEntry shadow_texture_entry {};
-        shadow_texture_entry.binding = 7;
+        shadow_texture_entry.binding = 4;
         shadow_texture_entry.visibility = WGPUShaderStage_Fragment;
         shadow_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
         shadow_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry shadow_sampler_entry {};
-        shadow_sampler_entry.binding = 8;
+        shadow_sampler_entry.binding = 5;
         shadow_sampler_entry.visibility = WGPUShaderStage_Fragment;
         shadow_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
 
         WGPUBindGroupLayoutEntry depth_texture_entry {};
-        depth_texture_entry.binding = 9;
+        depth_texture_entry.binding = 6;
         depth_texture_entry.visibility = WGPUShaderStage_Fragment;
         depth_texture_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
         depth_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry overlay_renderer_post_entry {};
-        overlay_renderer_post_entry.binding = 10;
+        overlay_renderer_post_entry.binding = 7;
         overlay_renderer_post_entry.visibility = WGPUShaderStage_Fragment;
         overlay_renderer_post_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
         overlay_renderer_post_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry overlay_renderer_pre_entry {};
-        overlay_renderer_pre_entry.binding = 11;
+        overlay_renderer_pre_entry.binding = 8;
         overlay_renderer_pre_entry.visibility = WGPUShaderStage_Fragment;
         overlay_renderer_pre_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
         overlay_renderer_pre_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
@@ -144,10 +125,7 @@ void Context::internal_initialise()
                 albedo_entry,
                 position_entry,
                 normal_entry,
-                atmosphere_entry,
                 overlay_entry,
-                clouds_texture_entry,
-                clouds_depth_entry,
                 shadow_texture_entry,
                 shadow_sampler_entry,
                 depth_texture_entry,
@@ -193,8 +171,6 @@ void Context::internal_initialise()
 
     if (m_tile_mesh_renderer)
         m_tile_mesh_renderer->init(webgpu_ctx());
-    if (m_atmosphere_renderer)
-        m_atmosphere_renderer->init(webgpu_ctx());
     if (m_sky_renderer)
         m_sky_renderer->init(webgpu_ctx());
     if (m_cloud_renderer)
@@ -215,7 +191,6 @@ void Context::internal_destroy()
     m_overlay_renderer.reset();
     m_cloud_renderer.reset();
     m_sky_renderer.reset();
-    m_atmosphere_renderer.reset();
     m_tile_mesh_renderer.reset();
 }
 
@@ -233,14 +208,6 @@ void Context::set_cloud_renderer(std::shared_ptr<CloudRenderer> new_cloud_render
 {
     assert(!is_alive()); // only set before init is called.
     m_cloud_renderer = std::move(new_cloud_renderer);
-}
-
-AtmosphereRenderer* Context::atmosphere_renderer() const { return m_atmosphere_renderer.get(); }
-
-void Context::set_atmosphere_renderer(std::shared_ptr<AtmosphereRenderer> new_atmosphere_renderer)
-{
-    assert(!is_alive()); // only set before init is called.
-    m_atmosphere_renderer = std::move(new_atmosphere_renderer);
 }
 
 sky::SkyRenderer* Context::sky_renderer() const { return m_sky_renderer.get(); }

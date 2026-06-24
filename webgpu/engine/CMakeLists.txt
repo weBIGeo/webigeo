@@ -29,7 +29,6 @@ set(SOURCES
     tile_mesh/TileMeshRenderer.h tile_mesh/TileMeshRenderer.cpp
     cloud/CloudRenderer.h cloud/CloudRenderer.cpp
     track/TrackRenderer.h track/TrackRenderer.cpp
-    atmosphere/AtmosphereRenderer.h atmosphere/AtmosphereRenderer.cpp
     sky/params.h sky/params.cpp
     sky/uniforms.h sky/uniforms.cpp
     sky/config.h sky/config.cpp
@@ -87,7 +86,6 @@ qt_add_resources(webgpu_engine "shaders"
     BASE "${SHADER_BASE_DIR}"
     FILES
         "${SHADER_BASE_DIR}/render_tiles.wgsl"
-        "${SHADER_BASE_DIR}/render_atmosphere.wgsl"
         "${SHADER_BASE_DIR}/render_lines.wgsl"
         "${SHADER_BASE_DIR}/compose_pass.wgsl"
         "${SHADER_BASE_DIR}/present_pass.wgsl"

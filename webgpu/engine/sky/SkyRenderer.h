@@ -66,6 +66,9 @@ public:
     /// Request a re-render of the constant LUTs on the next @ref render (call after changing atmosphere params).
     void mark_atmosphere_dirty();
 
+    /// Enable/disable the sky render pass. LUT textures remain valid when disabled.
+    void set_sky_enabled(bool enabled) { m_sky_enabled = enabled; }
+
     /// The full-resolution RGBA16Float texture the sky pass writes into (nullptr before the first resize).
     const webgpu::raii::TextureView* result_view() const;
 
@@ -77,6 +80,7 @@ public:
 private:
     WGPUDevice m_device = nullptr;
     webgpu::RenderResourceRegistry* m_registry = nullptr;
+    bool m_sky_enabled = true;
 
     std::unique_ptr<webgpu::raii::Texture> m_render_target;
     std::unique_ptr<webgpu::raii::TextureView> m_render_target_view;

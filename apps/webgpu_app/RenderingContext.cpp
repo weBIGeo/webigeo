@@ -135,8 +135,6 @@ void RenderingContext::initialize(webgpu::Context& ctx)
     m_engine_context->set_overlay_renderer(overlay_renderer);
     auto track_renderer = std::make_shared<webgpu_engine::TrackRenderer>();
     m_engine_context->set_track_renderer(track_renderer);
-    auto atmosphere_renderer = std::make_shared<webgpu_engine::AtmosphereRenderer>();
-    m_engine_context->set_atmosphere_renderer(atmosphere_renderer);
     auto sky_renderer = std::make_shared<webgpu_engine::sky::SkyRenderer>();
     m_engine_context->set_sky_renderer(sky_renderer);
 

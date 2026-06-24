@@ -21,7 +21,6 @@
 #pragma once
 
 #include "UniformBufferObjects.h"
-#include "atmosphere/AtmosphereRenderer.h"
 #include "cloud/CloudRenderer.h"
 #include "nucleus/EngineContext.h"
 #include "nucleus/track/Manager.h"
@@ -46,9 +45,6 @@ public:
 
     CloudRenderer* cloud_renderer() const;
     void set_cloud_renderer(std::shared_ptr<CloudRenderer> new_cloud_renderer);
-
-    AtmosphereRenderer* atmosphere_renderer() const;
-    void set_atmosphere_renderer(std::shared_ptr<AtmosphereRenderer> new_atmosphere_renderer);
 
     sky::SkyRenderer* sky_renderer() const;
     void set_sky_renderer(std::shared_ptr<sky::SkyRenderer> new_sky_renderer);
@@ -83,7 +79,6 @@ private:
     uboSharedConfig m_shared_config;
     std::shared_ptr<TileMeshRenderer> m_tile_mesh_renderer;
     std::shared_ptr<CloudRenderer> m_cloud_renderer;
-    std::shared_ptr<AtmosphereRenderer> m_atmosphere_renderer;
     std::shared_ptr<sky::SkyRenderer> m_sky_renderer;
     std::shared_ptr<OverlayRenderer> m_overlay_renderer;
     std::shared_ptr<TrackRenderer> m_track_renderer;

@@ -18,7 +18,6 @@
 
 ///use webgpu::tile_util
 ///use util/shared_config
-///use util/atmosphere
 
 struct tile_info {
     index: u32,
@@ -351,16 +350,6 @@ fn calculate_point_radiance(
 
     let ambient_radiance = sconf.amb_light.rgb * sconf.amb_light.a * params.ambient_light_scale;
     var ambient_color = ambient_radiance;
-    if bool(sconf.atmosphere_enabled) {
-        let pos_km = pos / 1000.0;
-        let air_density = density_at_height(pos_km.z);
-        let rayleigh_coeff = scattering_coefficients();
-        let atm_scattering = air_density * rayleigh_coeff;
-        let atm_inscatter_density = atmospheric_inscatter_at_point(pos_km, sun_dir);
-        let atm_tint = sun_radiance * atm_inscatter_density * atm_scattering * params.atm_light_scale;
-        // Lerp toward tint rather than adding - controls saturation
-        ambient_color = mix(ambient_radiance, atm_tint, 0.2);
-    }
 
     let cloud_ambient_inscatter = ambient_color * ambient_occlusion;
 

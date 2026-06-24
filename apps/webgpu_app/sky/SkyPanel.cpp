@@ -38,29 +38,16 @@ SkyPanel::SkyPanel(webgpu_engine::Context* context, webgpu_engine::sky::SkyRende
 void SkyPanel::draw()
 {
     auto& cfg = m_context->shared_config();
-    // Toggles between the legacy gradient atmosphere (0) and the LUT-based sky (1) for perf comparison.
-    if (ImGuiManager::FloatingToggleButton("ToggleLutSkyButton", ICON_FA_SUN, "LUT Sky", &cfg.m_sky_mode))
+    if (ImGuiManager::FloatingToggleButton("ToggleSkyButton", ICON_FA_GLOBE_EUROPE, "Sky", &cfg.m_sky_enabled))
         m_context->request_redraw();
 }
 
 void SkyPanel::draw_panel()
 {
-    if (!ImGui::CollapsingHeader(ICON_FA_SUN "  Sky (LUT)"))
+    if (!ImGui::CollapsingHeader(ICON_FA_GLOBE_EUROPE "  Sky"))
         return;
 
     auto& cfg = m_context->shared_config();
-
-    int mode = int(cfg.m_sky_mode);
-    if (ImGui::Combo("Renderer", &mode, "Legacy gradient\0LUT sky\0\0")) {
-        cfg.m_sky_mode = uint32_t(mode);
-        m_context->request_redraw();
-    }
-
-    if (cfg.m_sky_mode != 1u) {
-        ImGui::TextDisabled("Select 'LUT sky' to edit atmosphere parameters.");
-        return;
-    }
-
     auto& atm = m_sky_renderer->atmosphere();
     auto& uni = m_sky_renderer->uniforms();
     bool atmosphere_changed = false; // requires constant-LUT re-render

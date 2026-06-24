@@ -95,7 +95,7 @@ void SkyRenderer::update(const nucleus::camera::Definition& camera, const glm::v
 
 void SkyRenderer::render(WGPUCommandEncoder command_encoder)
 {
-    if (!m_renderer) {
+    if (!m_renderer || !m_sky_enabled) {
         return;
     }
 

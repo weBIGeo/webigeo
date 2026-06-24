@@ -173,8 +173,6 @@ void Window::resize_framebuffer(int w, int h)
     scene_color_format.color_formats.emplace_back(m_context->webgpu_ctx().surface_texture_format());
     m_scene_color_framebuffer = std::make_unique<webgpu::Framebuffer>(m_context->webgpu_ctx().device(), scene_color_format);
 
-    m_context->atmosphere_renderer()->resize(w, h);
-
     // Recreate the LUT sky renderer for the new viewport: back buffer = scene color, depth = gbuffer depth.
     m_context->sky_renderer()->resize(uint32_t(w), uint32_t(h), m_gbuffer->depth_texture(), m_gbuffer->depth_texture_view(),
         m_scene_color_framebuffer->color_texture(0), m_scene_color_framebuffer->color_texture_view(0));
@@ -212,9 +210,6 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
     // ToDo only update on change?
     m_shared_config_ubo->data = m_context->shared_config();
     m_shared_config_ubo->update_gpu_data(m_context->webgpu_ctx().queue());
-
-    // render atmosphere to color buffer
-    m_context->atmosphere_renderer()->draw(command_encoder, m_camera_bind_group->handle());
 
     // render tiles to geometry buffers
     {
@@ -261,35 +256,40 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
             m_scene_color_framebuffer->color_texture_view(0));
     }
 
-    const bool lut_sky = m_context->shared_config().m_sky_mode == 1;
     const bool clouds_enabled = m_context->shared_config().m_clouds_enabled;
+    const bool sky_enabled = bool(m_context->shared_config().m_sky_enabled);
 
-    // LUT-based sky: layer physically-based atmosphere over the scene color back buffer
-    if (lut_sky) {
+    // Sky: layer physically-based atmosphere over the scene color back buffer
+    {
         const glm::vec3 sun_direction = -glm::vec3(m_context->shared_config().m_sun_light_dir);
+        m_context->sky_renderer()->set_sky_enabled(sky_enabled);
         m_context->sky_renderer()->update(m_camera, sun_direction);
         m_context->sky_renderer()->render(command_encoder);
+    }
 
-        // Blend clouds on top of the sky result (deferred from compose pass)
-        if (clouds_enabled && m_cloud_composite_pipeline) {
-            m_cloud_composite_pipeline->set_binding(0, *m_cloud_composite_bind_groups[m_paint_number % 2]);
-            const glm::uvec3 workgroups {
-                (static_cast<uint32_t>(m_swapchain_size.x) + 15u) / 16u,
-                (static_cast<uint32_t>(m_swapchain_size.y) + 15u) / 16u,
-                1u
-            };
-            WGPUComputePassDescriptor composite_pass_desc {};
-            composite_pass_desc.label = WGPUStringView { .data = "cloud composite pass", .length = WGPU_STRLEN };
-            webgpu::raii::ComputePassEncoder composite_pass(command_encoder, composite_pass_desc);
-            m_cloud_composite_pipeline->run(composite_pass, workgroups);
-        }
+    // Blend clouds on top of the background (sky render target when sky on, scene color when sky off)
+    if (clouds_enabled && m_cloud_composite_pipeline) {
+        const auto& bg_bind_group = sky_enabled
+            ? *m_cloud_composite_bind_groups[m_paint_number % 2]
+            : *m_cloud_composite_bind_groups_no_sky[m_paint_number % 2];
+        m_cloud_composite_pipeline->set_binding(0, bg_bind_group);
+        const glm::uvec3 workgroups {
+            (static_cast<uint32_t>(m_swapchain_size.x) + 15u) / 16u,
+            (static_cast<uint32_t>(m_swapchain_size.y) + 15u) / 16u,
+            1u
+        };
+        WGPUComputePassDescriptor composite_pass_desc {};
+        composite_pass_desc.label = WGPUStringView { .data = "cloud composite pass", .length = WGPU_STRLEN };
+        webgpu::raii::ComputePassEncoder composite_pass(command_encoder, composite_pass_desc);
+        m_cloud_composite_pipeline->run(composite_pass, workgroups);
     }
 
     // present: blit the chosen result to the swapchain
-    const webgpu::raii::BindGroup* present_bg = m_present_bind_group_legacy.get();
-    if (lut_sky) {
+    const webgpu::raii::BindGroup* present_bg;
+    if (sky_enabled)
         present_bg = (clouds_enabled ? m_present_bind_group_sky_clouds : m_present_bind_group_sky).get();
-    }
+    else
+        present_bg = (clouds_enabled ? m_present_bind_group_no_sky_clouds : m_present_bind_group_no_sky).get();
     {
         std::unique_ptr<webgpu::raii::RenderPassEncoder> render_pass = framebuffer->begin_render_pass(command_encoder);
         wgpuRenderPassEncoderSetPipeline(render_pass->handle(), m_present_pipeline->pipeline().handle());
@@ -416,15 +416,12 @@ void Window::recreate_compose_bind_group()
                 m_gbuffer->color_texture_view(0).create_bind_group_entry(0), // albedo texture
                 m_gbuffer->color_texture_view(1).create_bind_group_entry(1), // position texture
                 m_gbuffer->color_texture_view(2).create_bind_group_entry(2), // normal texture
-                m_context->atmosphere_renderer()->result_view()->create_bind_group_entry(3), // atmosphere texture
-                m_gbuffer->color_texture_view(3).create_bind_group_entry(4), // overlay texture
-                m_context->cloud_renderer()->result_color_view(i)->create_bind_group_entry(5),
-                m_context->cloud_renderer()->result_depth_view()->create_bind_group_entry(6),
-                m_shadow_texture->texture_view().create_bind_group_entry(7),
-                m_shadow_texture->sampler().create_bind_group_entry(8),
-                m_gbuffer->depth_texture_view().create_bind_group_entry(9),
-                m_context->overlay_renderer()->result_post_view()->create_bind_group_entry(10), // overlay post-shading output
-                m_context->overlay_renderer()->result_pre_view()->create_bind_group_entry(11), // overlay pre-shading output
+                m_gbuffer->color_texture_view(3).create_bind_group_entry(3), // overlay texture
+                m_shadow_texture->texture_view().create_bind_group_entry(4),
+                m_shadow_texture->sampler().create_bind_group_entry(5),
+                m_gbuffer->depth_texture_view().create_bind_group_entry(6),
+                m_context->overlay_renderer()->result_post_view()->create_bind_group_entry(7), // overlay post-shading output
+                m_context->overlay_renderer()->result_pre_view()->create_bind_group_entry(8), // overlay pre-shading output
             });
     }
 }
@@ -436,7 +433,14 @@ void Window::recreate_cloud_composite_bind_groups()
         m_cloud_composite_bind_groups[i] = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
             m_context->webgpu_ctx().resource_registry().bind_group_layout("cloud_composite"),
             std::initializer_list<WGPUBindGroupEntry> {
-                m_context->sky_renderer()->result_view()->create_bind_group_entry(0),
+                m_context->sky_renderer()->result_view()->create_bind_group_entry(0), // background = sky
+                m_context->cloud_renderer()->result_color_view(i)->create_bind_group_entry(1),
+                m_cloud_composite_view->create_bind_group_entry(2),
+            });
+        m_cloud_composite_bind_groups_no_sky[i] = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
+            m_context->webgpu_ctx().resource_registry().bind_group_layout("cloud_composite"),
+            std::initializer_list<WGPUBindGroupEntry> {
+                m_scene_color_framebuffer->color_texture_view(0).create_bind_group_entry(0), // background = scene color
                 m_context->cloud_renderer()->result_color_view(i)->create_bind_group_entry(1),
                 m_cloud_composite_view->create_bind_group_entry(2),
             });
@@ -445,12 +449,6 @@ void Window::recreate_cloud_composite_bind_groups()
 
 void Window::recreate_present_bind_groups()
 {
-    m_present_bind_group_legacy = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
-        m_context->webgpu_ctx().resource_registry().bind_group_layout("present"),
-        std::initializer_list<WGPUBindGroupEntry> {
-            m_scene_color_framebuffer->color_texture_view(0).create_bind_group_entry(0),
-        });
-
     m_present_bind_group_sky = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
         m_context->webgpu_ctx().resource_registry().bind_group_layout("present"),
         std::initializer_list<WGPUBindGroupEntry> {
@@ -458,6 +456,18 @@ void Window::recreate_present_bind_groups()
         });
 
     m_present_bind_group_sky_clouds = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
+        m_context->webgpu_ctx().resource_registry().bind_group_layout("present"),
+        std::initializer_list<WGPUBindGroupEntry> {
+            m_cloud_composite_view->create_bind_group_entry(0),
+        });
+
+    m_present_bind_group_no_sky = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
+        m_context->webgpu_ctx().resource_registry().bind_group_layout("present"),
+        std::initializer_list<WGPUBindGroupEntry> {
+            m_scene_color_framebuffer->color_texture_view(0).create_bind_group_entry(0),
+        });
+
+    m_present_bind_group_no_sky_clouds = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
         m_context->webgpu_ctx().resource_registry().bind_group_layout("present"),
         std::initializer_list<WGPUBindGroupEntry> {
             m_cloud_composite_view->create_bind_group_entry(0),

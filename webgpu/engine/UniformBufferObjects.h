@@ -38,14 +38,14 @@ public:
     // amb, diff, spec, shininess
     glm::vec4 m_material_light_response = glm::vec4(1.5, 3.0, 0.0, 32.0);
 
-    uint32_t m_atmosphere_enabled = true;
+    uint32_t m_sky_enabled = true;
     uint32_t m_clouds_enabled = true;
     uint32_t m_shading_enabled = true;
     uint32_t m_normal_mode = 2; // 0...none, 1...per fragment, 2...FDM
 
     uint32_t m_overlay_mode = 0; // per-tile debug data packed into GBuffer slot 3 (see TileDebugOverlay)
     uint32_t m_track_render_mode = 1; // 0...none, 1...without depth test, 2...with depth test, 3 semi-transparent if behind terrain
-    uint32_t m_sky_mode = 1; // 0...legacy gradient atmosphere (composited here), 1...LUT-based sky (composited in a later compute pass)
+    uint32_t _padding0 = 0;
     float m_planet_radius_m = 6360000.0f; // Earth radius in meters, used for curvature correction and sky LUT
 };
 

@@ -115,15 +115,17 @@ private:
 
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_compose_pipeline;
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_present_pipeline; // raw blit to swapchain (both modes)
-    std::unique_ptr<webgpu::raii::BindGroup> m_present_bind_group_legacy; // samples scene color
-    std::unique_ptr<webgpu::raii::BindGroup> m_present_bind_group_sky; // samples the LUT sky render target
-    std::unique_ptr<webgpu::raii::BindGroup> m_present_bind_group_sky_clouds; // samples cloud composite output
+    std::unique_ptr<webgpu::raii::BindGroup> m_present_bind_group_sky;          // sky on, no clouds
+    std::unique_ptr<webgpu::raii::BindGroup> m_present_bind_group_sky_clouds;    // sky on, clouds on top
+    std::unique_ptr<webgpu::raii::BindGroup> m_present_bind_group_no_sky;        // sky off, no clouds (scene color direct)
+    std::unique_ptr<webgpu::raii::BindGroup> m_present_bind_group_no_sky_clouds; // sky off, clouds over scene color
 
-    // Cloud composite pass: blends upscaled clouds over the sky render target (LUT-sky mode only).
+    // Cloud composite pass: blends upscaled clouds over the background.
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_cloud_composite_pipeline;
     std::unique_ptr<webgpu::raii::Texture> m_cloud_composite_texture;
     std::unique_ptr<webgpu::raii::TextureView> m_cloud_composite_view;
-    std::array<std::unique_ptr<webgpu::raii::BindGroup>, 2> m_cloud_composite_bind_groups;
+    std::array<std::unique_ptr<webgpu::raii::BindGroup>, 2> m_cloud_composite_bind_groups;        // background = sky render target
+    std::array<std::unique_ptr<webgpu::raii::BindGroup>, 2> m_cloud_composite_bind_groups_no_sky; // background = scene color
 
     // ToDo: Swapchain should get a raii class and the size could be saved in there
     glm::vec2 m_swapchain_size = glm::vec2(0.0f);
