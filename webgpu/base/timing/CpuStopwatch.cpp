@@ -1,6 +1,6 @@
 /*****************************************************************************
- * Alpine Terrain Renderer
- * Copyright (C) 2023 Gerald Kimmersdorfer
+ * weBIGeo
+ * Copyright (C) 2026 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,22 +16,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "CpuTimer.h"
+#include "CpuStopwatch.h"
 
 namespace webgpu::timing {
 
-CpuTimer::CpuTimer(int queue_size)
-    : TimerInterface(queue_size)
-{
-}
+void CpuStopwatch::start() { m_ticks[0] = std::chrono::high_resolution_clock::now(); }
 
-void CpuTimer::start() { m_ticks[0] = std::chrono::high_resolution_clock::now(); }
-
-void CpuTimer::stop()
+float CpuStopwatch::stop()
 {
     m_ticks[1] = std::chrono::high_resolution_clock::now();
-    const float duration = std::chrono::duration<float>(m_ticks[1] - m_ticks[0]).count();
-    add_result(duration);
+    return std::chrono::duration<float>(m_ticks[1] - m_ticks[0]).count();
 }
 
 } // namespace webgpu::timing

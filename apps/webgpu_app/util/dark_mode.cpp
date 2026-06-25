@@ -118,6 +118,9 @@ void setup_darkmode_imgui_style()
     colors[ImGuiCol_TabUnfocused] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
     colors[ImGuiCol_TabUnfocusedActive] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
 
+    colors[ImGuiCol_PlotHistogram] = ImVec4(0 / 255.0f, 101 / 255.0f, 153 / 255.0f, 1.00f);
+    colors[ImGuiCol_PlotHistogramHovered] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
+
     colors[ImGuiCol_TextSelectedBg] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
     colors[ImGuiCol_DragDropTarget] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);
     colors[ImGuiCol_NavHighlight] = ImVec4(78 / 255.0f, 163 / 255.0f, 196 / 255.0f, 1.00f);

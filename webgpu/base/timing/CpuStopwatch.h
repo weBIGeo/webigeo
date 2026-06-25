@@ -18,25 +18,19 @@
 
 #pragma once
 
-#include "ImGuiPanel.h"
-#include <set>
+#include <chrono>
+#include <cstdint>
+#include <functional>
 
-namespace webgpu_app {
+namespace webgpu::timing {
 
-class App;
-
-class TimingPanel : public ImGuiPanel {
+class CpuStopwatch {
 public:
-    explicit TimingPanel(App* terrain_renderer);
-
-    void draw_panel() override;
+    void start();
+    float stop(); // returns elapsed seconds synchronously
 
 private:
-    App* m_terrain_renderer;
-    std::set<uint32_t> m_selected_timer = {};
-
-    void toggle_timer(uint32_t timer_id);
-    bool is_timer_selected(uint32_t timer_id) const;
+    std::chrono::time_point<std::chrono::high_resolution_clock> m_ticks[2];
 };
 
-} // namespace webgpu_app
+} // namespace webgpu::timing

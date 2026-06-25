@@ -160,14 +160,26 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
 {
     m_needs_redraw = false;
 
+    static constexpr webgpu::timing::StringId SID_ATMOSPHERE("Atmosphere", "Engine");
+    static constexpr webgpu::timing::StringId SID_TILEMESH("TileMesh", "Engine");
+    static constexpr webgpu::timing::StringId SID_CLOUDS("Clouds", "Engine");
+    static constexpr webgpu::timing::StringId SID_OVERLAY("Overlay", "Engine");
+    static constexpr webgpu::timing::StringId SID_COMPOSE("Compose", "Engine");
+    static constexpr webgpu::timing::StringId SID_TRACKS("Tracks", "Engine");
+
+    auto& sm = m_context->webgpu_ctx().stopwatch_manager();
+
     // ToDo only update on change?
     m_shared_config_ubo->data = m_context->shared_config();
     m_shared_config_ubo->update_gpu_data(m_context->webgpu_ctx().queue());
 
     // render atmosphere to color buffer
+    sm.start_gpu(SID_ATMOSPHERE, command_encoder);
     m_context->atmosphere_renderer()->draw(command_encoder, m_camera_bind_group->handle());
+    sm.stop_gpu(SID_ATMOSPHERE, command_encoder);
 
     // render tiles to geometry buffers
+    sm.start_gpu(SID_TILEMESH, command_encoder);
     {
         std::unique_ptr<webgpu::raii::RenderPassEncoder> render_pass = m_gbuffer->begin_render_pass(command_encoder);
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 0, m_shared_config_bind_group->handle(), 0, nullptr);
@@ -180,23 +192,29 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
 
         m_context->tile_mesh_renderer()->draw(render_pass->handle(), m_camera, culled_draw_list);
     }
+    sm.stop_gpu(SID_TILEMESH, command_encoder);
 
     // render clouds
     if (m_context->shared_config().m_clouds_enabled) {
+        sm.start_gpu(SID_CLOUDS, command_encoder);
         m_context->cloud_renderer()->draw(
             command_encoder, m_depth_texture_bind_group->handle(), m_shared_config_bind_group->handle(), m_camera, m_paint_number);
+        sm.stop_gpu(SID_CLOUDS, command_encoder);
         m_needs_redraw |= m_context->cloud_renderer()->needs_redraw(); // Repaint for TAAU
     }
 
     // render overlay textures (height lines, tile debug, etc.)
+    sm.start_gpu(SID_OVERLAY, command_encoder);
     m_context->overlay_renderer()->draw(command_encoder,
         m_gbuffer->color_texture_view(1),
         m_gbuffer->color_texture_view(2),
         m_gbuffer->color_texture_view(3),
         m_shared_config_bind_group->handle(),
         m_camera_bind_group->handle());
+    sm.stop_gpu(SID_OVERLAY, command_encoder);
 
     // render geometry buffers to target framebuffer
+    sm.start_gpu(SID_COMPOSE, command_encoder);
     {
         std::unique_ptr<webgpu::raii::RenderPassEncoder> render_pass = framebuffer->begin_render_pass(command_encoder);
         wgpuRenderPassEncoderSetPipeline(render_pass->handle(), m_compose_pipeline->pipeline().handle());
@@ -205,11 +223,14 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 2, m_compose_bind_groups[m_paint_number % 2]->handle(), 0, nullptr);
         wgpuRenderPassEncoderDraw(render_pass->handle(), 3, 1, 0, 0);
     }
+    sm.stop_gpu(SID_COMPOSE, command_encoder);
 
     // render lines to color buffer
     if (m_context->shared_config().m_track_render_mode > 0) {
+        sm.start_gpu(SID_TRACKS, command_encoder);
         m_context->track_renderer()->render(
             command_encoder, *m_shared_config_bind_group, *m_camera_bind_group, *m_depth_texture_bind_group, framebuffer->color_texture_view(0));
+        sm.stop_gpu(SID_TRACKS, command_encoder);
     }
 
     m_paint_number++;
