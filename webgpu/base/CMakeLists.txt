@@ -55,6 +55,11 @@ set(SOURCES
     timing/CpuTimer.h timing/CpuTimer.cpp
     timing/WebGpuTimer.h timing/WebGpuTimer.cpp
 
+    timing/StringId.h
+    timing/GpuStopwatch.h timing/GpuStopwatch.cpp
+    timing/CpuStopwatch.h timing/CpuStopwatch.cpp
+    timing/StopwatchManager.h timing/StopwatchManager.cpp
+
     Framebuffer.h Framebuffer.cpp
 
     Context.h
