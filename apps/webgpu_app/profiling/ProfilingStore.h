@@ -37,7 +37,7 @@ struct Sample {
 struct TimingSeries {
     const char* name = nullptr;
     const char* group = nullptr;
-    static constexpr size_t CAPACITY = 120;
+    static constexpr size_t CAPACITY = 300;
     std::array<Sample, CAPACITY> samples = {};
     size_t head = 0;
     size_t count = 0;
@@ -45,6 +45,7 @@ struct TimingSeries {
     float sum_sq = 0.0f;
     float min = FLT_MAX;
     float max = 0.0f;
+    uint64_t last_frame = 0;
 
     void add(uint64_t frame, float value);
 };

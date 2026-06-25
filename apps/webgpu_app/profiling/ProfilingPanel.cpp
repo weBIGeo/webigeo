@@ -20,13 +20,14 @@
 
 #include <IconsFontAwesome5.h>
 #include <imgui.h>
+#include <cstdio>
 #include <map>
 #include <string>
 #include <vector>
 
+#include "../util/format_time.h"
 #include "App.h"
 #include "ProfilingStore.h"
-#include "../util/format_time.h"
 
 namespace webgpu_app {
 
@@ -49,22 +50,71 @@ void ProfilingPanel::draw_panel()
         groups[group].push_back(&series);
     }
 
+    static constexpr uint64_t STALE_THRESHOLD = 10;
+    static constexpr float COL_TIME_W = 72.0f;
+    static constexpr float COL_BAR_W = 130.0f;
+
     for (const auto& [group_name, entries] : groups) {
+        uint64_t max_frame = 0;
+        for (const auto* s : entries)
+            if (s->last_frame > max_frame)
+                max_frame = s->last_frame;
+
+        float group_sum = 0.0f;
+        for (const auto* s : entries)
+            if (s->last_frame + STALE_THRESHOLD >= max_frame)
+                group_sum += average(*s);
+
         const bool has_group = !group_name.empty();
         const bool open = !has_group || ImGui::TreeNodeEx(group_name.c_str(), ImGuiTreeNodeFlags_DefaultOpen);
-        if (open) {
+        if (!open)
+            continue;
+
+        if (ImGui::BeginTable(group_name.c_str(), 3, ImGuiTableFlags_None)) {
+            ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableSetupColumn("Time", ImGuiTableColumnFlags_WidthFixed, COL_TIME_W);
+            ImGui::TableSetupColumn("Share", ImGuiTableColumnFlags_WidthFixed, COL_BAR_W);
+
             for (const auto* series : entries) {
+                const bool stale = series->last_frame + STALE_THRESHOLD < max_frame;
                 const float avg = average(*series);
-                const float sd = stddev(*series);
-                ImGui::Text("%s: %s \xc2\xb1%s [%zu]",
-                    series->name ? series->name : "?",
-                    format_time(avg).c_str(),
-                    format_time(sd).c_str(),
-                    series->count);
+
+                ImGui::TableNextRow();
+
+                // Name column
+                ImGui::TableSetColumnIndex(0);
+                if (stale)
+                    ImGui::TextDisabled("%s", series->name ? series->name : "?");
+                else
+                    ImGui::TextUnformatted(series->name ? series->name : "?");
+
+                // Time column (right-aligned)
+                ImGui::TableSetColumnIndex(1);
+                const std::string time_str = format_time(avg);
+                const float text_w = ImGui::CalcTextSize(time_str.c_str()).x;
+                ImGui::SetCursorPosX(ImGui::GetCursorPosX() + COL_TIME_W - text_w);
+                if (stale)
+                    ImGui::TextDisabled("%s", time_str.c_str());
+                else
+                    ImGui::TextUnformatted(time_str.c_str());
+
+                // Bar column
+                ImGui::TableSetColumnIndex(2);
+                if (stale) {
+                    ImGui::TextDisabled("--");
+                } else {
+                    const float pct = group_sum > 0.0f ? avg / group_sum : 0.0f;
+                    char overlay[16];
+                    std::snprintf(overlay, sizeof(overlay), "%.0f%%", pct * 100.0f);
+                    ImGui::ProgressBar(pct, ImVec2(COL_BAR_W, 0.0f), overlay);
+                }
             }
-            if (has_group)
-                ImGui::TreePop();
+
+            ImGui::EndTable();
         }
+
+        if (has_group)
+            ImGui::TreePop();
     }
 
     if (ImGui::Button("Reset All Timers"))

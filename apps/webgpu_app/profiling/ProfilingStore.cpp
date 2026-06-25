@@ -31,6 +31,7 @@ void TimingSeries::add(uint64_t frame, float value)
     samples[head] = { frame, value };
     head = (head + 1) % CAPACITY;
     count++;
+    last_frame = frame;
     sum += value;
     sum_sq += value * value;
     if (value < min)
@@ -63,6 +64,7 @@ void ProfilingStore::reset_all()
         series.sum_sq = 0.0f;
         series.min = FLT_MAX;
         series.max = 0.0f;
+        series.last_frame = 0;
     }
 }
 
