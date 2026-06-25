@@ -27,16 +27,18 @@ constexpr uint32_t fnv1a(const char* str, uint32_t hash = 2166136261u)
 {
     return *str == '\0' ? hash : fnv1a(str + 1, (hash ^ static_cast<uint32_t>(*str)) * 16777619u);
 }
+// Hash a single byte into an ongoing FNV-1a hash
+constexpr uint32_t fnv1a_byte(uint8_t b, uint32_t hash) { return (hash ^ static_cast<uint32_t>(b)) * 16777619u; }
 } // namespace detail
 
-// Lightweight timer identity: hash is computed constexpr from name at the callsite.
+// Lightweight timer identity: hash is computed at compile time from name+\1+group
 struct StringId {
     uint32_t hash;
     const char* name;
     const char* group;
 
     constexpr StringId(const char* name, const char* group)
-        : hash(detail::fnv1a(name))
+        : hash(detail::fnv1a(group, detail::fnv1a_byte('\1', detail::fnv1a(name))))
         , name(name)
         , group(group)
     {
