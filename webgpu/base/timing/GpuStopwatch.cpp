@@ -26,11 +26,16 @@ namespace webgpu::timing {
 static const char* ring_slot_label(uint32_t i)
 {
     switch (i) {
-    case 0: return "GpuStopwatch Readback 0";
-    case 1: return "GpuStopwatch Readback 1";
-    case 2: return "GpuStopwatch Readback 2";
-    case 3: return "GpuStopwatch Readback 3";
-    default: return "GpuStopwatch Readback X";
+    case 0:
+        return "GpuStopwatch Readback 0";
+    case 1:
+        return "GpuStopwatch Readback 1";
+    case 2:
+        return "GpuStopwatch Readback 2";
+    case 3:
+        return "GpuStopwatch Readback 3";
+    default:
+        return "GpuStopwatch Readback X";
     }
 }
 #else
@@ -48,13 +53,12 @@ GpuStopwatch::GpuStopwatch(WGPUDevice device, Callback callback, uint32_t ring_b
         .count = 2,
     };
     m_timestamp_queries = wgpuDeviceCreateQuerySet(m_device, &desc);
-    m_timestamp_resolve = std::make_unique<webgpu::raii::RawBuffer<uint64_t>>(
-        device, WGPUBufferUsage_QueryResolve | WGPUBufferUsage_CopySrc, 2, "GpuStopwatch Resolve");
+    m_timestamp_resolve
+        = std::make_unique<webgpu::raii::RawBuffer<uint64_t>>(device, WGPUBufferUsage_QueryResolve | WGPUBufferUsage_CopySrc, 2, "GpuStopwatch Resolve");
 
     for (uint32_t i = 0; i < ring_buffer_size; ++i) {
-        m_ring.push_back({ std::make_unique<webgpu::raii::RawBuffer<uint64_t>>(
-                               device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead, 2, ring_slot_label(i)),
-            0 });
+        m_ring.push_back(
+            { std::make_unique<webgpu::raii::RawBuffer<uint64_t>>(device, WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead, 2, ring_slot_label(i)), 0 });
     }
 }
 
@@ -64,10 +68,7 @@ GpuStopwatch::~GpuStopwatch()
         wgpuQuerySetRelease(m_timestamp_queries);
 }
 
-void GpuStopwatch::start(WGPUCommandEncoder encoder)
-{
-    wgpuCommandEncoderWriteTimestamp(encoder, m_timestamp_queries, 0);
-}
+void GpuStopwatch::start(WGPUCommandEncoder encoder) { wgpuCommandEncoderWriteTimestamp(encoder, m_timestamp_queries, 0); }
 
 void GpuStopwatch::stop(WGPUCommandEncoder encoder, uint64_t frame)
 {

@@ -19,8 +19,8 @@
 #include "ProfilingPanel.h"
 
 #include <IconsFontAwesome5.h>
-#include <imgui.h>
 #include <cstdio>
+#include <imgui.h>
 #include <map>
 #include <string>
 #include <vector>
@@ -104,9 +104,11 @@ void ProfilingPanel::draw_panel()
                     const float pct = (!stale && group_sum > 0.0f) ? avg / group_sum : 0.0f;
                     char overlay[16];
                     std::snprintf(overlay, sizeof(overlay), stale ? "--" : "%.0f%%", pct * 100.0f);
-                    if (stale) ImGui::BeginDisabled();
+                    if (stale)
+                        ImGui::BeginDisabled();
                     ImGui::ProgressBar(pct, ImVec2(-FLT_MIN, 0.0f), overlay);
-                    if (stale) ImGui::EndDisabled();
+                    if (stale)
+                        ImGui::EndDisabled();
                 }
             }
 

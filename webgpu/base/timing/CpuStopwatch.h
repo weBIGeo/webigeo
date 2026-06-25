@@ -24,7 +24,6 @@
 
 namespace webgpu::timing {
 
-
 class CpuStopwatch {
 public:
     void start();

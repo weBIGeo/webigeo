@@ -35,6 +35,7 @@
 #include "backends/imgui_impl_wgpu.h"
 #include "cloud/CloudPanel.h"
 #include "overlay/OverlaysPanel.h"
+#include "profiling/ProfilingPanel.h"
 #include "track/TrackPanel.h"
 #include "ui/AboutPanel.h"
 #include "ui/AppPanel.h"
@@ -44,7 +45,6 @@
 #include "ui/LogoPanel.h"
 #include "ui/SearchPanel.h"
 #include "ui/ShadingPanel.h"
-#include "profiling/ProfilingPanel.h"
 #ifdef ALP_WEBGPU_APP_ENABLE_COMPUTE
 #include "compute/NodeGraphPanel.h"
 #endif

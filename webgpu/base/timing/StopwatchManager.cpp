@@ -27,15 +27,9 @@ StopwatchManager::StopwatchManager(QObject* parent)
 {
 }
 
-void StopwatchManager::init(WGPUDevice device)
-{
-    m_device = device;
-}
+void StopwatchManager::init(WGPUDevice device) { m_device = device; }
 
-void StopwatchManager::begin_frame(uint64_t frame)
-{
-    m_current_frame = frame;
-}
+void StopwatchManager::begin_frame(uint64_t frame) { m_current_frame = frame; }
 
 void StopwatchManager::start_gpu(StringId id, WGPUCommandEncoder encoder)
 {
@@ -59,10 +53,7 @@ void StopwatchManager::resolve_all()
         sw->resolve();
 }
 
-void StopwatchManager::start_cpu(StringId id)
-{
-    get_or_create_cpu(id)->start();
-}
+void StopwatchManager::start_cpu(StringId id) { get_or_create_cpu(id)->start(); }
 
 void StopwatchManager::stop_cpu(StringId id)
 {
@@ -76,9 +67,7 @@ GpuStopwatch* StopwatchManager::get_or_create_gpu(StringId id)
     auto it = m_gpu.find(id.hash);
     if (it == m_gpu.end()) {
         m_ids.emplace(id.hash, id);
-        GpuStopwatch::Callback cb = [this, id](uint64_t frame, float seconds) {
-            emit measured(id, frame, seconds);
-        };
+        GpuStopwatch::Callback cb = [this, id](uint64_t frame, float seconds) { emit measured(id, frame, seconds); };
         it = m_gpu.emplace(id.hash, std::make_unique<GpuStopwatch>(m_device, std::move(cb))).first;
     }
     return it->second.get();

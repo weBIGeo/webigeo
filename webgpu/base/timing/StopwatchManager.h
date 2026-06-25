@@ -44,7 +44,7 @@ public:
 
     void start_gpu(StringId id, WGPUCommandEncoder encoder);
     void stop_gpu(StringId id, WGPUCommandEncoder encoder);
-    // Initiates async readback for all active GPU stopwatches. 
+    // Initiates async readback for all active GPU stopwatches.
     // Must be called after wgpuQueueSubmit.
     void resolve_all();
 

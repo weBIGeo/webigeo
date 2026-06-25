@@ -20,10 +20,7 @@
 
 namespace webgpu::timing {
 
-void CpuStopwatch::start()
-{
-    m_ticks[0] = std::chrono::high_resolution_clock::now();
-}
+void CpuStopwatch::start() { m_ticks[0] = std::chrono::high_resolution_clock::now(); }
 
 float CpuStopwatch::stop()
 {

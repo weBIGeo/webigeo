@@ -390,8 +390,7 @@ void App::start()
         std::initializer_list<WGPUBindGroupEntry> { m_framebuffer->color_texture_view(0).create_bind_group_entry(0), m_gui_ubo->create_bind_group_entry(1) });
 
     m_profiling_store = std::make_unique<ProfilingStore>();
-    connect(&m_webgpu_ctx.stopwatch_manager(), &webgpu::timing::StopwatchManager::measured,
-        m_profiling_store.get(), &ProfilingStore::on_measurement);
+    connect(&m_webgpu_ctx.stopwatch_manager(), &webgpu::timing::StopwatchManager::measured, m_profiling_store.get(), &ProfilingStore::on_measurement);
 
     m_gui_manager->init(m_sdl_window, m_device, m_surface_texture_format, WGPUTextureFormat_Undefined);
 
