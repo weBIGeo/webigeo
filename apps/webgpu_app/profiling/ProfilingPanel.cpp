@@ -72,7 +72,7 @@ void ProfilingPanel::draw_panel()
 
         if (ImGui::BeginTable(group_name.c_str(), 3, ImGuiTableFlags_None)) {
             ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
-            ImGui::TableSetupColumn("Time", ImGuiTableColumnFlags_WidthFixed, COL_TIME_W);
+            ImGui::TableSetupColumn("Time", ImGuiTableColumnFlags_WidthStretch);
             ImGui::TableSetupColumn("Share", ImGuiTableColumnFlags_WidthFixed, COL_BAR_W);
 
             for (const auto* series : entries) {
@@ -100,13 +100,13 @@ void ProfilingPanel::draw_panel()
 
                 // Bar column
                 ImGui::TableSetColumnIndex(2);
-                if (stale) {
-                    ImGui::TextDisabled("--");
-                } else {
-                    const float pct = group_sum > 0.0f ? avg / group_sum : 0.0f;
+                {
+                    const float pct = (!stale && group_sum > 0.0f) ? avg / group_sum : 0.0f;
                     char overlay[16];
-                    std::snprintf(overlay, sizeof(overlay), "%.0f%%", pct * 100.0f);
+                    std::snprintf(overlay, sizeof(overlay), stale ? "--" : "%.0f%%", pct * 100.0f);
+                    if (stale) ImGui::BeginDisabled();
                     ImGui::ProgressBar(pct, ImVec2(COL_BAR_W, 0.0f), overlay);
+                    if (stale) ImGui::EndDisabled();
                 }
             }
 
