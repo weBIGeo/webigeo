@@ -50,11 +50,6 @@ set(SOURCES
     util/string_cast.h util/string_cast.cpp
     util/ShaderPreprocessor.h util/ShaderPreprocessor.cpp
 
-    timing/GuiTimerManager.h timing/GuiTimerManager.cpp
-    timing/TimerInterface.h timing/TimerInterface.cpp
-    timing/CpuTimer.h timing/CpuTimer.cpp
-    timing/WebGpuTimer.h timing/WebGpuTimer.cpp
-
     timing/StringId.h
     timing/GpuStopwatch.h timing/GpuStopwatch.cpp
     timing/CpuStopwatch.h timing/CpuStopwatch.cpp

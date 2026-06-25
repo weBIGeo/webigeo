@@ -18,25 +18,25 @@
 
 #pragma once
 
-#include "ImGuiPanel.h"
-#include <set>
+#include <iomanip>
+#include <sstream>
+#include <string>
 
 namespace webgpu_app {
 
-class App;
-
-class TimingPanel : public ImGuiPanel {
-public:
-    explicit TimingPanel(App* terrain_renderer);
-
-    void draw_panel() override;
-
-private:
-    App* m_terrain_renderer;
-    std::set<uint32_t> m_selected_timer = {};
-
-    void toggle_timer(uint32_t timer_id);
-    bool is_timer_selected(uint32_t timer_id) const;
-};
+inline std::string format_time(float time, int precision = 2)
+{
+    std::ostringstream oss;
+    if (time > 0.5f) {
+        oss << std::setprecision(precision) << time << " s";
+    } else if (time > 0.0005f) {
+        oss << std::fixed << std::setprecision(precision) << time * 1000.0f << " ms";
+    } else if (time > 0.0000005f) {
+        oss << std::fixed << std::setprecision(precision) << time * 1000000.0f << " us";
+    } else {
+        oss << std::fixed << std::setprecision(precision) << time * 1000000000.0f << " ns";
+    }
+    return oss.str();
+}
 
 } // namespace webgpu_app

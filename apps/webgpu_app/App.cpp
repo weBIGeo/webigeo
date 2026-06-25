@@ -44,7 +44,7 @@
 #include <nucleus/camera/PositionStorage.h>
 #include <nucleus/tile/SchedulerDirector.h>
 #include <nucleus/tile/setup.h>
-#include <nucleus/timing/CpuTimer.h>
+#include <webgpu/base/timing/StringId.h>
 #include <webgpu/engine/Context.h>
 #include <webgpu/engine/tile_mesh/TileMeshRenderer.h>
 
@@ -179,10 +179,15 @@ void App::render()
 {
     // Do nothing, this checks for ongoing asynchronous operations and call their callbacks
 
+    static constexpr webgpu::timing::StringId SID_CPU("CPU Frame", "App");
+    static constexpr webgpu::timing::StringId SID_GPU("GPU Frame", "App");
+
     WGPUSurfaceTexture surface_texture;
     wgpuSurfaceGetCurrentTexture(m_surface, &surface_texture);
 
-    m_cputimer->start();
+    auto& sm = m_webgpu_ctx.stopwatch_manager();
+    sm.begin_frame(m_frame_count);
+    sm.start_cpu(SID_CPU);
 
     if (surface_texture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal
         && surface_texture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal) {
@@ -211,8 +216,7 @@ void App::render()
     command_encoder_desc.label = WGPUStringView { .data = "Command Encoder", .length = WGPU_STRLEN };
     WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(m_device, &command_encoder_desc);
 
-    if (webgpu::isTimingSupported())
-        m_gputimer->start(encoder);
+    sm.start_gpu(SID_GPU, encoder);
 
     m_frame_count++;
     if (m_webgpu_window->needs_redraw() || m_force_repaint || m_force_repaint_once) {
@@ -231,8 +235,7 @@ void App::render()
         m_gui_manager->render(render_pass.handle());
     }
 
-    if (webgpu::isTimingSupported())
-        m_gputimer->stop(encoder);
+    sm.stop_gpu(SID_GPU, encoder);
 
     wgpuTextureViewRelease(surface_texture_view);
 
@@ -243,10 +246,8 @@ void App::render()
     wgpuQueueSubmit(m_queue, 1, &command);
     wgpuCommandBufferRelease(command);
 
-    if (webgpu::isTimingSupported())
-        m_gputimer->resolve();
-
-    m_cputimer->stop();
+    sm.resolve_all();
+    sm.stop_cpu(SID_CPU);
 
 #ifndef __EMSCRIPTEN__
     // Surface present in the WEB is handled by the browser!
@@ -382,15 +383,11 @@ void App::start()
         *m_gui_bind_group_layout.get(),
         std::initializer_list<WGPUBindGroupEntry> { m_framebuffer->color_texture_view(0).create_bind_group_entry(0), m_gui_ubo->create_bind_group_entry(1) });
 
-    m_timer_manager = std::make_unique<webgpu::timing::GuiTimerManager>();
-    m_gui_manager->init(m_sdl_window, m_device, m_surface_texture_format, WGPUTextureFormat_Undefined);
+    m_profiling_store = std::make_unique<ProfilingStore>();
+    connect(&m_webgpu_ctx.stopwatch_manager(), &webgpu::timing::StopwatchManager::measured,
+        m_profiling_store.get(), &ProfilingStore::on_measurement);
 
-    m_cputimer = std::make_shared<webgpu::timing::CpuTimer>(120);
-    m_timer_manager->add_timer(m_cputimer, "CPU Timer", "Renderer");
-    if (webgpu::isTimingSupported()) {
-        m_gputimer = std::make_shared<webgpu::timing::WebGpuTimer>(m_device, 3, 120);
-        m_timer_manager->add_timer(m_gputimer, "GPU Timer", "Renderer");
-    }
+    m_gui_manager->init(m_sdl_window, m_device, m_surface_texture_format, WGPUTextureFormat_Undefined);
 
     this->on_window_resize(m_viewport_size.x, m_viewport_size.y);
     m_initialized = true;
