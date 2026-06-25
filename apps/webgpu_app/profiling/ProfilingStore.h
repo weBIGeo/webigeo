@@ -37,7 +37,7 @@ struct Sample {
 struct TimingSeries {
     const char* name = nullptr;
     const char* group = nullptr;
-    static constexpr size_t CAPACITY = 300;
+    static constexpr size_t CAPACITY = 120;
     std::array<Sample, CAPACITY> samples = {};
     size_t head = 0;
     size_t count = 0;
