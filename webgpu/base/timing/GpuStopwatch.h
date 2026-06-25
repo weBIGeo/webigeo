@@ -1,6 +1,6 @@
 /*****************************************************************************
- * Alpine Terrain Renderer
- * Copyright (C) 2023 Gerald Kimmersdorfer
+ * weBIGeo
+ * Copyright (C) 2026 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,37 +19,45 @@
 #pragma once
 
 #include "../raii/RawBuffer.h"
-#include "TimerInterface.h"
+#include <functional>
 #include <memory>
 #include <vector>
 #include <webgpu/webgpu.h>
 
 namespace webgpu::timing {
 
-class WebGpuTimer : public TimerInterface {
-
+class GpuStopwatch {
 public:
-    WebGpuTimer(WGPUDevice device, uint32_t ring_buffer_size, size_t capacity);
+    using Callback = std::function<void(uint64_t frame, float seconds)>;
+
+    GpuStopwatch(WGPUDevice device, Callback callback, uint32_t ring_buffer_size = 3);
+    ~GpuStopwatch();
+
     void start(WGPUCommandEncoder encoder);
-    void stop(WGPUCommandEncoder encoder);
-    /// Readback of last value. Needs to be called after queue submit!
+    // frame is stored per ring slot and passed to the callback in resolve().
+    void stop(WGPUCommandEncoder encoder, uint64_t frame);
+    // Must be called after wgpuQueueSubmit. Fires the stored callback when data is ready.
     void resolve();
 
 private:
-    WGPUQuerySetDescriptor m_timestamp_query_desc;
-    WGPUQuerySet m_timestamp_queries;
-    WGPUPassTimestampWrites m_timestamp_writes;
+    struct RingSlot {
+        std::unique_ptr<webgpu::raii::RawBuffer<uint64_t>> buffer;
+        uint64_t frame = 0;
+    };
+
     WGPUDevice m_device;
-
+    WGPUQuerySet m_timestamp_queries = nullptr;
     std::unique_ptr<webgpu::raii::RawBuffer<uint64_t>> m_timestamp_resolve;
-    std::vector<std::unique_ptr<webgpu::raii::RawBuffer<uint64_t>>> m_timestamp_readback_buffer;
+    std::vector<RingSlot> m_ring;
+    Callback m_callback;
 
-    int m_ringbuffer_index_write = 0; // next write index
-    int m_ringbuffer_index_read = -1; // next index to read
-    inline void increment_index(int& index) { index = (index + 1) % this->m_timestamp_readback_buffer.size(); }
+    int m_write_index = 0;
+    int m_read_index = -1;
+
+    void increment(int& index) { index = (index + 1) % static_cast<int>(m_ring.size()); }
 
 #ifdef QT_DEBUG
-    uint32_t m_dbg_dropped_measurement_count = 0;
+    uint32_t m_dbg_dropped_count = 0;
 #endif
 };
 

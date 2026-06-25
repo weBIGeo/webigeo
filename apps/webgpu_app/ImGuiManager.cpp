@@ -35,6 +35,7 @@
 #include "backends/imgui_impl_wgpu.h"
 #include "cloud/CloudPanel.h"
 #include "overlay/OverlaysPanel.h"
+#include "profiling/ProfilingPanel.h"
 #include "track/TrackPanel.h"
 #include "ui/AboutPanel.h"
 #include "ui/AppPanel.h"
@@ -44,7 +45,6 @@
 #include "ui/LogoPanel.h"
 #include "ui/SearchPanel.h"
 #include "ui/ShadingPanel.h"
-#include "ui/TimingPanel.h"
 #ifdef ALP_WEBGPU_APP_ENABLE_COMPUTE
 #include "compute/NodeGraphPanel.h"
 #endif
@@ -97,7 +97,7 @@ void ImGuiManager::init(
     m_panels.push_back(std::make_unique<AboutPanel>());
     m_panels.push_back(std::make_unique<SearchPanel>(m_terrain_renderer));
     SearchPanel& search_panel = static_cast<SearchPanel&>(**(m_panels.end() - 1));
-    m_panels.push_back(std::make_unique<TimingPanel>(m_terrain_renderer));
+    m_panels.push_back(std::make_unique<ProfilingPanel>(m_terrain_renderer));
     m_panels.push_back(std::make_unique<CameraPanel>(m_terrain_renderer));
     m_panels.push_back(std::make_unique<AppPanel>(m_terrain_renderer));
     m_panels.push_back(std::make_unique<CloudPanel>(engine_ctx, rc->clouds_manager(), engine_ctx->cloud_renderer()));

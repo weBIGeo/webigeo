@@ -19,6 +19,8 @@
 #pragma once
 
 #include "RenderResourceRegistry.h"
+#include "timing/StopwatchManager.h"
+#include <memory>
 #include <webgpu/webgpu.h>
 
 namespace webgpu {
@@ -46,10 +48,14 @@ public:
         m_adapter = adapter;
         m_surface = surface;
         m_queue = queue;
+        m_stopwatch_manager = std::make_unique<webgpu::timing::StopwatchManager>();
+        m_stopwatch_manager->init(device);
     }
 
     RenderResourceRegistry& resource_registry() { return m_registry; }
     const RenderResourceRegistry& resource_registry() const { return m_registry; }
+
+    webgpu::timing::StopwatchManager& stopwatch_manager() { return *m_stopwatch_manager; }
 
 private:
     WGPUInstance m_instance = nullptr;
@@ -60,6 +66,7 @@ private:
     WGPUTextureFormat m_surface_texture_format = WGPUTextureFormat_BGRA8Unorm;
 
     RenderResourceRegistry m_registry;
+    std::unique_ptr<webgpu::timing::StopwatchManager> m_stopwatch_manager;
 };
 
 } // namespace webgpu

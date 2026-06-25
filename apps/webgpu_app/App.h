@@ -20,6 +20,7 @@
 #pragma once
 
 #include "ImGuiManager.h"
+#include "profiling/ProfilingStore.h"
 #include "util/InputMapper.h"
 #include <SDL2/SDL.h>
 #include <memory>
@@ -27,11 +28,7 @@
 #include <nucleus/camera/Controller.h>
 #include <nucleus/tile/GeometryScheduler.h>
 #include <nucleus/tile/TextureScheduler.h>
-#include <nucleus/timing/TimerManager.h>
 
-#include <webgpu/base/timing/CpuTimer.h>
-#include <webgpu/base/timing/GuiTimerManager.h>
-#include <webgpu/base/timing/WebGpuTimer.h>
 #include <webgpu/webgpu.h>
 
 #include "webgpu/engine/Context.h"
@@ -62,7 +59,7 @@ public:
 
     [[nodiscard]] InputMapper* get_input_mapper() { return m_input_mapper.get(); }
     [[nodiscard]] ImGuiManager* get_gui_manager() { return m_gui_manager.get(); }
-    [[nodiscard]] webgpu::timing::GuiTimerManager* get_timer_manager() { return m_timer_manager.get(); }
+    [[nodiscard]] ProfilingStore* get_profiling_store() { return m_profiling_store.get(); }
     [[nodiscard]] webgpu_engine::Window* get_webgpu_window() { return m_webgpu_window.get(); }
     [[nodiscard]] RenderingContext* get_rendering_context() { return m_context.get(); }
     [[nodiscard]] nucleus::camera::Controller* get_camera_controller() { return m_camera_controller.get(); }
@@ -83,7 +80,7 @@ private:
 
     std::unique_ptr<InputMapper> m_input_mapper;
     std::unique_ptr<ImGuiManager> m_gui_manager;
-    std::unique_ptr<webgpu::timing::GuiTimerManager> m_timer_manager;
+    std::unique_ptr<ProfilingStore> m_profiling_store;
 
     WGPUInstanceDescriptor m_instance_desc;
 
@@ -109,15 +106,6 @@ private:
     std::unique_ptr<webgpu::raii::BindGroupLayout> m_gui_bind_group_layout;
     std::unique_ptr<webgpu::raii::BindGroup> m_gui_bind_group;
     std::unique_ptr<webgpu::raii::RawBuffer<GuiPipelineUBO>> m_gui_ubo;
-
-    WGPUQuerySetDescriptor m_timestamp_query_desc;
-    WGPUQuerySet m_timestamp_queries;
-    WGPUPassTimestampWrites m_timestamp_writes;
-    std::unique_ptr<webgpu::raii::RawBuffer<uint64_t>> m_timestamp_resolve;
-    std::unique_ptr<webgpu::raii::RawBuffer<uint64_t>> m_timestamp_result;
-
-    std::shared_ptr<webgpu::timing::WebGpuTimer> m_gputimer;
-    std::shared_ptr<webgpu::timing::CpuTimer> m_cputimer;
 
     bool m_force_repaint = false;
     bool m_force_repaint_once = false;

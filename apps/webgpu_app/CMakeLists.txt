@@ -29,13 +29,16 @@ set(SOURCES
 
     util/error_logging.h util/error_logging.cpp
     util/dark_mode.h util/dark_mode.cpp
+    util/format_time.h
     util/InputMapper.h util/InputMapper.cpp
     util/SearchService.h util/SearchService.cpp
 
     cloud/CloudsManager.h cloud/CloudsManager.cpp
 
+    profiling/ProfilingStore.h profiling/ProfilingStore.cpp
+    profiling/ProfilingPanel.h profiling/ProfilingPanel.cpp
+
     ui/ImGuiPanel.h
-    ui/TimingPanel.h ui/TimingPanel.cpp
     ui/CameraPanel.h ui/CameraPanel.cpp
     ui/AppPanel.h ui/AppPanel.cpp
     ui/ShadingPanel.h ui/ShadingPanel.cpp

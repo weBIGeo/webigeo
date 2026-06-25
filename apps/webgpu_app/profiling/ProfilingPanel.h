@@ -1,6 +1,6 @@
 /*****************************************************************************
- * Alpine Terrain Renderer
- * Copyright (C) 2023 Gerald Kimmersdorfer
+ * weBIGeo
+ * Copyright (C) 2026 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,23 +18,19 @@
 
 #pragma once
 
-#include "TimerInterface.h"
-#include "chrono"
+#include "../ui/ImGuiPanel.h"
 
-namespace webgpu::timing {
+namespace webgpu_app {
 
-/// The CpuTimer class measures times on the c++ side using the std::chronos library
-class CpuTimer : public TimerInterface {
+class App;
+
+class ProfilingPanel : public ImGuiPanel {
 public:
-    CpuTimer(int queue_size);
+    explicit ProfilingPanel(App* app);
+    void draw_panel() override;
 
-    void start();
-
-    void stop();
-
-protected:
 private:
-    std::chrono::time_point<std::chrono::high_resolution_clock> m_ticks[2];
+    App* m_app;
 };
 
-} // namespace webgpu::timing
+} // namespace webgpu_app

@@ -205,11 +205,22 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
 {
     m_needs_redraw = false;
 
+    static constexpr webgpu::timing::StringId SID_TILEMESH("TileMesh", "Engine");
+    static constexpr webgpu::timing::StringId SID_CLOUDS("Clouds", "Engine");
+    static constexpr webgpu::timing::StringId SID_OVERLAY("Overlay", "Engine");
+    static constexpr webgpu::timing::StringId SID_COMPOSE("Compose", "Engine");
+    static constexpr webgpu::timing::StringId SID_TRACKS("Tracks", "Engine");
+    static constexpr webgpu::timing::StringId SID_SKY("Sky", "Engine");
+    static constexpr webgpu::timing::StringId SID_CLOUD_COMPOSITE("CloudComposite", "Engine");
+
+    auto& sm = m_context->webgpu_ctx().stopwatch_manager();
+
     // ToDo only update on change?
     m_shared_config_ubo->data = m_context->shared_config();
     m_shared_config_ubo->update_gpu_data(m_context->webgpu_ctx().queue());
 
     // render tiles to geometry buffers
+    sm.start_gpu(SID_TILEMESH, command_encoder);
     {
         std::unique_ptr<webgpu::raii::RenderPassEncoder> render_pass = m_gbuffer->begin_render_pass(command_encoder);
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 0, m_shared_config_bind_group->handle(), 0, nullptr);
@@ -222,25 +233,33 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
 
         m_context->tile_mesh_renderer()->draw(render_pass->handle(), m_camera, culled_draw_list);
     }
+    sm.stop_gpu(SID_TILEMESH, command_encoder);
 
     // render clouds
     if (m_context->shared_config().m_clouds_enabled) {
         auto* sky = m_context->sky_renderer();
+        sm.start_gpu(SID_CLOUDS, command_encoder);
         m_context->cloud_renderer()->draw(
             command_encoder, m_depth_texture_bind_group->handle(), m_shared_config_bind_group->handle(), m_camera, m_paint_number,
             *sky->transmittance_lut_view(), *sky->transmittance_lut_sampler(), sky->atmosphere_uniform_buffer());
+        sm.stop_gpu(SID_CLOUDS, command_encoder);
         m_needs_redraw |= m_context->cloud_renderer()->needs_redraw(); // Repaint for TAAU
     }
 
     // render overlay textures (height lines, tile debug, etc.)
-    m_context->overlay_renderer()->draw(command_encoder,
-        m_gbuffer->color_texture_view(1),
-        m_gbuffer->color_texture_view(2),
-        m_gbuffer->color_texture_view(3),
-        m_shared_config_bind_group->handle(),
-        m_camera_bind_group->handle());
+    if (!m_context->overlay_renderer()->overlays().empty()) {
+        sm.start_gpu(SID_OVERLAY, command_encoder);
+        m_context->overlay_renderer()->draw(command_encoder,
+            m_gbuffer->color_texture_view(1),
+            m_gbuffer->color_texture_view(2),
+            m_gbuffer->color_texture_view(3),
+            m_shared_config_bind_group->handle(),
+            m_camera_bind_group->handle());
+        sm.stop_gpu(SID_OVERLAY, command_encoder);
+    }
 
     // render geometry buffers into the intermediate scene color target (compute)
+    sm.start_gpu(SID_COMPOSE, command_encoder);
     {
         const glm::uvec3 compose_workgroups {
             (static_cast<uint32_t>(m_swapchain_size.x) + 15u) / 16u,
@@ -256,39 +275,48 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         m_compose_pipeline->set_binding(3, *m_compose_output_bind_group);
         m_compose_pipeline->run(compose_pass, compose_workgroups);
     }
+    sm.stop_gpu(SID_COMPOSE, command_encoder);
 
     // render lines into the scene color target (so they become part of the LUT sky back buffer)
-    if (m_context->shared_config().m_track_render_mode > 0) {
+    if (m_context->shared_config().m_track_render_mode > 0 && m_context->track_renderer()->has_tracks()) {
+        sm.start_gpu(SID_TRACKS, command_encoder);
         m_context->track_renderer()->render(command_encoder, *m_shared_config_bind_group, *m_camera_bind_group, *m_depth_texture_bind_group,
             m_scene_color_framebuffer->color_texture_view(0));
+        sm.stop_gpu(SID_TRACKS, command_encoder);
     }
 
     const bool clouds_enabled = m_context->shared_config().m_clouds_enabled;
     const bool sky_enabled = bool(m_context->shared_config().m_sky_enabled);
 
     // Sky: layer physically-based atmosphere over the scene color back buffer
+    if (sky_enabled) sm.start_gpu(SID_SKY, command_encoder);
     {
         const glm::vec3 sun_direction = -glm::vec3(m_context->shared_config().m_sun_light_dir);
         m_context->sky_renderer()->set_sky_enabled(sky_enabled);
         m_context->sky_renderer()->update(m_camera, sun_direction);
         m_context->sky_renderer()->render(command_encoder);
     }
+    if (sky_enabled) sm.stop_gpu(SID_SKY, command_encoder);
 
     // Blend clouds on top of the background (sky render target when sky on, scene color when sky off)
     if (clouds_enabled && m_cloud_composite_pipeline) {
-        const auto& bg_bind_group = sky_enabled
-            ? *m_cloud_composite_bind_groups[m_paint_number % 2]
-            : *m_cloud_composite_bind_groups_no_sky[m_paint_number % 2];
-        m_cloud_composite_pipeline->set_binding(0, bg_bind_group);
-        const glm::uvec3 workgroups {
-            (static_cast<uint32_t>(m_swapchain_size.x) + 15u) / 16u,
-            (static_cast<uint32_t>(m_swapchain_size.y) + 15u) / 16u,
-            1u
-        };
-        WGPUComputePassDescriptor composite_pass_desc {};
-        composite_pass_desc.label = WGPUStringView { .data = "cloud composite pass", .length = WGPU_STRLEN };
-        webgpu::raii::ComputePassEncoder composite_pass(command_encoder, composite_pass_desc);
-        m_cloud_composite_pipeline->run(composite_pass, workgroups);
+        sm.start_gpu(SID_CLOUD_COMPOSITE, command_encoder);
+        {
+            const auto& bg_bind_group = sky_enabled
+                ? *m_cloud_composite_bind_groups[m_paint_number % 2]
+                : *m_cloud_composite_bind_groups_no_sky[m_paint_number % 2];
+            m_cloud_composite_pipeline->set_binding(0, bg_bind_group);
+            const glm::uvec3 workgroups {
+                (static_cast<uint32_t>(m_swapchain_size.x) + 15u) / 16u,
+                (static_cast<uint32_t>(m_swapchain_size.y) + 15u) / 16u,
+                1u
+            };
+            WGPUComputePassDescriptor composite_pass_desc {};
+            composite_pass_desc.label = WGPUStringView { .data = "cloud composite pass", .length = WGPU_STRLEN };
+            webgpu::raii::ComputePassEncoder composite_pass(command_encoder, composite_pass_desc);
+            m_cloud_composite_pipeline->run(composite_pass, workgroups);
+        }
+        sm.stop_gpu(SID_CLOUD_COMPOSITE, command_encoder);
     }
 
     // present: blit the chosen result to the swapchain

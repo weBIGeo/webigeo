@@ -1,6 +1,6 @@
 /*****************************************************************************
- * Alpine Terrain Renderer
- * Copyright (C) 2023 Gerald Kimmersdorfer
+ * weBIGeo
+ * Copyright (C) 2026 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,28 +16,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "GuiTimerManager.h"
+#pragma once
 
-namespace webgpu::timing {
+#include <iomanip>
+#include <sstream>
+#include <string>
 
-GuiTimerManager::GuiTimerManager() = default;
+namespace webgpu_app {
 
-std::shared_ptr<TimerInterface> GuiTimerManager::add_timer(std::shared_ptr<TimerInterface> tmr)
+inline std::string format_time(float time, int precision = 2)
 {
-    // Your implementation here if needed
-    return tmr;
-}
-
-const GuiTimerWrapper* GuiTimerManager::get_timer_by_id(uint32_t timer_id) const
-{
-    for (const auto& group : m_groups) {
-        for (const auto& tmr : group.timers) {
-            if (tmr.timer->get_id() == timer_id) {
-                return &tmr;
-            }
-        }
+    std::ostringstream oss;
+    if (time > 0.5f) {
+        oss << std::setprecision(precision) << time << " s";
+    } else if (time > 0.0005f) {
+        oss << std::fixed << std::setprecision(precision) << time * 1000.0f << " ms";
+    } else if (time > 0.0000005f) {
+        oss << std::fixed << std::setprecision(precision) << time * 1000000.0f << " us";
+    } else {
+        oss << std::fixed << std::setprecision(precision) << time * 1000000000.0f << " ns";
     }
-    return nullptr;
+    return oss.str();
 }
 
-} // namespace webgpu::timing
+} // namespace webgpu_app
