@@ -179,8 +179,10 @@ void App::render()
 {
     // Do nothing, this checks for ongoing asynchronous operations and call their callbacks
 
-    static constexpr webgpu::timing::StringId SID_CPU("CPU Frame", "App");
-    static constexpr webgpu::timing::StringId SID_GPU("GPU Frame", "App");
+    static constexpr webgpu::timing::StringId SID_CPU("CPU", "Frame");
+    static constexpr webgpu::timing::StringId SID_GPU("GPU", "Frame");
+    static constexpr webgpu::timing::StringId SID_UI_CPU("CPU", "HUD");
+    static constexpr webgpu::timing::StringId SID_UI_GPU("GPU", "HUD");
 
     WGPUSurfaceTexture surface_texture;
     wgpuSurfaceGetCurrentTexture(m_surface, &surface_texture);
@@ -225,6 +227,8 @@ void App::render()
         m_force_repaint_once = false;
     }
 
+    sm.start_gpu(SID_UI_GPU, encoder);
+    sm.start_cpu(SID_UI_CPU);
     {
         webgpu::raii::RenderPassEncoder render_pass(encoder, surface_texture_view, nullptr);
         wgpuRenderPassEncoderSetPipeline(render_pass.handle(), m_gui_pipeline.get()->pipeline().handle());
@@ -234,6 +238,8 @@ void App::render()
         // We add the GUI drawing commands to the render pass
         m_gui_manager->render(render_pass.handle());
     }
+    sm.stop_cpu(SID_UI_CPU);
+    sm.stop_gpu(SID_UI_GPU, encoder);
 
     sm.stop_gpu(SID_GPU, encoder);
 
