@@ -21,7 +21,13 @@
 ///use util/shared_config
 ///use webgpu_engine::sky/common/medium
 ///use webgpu_engine::sky/common/uv
+
+///define USE_SKY_TRANSMITTANCE_LUT 1
+///define USE_SKY_AERIAL_LUT 1
+
+///if USE_SKY_TRANSMITTANCE_LUT 1
 ///use webgpu_engine::sky/common/transmittance
+///endif
 
 
 struct tile_info {
@@ -84,8 +90,13 @@ struct ray_accumulator {
 @group(2) @binding(0) var<uniform> sconf: shared_config;
 
 @group(3) @binding(0) var<uniform> atmosphere: Atmosphere;
+///if USE_SKY_TRANSMITTANCE_LUT 1
 @group(3) @binding(1) var transmittance_lut: texture_2d<f32>;
+///endif
 @group(3) @binding(2) var transmittance_sampler: sampler;
+///if USE_SKY_AERIAL_LUT 1
+@group(3) @binding(3) var aerial_perspective_lut: texture_3d<f32>;
+///endif
 
 // tile size at zoom level 10
 override tile_size_xy = 39135.7584820102;
@@ -367,13 +378,23 @@ fn calculate_point_radiance(
         let cloud_sun_transmittance = sample_light_energy(pos, sun_dir, params.extinction_coeff, lod, step_size, cos_angle);
 
         // Sun: attenuate by atmosphere above this cloud point — gives correct sunset/altitude coloring.
+///if USE_SKY_TRANSMITTANCE_LUT 1
         let atm_sun_transmittance = lookup_transmittance(view_height, cos_zenith_sun, rho, h);
+///endif
+///if USE_SKY_TRANSMITTANCE_LUT 0
+        let atm_sun_transmittance = vec3f(1.0);
+///endif
         let sun_radiance = sconf.sun_light.rgb * sconf.sun_light.a * params.sun_light_scale * atm_sun_transmittance * sun_visibility;
         cloud_sun_inscatter = sun_radiance * cloud_sun_transmittance * cloud_phase;
     }
 
     // Ambient: upward transmittance as sky-light proxy. pos_atm_norm.z == dot(vec3(0,0,1), pos_atm_norm).
+///if USE_SKY_TRANSMITTANCE_LUT 1
     let atm_sky_transmittance = lookup_transmittance(view_height, pos_atm_norm.z, rho, h);
+///endif
+///if USE_SKY_TRANSMITTANCE_LUT 0
+    let atm_sky_transmittance = vec3f(1.0);
+///endif
     let ambient_occlusion = mix(0.3, 1.0, atm_sky_transmittance.r);
     let ambient_radiance = sconf.amb_light.rgb * sconf.amb_light.a * params.ambient_light_scale * atm_sky_transmittance;
     let cloud_ambient_inscatter = ambient_radiance * ambient_occlusion;
@@ -558,13 +579,34 @@ fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
         acc.step_count++;
     }
 
-    // Note: accumulated radiance is already "alpha-premultiplied" in a sense
-    textureStore(output_color, pixel_coord, vec4f(acc.radiance, acc.transmittance));
-
-    // Output apparent depth (linear depth in NDC Z)
+    // Compute apparent depth before AP so we have it for both the depth store and the LUT lookup.
     var apparent_depth = min(acc.depth / acc.depth_weight, t_far);
     if acc.depth_weight == 0.0 {
         apparent_depth = t_far;
     }
+
+///if USE_SKY_AERIAL_LUT 1
+    // Aerial perspective: Rayleigh haze between camera and cloud.
+    // AP LUT encodes vec4(scattered_luminance, 1 - transmittance).
+    // Only the cloud's own radiance is attenuated/tinted — transmittance is left unchanged
+    // because the sky result already has AP baked in and modifying transmittance would
+    // double-attenuate the background at cloud edges, creating a visible border.
+    // cloud_opacity = 0 for empty pixels so the formula self-cancels; no branch needed.
+    // AP LUT uses squared depth distribution: w = sqrt(slice / AP_SLICE_COUNT)
+    // where slice = depth_km / AP_DISTANCE_PER_SLICE (4 km), AP_SLICE_COUNT = 32 → max 128 km.
+    {
+        let depth_km      = apparent_depth / 1000.0;
+        let ap_w          = sqrt(clamp(depth_km / 128.0, 0.0, 1.0));
+        let ap            = textureSampleLevel(aerial_perspective_lut, transmittance_sampler, vec3f(texcoords, ap_w), 0.0);
+        let ap_T          = 1.0 - ap.a;
+        let cloud_opacity = 1.0 - acc.transmittance;
+        // AP LUT is computed with sky-renderer sun illuminance = 1.0; cloud radiance is scaled by
+        // sun_light_scale * sconf.sun_light.a (~160×). Match units before blending.
+        let ap_scale      = params.sun_light_scale * sconf.sun_light.a;
+        acc.radiance      = acc.radiance * ap_T + ap.rgb * cloud_opacity * ap_scale;
+    }
+///endif
+
+    textureStore(output_color, pixel_coord, vec4f(acc.radiance, acc.transmittance));
     textureStore(output_depth, pixel_coord, vec4f(apparent_depth, 0.0, 0.0, 0.0));
 }

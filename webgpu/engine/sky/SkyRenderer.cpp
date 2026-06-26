@@ -129,6 +129,9 @@ const webgpu::raii::Sampler* SkyRenderer::transmittance_lut_sampler() const {
 WGPUBuffer SkyRenderer::atmosphere_uniform_buffer() const {
     return m_renderer ? m_renderer->resources().atmosphere_buffer().raw_buffer().handle() : nullptr;
 }
+const webgpu::raii::TextureView* SkyRenderer::aerial_perspective_lut_view() const {
+    return m_renderer ? &m_renderer->resources().aerial_perspective_lut().view() : nullptr;
+}
 
 params::Atmosphere& SkyRenderer::atmosphere() { return m_atmosphere; }
 const params::Atmosphere& SkyRenderer::atmosphere() const { return m_atmosphere; }

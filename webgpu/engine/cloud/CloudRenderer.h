@@ -94,7 +94,8 @@ public:
         uint32_t frame_number,
         const webgpu::raii::TextureView& transmittance_lut_view,
         const webgpu::raii::Sampler& transmittance_lut_sampler,
-        WGPUBuffer atmosphere_buffer);
+        WGPUBuffer atmosphere_buffer,
+        const webgpu::raii::TextureView& aerial_perspective_lut_view);
 
     [[nodiscard]] bool needs_redraw() const { return m_stable_frames <= static_cast<uint32_t>(shader_params.stable_frames_limit); }
 

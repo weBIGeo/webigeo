@@ -76,6 +76,7 @@ public:
     const webgpu::raii::TextureView* transmittance_lut_view() const;
     const webgpu::raii::Sampler* transmittance_lut_sampler() const;
     WGPUBuffer atmosphere_uniform_buffer() const;
+    const webgpu::raii::TextureView* aerial_perspective_lut_view() const;
 
     params::Atmosphere& atmosphere();
     const params::Atmosphere& atmosphere() const;
