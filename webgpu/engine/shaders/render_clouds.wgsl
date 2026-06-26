@@ -24,7 +24,7 @@
 
 ///define USE_SKY_TRANSMITTANCE_LUT 1
 ///define USE_SKY_AERIAL_LUT 1
-///define USE_SKY_VIEW_LUT 0
+///define USE_SKY_VIEW_LUT 1
 
 ///if USE_SKY_TRANSMITTANCE_LUT 1
 ///use webgpu_engine::sky/common/transmittance
@@ -361,7 +361,8 @@ fn calculate_point_radiance(
     step_size: f32,
     jitter: f32,
     cloud_phase: f32,
-    cos_angle: f32
+    cos_angle: f32,
+    ray_transmittance: f32
 ) -> vec3f {
     let cloud_extinction = beta * params.extinction_coeff;
     let cloud_scattering = cloud_extinction * params.albedo;
@@ -412,7 +413,15 @@ fn calculate_point_radiance(
         // Scale to match cloud sun units (sky renderer uses illuminance=1; cloud uses sun_light_scale * sun_light.a).
         let sky_uv = sky_view_lut_params_to_uv(atmosphere, false, 1.0, cos_zenith_sun, view_height);
         let sky_radiance = textureSampleLevel(sky_view_lut, transmittance_sampler, sky_uv, 0.0).rgb;
-        ambient_radiance = sky_radiance * params.sun_light_scale * sconf.sun_light.a * params.ambient_light_scale;
+        // Inside dense cloud, multiple scattering desaturates the sky colour toward neutral white.
+        // ray_transmittance tracks how much cloud the view ray has already traversed: near 1 at the
+        // cloud top (little cloud above → full sky colour), near 0 deep inside (→ neutral grey).
+        let sky_luma = dot(sky_radiance, vec3f(0.2126, 0.7152, 0.0722));
+        let sky_color = mix(vec3f(sky_luma), sky_radiance, ray_transmittance);
+        let sky_ambient = sky_color * params.sun_light_scale * sconf.sun_light.a * params.ambient_light_scale;
+        // Always guarantee at least the authored ambient light so clouds are never fully black at night.
+        let min_ambient = sconf.amb_light.rgb * sconf.amb_light.a * params.ambient_light_scale;
+        ambient_radiance = max(sky_ambient, min_ambient);
     }
 ///endif
     let cloud_ambient_inscatter = ambient_radiance * ambient_occlusion;
@@ -495,7 +504,8 @@ fn step_fine(
         (*acc).consecutive_empty_steps = 0;
 
         let radiance_contribution = calculate_point_radiance(
-            pos, beta, sun_dir, lod, fine_step_size, ray_jitter, cloud_phase, cos_angle
+            pos, beta, sun_dir, lod, fine_step_size, ray_jitter, cloud_phase, cos_angle,
+            (*acc).transmittance
         );
 
         // Accumulate Light
