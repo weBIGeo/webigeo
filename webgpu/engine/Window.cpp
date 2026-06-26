@@ -248,15 +248,16 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
     }
 
     // render overlay textures (height lines, tile debug, etc.)
-    if (!m_context->overlay_renderer()->overlays().empty()) {
-        sm.start_gpu(SID_OVERLAY, command_encoder);
+    {
+        const bool has_overlays = !m_context->overlay_renderer()->overlays().empty();
+        if (has_overlays) sm.start_gpu(SID_OVERLAY, command_encoder);
         m_context->overlay_renderer()->draw(command_encoder,
             m_gbuffer->color_texture_view(1),
             m_gbuffer->color_texture_view(2),
             m_gbuffer->color_texture_view(3),
             m_shared_config_bind_group->handle(),
             m_camera_bind_group->handle());
-        sm.stop_gpu(SID_OVERLAY, command_encoder);
+        if (has_overlays) sm.stop_gpu(SID_OVERLAY, command_encoder);
     }
 
     // render geometry buffers into the intermediate scene color target (compute)
