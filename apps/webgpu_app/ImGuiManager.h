@@ -67,6 +67,16 @@ public:
     // Draws a floating 48x48 icon tool button at the next bottom-left stack slot (claims s_tool_button_y).
     static bool FloatingToggleButton(const char* id, const char* icon, const char* tooltip, uint32_t* enabled);
 
+    enum class SnapEdge { None, Near, Far }; // Near = left/top boundary, Far = right/bottom boundary
+
+    // Snap-aware drop-in for ImGui::Begin.
+    static bool BeginSnapWindow(const char* id, ImVec2 avail,
+        SnapEdge default_x, SnapEdge default_y,
+        bool* p_open = nullptr,
+        ImGuiWindowFlags flags = 0,
+        float margin = 10.f);
+    static void EndSnapWindow();
+
     enum class FilePickerMode { Open, Save };
 
     // ImGui-style file picker. Call every frame inside an ImGui frame. wants_open=true triggers the dialog to open.
@@ -97,6 +107,16 @@ private:
         std::vector<std::string> pending;
     };
     static std::unordered_map<std::string, FilePickerState> s_picker_states;
+
+    struct SnapWindowState {
+        SnapEdge snap_x      = SnapEdge::None;
+        SnapEdge snap_y      = SnapEdge::None;
+        ImVec2   last_pos    = {};
+        ImVec2   last_size   = {};
+        bool     initialized      = false;
+        bool     was_window_moving = false;
+    };
+    static std::unordered_map<std::string, SnapWindowState> s_snap_window_states;
 
     SDL_Window* m_window = nullptr;
     WGPUDevice m_device = {};
