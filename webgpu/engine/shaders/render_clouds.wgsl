@@ -24,7 +24,7 @@
 
 ///define USE_SKY_TRANSMITTANCE_LUT 1
 ///define USE_SKY_AERIAL_LUT 1
-///define USE_SKY_VIEW_LUT 1
+///define USE_SKY_VIEW_LUT 0
 
 ///if USE_SKY_TRANSMITTANCE_LUT 1
 ///use webgpu_engine::sky/common/transmittance
@@ -387,33 +387,33 @@ fn calculate_point_radiance(
         let cloud_sun_transmittance = sample_light_energy(pos, sun_dir, params.extinction_coeff, lod, step_size, cos_angle);
 
         // Sun: attenuate by atmosphere above this cloud point — gives correct sunset/altitude coloring.
+        var atm_sun_transmittance = vec3f(1.0);
 ///if USE_SKY_TRANSMITTANCE_LUT 1
-        let atm_sun_transmittance = lookup_transmittance(view_height, cos_zenith_sun, rho, h);
-///endif
-///if USE_SKY_TRANSMITTANCE_LUT 0
-        let atm_sun_transmittance = vec3f(1.0);
+        if sconf.sky_enabled != 0u {
+            atm_sun_transmittance = lookup_transmittance(view_height, cos_zenith_sun, rho, h);
+        }
 ///endif
         let sun_radiance = sconf.sun_light.rgb * sconf.sun_light.a * params.sun_light_scale * atm_sun_transmittance * sun_visibility;
         cloud_sun_inscatter = sun_radiance * cloud_sun_transmittance * cloud_phase;
     }
 
     // Ambient: upward transmittance as sky-light proxy. pos_atm_norm.z == dot(vec3(0,0,1), pos_atm_norm).
+    var atm_sky_transmittance = vec3f(1.0);
 ///if USE_SKY_TRANSMITTANCE_LUT 1
-    let atm_sky_transmittance = lookup_transmittance(view_height, pos_atm_norm.z, rho, h);
-///endif
-///if USE_SKY_TRANSMITTANCE_LUT 0
-    let atm_sky_transmittance = vec3f(1.0);
+    if sconf.sky_enabled != 0u {
+        atm_sky_transmittance = lookup_transmittance(view_height, pos_atm_norm.z, rho, h);
+    }
 ///endif
     let ambient_occlusion = mix(0.3, 1.0, atm_sky_transmittance.r);
+    var ambient_radiance = sconf.amb_light.rgb * sconf.amb_light.a * params.ambient_light_scale * atm_sky_transmittance;
 ///if USE_SKY_VIEW_LUT 1
-    // Sky-view LUT gives the actual scattered sky radiance looking straight up.
-    // Scale to match cloud sun units (sky renderer uses illuminance=1; cloud uses sun_light_scale * sun_light.a).
-    let sky_uv = sky_view_lut_params_to_uv(atmosphere, false, 1.0, cos_zenith_sun, view_height);
-    let sky_radiance = textureSampleLevel(sky_view_lut, transmittance_sampler, sky_uv, 0.0).rgb;
-    let ambient_radiance = sky_radiance * params.sun_light_scale * sconf.sun_light.a * params.ambient_light_scale;
-///endif
-///if USE_SKY_VIEW_LUT 0
-    let ambient_radiance = sconf.amb_light.rgb * sconf.amb_light.a * params.ambient_light_scale * atm_sky_transmittance;
+    if sconf.sky_enabled != 0u {
+        // Sky-view LUT gives the actual scattered sky radiance looking straight up.
+        // Scale to match cloud sun units (sky renderer uses illuminance=1; cloud uses sun_light_scale * sun_light.a).
+        let sky_uv = sky_view_lut_params_to_uv(atmosphere, false, 1.0, cos_zenith_sun, view_height);
+        let sky_radiance = textureSampleLevel(sky_view_lut, transmittance_sampler, sky_uv, 0.0).rgb;
+        ambient_radiance = sky_radiance * params.sun_light_scale * sconf.sun_light.a * params.ambient_light_scale;
+    }
 ///endif
     let cloud_ambient_inscatter = ambient_radiance * ambient_occlusion;
 
@@ -604,15 +604,15 @@ fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
     }
 
 ///if USE_SKY_AERIAL_LUT 1
-    // Aerial perspective: Rayleigh haze between camera and cloud.
-    // AP LUT encodes vec4(scattered_luminance, 1 - transmittance).
-    // Only the cloud's own radiance is attenuated/tinted — transmittance is left unchanged
-    // because the sky result already has AP baked in and modifying transmittance would
-    // double-attenuate the background at cloud edges, creating a visible border.
-    // cloud_opacity = 0 for empty pixels so the formula self-cancels; no branch needed.
-    // AP LUT uses squared depth distribution: w = sqrt(slice / AP_SLICE_COUNT)
-    // where slice = depth_km / AP_DISTANCE_PER_SLICE (4 km), AP_SLICE_COUNT = 32 → max 128 km.
-    {
+    if sconf.sky_enabled != 0u {
+        // Aerial perspective: Rayleigh haze between camera and cloud.
+        // AP LUT encodes vec4(scattered_luminance, 1 - transmittance).
+        // Only the cloud's own radiance is attenuated/tinted — transmittance is left unchanged
+        // because the sky result already has AP baked in and modifying transmittance would
+        // double-attenuate the background at cloud edges, creating a visible border.
+        // cloud_opacity = 0 for empty pixels so the formula self-cancels; no branch needed.
+        // AP LUT uses squared depth distribution: w = sqrt(slice / AP_SLICE_COUNT)
+        // where slice = depth_km / AP_DISTANCE_PER_SLICE (4 km), AP_SLICE_COUNT = 32 → max 128 km.
         let depth_km      = apparent_depth / 1000.0;
         let ap_w          = sqrt(clamp(depth_km / 128.0, 0.0, 1.0));
         let ap            = textureSampleLevel(aerial_perspective_lut, transmittance_sampler, vec3f(texcoords, ap_w), 0.0);
