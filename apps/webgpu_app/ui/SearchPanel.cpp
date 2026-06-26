@@ -38,6 +38,9 @@ void SearchPanel::draw()
     if (m_manager && m_manager->is_window_open())
         return;
 
+    if (!ImGui::GetIO().WantTextInput && ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_F, false))
+        m_set_focus_on_text = true;
+
     const size_t max_num_search_results_at_once = 10;
     const int window_height = ImGui::GetTextLineHeightWithSpacing() + 2 * ImGui::GetStyle().WindowPadding.y + 2 * 3
         + std::min(m_search_results.size(), max_num_search_results_at_once) * ImGui::GetTextLineHeightWithSpacing() + (m_search_results.empty() ? 0 : 12)
