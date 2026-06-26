@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "../util/format_time.h"
+#include "../ImGuiManager.h"
 #include "App.h"
 #include "ProfilingStore.h"
 
@@ -44,16 +45,14 @@ void ProfilingPanel::draw()
     if (!m_visible)
         return;
 
-    const float panel_w = 350.0f, margin = 10.0f;
     ImVec2 avail = m_manager->get_window_size();
-    ImGui::SetNextWindowPos(ImVec2(avail.x - margin, margin), ImGuiCond_Once, ImVec2(1.0f, 0.0f));
-    ImGui::SetNextWindowSize(ImVec2(panel_w, 0), ImGuiCond_Once);
     ImGui::SetNextWindowBgAlpha(0.85f);
 
     constexpr ImGuiWindowFlags flags = ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_AlwaysAutoResize;
 
-    if (!ImGui::Begin(ICON_FA_STOPWATCH "  Profiling##profiling_panel", &m_visible, flags)) {
-        ImGui::End();
+    if (!ImGuiManager::BeginSnapWindow(ICON_FA_STOPWATCH "  Profiling##profiling_panel", avail,
+            ImGuiManager::SnapEdge::Far, ImGuiManager::SnapEdge::Near, &m_visible, flags)) {
+        ImGuiManager::EndSnapWindow();
         return;
     }
 
@@ -134,7 +133,7 @@ void ProfilingPanel::draw()
     if (ImGui::Button("Reset All Timers"))
         m_app->get_profiling_store()->reset_all();
 
-    ImGui::End();
+    ImGuiManager::EndSnapWindow();
 }
 
 } // namespace webgpu_app

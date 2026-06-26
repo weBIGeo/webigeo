@@ -61,16 +61,15 @@ void DateTimePanel::draw()
     if (m_manager->is_window_open())
         return;
 
-    const float panel_w = 350.0f, margin = 10.0f;
     ImVec2 avail = m_manager->get_window_size();
-    ImGui::SetNextWindowPos(ImVec2(avail.x - margin, avail.y - margin), ImGuiCond_Always, ImVec2(1.0f, 1.0f));
-    ImGui::SetNextWindowSize(ImVec2(panel_w, 0), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(350.f, 0.f), ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.85f);
 
-    constexpr ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoTitleBar
+    constexpr ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoTitleBar
         | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_AlwaysAutoResize;
 
-    if (ImGui::Begin("##datetime_panel", nullptr, flags)) {
+    if (ImGuiManager::BeginSnapWindow("##datetime_panel", avail,
+            ImGuiManager::SnapEdge::Far, ImGuiManager::SnapEdge::Far, nullptr, flags)) {
         const float btn_w = 30.0f;
         const float spacing = ImGui::GetStyle().ItemSpacing.x;
 
@@ -172,7 +171,7 @@ void DateTimePanel::draw()
         ImGui::Separator();
         ImGui::TextDisabled("Location: %.4f° N  %.4f° E  %.0f m", lla.x, lla.y, lla.z);
     }
-    ImGui::End();
+    ImGuiManager::EndSnapWindow();
 }
 
 void DateTimePanel::recalculate_and_apply(bool load_cloud)
