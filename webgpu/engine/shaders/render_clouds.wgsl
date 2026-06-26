@@ -24,9 +24,15 @@
 
 ///define USE_SKY_TRANSMITTANCE_LUT 1
 ///define USE_SKY_AERIAL_LUT 1
+///define USE_SKY_VIEW_LUT 1
 
 ///if USE_SKY_TRANSMITTANCE_LUT 1
 ///use webgpu_engine::sky/common/transmittance
+///endif
+
+///if USE_SKY_VIEW_LUT 1
+///use webgpu_engine::sky/common/constants
+///use webgpu_engine::sky/common/sky_view
 ///endif
 
 
@@ -96,6 +102,9 @@ struct ray_accumulator {
 @group(3) @binding(2) var transmittance_sampler: sampler;
 ///if USE_SKY_AERIAL_LUT 1
 @group(3) @binding(3) var aerial_perspective_lut: texture_3d<f32>;
+///endif
+///if USE_SKY_VIEW_LUT 1
+@group(3) @binding(4) var sky_view_lut: texture_2d<f32>;
 ///endif
 
 // tile size at zoom level 10
@@ -396,7 +405,16 @@ fn calculate_point_radiance(
     let atm_sky_transmittance = vec3f(1.0);
 ///endif
     let ambient_occlusion = mix(0.3, 1.0, atm_sky_transmittance.r);
+///if USE_SKY_VIEW_LUT 1
+    // Sky-view LUT gives the actual scattered sky radiance looking straight up.
+    // Scale to match cloud sun units (sky renderer uses illuminance=1; cloud uses sun_light_scale * sun_light.a).
+    let sky_uv = sky_view_lut_params_to_uv(atmosphere, false, 1.0, cos_zenith_sun, view_height);
+    let sky_radiance = textureSampleLevel(sky_view_lut, transmittance_sampler, sky_uv, 0.0).rgb;
+    let ambient_radiance = sky_radiance * params.sun_light_scale * sconf.sun_light.a * params.ambient_light_scale;
+///endif
+///if USE_SKY_VIEW_LUT 0
     let ambient_radiance = sconf.amb_light.rgb * sconf.amb_light.a * params.ambient_light_scale * atm_sky_transmittance;
+///endif
     let cloud_ambient_inscatter = ambient_radiance * ambient_occlusion;
 
     let cloud_total_inscatter = cloud_sun_inscatter + cloud_ambient_inscatter;

@@ -132,6 +132,9 @@ WGPUBuffer SkyRenderer::atmosphere_uniform_buffer() const {
 const webgpu::raii::TextureView* SkyRenderer::aerial_perspective_lut_view() const {
     return m_renderer ? &m_renderer->resources().aerial_perspective_lut().view() : nullptr;
 }
+const webgpu::raii::TextureView* SkyRenderer::sky_view_lut_view() const {
+    return m_renderer ? &m_renderer->resources().sky_view_lut().view() : nullptr;
+}
 
 params::Atmosphere& SkyRenderer::atmosphere() { return m_atmosphere; }
 const params::Atmosphere& SkyRenderer::atmosphere() const { return m_atmosphere; }

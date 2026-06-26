@@ -221,8 +221,14 @@ void CloudRenderer::init(webgpu::Context& ctx)
         ap_lut_entry.texture.sampleType    = WGPUTextureSampleType_Float;
         ap_lut_entry.texture.viewDimension = WGPUTextureViewDimension_3D;
 
+        WGPUBindGroupLayoutEntry sky_view_lut_entry {};
+        sky_view_lut_entry.binding    = 4;
+        sky_view_lut_entry.visibility = WGPUShaderStage_Compute;
+        sky_view_lut_entry.texture.sampleType    = WGPUTextureSampleType_Float;
+        sky_view_lut_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
         return std::make_unique<webgpu::raii::BindGroupLayout>(device,
-            std::vector<WGPUBindGroupLayoutEntry> { atm_entry, lut_tex_entry, lut_sampler_entry, ap_lut_entry },
+            std::vector<WGPUBindGroupLayoutEntry> { atm_entry, lut_tex_entry, lut_sampler_entry, ap_lut_entry, sky_view_lut_entry },
             "render clouds atmosphere bind group layout");
     });
 
@@ -416,7 +422,8 @@ void CloudRenderer::draw(const WGPUCommandEncoder& command_encoder,
     const webgpu::raii::TextureView& transmittance_lut_view,
     const webgpu::raii::Sampler& transmittance_lut_sampler,
     WGPUBuffer atmosphere_buffer,
-    const webgpu::raii::TextureView& aerial_perspective_lut_view)
+    const webgpu::raii::TextureView& aerial_perspective_lut_view,
+    const webgpu::raii::TextureView& sky_view_lut_view)
 {
     auto jitter_offset = generate_jitter_simple_4x(frame_number, m_output_lo_resolution);
     glm::mat4 unjittered_projection = camera.projection_matrix();
@@ -476,6 +483,7 @@ void CloudRenderer::draw(const WGPUCommandEncoder& command_encoder,
                 transmittance_lut_view.create_bind_group_entry(1),
                 transmittance_lut_sampler.create_bind_group_entry(2),
                 aerial_perspective_lut_view.create_bind_group_entry(3),
+                sky_view_lut_view.create_bind_group_entry(4),
             },
             "render clouds atmosphere bind group");
 

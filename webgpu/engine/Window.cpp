@@ -242,7 +242,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         m_context->cloud_renderer()->draw(
             command_encoder, m_depth_texture_bind_group->handle(), m_shared_config_bind_group->handle(), m_camera, m_paint_number,
             *sky->transmittance_lut_view(), *sky->transmittance_lut_sampler(), sky->atmosphere_uniform_buffer(),
-            *sky->aerial_perspective_lut_view());
+            *sky->aerial_perspective_lut_view(), *sky->sky_view_lut_view());
         sm.stop_gpu(SID_CLOUDS, command_encoder);
         m_needs_redraw |= m_context->cloud_renderer()->needs_redraw(); // Repaint for TAAU
     }
