@@ -32,11 +32,11 @@ public:
     // The direction of the light/sun in WS (northwest lighting at 45 degrees)
     glm::vec4 m_sun_light_dir = glm::normalize(glm::vec4(1.0, -1.0, -1.0, 0.0));
     // rgb...Color, a...intensity
-    glm::vec4 m_amb_light = glm::vec4(1.0, 1.0, 1.0, 0.5);
+    glm::vec4 m_amb_light = glm::vec4(1.0, 1.0, 1.0, 0.1);
     // rgba...Color of the phong-material (if a 0 -> ortho picture)
     glm::vec4 m_material_color = glm::vec4(1.0, 1.0, 1.0, 0.0);
     // amb, diff, spec, shininess
-    glm::vec4 m_material_light_response = glm::vec4(1.5, 3.0, 0.0, 32.0);
+    glm::vec4 m_material_light_response = glm::vec4(2.0, 3.0, 0.0, 32.0);
 
     uint32_t m_sky_enabled = true;
     uint32_t m_clouds_enabled = true;
