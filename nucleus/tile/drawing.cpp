@@ -22,9 +22,9 @@
 
 namespace nucleus::tile::drawing {
 
-std::vector<tile::Id> generate_list(const camera::Definition& camera, utils::AabbDecoratorPtr aabb_decorator, unsigned int max_zoom_level)
+std::vector<tile::Id> generate_list(const camera::Definition& camera, utils::AabbDecoratorPtr aabb_decorator, unsigned int max_zoom_level, double planet_radius_m)
 {
-    const auto tile_refine_functor = tile::utils::refineFunctor(camera, aabb_decorator, 256, max_zoom_level);
+    const auto tile_refine_functor = tile::utils::refineFunctor(camera, aabb_decorator, 256, max_zoom_level, planet_radius_m);
     return radix::quad_tree::onTheFlyTraverse(tile::Id { 0, { 0, 0 } }, tile_refine_functor, [](const tile::Id& v) { return v.children(); });
 }
 
@@ -80,14 +80,16 @@ std::vector<tile::Id> limit(std::vector<tile::Id> tiles, uint max_n_tiles)
     return tiles;
 }
 
-std::vector<TileBounds> cull(std::vector<TileBounds> tiles, const camera::Definition& camera)
+std::vector<TileBounds> cull(std::vector<TileBounds> tiles, const camera::Definition& camera, double planet_radius_m)
 {
     std::vector<TileBounds> culled_tiles;
     culled_tiles.reserve(tiles.size());
     const auto frustum = camera.frustum();
+    const auto camera_position = camera.position();
 
     for (const auto& t : tiles) {
-        if (tile::utils::camera_frustum_contains_tile(frustum, t.bounds))
+        // Curve the AABB to match the rendered geometry (see apply_curvature_to_aabb).
+        if (tile::utils::camera_frustum_contains_tile(frustum, tile::utils::apply_curvature_to_aabb(t.bounds, camera_position, planet_radius_m)))
             culled_tiles.push_back(t);
     }
 

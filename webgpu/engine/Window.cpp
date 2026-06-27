@@ -30,6 +30,9 @@
 
 #include <webgpu/webgpu.h>
 
+#include <algorithm>
+#include <cmath>
+
 namespace webgpu_engine {
 
 Window::Window() { }
@@ -227,9 +230,28 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 1, m_camera_bind_group->handle(), 0, nullptr);
 
         using namespace nucleus::tile;
+
+        const double planet_radius_m = double(m_context->shared_config().m_planet_radius_m);
+
+        // NOTE: The far plane of the camera is used for frustum culling. It used to be set to a constant value.
+        // Knowing the planet size we can calculate an upper bound when using the curvature distortion.
+        // d = sqrt(2Rh + h^2) for a camera at height h above a sphere of radius R; the extra
+        // sqrt(2RH + H^2) term keeps peaks of height H (near the horizon) from being culled.
+        // TODO: Its actually sufficient to update the far plane only when the camera moves (or the planet size changes)
+        { 
+            constexpr double max_terrain_height_m = 9000.0;
+            const double R = planet_radius_m;
+            const double h = std::max(0.0, double(m_camera.position().z)); // camera height above surface
+            double far = 1'000'000.0; // floor for ground-level views (curvature handles the rest)
+            if (R > 0.0)
+                far = std::max(far, std::sqrt(2.0 * R * h + h * h) + std::sqrt(2.0 * R * max_terrain_height_m + max_terrain_height_m * max_terrain_height_m));
+            m_camera.set_far_plane(float(far));
+        }
+
         const auto draw_list = drawing::compute_bounds(
-            drawing::limit(drawing::generate_list(m_camera, m_context->aabb_decorator(), m_max_zoom_level), 1024), m_context->aabb_decorator());
-        const auto culled_draw_list = drawing::sort(drawing::cull(draw_list, m_camera), m_camera.position());
+            drawing::limit(drawing::generate_list(m_camera, m_context->aabb_decorator(), m_max_zoom_level, planet_radius_m), 1024),
+            m_context->aabb_decorator());
+        const auto culled_draw_list = drawing::sort(drawing::cull(draw_list, m_camera, planet_radius_m), m_camera.position());
 
         m_context->tile_mesh_renderer()->draw(render_pass->handle(), m_camera, culled_draw_list);
     }
@@ -393,6 +415,8 @@ nucleus::utils::ColourTexture::Format Window::ortho_tile_compression_algorithm()
 
 void Window::update_camera([[maybe_unused]] const nucleus::camera::Definition& new_definition)
 {
+    m_camera = new_definition;
+
     // NOTE: Could also just be done on camera or viewport change!
     uboCameraConfig* cc = &m_camera_config_ubo->data;
     cc->position = glm::vec4(new_definition.position(), 1.0);
@@ -405,7 +429,6 @@ void Window::update_camera([[maybe_unused]] const nucleus::camera::Definition& n
     cc->viewport_size = new_definition.viewport_size();
     cc->distance_scaling_factor = new_definition.distance_scale_factor();
     m_camera_config_ubo->update_gpu_data(m_context->webgpu_ctx().queue());
-    m_camera = new_definition;
 
     emit update_requested();
 }

@@ -62,6 +62,8 @@ public:
     void set_perspective_params(float fov_degrees, const glm::uvec2& viewport_size, float near_plane);
     void set_near_plane(float near_plane);
     [[nodiscard]] float near_plane() const;
+    void set_far_plane(float far_plane);
+    [[nodiscard]] float far_plane() const;
     void pan(const glm::dvec2& v);
     void move(const glm::dvec3& v);
     void orbit(const glm::dvec3& centre, const glm::dvec2& degrees);

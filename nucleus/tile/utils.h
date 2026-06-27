@@ -204,6 +204,25 @@ namespace utils {
         return true;
     }
 
+    // Mirrors apply_earth_curvature() in webgpu/base/shaders/position_util.wgsl:
+    // planet_radius_m <= 0 -> fallback to original behaviour
+    inline tile::SrsAndHeightBounds apply_curvature_to_aabb(tile::SrsAndHeightBounds aabb, const glm::dvec3& camera_position, double planet_radius_m)
+    {
+        if (planet_radius_m <= 0.0)
+            return aabb;
+
+        const double rx_min = aabb.min.x - camera_position.x, rx_max = aabb.max.x - camera_position.x;
+        const double ry_min = aabb.min.y - camera_position.y, ry_max = aabb.max.y - camera_position.y;
+        const double inv_2r = 1.0 / (2.0 * planet_radius_m);
+
+        const auto far_sq  = [](double lo, double hi) { return std::max(lo * lo, hi * hi); };
+        const auto near_sq = [](double lo, double hi) { return (lo <= 0.0 && hi >= 0.0) ? 0.0 : std::min(lo * lo, hi * hi); };
+
+        aabb.min.z -= (far_sq(rx_min, rx_max)  + far_sq(ry_min, ry_max))  * inv_2r;
+        aabb.max.z -= (near_sq(rx_min, rx_max) + near_sq(ry_min, ry_max)) * inv_2r;
+        return aabb;
+    }
+
     inline auto refine_functor_float(const nucleus::camera::Definition &camera,
                                      const AabbDecoratorPtr &aabb_decorator,
                                      float error_threshold_px,
@@ -229,16 +248,18 @@ namespace utils {
         return refine;
     }
 
-    inline auto refineFunctor(const nucleus::camera::Definition& camera, const AabbDecoratorPtr& aabb_decorator, unsigned tile_size, unsigned max_zoom_level)
+    inline auto refineFunctor(
+        const nucleus::camera::Definition& camera, const AabbDecoratorPtr& aabb_decorator, unsigned tile_size, unsigned max_zoom_level, double planet_radius_m = 0.0)
     {
         constexpr auto sqrt2 = 1.414213562373095;
         const auto camera_frustum = camera.frustum();
-        auto refine = [&camera, camera_frustum, tile_size, aabb_decorator, max_zoom_level](const tile::Id& tile) {
+        auto refine = [&camera, camera_frustum, tile_size, aabb_decorator, max_zoom_level, planet_radius_m](const tile::Id& tile) {
             if (tile.zoom_level >= max_zoom_level)
                 return false;
 
             const auto aabb = aabb_decorator->aabb(tile);
-            if (!tile::utils::camera_frustum_contains_tile(camera_frustum, aabb))
+            // Curve the AABB to match the rendered geometry; pixel-error distance below stays flat.
+            if (!tile::utils::camera_frustum_contains_tile(camera_frustum, tile::utils::apply_curvature_to_aabb(aabb, camera.position(), planet_radius_m)))
                 return false;
 
             const auto distance = float(radix::geometry::distance(aabb, camera.position()));

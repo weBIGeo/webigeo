@@ -246,6 +246,16 @@ float Definition::near_plane() const
     return m_near_clipping;
 }
 
+void Definition::set_far_plane(float far_plane)
+{
+    m_far_clipping = far_plane;
+}
+
+float Definition::far_plane() const
+{
+    return m_far_clipping;
+}
+
 void Definition::pan(const glm::dvec2& v)
 {
     const auto x_dir = x_axis();
