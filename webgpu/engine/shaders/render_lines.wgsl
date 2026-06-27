@@ -18,6 +18,7 @@
 
 ///use util/shared_config
 ///use util/camera_config
+///use webgpu::position_util
 
 @group(0) @binding(0) var<uniform> config: shared_config;
 @group(1) @binding(0) var<uniform> camera: camera_config;
@@ -47,10 +48,7 @@ struct FragOut {
 fn vertexMain(@builtin(vertex_index) vertex_index: u32) -> VertexOut {
     var vertex_out: VertexOut;
     let pos = positions[vertex_index];
-    var local_pos = pos.xyz - camera.position.xyz;
-    // Earth curvature correction: drop each vertex by d^2 / (2R) where d=distance to camera
-    let d_sq = local_pos.x * local_pos.x + local_pos.y * local_pos.y;
-    local_pos.z -= d_sq / (2.0 * config.planet_radius_m);
+    let local_pos = apply_earth_curvature(pos.xyz - camera.position.xyz, config.planet_radius_m);
     vertex_out.position = camera.view_proj_matrix * vec4f(local_pos, 1);
     return vertex_out;
 }

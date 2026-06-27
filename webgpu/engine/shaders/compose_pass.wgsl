@@ -23,6 +23,7 @@
 ///use webgpu::encoder
 ///use webgpu::general
 ///use webgpu::tile_util
+///use webgpu::normals_util
 ///use webgpu_engine::sky/common/medium
 ///use webgpu_engine::sky/common/transmittance
 
@@ -135,8 +136,12 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3u) {
 
     let pos_cws = pos_dist.xyz;
     let dist = length(pos_cws);
+    //let dist = pos_dist.w;
 
     let normal = octNormalDecode2u16(encoded_normal);
+    // Stored normal is the true terrain normal. For lighting we tilt it by the earth-curvature
+    // deformation so distant facets are lit as the bent geometry, not the flat terrain.
+    let shading_normal = curvature_corrected_normal(normal, pos_cws.xy, conf.planet_radius_m);
 
     var amb_occlusion = 1.0;
 
@@ -163,22 +168,26 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3u) {
         let pre_overlay_color = textureLoad(overlay_renderer_pre_texture, tci, 0);
         albedo = albedo * (1.0 - pre_overlay_color.a) + pre_overlay_color.rgb;
 
-        // Atmosphere-derived sun light: physical reddening from transmittance LUT + horizon cutoff.
-        let pos_atm      = pos_ws / 1000.0 - atmosphere.planet_center;
-        let view_height  = length(pos_atm);
-        let pos_atm_norm = pos_atm / view_height;
+        // Atmosphere-derived sun light: 
+        // NOTE: pos_ws are flat-earth map projection coords (not on the sphere), so using their
+        // full 3D position would compromise view_height for distant pixels beyond the atmosphere top.
+        let view_height  = atmosphere.bottom_radius + max(pos_ws.z * 0.001, 0.0);
         let rho   = sqrt(max(0.0, view_height*view_height - atmosphere.bottom_radius*atmosphere.bottom_radius));
         let atm_h = sqrt(max(0.0, atmosphere.top_radius*atmosphere.top_radius - atmosphere.bottom_radius*atmosphere.bottom_radius));
-        let cos_zenith_sun = dot(-normalize(conf.sun_light_dir.xyz), pos_atm_norm);
+        let cos_zenith_sun = dot(-normalize(conf.sun_light_dir.xyz), vec3f(0.0, 0.0, 1.0));
         var effective_sun_light = vec4f(0.0);
-        if cos_zenith_sun > -rho / view_height {
-            let atm_transmittance = lookup_transmittance(view_height, cos_zenith_sun, rho, atm_h);
-            effective_sun_light = vec4f(atm_transmittance * conf.sun_light.a, 1.0);
+        if bool(conf.sky_enabled) {
+            if cos_zenith_sun > -rho / view_height {
+                let atm_transmittance = lookup_transmittance(view_height, cos_zenith_sun, rho, atm_h);
+                effective_sun_light = vec4f(atm_transmittance * conf.sun_light.a, 1.0);
+            }
+        } else {
+            effective_sun_light = conf.sun_light * conf.sun_light.a * 5.0;
         }
 
         var shaded_color = albedo;
         if bool(conf.shading_enabled) {
-            shaded_color = calculate_illumination(shaded_color, origin, pos_ws, normal, effective_sun_light, conf.amb_light, conf.sun_light_dir.xyz, conf.material_light_response, amb_occlusion, shadow_term);
+            shaded_color = calculate_illumination(shaded_color, origin, pos_ws, shading_normal, effective_sun_light, conf.amb_light, conf.sun_light_dir.xyz, conf.material_light_response, amb_occlusion, shadow_term);
         }
         shaded_color = max(vec3(0.0), shaded_color);
         out_Color = vec4(shaded_color, 1.0);
