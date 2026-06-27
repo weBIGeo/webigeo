@@ -44,6 +44,7 @@ public:
         DepthDistance = 10,
         DepthPosition = 11,
         PositionDiff = 12,
+        ShadingNormals = 13,
     };
 
     enum class Region {

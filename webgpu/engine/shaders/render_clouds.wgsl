@@ -25,6 +25,7 @@
 ///define USE_SKY_TRANSMITTANCE_LUT 1
 ///define USE_SKY_AERIAL_LUT 1
 ///define USE_SKY_VIEW_LUT 1
+///define ENABLE_CURVATURE 1
 
 ///if USE_SKY_TRANSMITTANCE_LUT 1
 ///use webgpu_engine::sky/common/transmittance
@@ -178,16 +179,26 @@ fn get_tile_info(tile_id: vec2i) -> tile_info {
     return tile_infos[tile_index];
 }
 
+// Bend a flat-earth ray position down by d²/(2R) so distant samples follow the curved surface.
+// XY is unchanged; only Z is lowered. Used before volume sampling; atmosphere calcs use raw pos.
+fn apply_curvature(pos: vec3f) -> vec3f {
+///if ENABLE_CURVATURE 1
+    let rel_xy = pos.xy - params.camera.position.xy;
+    let curvature_drop = dot(rel_xy, rel_xy) / (2.0 * sconf.planet_radius_m);
+    return vec3f(pos.xy, pos.z + curvature_drop);
+///else
+    return pos;
+///endif
+}
+
 fn sample_volume(pos_world: vec3f, lod: f32, tile_id: vec2i, tile: tile_info, atlas_sampler: sampler) -> f32 {
-    // Sphere correction: at horizontal camera distance d, the visual surface drops by d^2/(2R).
-    // Subtract that from the absolute altitude so cloud height is measured above the curved surface.
-    let rel_xy = pos_world.xy - params.camera.position.xy;
-    let d_sq = dot(rel_xy, rel_xy);
-    let curvature_drop = d_sq / (2.0 * sconf.planet_radius_m);
-    let height_adjusted = (pos_world.z + curvature_drop) * cos(y_to_lat(pos_world.y));
+    // Cloud data is stored at absolute (flat-earth) altitudes 0–14 km — no curvature baked in.
+    // Curvature is applied by the caller via apply_curvature() before this is called.
+    let height_adjusted = pos_world.z * cos(y_to_lat(pos_world.y));
     if height_adjusted < 0.0 || height_adjusted > 14000.0 || tile.zoom == 0u {
         return 0.0;
     }
+
 
     let dz = max(u32(zoom_max) - tile.zoom, 0u);
     let tile_scale = f32(1u << dz);
@@ -450,14 +461,15 @@ fn step_coarse(
     }
 
     let pos = ray_origin + ray_dir * sample_t;
-    let tile_id = get_tile_id_at_pos(pos);
+    let pos_s = apply_curvature(pos);
+    let tile_id = get_tile_id_at_pos(pos_s);
     let tile = get_tile_info(tile_id);
 
     // Calculate Coarse LOD
     let base_lod = calculate_lod(fine_step_size, tile.zoom, sample_t, ray_dir);
     let coarse_lod = min(base_lod + 3.0, 5.0);
 
-    let coarse_density = sample_volume(pos, coarse_lod, tile_id, tile, atlas_sampler_l);
+    let coarse_density = sample_volume(pos_s, coarse_lod, tile_id, tile, atlas_sampler_l);
 
     if coarse_density > 0.0 {
         // HIT: Switch state to Fine
@@ -487,7 +499,8 @@ fn step_fine(
     let sample_t = min((*acc).t + fine_step_size * ray_jitter, t_far);
 
     let pos = ray_origin + ray_dir * sample_t;
-    let tile_id = get_tile_id_at_pos(pos);
+    let pos_s = apply_curvature(pos);
+    let tile_id = get_tile_id_at_pos(pos_s);
     let tile = get_tile_info(tile_id);
 
     let lod = calculate_lod(fine_step_size, tile.zoom, sample_t, ray_dir);
@@ -497,7 +510,7 @@ fn step_fine(
     let fade_t = saturate((dist_cylinder - fade_params.x) / (fade_params.y - fade_params.x));
     let fade = fade_t * fade_t * fade_t;
 
-    let base_beta = sample_volume(pos, lod, tile_id, tile, atlas_sampler_l);
+    let base_beta = sample_volume(pos_s, lod, tile_id, tile, atlas_sampler_l);
     let beta = base_beta * fade;
 
     if beta > 0.0 {

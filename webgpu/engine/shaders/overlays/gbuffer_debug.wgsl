@@ -17,7 +17,10 @@
 *****************************************************************************/
 
 ///use util/camera_config
+///use util/shared_config
 ///use webgpu::position_util
+///use webgpu::encoder
+///use webgpu::normals_util
 
 @group(0) @binding(0) var overlay_texture:  texture_2d<u32>;        // GBuffer slot 3 (packed RGBA via pack4x8unorm)
 @group(0) @binding(1) var<uniform> settings: TileDebugSettings;
@@ -25,8 +28,10 @@
 @group(0) @binding(3) var prev_output:      texture_2d<f32>;
 @group(0) @binding(4) var position_texture: texture_2d<f32>;         // GBuffer slot 1: xyz=pos_cws, w=camera_dist
 @group(0) @binding(5) var depth_texture:    texture_depth_2d;        // GBuffer depth
+@group(0) @binding(6) var normal_texture:   texture_2d<u32>;         // GBuffer slot 2: oct-encoded true terrain normal
 
 @group(1) @binding(0) var<uniform> camera: camera_config;
+@group(2) @binding(0) var<uniform> conf: shared_config;
 
 struct TileDebugSettings {
     strength: f32,
@@ -100,6 +105,13 @@ fn computeMain(@builtin(global_invocation_id) id: vec3u) {
             let pos_reproj = camera_relative_pos_from_depth(tci, dims, raw_depth, camera.inv_view_proj_matrix);
             let diff = abs(pos_buffer - pos_reproj) / settings.scale;
             overlay_color = vec4f(diff, 1.0);
+        } else if settings.mode == 13u {
+            // Shading normal: stored true terrain normal tilted by the earth-curvature deformation
+            // (same value compose_pass uses for lighting), shown as RGB via *0.5 + 0.5.
+            let normal = octNormalDecode2u16(textureLoad(normal_texture, tci, 0).xy);
+            let pos_cws = textureLoad(position_texture, tci, 0).xyz;
+            let shading_normal = curvature_corrected_normal(normal, pos_cws.xy, conf.planet_radius_m);
+            overlay_color = vec4f(shading_normal * 0.5 + 0.5, 1.0);
         }
     }
 

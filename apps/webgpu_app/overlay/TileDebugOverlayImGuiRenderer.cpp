@@ -34,7 +34,7 @@ bool TileDebugOverlayImGuiRenderer::render_custom_settings()
     bool changed = false;
 
     // Combo order must match TileDebugOverlay::Mode
-    static const char* mode_items[] = { "Normals", "Tiles", "Zoomlevel", "Vertex-ID", "Position Buffer", "Camera Distance (Pos.w)", "Camera Distance (calculated)", "Depth-Buffer (raw)", "Depth-Buffer (linear)", "Camera Distance (reproj. Depth-Buffer)", "Position (reproj. Depth-Buffer)", "Position Diff (Pos.xyz vs reproj.)" };
+    static const char* mode_items[] = { "Normals", "Tiles", "Zoomlevel", "Vertex-ID", "Position Buffer", "Camera Distance (Pos.w)", "Camera Distance (calculated)", "Depth-Buffer (raw)", "Depth-Buffer (linear)", "Camera Distance (reproj. Depth-Buffer)", "Position (reproj. Depth-Buffer)", "Position Diff (Pos.xyz vs reproj.)", "Shading Normals (curvature-corrected)" };
     int current = s.mode - 1;
     if (ImGui::Combo("Mode", &current, mode_items, IM_ARRAYSIZE(mode_items))) {
         s.mode = current + 1;
@@ -47,11 +47,9 @@ bool TileDebugOverlayImGuiRenderer::render_custom_settings()
         changed = true;
     }
 
-    if (s.mode >= 5 && s.mode != 8) {
-        if (ImGui::DragFloat("Scale", &s.scale, s.scale * 0.01f, 1.0f, 1e9f, "%.0f")) {
-            m_tile_debug_overlay->update_settings();
-            changed = true;
-        }
+    if (ImGui::DragFloat("Scale", &s.scale, s.scale * 0.01f, 1.0f, 1e9f, "%.0f")) {
+        m_tile_debug_overlay->update_settings();
+        changed = true;
     }
 
     // Combo order must match TileDebugOverlay::Region

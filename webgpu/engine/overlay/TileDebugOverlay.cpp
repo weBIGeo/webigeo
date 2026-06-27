@@ -84,8 +84,14 @@ void TileDebugOverlay::init(Context& context)
             depth_entry.texture.sampleType = WGPUTextureSampleType_Depth;
             depth_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
+            WGPUBindGroupLayoutEntry normal_entry {};
+            normal_entry.binding = 6;
+            normal_entry.visibility = WGPUShaderStage_Compute;
+            normal_entry.texture.sampleType = WGPUTextureSampleType_Uint;
+            normal_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
             return std::make_unique<webgpu::raii::BindGroupLayout>(device,
-                std::vector<WGPUBindGroupLayoutEntry> { overlay_entry, settings_entry, output_entry, prev_output_entry, position_entry, depth_entry },
+                std::vector<WGPUBindGroupLayoutEntry> { overlay_entry, settings_entry, output_entry, prev_output_entry, position_entry, depth_entry, normal_entry },
                 "tile debug overlay bind group layout");
         });
     reg.register_pipeline([this](WGPUDevice device, const webgpu::RenderResourceRegistry& reg) {
@@ -94,6 +100,7 @@ void TileDebugOverlay::init(Context& context)
             std::vector<const webgpu::raii::BindGroupLayout*> {
                 &reg.bind_group_layout("tile_debug_overlay"),
                 &reg.bind_group_layout("camera"),
+                &reg.bind_group_layout("shared_config"),
             },
             "tile debug compute pipeline");
     });
@@ -126,10 +133,10 @@ void TileDebugOverlay::update_settings()
 
 void TileDebugOverlay::draw(const WGPUCommandEncoder& command_encoder,
     const webgpu::raii::TextureView& position_view,
-    const webgpu::raii::TextureView& /*normal_view*/,
+    const webgpu::raii::TextureView& normal_view,
     const webgpu::raii::TextureView& overlay_view,
     const webgpu::raii::TextureView& depth_view,
-    const WGPUBindGroup& /*shared_config_bg*/,
+    const WGPUBindGroup& shared_config_bg,
     const WGPUBindGroup& camera_bg,
     const webgpu::raii::TextureWithSampler& current_input,
     webgpu::raii::TextureWithSampler& target_output,
@@ -147,6 +154,7 @@ void TileDebugOverlay::draw(const WGPUCommandEncoder& command_encoder,
             current_input.texture_view().create_bind_group_entry(3),
             position_view.create_bind_group_entry(4),
             depth_view.create_bind_group_entry(5),
+            normal_view.create_bind_group_entry(6),
         },
         "tile debug overlay bind group");
 
@@ -156,6 +164,7 @@ void TileDebugOverlay::draw(const WGPUCommandEncoder& command_encoder,
 
     wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, bind_group.handle(), 0, nullptr);
     wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 1, camera_bg, 0, nullptr);
+    wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 2, shared_config_bg, 0, nullptr);
 
     const glm::uvec3 workgroup_counts = glm::ceil(glm::vec3(float(output_size.x), float(output_size.y), 1.0f) / glm::vec3(16.0f, 16.0f, 1.0f));
     m_pipeline->run(compute_pass, workgroup_counts);
