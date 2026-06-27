@@ -19,6 +19,7 @@
 #pragma once
 
 #include <QByteArray>
+#include <cmath>
 #include <nucleus/camera/Definition.h>
 #include <nucleus/srs.h>
 #include <radix/TileHeights.h>
@@ -213,13 +214,16 @@ namespace utils {
 
         const double rx_min = aabb.min.x - camera_position.x, rx_max = aabb.max.x - camera_position.x;
         const double ry_min = aabb.min.y - camera_position.y, ry_max = aabb.max.y - camera_position.y;
-        const double inv_2r = 1.0 / (2.0 * planet_radius_m);
+        const double r = planet_radius_m;
 
         const auto far_sq  = [](double lo, double hi) { return std::max(lo * lo, hi * hi); };
         const auto near_sq = [](double lo, double hi) { return (lo <= 0.0 && hi >= 0.0) ? 0.0 : std::min(lo * lo, hi * hi); };
 
-        aabb.min.z -= (far_sq(rx_min, rx_max)  + far_sq(ry_min, ry_max))  * inv_2r;
-        aabb.max.z -= (near_sq(rx_min, rx_max) + near_sq(ry_min, ry_max)) * inv_2r;
+        // Exact spherical sagitta drop, matching apply_earth_curvature(): d^2 / (R + sqrt(R^2 - d^2)).
+        const auto drop = [r](double d_sq) { return d_sq / (r + std::sqrt(std::max(r * r - d_sq, 0.0))); };
+
+        aabb.min.z -= drop(far_sq(rx_min, rx_max)  + far_sq(ry_min, ry_max));
+        aabb.max.z -= drop(near_sq(rx_min, rx_max) + near_sq(ry_min, ry_max));
         return aabb;
     }
 

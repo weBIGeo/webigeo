@@ -18,6 +18,7 @@
  *****************************************************************************/
 
 ///use webgpu::tile_util
+///use webgpu::position_util
 ///use util/shared_config
 ///use webgpu_engine::sky/common/medium
 ///use webgpu_engine::sky/common/uv
@@ -179,12 +180,14 @@ fn get_tile_info(tile_id: vec2i) -> tile_info {
     return tile_infos[tile_index];
 }
 
-// Bend a flat-earth ray position down by d²/(2R) so distant samples follow the curved surface.
-// XY is unchanged; only Z is lowered. Used before volume sampling; atmosphere calcs use raw pos.
+// Bend a flat-earth ray position so distant samples follow the curved surface, using the exact
+// spherical drop shared with the terrain (see earth_curvature_drop). XY is unchanged; only Z is
+// raised here to map the curved world ray back onto the flat-stored cloud layer (opposite sign to
+// the terrain's clip-space drop). Used before volume sampling; atmosphere calcs use raw pos.
 fn apply_curvature(pos: vec3f) -> vec3f {
 ///if ENABLE_CURVATURE 1
     let rel_xy = pos.xy - params.camera.position.xy;
-    let curvature_drop = dot(rel_xy, rel_xy) / (2.0 * sconf.planet_radius_m);
+    let curvature_drop = earth_curvature_drop(dot(rel_xy, rel_xy), sconf.planet_radius_m);
     return vec3f(pos.xy, pos.z + curvature_drop);
 ///else
     return pos;

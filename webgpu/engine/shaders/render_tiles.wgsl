@@ -184,7 +184,7 @@ fn vertexMain(@builtin(vertex_index) vertex_index: u32, vertex_in: VertexIn) -> 
     compute_vertex(i32(vertex_index), render_tile_id, vertex_in.bounds, u32(vertex_in.height_zoomlevel), vertex_in.height_texture_layer,
         &position, &uv, &height_tile_id, true, &normal);
 
-    // Curvature is applied to the clip position only; pos_cws below keeps the true position.
+    // Curvature is applied to the clip position only; pos_cws below keeps the true (web mercator) position.
     let curved = apply_earth_curvature(position, config.planet_radius_m);
     let clip_pos: vec4f = camera.view_proj_matrix * vec4f(curved, 1.0);
 

@@ -16,12 +16,26 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-// Earth curvature correction: drops a camera-relative position by d^2 / (2R), such that distant terrain 
-// bends below the horizon. Only XY-relative-to-camera matters; z is lowered. Apply this to the clip-space
-// position ONLY.
+// Vertical drop of a point on a sphere of radius R that is tangent to the xy-plane, at squared
+// horizontal distance d_sq from the tangent point. This is the exact spherical sagitta
+// R - sqrt(R^2 - d^2), evaluated as the algebraically equal form d^2 / (R + sqrt(R^2 - d^2)) to avoid
+// the catastrophic f32 cancellation of subtracting two near-equal large numbers near the camera; it
+// also reduces to the old d^2/(2R) parabola as d -> 0. (The previous parabola was only that 2nd-order
+// term, so it under-dropped far out and needed a fudge factor when zoomed out.)
+// max(..., 0) clamps points past the horizon (d > R), which are beyond the limb and culled anyway.
+fn earth_curvature_drop(d_sq: f32, planet_radius_m: f32) -> f32 {
+    let r = planet_radius_m;
+    return d_sq / (r + sqrt(max(r * r - d_sq, 0.0)));
+}
+
+// Earth curvature correction: drops a camera-relative position onto a sphere of radius R that is
+// tangent to the xy-plane under the camera, so distant terrain bends below the horizon. This matches
+// the analytic atmosphere sphere exactly (it is x^2 + y^2 + (z+R)^2 = R^2 in the same world units),
+// so terrain and atmosphere limb stay aligned at any zoom. Only XY-relative-to-camera matters; z is
+// lowered. Apply this to the clip-space position ONLY.
 fn apply_earth_curvature(pos_cws: vec3f, planet_radius_m: f32) -> vec3f {
     let d_sq = pos_cws.x * pos_cws.x + pos_cws.y * pos_cws.y;
-    return vec3f(pos_cws.xy, pos_cws.z - d_sq / (2.0 * planet_radius_m));
+    return vec3f(pos_cws.xy, pos_cws.z - earth_curvature_drop(d_sq, planet_radius_m));
 }
 
 // Reconstructs the camera-relative world-space position for a given pixel from
