@@ -1,5 +1,6 @@
 /*****************************************************************************
  * weBIGeo
+ * Copyright (C) 2026 Gerald Kimmersdorfer
  * Copyright (C) 2024 Adam Celarek
  * Copyright (C) 2024 Patrick Komon
  *
@@ -90,6 +91,15 @@ fn normal_by_finite_difference_method_texture_f32(
     let hU = f32(hU_sample.r) * altitude_correction_factor;
 
     return normalize(vec3<f32>(hL - hR, hD - hU, height));
+}
+
+// Returns the surface normal with earth-curvature deformation by adding the gradient (x/R, y/R)
+// to the surface slope. This tilts distant facets radially outward matching the
+//   n         : stored true terrain normal (z-up, normalized)
+//   rel_xy    : camera-relative horizontal position (pos_cws.xy)
+//   radius_m  : planet radius in meters (config.planet_radius_m)
+fn curvature_corrected_normal(n: vec3f, rel_xy: vec2f, radius_m: f32) -> vec3f {
+    return normalize(n + (n.z / radius_m) * vec3f(rel_xy, 0.0));
 }
 
 fn get_gradient(normal: vec3f) -> vec3f {
