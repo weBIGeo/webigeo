@@ -34,7 +34,7 @@ bool TileDebugOverlayImGuiRenderer::render_custom_settings()
     bool changed = false;
 
     // Combo order must match TileDebugOverlay::Mode
-    static const char* mode_items[] = { "Normals", "Tiles", "Zoomlevel", "Vertex-ID" };
+    static const char* mode_items[] = { "Normals", "Tiles", "Zoomlevel", "Vertex-ID", "Position Buffer", "Camera Distance (Pos.w)", "Camera Distance (calculated)", "Depth-Buffer (raw)", "Depth-Buffer (linear)", "Camera Distance (reproj. Depth-Buffer)", "Position (reproj. Depth-Buffer)", "Position Diff (Pos.xyz vs reproj.)" };
     int current = s.mode - 1;
     if (ImGui::Combo("Mode", &current, mode_items, IM_ARRAYSIZE(mode_items))) {
         s.mode = current + 1;
@@ -43,6 +43,22 @@ bool TileDebugOverlayImGuiRenderer::render_custom_settings()
     }
 
     if (ImGui::SliderFloat("Strength", &s.strength, 0.0f, 1.0f)) {
+        m_tile_debug_overlay->update_settings();
+        changed = true;
+    }
+
+    if (s.mode >= 5 && s.mode != 8) {
+        if (ImGui::DragFloat("Scale", &s.scale, s.scale * 0.01f, 1.0f, 1e9f, "%.0f")) {
+            m_tile_debug_overlay->update_settings();
+            changed = true;
+        }
+    }
+
+    // Combo order must match TileDebugOverlay::Region
+    static const char* region_items[] = { "Full", "Left Half", "Right Half", "Left Third", "Middle Third", "Right Third" };
+    int current_region = static_cast<int>(s.region);
+    if (ImGui::Combo("Region", &current_region, region_items, IM_ARRAYSIZE(region_items))) {
+        s.region = static_cast<webgpu_engine::TileDebugOverlay::Region>(current_region);
         m_tile_debug_overlay->update_settings();
         changed = true;
     }

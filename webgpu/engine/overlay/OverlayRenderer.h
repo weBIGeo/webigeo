@@ -54,6 +54,7 @@ public:
         const webgpu::raii::TextureView& position_view,
         const webgpu::raii::TextureView& normal_view,
         const webgpu::raii::TextureView& overlay_view,
+        const webgpu::raii::TextureView& depth_view,
         const WGPUBindGroup& shared_config_bg,
         const WGPUBindGroup& camera_bg);
 
@@ -74,6 +75,7 @@ private:
         const webgpu::raii::TextureView& position_view,
         const webgpu::raii::TextureView& normal_view,
         const webgpu::raii::TextureView& overlay_view,
+        const webgpu::raii::TextureView& depth_view,
         const WGPUBindGroup& shared_config_bg,
         const WGPUBindGroup& camera_bg,
         glm::uvec2 output_size);

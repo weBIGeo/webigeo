@@ -316,6 +316,7 @@ qt_add_resources(webgpu "webgpu_shaders"
         "${WEBGPU_SHADER_BASE_DIR}/encoder.wgsl"
         "${WEBGPU_SHADER_BASE_DIR}/filtering.wgsl"
         "${WEBGPU_SHADER_BASE_DIR}/noise.wgsl"
+        "${WEBGPU_SHADER_BASE_DIR}/position_util.wgsl"
     )
 
 target_compile_definitions(webgpu PUBLIC ALP_SHADER_DIR_WEBGPU="${CMAKE_CURRENT_SOURCE_DIR}/shaders/")

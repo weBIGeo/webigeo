@@ -36,11 +36,30 @@ public:
         Tiles = 2,
         Zoomlevel = 3,
         VertexId = 4,
+        PositionBuffer = 5,
+        CameraDistancePosW = 6,
+        CameraDistanceCalc = 7,
+        GeometricDepth = 8,
+        LinearDepth = 9,
+        DepthDistance = 10,
+        DepthPosition = 11,
+        PositionDiff = 12,
+    };
+
+    enum class Region {
+        Full,
+        LeftHalf,
+        RightHalf,
+        LeftThird,
+        MiddleThird,
+        RightThird,
     };
 
     struct Settings {
         int mode = static_cast<int>(Mode::Normals); // consumed CPU-side (forwarded to shared_config)
         float strength = 1.0f;
+        float scale = 10000.0f;
+        Region region = Region::Full;
     };
 
     TileDebugOverlay();
@@ -54,6 +73,7 @@ public:
         const webgpu::raii::TextureView& position_view,
         const webgpu::raii::TextureView& normal_view,
         const webgpu::raii::TextureView& overlay_view,
+        const webgpu::raii::TextureView& depth_view,
         const WGPUBindGroup& shared_config_bg,
         const WGPUBindGroup& camera_bg,
         const webgpu::raii::TextureWithSampler& current_input,
@@ -65,6 +85,11 @@ public:
 private:
     struct GpuSettings {
         float strength = 1.0f;
+        float scale = 10000.0f;
+        uint32_t mode = 1;
+        uint32_t _pad = 0;
+        glm::vec2 x_region = { 0.0f, 1.0f };
+        glm::vec2 _pad2 = { 0.0f, 0.0f };
     };
 
     webgpu::Context* m_ctx = nullptr;

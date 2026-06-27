@@ -255,6 +255,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
             m_gbuffer->color_texture_view(1),
             m_gbuffer->color_texture_view(2),
             m_gbuffer->color_texture_view(3),
+            m_gbuffer->depth_texture_view(),
             m_shared_config_bind_group->handle(),
             m_camera_bind_group->handle());
         if (has_overlays) sm.stop_gpu(SID_OVERLAY, command_encoder);
