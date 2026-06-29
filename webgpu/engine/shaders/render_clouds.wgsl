@@ -26,7 +26,7 @@
 ///define USE_SKY_TRANSMITTANCE_LUT 1
 ///define USE_SKY_AERIAL_LUT 1
 ///define USE_SKY_VIEW_LUT 1
-///define ENABLE_CURVATURE 1
+///define ENABLE_CURVATURE 0
 
 ///if USE_SKY_TRANSMITTANCE_LUT 1
 ///use webgpu_engine::sky/common/transmittance
@@ -93,7 +93,7 @@ struct ray_accumulator {
 @group(0) @binding(4) var output_color: texture_storage_2d<rgba16float, write>;
 @group(0) @binding(5) var output_depth: texture_storage_2d<r32float, write>;
 
-@group(1) @binding(0) var depth_texture: texture_2d<f32>;
+@group(1) @binding(0) var position_texture: texture_2d<f32>;
 
 @group(2) @binding(0) var<uniform> sconf: shared_config;
 
@@ -566,8 +566,18 @@ fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
     let origin = params.camera.position.xyz;
     let stable_depth_coord = 2 * vec2i(pixel_coord) - vec2i(2.0 * params.jitter);
 
-    let frag_depth = max(textureLoad(depth_texture, stable_depth_coord, 0).x, 1e-6f);
-    let frag_pos = unproject(vec3f(texcoords * vec2f(2.0, -2.0) + vec2f(-1.0, 1.0), frag_depth));
+    // Use the gbuffer position attachment (flat camera-relative pos, .w = distance) instead of
+    // unprojecting depth: depth is in the curved clip space (see apply_earth_curvature), the cloud
+    // volume is flat, so unprojected depth would be in the wrong space.
+    let pos_dist = textureLoad(position_texture, stable_depth_coord, 0);
+
+    var frag_pos: vec3f;
+    if pos_dist.w > 0.0 {
+        frag_pos = pos_dist.xyz; // terrain pixel: exact flat position
+    } else {
+        // sky pixel: no occluder, reconstruct the view ray so the march spans the full AABB
+        frag_pos = unproject(vec3f(texcoords * vec2f(2.0, -2.0) + vec2f(-1.0, 1.0), 1e-6f));
+    }
     let ray_direction = normalize(frag_pos);
 
     let fade_near = 1000.0 * params.fade_factor;

@@ -102,6 +102,7 @@ private:
     std::unique_ptr<webgpu::raii::BindGroup> m_camera_bind_group;
     std::array<std::unique_ptr<webgpu::raii::BindGroup>, 2> m_compose_bind_groups;
     std::unique_ptr<webgpu::raii::BindGroup> m_depth_texture_bind_group;
+    std::unique_ptr<webgpu::raii::BindGroup> m_cloud_position_bind_group;
 
     nucleus::camera::Definition m_camera;
     uint32_t m_max_zoom_level = 18;

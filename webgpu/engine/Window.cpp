@@ -184,6 +184,14 @@ void Window::resize_framebuffer(int w, int h)
             m_gbuffer->depth_texture_view().create_bind_group_entry(0), // depth
         });
 
+    // Clouds sample the gbuffer position attachment (flat, uncurved coords) rather than depth,
+    // which is in the curved clip space and would mismatch the flat cloud volume.
+    m_cloud_position_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
+        m_context->webgpu_ctx().resource_registry().bind_group_layout("depth_texture"),
+        std::initializer_list<WGPUBindGroupEntry> {
+            m_gbuffer->color_texture_view(1).create_bind_group_entry(0), // position
+        });
+
     m_context->cloud_renderer()->resize(w, h);
     m_context->overlay_renderer()->resize(w, h);
 
@@ -262,7 +270,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         auto* sky = m_context->sky_renderer();
         sm.start_gpu(SID_CLOUDS, command_encoder);
         m_context->cloud_renderer()->draw(
-            command_encoder, m_depth_texture_bind_group->handle(), m_shared_config_bind_group->handle(), m_camera, m_paint_number,
+            command_encoder, m_cloud_position_bind_group->handle(), m_shared_config_bind_group->handle(), m_camera, m_paint_number,
             *sky->transmittance_lut_view(), *sky->transmittance_lut_sampler(), sky->atmosphere_uniform_buffer(),
             *sky->aerial_perspective_lut_view(), *sky->sky_view_lut_view());
         sm.stop_gpu(SID_CLOUDS, command_encoder);
