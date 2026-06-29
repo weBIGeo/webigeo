@@ -642,12 +642,17 @@ fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
         let depth_km      = apparent_depth / 1000.0;
         let ap_w          = sqrt(clamp(depth_km / 128.0, 0.0, 1.0));
         let ap            = textureSampleLevel(aerial_perspective_lut, transmittance_sampler, vec3f(texcoords, ap_w), 0.0);
-        let ap_T          = 1.0 - ap.a;
-        let cloud_opacity = 1.0 - acc.transmittance;
-        // AP LUT is computed with sky-renderer sun illuminance = 1.0; cloud radiance is scaled by
-        // sun_light_scale * sconf.sun_light.a (~160×). Match units before blending.
-        let ap_scale      = params.sun_light_scale * sconf.sun_light.a;
-        acc.radiance      = acc.radiance * ap_T + ap.rgb * cloud_opacity * ap_scale;
+        // Guard: empty/degenerate AP cells (rgb == 0, e.g. past the LUT range or above the atmosphere) carry no
+        // valid haze. Skip them — otherwise ap_T = 1 - ap.a (with ap.a = 1) zeroes the cloud's radiance, which
+        // is what produced the black wall at distance. Mirrors render_sky_with_luts' `all(ap.rgb == 0)` guard.
+        if !all(ap.rgb == vec3f(0.0)) {
+            let ap_T          = 1.0 - ap.a;
+            let cloud_opacity = 1.0 - acc.transmittance;
+            // AP LUT is computed with sky-renderer sun illuminance = 1.0; cloud radiance is scaled by
+            // sun_light_scale * sconf.sun_light.a (~160×). Match units before blending.
+            let ap_scale      = params.sun_light_scale * sconf.sun_light.a;
+            acc.radiance      = acc.radiance * ap_T + ap.rgb * cloud_opacity * ap_scale;
+        }
     }
 ///endif
 
