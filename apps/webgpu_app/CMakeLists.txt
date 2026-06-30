@@ -76,7 +76,13 @@ if (ALP_WEBGPU_APP_ENABLE_COMPUTE)
         compute/nodes/RequestTilesNodeRenderer.h compute/nodes/RequestTilesNodeRenderer.cpp
         compute/nodes/SelectTilesNodeRenderer.h compute/nodes/SelectTilesNodeRenderer.cpp
         compute/nodes/GPXTrackNodeRenderer.h compute/nodes/GPXTrackNodeRenderer.cpp
+        compute/nodes/TextureToRgba8NodeRenderer.h compute/nodes/TextureToRgba8NodeRenderer.cpp
     )
+    if(GDAL_FOUND)
+        list(APPEND SOURCES
+            compute/nodes/GeoTiffNodeRenderer.h compute/nodes/GeoTiffNodeRenderer.cpp
+        )
+    endif()
 endif()
 
 if (EMSCRIPTEN)

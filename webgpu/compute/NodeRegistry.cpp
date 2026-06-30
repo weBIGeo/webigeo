@@ -28,7 +28,11 @@
 #include "nodes/HeightDecodeNode.h"
 #include "nodes/IterativeSimulationNode.h"
 #include "nodes/LoadTextureNode.h"
+#include "nodes/TextureToRgba8Node.h"
 #include "nodes/RequestTilesNode.h"
+#ifdef ALP_GDAL_ENABLED
+#include "nodes/GeoTiffNode.h"
+#endif
 #include "nodes/SelectTilesNode.h"
 #include "nodes/TileStitchNode.h"
 #include <QDebug>
@@ -53,6 +57,10 @@ NodeRegistry::NodeRegistry()
     register_node("IterativeSimulationNode", [](webgpu::Context& c) { return std::make_unique<nodes::IterativeSimulationNode>(c); });
     register_node("ExportNode", [](webgpu::Context& c) { return std::make_unique<nodes::ExportNode>(c); });
     register_node("LoadTextureNode", [](webgpu::Context& c) { return std::make_unique<nodes::LoadTextureNode>(c); });
+    register_node("TextureToRgba8Node", [](webgpu::Context& c) { return std::make_unique<nodes::TextureToRgba8Node>(c); });
+#ifdef ALP_GDAL_ENABLED
+    register_node("GeoTiffNode", [](webgpu::Context& c) { return std::make_unique<nodes::GeoTiffNode>(c); });
+#endif
 }
 
 NodeRegistry& NodeRegistry::instance()

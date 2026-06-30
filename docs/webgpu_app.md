@@ -62,6 +62,21 @@ After building, you can use the `serve_wasm.py` script to serve the build files 
 * Microsoft Visual C++ Compiler 17.13 or later (aka. MSVC2022, comes with Visual Studio 2022 - keep VS up to date as the prebuilt Dawn library may require a recent toolset version)
 * cmake and ninja (come with Qt)
 
+#### Optional: GDAL (for GeoTiffNode)
+
+GDAL enables the `GeoTiffNode` in the compute graph, which reads GeoTIFF files and reprojects them to a target CRS on the GPU. It is detected automatically — if GDAL is not found the node is simply omitted.
+
+Install via [vcpkg](https://github.com/Microsoft/vcpkg) (clone it anywhere, e.g. next to this repo):
+
+```bat
+git clone https://github.com/Microsoft/vcpkg.git
+cd vcpkg
+bootstrap-vcpkg.bat
+vcpkg install gdal:x64-windows
+```
+
+The vcpkg toolchain is already wired into the `msvc-base` preset in `CMakePresets.json` at `C:/tmp/webigeo/vcpkg`. If your vcpkg clone is in a different location, update `CMAKE_TOOLCHAIN_FILE` in the `msvc-base` preset accordingly.
+
 #### Configuration
 > [!IMPORTANT]
 > If you're using Qt Creator, you can simply use the default kit *Desktop Qt 6.10.1 MSVC2022 (64-bit)* - no additional setup is needed.

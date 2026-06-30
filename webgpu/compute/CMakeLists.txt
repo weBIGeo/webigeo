@@ -40,8 +40,15 @@ set(SOURCES
     nodes/HeightDecodeNode.h nodes/HeightDecodeNode.cpp
     nodes/IterativeSimulationNode.h nodes/IterativeSimulationNode.cpp
     nodes/LoadTextureNode.h nodes/LoadTextureNode.cpp
+    nodes/TextureToRgba8Node.h nodes/TextureToRgba8Node.cpp
     nodes/util.h nodes/util.cpp
 )
+
+if(GDAL_FOUND)
+    list(APPEND SOURCES
+        nodes/GeoTiffNode.h nodes/GeoTiffNode.cpp
+    )
+endif()
 
 qt_add_library(webgpu_compute STATIC ${SOURCES})
 
@@ -87,6 +94,10 @@ qt_add_resources(webgpu_compute "webgpu_compute_shaders"
         "${SHADER_BASE_DIR}/height_decode_compute.wgsl"
         "${SHADER_BASE_DIR}/iterative_simulation_compute.wgsl"
 
+        "${SHADER_BASE_DIR}/texture_to_rgba8_f32_compute.wgsl"
+        "${SHADER_BASE_DIR}/texture_to_rgba8_u32_compute.wgsl"
+        "${SHADER_BASE_DIR}/texture_to_rgba8_i32_compute.wgsl"
+
         "${SHADER_BASE_DIR}/tile_hashmap.wgsl"
         "${SHADER_BASE_DIR}/color_mapping.wgsl"
         "${SHADER_BASE_DIR}/random.wgsl"
@@ -94,5 +105,21 @@ qt_add_resources(webgpu_compute "webgpu_compute_shaders"
 
 target_link_libraries(webgpu_compute PUBLIC nucleus Qt::Core webgpu)
 target_include_directories(webgpu_compute PRIVATE .)
+
+if(GDAL_FOUND)
+    target_compile_definitions(webgpu_compute PUBLIC ALP_GDAL_ENABLED)
+    target_link_libraries(webgpu_compute PRIVATE GDAL::GDAL)
+
+    # Bake PROJ data directory into the binary so OSRSetPROJSearchPaths() works
+    # without needing PROJ_DATA set in the environment.
+    get_filename_component(_gdal_prefix "${GDAL_INCLUDE_DIR}/.." ABSOLUTE)
+    set(_proj_data "${_gdal_prefix}/share/proj")
+    if(EXISTS "${_proj_data}/proj.db")
+        target_compile_definitions(webgpu_compute PRIVATE "ALP_PROJ_DATA_DIR=\"${_proj_data}\"")
+        message(STATUS "webgpu_compute: PROJ data dir: ${_proj_data}")
+    else()
+        message(WARNING "webgpu_compute: proj.db not found at ${_proj_data} — set PROJ_DATA env var before running")
+    endif()
+endif()
 
 target_compile_definitions(webgpu_compute PUBLIC ALP_SHADER_DIR_WEBGPU_COMPUTE="${CMAKE_CURRENT_SOURCE_DIR}/shaders/")

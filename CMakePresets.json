@@ -38,7 +38,8 @@
       "cacheVariables": {
         "CMAKE_C_COMPILER": "cl.exe",
         "CMAKE_CXX_COMPILER": "cl.exe",
-        "Qt6_DIR": "C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6"
+        "Qt6_DIR": "C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6",
+        "CMAKE_TOOLCHAIN_FILE": "C:/tmp/webigeo/vcpkg/scripts/buildsystems/vcpkg.cmake"
       },
       "condition": {
         "type": "equals",
@@ -95,7 +96,7 @@
       "toolchainFile": "C:/Qt/6.10.1/wasm_multithread/lib/cmake/Qt6/qt.toolchain.cmake",
       "environment": {
         "PATH": "C:/Qt/Tools/Ninja;$penv{PATH}",
-        "EMSDK": "C:/tmp/alpinemaps/emsdk"
+        "EMSDK": "C:/tmp/webigeo/emsdk"
       }
     },
     {

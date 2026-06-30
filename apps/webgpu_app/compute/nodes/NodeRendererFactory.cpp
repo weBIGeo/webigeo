@@ -25,6 +25,11 @@
 #include "ExportNodeRenderer.h"
 #include "GPXTrackNodeRenderer.h"
 #include "NodeRenderer.h"
+#include "TextureToRgba8NodeRenderer.h"
+#ifdef ALP_GDAL_ENABLED
+#include "GeoTiffNodeRenderer.h"
+#include <webgpu/compute/nodes/GeoTiffNode.h>
+#endif
 #include "OverlayNodeRenderer.h"
 #include "RequestTilesNodeRenderer.h"
 #include "SelectTilesNodeRenderer.h"
@@ -34,6 +39,7 @@
 #include <webgpu/compute/nodes/ComputeSnowNode.h>
 #include <webgpu/compute/nodes/ExportNode.h>
 #include <webgpu/compute/nodes/GPXTrackNode.h>
+#include <webgpu/compute/nodes/TextureToRgba8Node.h>
 #include <webgpu/compute/nodes/RequestTilesNode.h>
 #include <webgpu/compute/nodes/SelectTilesNode.h>
 
@@ -62,6 +68,12 @@ std::unique_ptr<NodeRenderer> NodeRendererFactory::create(const std::string& nam
         return std::make_unique<SelectTilesNodeRenderer>(name, *n);
     if (auto* n = dynamic_cast<nodes::GPXTrackNode*>(&node))
         return std::make_unique<GPXTrackNodeRenderer>(name, *n);
+    if (auto* n = dynamic_cast<nodes::TextureToRgba8Node*>(&node))
+        return std::make_unique<TextureToRgba8NodeRenderer>(name, *n);
+#ifdef ALP_GDAL_ENABLED
+    if (auto* n = dynamic_cast<nodes::GeoTiffNode*>(&node))
+        return std::make_unique<GeoTiffNodeRenderer>(name, *n);
+#endif
     return std::make_unique<NodeRenderer>(name, node);
 }
 
