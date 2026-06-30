@@ -88,7 +88,7 @@ public:
     void resize(int w, int h);
 
     void draw(const WGPUCommandEncoder& command_encoder,
-        const WGPUBindGroup& position_texture_bind_group,
+        const WGPUBindGroup& depth_texture_bind_group,
         const WGPUBindGroup& shared_config_bind_group,
         const nucleus::camera::Definition& camera,
         uint32_t frame_number,

@@ -415,7 +415,7 @@ void CloudRenderer::resize(int w, int h)
 }
 
 void CloudRenderer::draw(const WGPUCommandEncoder& command_encoder,
-    const WGPUBindGroup& position_texture_bind_group,
+    const WGPUBindGroup& depth_texture_bind_group,
     const WGPUBindGroup& shared_config_bind_group,
     const nucleus::camera::Definition& camera,
     uint32_t frame_number,
@@ -489,7 +489,7 @@ void CloudRenderer::draw(const WGPUCommandEncoder& command_encoder,
 
         wgpuComputePassEncoderSetPipeline(compute_pass.handle(), m_render_clouds_pipeline->handle());
         wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, m_render_clouds_bind_group->handle(), 0, nullptr);
-        wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 1, position_texture_bind_group, 0, nullptr);
+        wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 1, depth_texture_bind_group, 0, nullptr);
         wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 2, shared_config_bind_group, 0, nullptr);
         wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 3, m_atmosphere_bind_group->handle(), 0, nullptr);
 
