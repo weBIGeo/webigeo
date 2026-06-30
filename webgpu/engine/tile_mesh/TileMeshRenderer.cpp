@@ -35,6 +35,40 @@ int bufferLengthInBytes(const std::vector<T>& vec)
 {
     return int(vec.size() * sizeof(T));
 }
+
+WGPUSamplerDescriptor height_sampler_descriptor()
+{
+    WGPUSamplerDescriptor desc {};
+    desc.label = WGPUStringView { .data = "height sampler", .length = WGPU_STRLEN };
+    desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
+    desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
+    desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
+    desc.magFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
+    desc.minFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
+    desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Nearest;
+    desc.lodMinClamp = 0.0f;
+    desc.lodMaxClamp = 1.0f;
+    desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
+    desc.maxAnisotropy = 1;
+    return desc;
+}
+
+WGPUSamplerDescriptor ortho_sampler_descriptor()
+{
+    WGPUSamplerDescriptor desc {};
+    desc.label = WGPUStringView { .data = "ortho sampler", .length = WGPU_STRLEN };
+    desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
+    desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
+    desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
+    desc.magFilter = WGPUFilterMode::WGPUFilterMode_Linear;
+    desc.minFilter = WGPUFilterMode::WGPUFilterMode_Linear;
+    desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Linear;
+    desc.lodMinClamp = 0.0f;
+    desc.lodMaxClamp = 1.0f;
+    desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
+    desc.maxAnisotropy = 1;
+    return desc;
+}
 } // namespace
 
 namespace webgpu_engine {
@@ -42,7 +76,8 @@ namespace webgpu_engine {
 TileMeshRenderer::TileMeshRenderer(uint32_t height_resolution, uint32_t ortho_resolution)
     : QObject { nullptr }
     , m_height_resolution { height_resolution }
-    , m_ortho_resolution { ortho_resolution }
+    , m_height_array(height_resolution, WGPUTextureFormat::WGPUTextureFormat_R16Uint, height_sampler_descriptor(), "height texture")
+    , m_ortho_array(ortho_resolution, WGPUTextureFormat::WGPUTextureFormat_RGBA8Unorm, ortho_sampler_descriptor(), "ortho texture")
 {
 }
 
@@ -50,9 +85,7 @@ void TileMeshRenderer::init(webgpu::Context& ctx)
 {
     m_ctx = &ctx;
 
-    const auto height_resolution = glm::uvec2(m_height_resolution);
-    const auto ortho_resolution = glm::uvec2(m_ortho_resolution);
-    const auto num_layers = m_loaded_height_textures.size();
+    const auto num_layers = m_height_array.capacity();
 
     // create index buffer
     const std::vector<uint16_t> indices = nucleus::utils::terrain_mesh_index_generator::surface_quads_with_curtains<uint16_t>(unsigned(m_height_resolution));
@@ -78,58 +111,9 @@ void TileMeshRenderer::init(webgpu::Context& ctx)
     m_n_edge_vertices_buffer->data = int(m_height_resolution);
     m_n_edge_vertices_buffer->update_gpu_data(m_ctx->queue());
 
-    WGPUTextureDescriptor height_texture_desc {};
-    height_texture_desc.label = WGPUStringView { .data = "height texture", .length = WGPU_STRLEN };
-    height_texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
-    height_texture_desc.size = { uint32_t(height_resolution.x), uint32_t(height_resolution.y), uint32_t(num_layers) };
-    height_texture_desc.mipLevelCount = 1;
-    height_texture_desc.sampleCount = 1;
-    height_texture_desc.format = WGPUTextureFormat::WGPUTextureFormat_R16Uint;
-    height_texture_desc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
-
-    WGPUSamplerDescriptor height_sampler_desc {};
-    height_sampler_desc.label = WGPUStringView { .data = "height sampler", .length = WGPU_STRLEN };
-    height_sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    height_sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    height_sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    // height_sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Linear;
-    // height_sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Linear;
-    // height_sampler_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Linear;
-    height_sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
-    height_sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Nearest;
-    height_sampler_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Nearest;
-    height_sampler_desc.lodMinClamp = 0.0f;
-    height_sampler_desc.lodMaxClamp = 1.0f;
-    height_sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
-    height_sampler_desc.maxAnisotropy = 1;
-
-    m_heightmap_textures = std::make_unique<webgpu::raii::TextureWithSampler>(m_ctx->device(), height_texture_desc, height_sampler_desc);
-
-    // TODO mipmaps and compression
-    WGPUTextureDescriptor ortho_texture_desc {};
-    ortho_texture_desc.label = WGPUStringView { .data = "ortho texture", .length = WGPU_STRLEN };
-    ortho_texture_desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
-    // TODO: array layers might become larger than allowed by graphics API
-    ortho_texture_desc.size = { uint32_t(ortho_resolution.x), uint32_t(ortho_resolution.y), uint32_t(num_layers) };
-    ortho_texture_desc.mipLevelCount = 1;
-    ortho_texture_desc.sampleCount = 1;
-    ortho_texture_desc.format = WGPUTextureFormat::WGPUTextureFormat_RGBA8Unorm;
-    ortho_texture_desc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
-
-    WGPUSamplerDescriptor ortho_sampler_desc {};
-    ortho_sampler_desc.label = WGPUStringView { .data = "ortho sampler", .length = WGPU_STRLEN };
-    ortho_sampler_desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    ortho_sampler_desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    ortho_sampler_desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    ortho_sampler_desc.magFilter = WGPUFilterMode::WGPUFilterMode_Linear;
-    ortho_sampler_desc.minFilter = WGPUFilterMode::WGPUFilterMode_Linear;
-    ortho_sampler_desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Linear;
-    ortho_sampler_desc.lodMinClamp = 0.0f;
-    ortho_sampler_desc.lodMaxClamp = 1.0f;
-    ortho_sampler_desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
-    ortho_sampler_desc.maxAnisotropy = 1;
-
-    m_ortho_textures = std::make_unique<webgpu::raii::TextureWithSampler>(m_ctx->device(), ortho_texture_desc, ortho_sampler_desc);
+    // TODO mipmaps and compression for the ortho array
+    m_height_array.init(ctx);
+    m_ortho_array.init(ctx);
 
     auto& reg = ctx.resource_registry();
     reg.register_shader("render_tiles", "webgpu_engine::render_tiles");
@@ -209,7 +193,7 @@ void TileMeshRenderer::init(webgpu::Context& ctx)
                 &reg.bind_group_layout("tile"),
             });
 
-        m_tile_bind_group = create_bind_group(m_ortho_textures->texture_view(), m_ortho_textures->sampler());
+        m_tile_bind_group = create_bind_group(m_ortho_array.texture_view(), m_ortho_array.sampler());
     });
 }
 
@@ -246,11 +230,11 @@ void TileMeshRenderer::draw(
             tile_bounds.max.y - camera.position().y);
         tileset_id.emplace_back(tile_id.coords[0] + tile_id.coords[1]);
 
-        const auto height_layer_info = m_loaded_height_textures.layer(tile_id);
+        const auto height_layer_info = m_height_array.layer(tile_id);
         height_zoom_levels.emplace_back(int(height_layer_info.id.zoom_level));
         height_texture_layer.emplace_back(int(height_layer_info.index));
 
-        const auto ortho_layer_info = m_loaded_ortho_textures.layer(tile_id);
+        const auto ortho_layer_info = m_ortho_array.layer(tile_id);
         ortho_zoom_levels.emplace_back(int(ortho_layer_info.id.zoom_level));
         ortho_texture_layers.emplace_back(int(ortho_layer_info.index));
 
@@ -286,8 +270,8 @@ void TileMeshRenderer::draw(
 
 void TileMeshRenderer::set_tile_limit(unsigned int num_tiles)
 {
-    m_loaded_height_textures.set_tile_limit(num_tiles);
-    m_loaded_ortho_textures.set_tile_limit(num_tiles);
+    m_height_array.set_tile_limit(num_tiles);
+    m_ortho_array.set_tile_limit(num_tiles);
 }
 
 std::unique_ptr<webgpu::raii::BindGroup> TileMeshRenderer::create_bind_group(const webgpu::raii::TextureView& view, const webgpu::raii::Sampler& sampler) const
@@ -296,8 +280,8 @@ std::unique_ptr<webgpu::raii::BindGroup> TileMeshRenderer::create_bind_group(con
         m_ctx->resource_registry().bind_group_layout("tile"),
         std::initializer_list<WGPUBindGroupEntry> {
             m_n_edge_vertices_buffer->raw_buffer().create_bind_group_entry(0),
-            m_heightmap_textures->texture_view().create_bind_group_entry(1),
-            m_heightmap_textures->sampler().create_bind_group_entry(2),
+            m_height_array.texture_view().create_bind_group_entry(1),
+            m_height_array.sampler().create_bind_group_entry(2),
             view.create_bind_group_entry(3),
             sampler.create_bind_group_entry(4),
         },
@@ -309,7 +293,7 @@ const webgpu::raii::GenericRenderPipeline& TileMeshRenderer::render_tiles_pipeli
 void TileMeshRenderer::update_gpu_tiles_height(const std::vector<radix::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuGeometryTile>& new_tiles)
 {
     for (const auto& id : deleted_tiles) {
-        m_loaded_height_textures.remove_tile(id);
+        m_height_array.remove_tile(id);
     }
 
     for (const auto& tile : new_tiles) {
@@ -318,15 +302,15 @@ void TileMeshRenderer::update_gpu_tiles_height(const std::vector<radix::tile::Id
         assert(tile.surface);
 
         // find empty spot and upload texture
-        const uint32_t layer_index = m_loaded_height_textures.add_tile(tile.id);
-        m_heightmap_textures->texture().write(m_ctx->queue(), *tile.surface, layer_index);
+        const uint32_t layer_index = m_height_array.add_tile(tile.id);
+        m_height_array.texture().write(m_ctx->queue(), *tile.surface, layer_index);
     }
 }
 
 void TileMeshRenderer::update_gpu_tiles_ortho(const std::vector<nucleus::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuTextureTile>& new_tiles)
 {
     for (const auto& id : deleted_tiles) {
-        m_loaded_ortho_textures.remove_tile(id);
+        m_ortho_array.remove_tile(id);
     }
     for (const auto& tile : new_tiles) {
         // test for validity
@@ -334,8 +318,8 @@ void TileMeshRenderer::update_gpu_tiles_ortho(const std::vector<nucleus::tile::I
         assert(tile.texture);
 
         // find empty spot and upload texture
-        const auto layer_index = m_loaded_ortho_textures.add_tile(tile.id);
-        m_ortho_textures->texture().write(m_ctx->queue(), tile.texture->front(), uint32_t(layer_index));
+        const auto layer_index = m_ortho_array.add_tile(tile.id);
+        m_ortho_array.texture().write(m_ctx->queue(), tile.texture->front(), uint32_t(layer_index));
     }
 }
 

@@ -22,6 +22,7 @@
 
 #include <memory>
 
+#include "webgpu/engine/tile/GpuTileTextureArray.h"
 #include <QObject>
 #include <nucleus/tile/GpuArrayHelper.h>
 #include <nucleus/tile/GpuTileId.h>
@@ -65,10 +66,9 @@ public slots:
 
 private:
     uint32_t m_height_resolution;
-    uint32_t m_ortho_resolution;
     size_t m_num_layers;
-    nucleus::tile::GpuArrayHelper m_loaded_height_textures;
-    nucleus::tile::GpuArrayHelper m_loaded_ortho_textures;
+    GpuTileTextureArray m_height_array;
+    GpuTileTextureArray m_ortho_array;
 
     webgpu::Context* m_ctx = nullptr;
 
@@ -83,8 +83,6 @@ private:
     std::unique_ptr<webgpu::Buffer<int32_t>> m_n_edge_vertices_buffer;
     std::unique_ptr<webgpu::raii::RawBuffer<nucleus::tile::GpuTileId>> m_tile_id_buffer;
 
-    std::unique_ptr<webgpu::raii::TextureWithSampler> m_heightmap_textures;
-    std::unique_ptr<webgpu::raii::TextureWithSampler> m_ortho_textures;
     std::unique_ptr<webgpu::raii::BindGroup> m_tile_bind_group;
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_pipeline;
 };
