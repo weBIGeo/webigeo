@@ -76,14 +76,26 @@ public:
     [[nodiscard]] GpuTileTextureArray& array() { return m_array; }
     [[nodiscard]] const GpuTileTextureArray& array() const { return m_array; }
 
+    // GPU tile-id -> array-layer dictionary (from GpuArrayHelper::generate_dictionary), for screen-space
+    // consumers that must resolve tile->layer per pixel. RG32Uint packed-ids + R16Uint layers, 256x256.
+    [[nodiscard]] const webgpu::raii::TextureView& dictionary_ids_view() const { return *m_dict_ids_view; }
+    [[nodiscard]] const webgpu::raii::TextureView& dictionary_layers_view() const { return *m_dict_layers_view; }
+
 public slots:
     void update_gpu_tiles(const std::vector<nucleus::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuTextureTile>& new_tiles);
 
 private:
+    void upload_dictionary(); // regenerate + upload the tile-id -> layer dictionary textures
+
     Config m_config;
     nucleus::tile::setup::TextureSchedulerHolder m_holder;
     GpuTileTextureArray m_array;
     webgpu::Context* m_ctx = nullptr;
+
+    std::unique_ptr<webgpu::raii::Texture> m_dict_ids; // RG32Uint packed tile ids
+    std::unique_ptr<webgpu::raii::Texture> m_dict_layers; // R16Uint array layers
+    std::unique_ptr<webgpu::raii::TextureView> m_dict_ids_view;
+    std::unique_ptr<webgpu::raii::TextureView> m_dict_layers_view;
 };
 
 } // namespace webgpu_engine

@@ -57,10 +57,43 @@ TileSource::TileSource(const Config& config, const nucleus::tile::utils::AabbDec
 
 TileSource::~TileSource() = default;
 
+namespace {
+constexpr uint32_t DICT_SIZE = 256; // must match GpuArrayHelper::generate_dictionary()
+
+std::unique_ptr<webgpu::raii::Texture> make_dictionary_texture(WGPUDevice device, WGPUTextureFormat format, const char* label)
+{
+    WGPUTextureDescriptor desc {};
+    desc.label = WGPUStringView { .data = label, .length = WGPU_STRLEN };
+    desc.dimension = WGPUTextureDimension::WGPUTextureDimension_2D;
+    desc.size = { DICT_SIZE, DICT_SIZE, 1 };
+    desc.mipLevelCount = 1;
+    desc.sampleCount = 1;
+    desc.format = format;
+    desc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst;
+    return std::make_unique<webgpu::raii::Texture>(device, desc);
+}
+} // namespace
+
 void TileSource::init(webgpu::Context& ctx)
 {
     m_ctx = &ctx;
     m_array.init(ctx);
+
+    m_dict_ids = make_dictionary_texture(ctx.device(), WGPUTextureFormat::WGPUTextureFormat_RG32Uint, "tile source dict ids");
+    m_dict_layers = make_dictionary_texture(ctx.device(), WGPUTextureFormat::WGPUTextureFormat_R16Uint, "tile source dict layers");
+    m_dict_ids_view = m_dict_ids->create_view();
+    m_dict_layers_view = m_dict_layers->create_view();
+
+    upload_dictionary(); // seed with the (currently empty) dictionary so the textures hold valid data
+}
+
+void TileSource::upload_dictionary()
+{
+    if (!m_dict_ids)
+        return;
+    const auto dict = m_array.generate_dictionary();
+    m_dict_ids->write(m_ctx->queue(), dict.packed_ids);
+    m_dict_layers->write(m_ctx->queue(), dict.layers);
 }
 
 void TileSource::update_gpu_tiles(const std::vector<nucleus::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuTextureTile>& new_tiles)
@@ -75,6 +108,8 @@ void TileSource::update_gpu_tiles(const std::vector<nucleus::tile::Id>& deleted_
         const auto layer_index = m_array.add_tile(tile.id);
         m_array.texture().write(m_ctx->queue(), tile.texture->front(), uint32_t(layer_index));
     }
+
+    upload_dictionary(); // keep the GPU tile-id -> layer dictionary in sync with the array
 }
 
 void TileSource::enable()
