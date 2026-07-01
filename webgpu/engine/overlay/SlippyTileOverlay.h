@@ -28,15 +28,19 @@ namespace webgpu_engine {
 class TileSource;
 
 /// Screen-space compute overlay that paints a tile source (e.g. ortho imagery) onto the terrain.
-/// Per pixel it reads the gbuffer world position + render-tile zoom (position.w), resolves the tile's
-/// array layer via the source's GPU dictionary (walking up to a resident ancestor), samples the tile
+/// Per pixel it reads the gbuffer's exact render tile_id + local uv (tile_ref), estimates the ideal
+/// zoom from camera distance (screen-space error, independent of the height mesh's own zoom), derives
+/// the target tile_id/uv precisely via calc_tile_id_and_uv_for_zoom_level, resolves the tile's array
+/// layer via the source's GPU dictionary (walking to a resident ancestor on a miss), samples the tile
 /// array, and blends premultiplied over the ping-pong background. Default z_index < 0 (pre-shading), so
 /// the compose pass folds it into albedo before lighting.
 class SlippyTileOverlay : public Overlay {
 public:
     struct Settings {
         float opacity = 1.0f;
-        uint32_t max_zoom = 20; // clamps the walk-up start zoom (render zoom already caps it in practice)
+        uint32_t max_zoom = 20; // ceiling for the per-fragment ideal-zoom estimate
+        uint32_t tile_size = 256; // source's tile resolution, used by the ideal-zoom SSE estimate
+        float pixel_error_threshold = 2.0f; // per-overlay SSE threshold (mirrors nucleus::camera::Definition's default)
     };
 
     explicit SlippyTileOverlay(TileSource* source);
@@ -51,6 +55,7 @@ public:
         const webgpu::raii::TextureView& normal_view,
         const webgpu::raii::TextureView& overlay_view,
         const webgpu::raii::TextureView& depth_view,
+        const webgpu::raii::TextureView& tile_ref_view,
         const WGPUBindGroup& shared_config_bg,
         const WGPUBindGroup& camera_bg,
         const webgpu::raii::TextureWithSampler& current_input,
@@ -63,7 +68,8 @@ private:
     struct GpuSettings {
         float opacity = 1.0f;
         uint32_t max_zoom = 20;
-        glm::vec2 _pad = { 0.0f, 0.0f };
+        uint32_t tile_size = 256;
+        float pixel_error_threshold = 2.0f;
     };
 
     webgpu::Context* m_ctx = nullptr;

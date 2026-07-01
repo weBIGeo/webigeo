@@ -64,6 +64,7 @@ bool SlippyTileOverlayImGuiRenderer::render_custom_settings()
         const auto& preset = presets[static_cast<size_t>(preset_idx)];
         m_slippy_overlay->set_source(m_context->get_or_create_tile_source(preset));
         s.max_zoom = std::min(s.max_zoom, preset.max_possible_zoom);
+        s.tile_size = preset.tile_resolution;
         m_slippy_overlay->update_settings();
         changed = true;
     }
@@ -77,6 +78,15 @@ bool SlippyTileOverlayImGuiRenderer::render_custom_settings()
     int max_zoom = static_cast<int>(s.max_zoom);
     if (ImGui::SliderInt("Max Zoom", &max_zoom, 1, static_cast<int>(max_possible_zoom))) {
         s.max_zoom = static_cast<uint32_t>(max_zoom);
+        m_slippy_overlay->update_settings();
+        changed = true;
+    }
+
+    // Same "Level of Detail" convention as AppPanel's terrain slider (higher = sharper): displayed
+    // value is the inverse of the raw pixel_error_threshold actually used by the shader.
+    float level_of_detail = 1.0f / s.pixel_error_threshold;
+    if (ImGui::SliderFloat("Level of Detail", &level_of_detail, 0.01f, 2.0f)) {
+        s.pixel_error_threshold = 1.0f / level_of_detail;
         m_slippy_overlay->update_settings();
         changed = true;
     }

@@ -133,6 +133,7 @@ void TileMeshRenderer::init(webgpu::Context& ctx)
         format.color_formats.emplace_back(WGPUTextureFormat_RGBA32Float); // position
         format.color_formats.emplace_back(WGPUTextureFormat_RG16Uint); // normal
         format.color_formats.emplace_back(WGPUTextureFormat_R32Uint); // overlay
+        format.color_formats.emplace_back(WGPUTextureFormat_RGBA32Uint); // tile_ref: render tile x, y, zoom + packed uv
 
         m_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(dev,
             reg.shader("render_tiles"),

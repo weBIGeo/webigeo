@@ -49,6 +49,7 @@ public:
         const webgpu::raii::TextureView& normal_view,
         const webgpu::raii::TextureView& overlay_view,
         const webgpu::raii::TextureView& depth_view,
+        const webgpu::raii::TextureView& tile_ref_view,
         const WGPUBindGroup& shared_config_bg,
         const WGPUBindGroup& camera_bg,
         const webgpu::raii::TextureWithSampler& current_input,

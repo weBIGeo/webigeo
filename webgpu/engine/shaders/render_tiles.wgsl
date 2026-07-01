@@ -58,6 +58,7 @@ struct FragOut {
     @location(1) position: vec4f,
     @location(2) normal_enc: vec2u,
     @location(3) overlay: u32,
+    @location(4) tile_ref: vec4u,
 }
 
 fn compute_vertex(
@@ -231,8 +232,14 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
     frag_out.overlay = pack4x8unorm(overlay_color);
     frag_out.albedo = pack4x8unorm(vec4f(albedo, 1.0));
 
-    // position.w carries the render-tile zoom; the Slippy overlay reads it as its walk-up start zoom.
+    // position.w carries the render-tile zoom; kept for debug/future use (no longer read by SlippyTileOverlay,
+    // which instead uses the exact tile_ref below to avoid absolute-world-position float precision loss).
     frag_out.position = vec4f(vertex_out.pos_cws, f32(vertex_out.tile_id.z));
+
+    // Exact render tile id + local uv (precision-safe reference point for tile-pyramid overlays,
+    // e.g. SlippyTileOverlay), since deriving it from the (lossy, large-magnitude) world position
+    // instead would not be numerically equivalent at high zoom levels.
+    frag_out.tile_ref = vec4u(vertex_out.tile_id.x, vertex_out.tile_id.y, vertex_out.tile_id.z, pack2x16unorm(vertex_out.uv));
 
     return frag_out;
 }

@@ -91,9 +91,15 @@ void SlippyTileOverlay::init(Context& context)
             dict_layers_entry.texture.sampleType = WGPUTextureSampleType_Uint;
             dict_layers_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
+            WGPUBindGroupLayoutEntry tile_ref_entry {};
+            tile_ref_entry.binding = 8;
+            tile_ref_entry.visibility = WGPUShaderStage_Compute;
+            tile_ref_entry.texture.sampleType = WGPUTextureSampleType_Uint;
+            tile_ref_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
             return std::make_unique<webgpu::raii::BindGroupLayout>(device,
                 std::vector<WGPUBindGroupLayoutEntry> { position_entry, settings_entry, tile_texture_entry, tile_sampler_entry, output_entry,
-                    background_entry, dict_ids_entry, dict_layers_entry },
+                    background_entry, dict_ids_entry, dict_layers_entry, tile_ref_entry },
                 "slippy tile overlay bind group layout");
         });
 
@@ -124,6 +130,8 @@ void SlippyTileOverlay::update_settings()
         return;
     m_settings_uniform->data.opacity = settings.opacity;
     m_settings_uniform->data.max_zoom = settings.max_zoom;
+    m_settings_uniform->data.tile_size = settings.tile_size;
+    m_settings_uniform->data.pixel_error_threshold = settings.pixel_error_threshold;
     m_settings_uniform->update_gpu_data(m_ctx->queue());
 }
 
@@ -132,6 +140,7 @@ void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
     const webgpu::raii::TextureView& /*normal_view*/,
     const webgpu::raii::TextureView& /*overlay_view*/,
     const webgpu::raii::TextureView& /*depth_view*/,
+    const webgpu::raii::TextureView& tile_ref_view,
     const WGPUBindGroup& shared_config_bg,
     const WGPUBindGroup& camera_bg,
     const webgpu::raii::TextureWithSampler& current_input,
@@ -152,6 +161,7 @@ void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
             current_input.texture_view().create_bind_group_entry(5),
             m_source->dictionary_ids_view().create_bind_group_entry(6),
             m_source->dictionary_layers_view().create_bind_group_entry(7),
+            tile_ref_view.create_bind_group_entry(8),
         },
         "slippy tile overlay bind group");
 

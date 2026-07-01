@@ -126,10 +126,11 @@ fn decrease_zoom_level_until(
 fn increase_zoom_level_by_one(
     input_tile_id: TileId,
     input_uv: vec2f,
+    max_zoom: u32,
     output_tile_id: ptr<function, TileId>,
     output_uv: ptr<function, vec2f>,
 ) -> bool {
-    if input_tile_id.zoomlevel == 18u {
+    if input_tile_id.zoomlevel >= max_zoom {
         return false;
     }
 
@@ -145,7 +146,6 @@ fn increase_zoom_level_by_one(
     return true;
 }
 
-//TODO optimize similarly to decrease_zoom_level_until
 fn increase_zoom_level_until(
     input_tile_id: TileId,
     input_uv: vec2f,
@@ -154,14 +154,27 @@ fn increase_zoom_level_until(
     output_uv: ptr<function, vec2f>,
 ) -> bool {
     if input_tile_id.zoomlevel >= zoomlevel {
+        *output_tile_id = input_tile_id;
+        *output_uv = input_uv;
         return false;
     }
 
-    var output_zoomlevel = input_tile_id.zoomlevel;
-    while output_zoomlevel < zoomlevel {
-        increase_zoom_level_by_one(input_tile_id, input_uv, output_tile_id, output_uv);
-        output_zoomlevel++;
+    // Chain each step's output into the next iteration's input (increase_zoom_level_by_one has no
+    // closed-form jump like decrease_zoom_level_until, since which child to descend into at each
+    // level depends on the fractional uv bits).
+    var cur_tile_id = input_tile_id;
+    var cur_uv = input_uv;
+    while cur_tile_id.zoomlevel < zoomlevel {
+        var next_tile_id: TileId;
+        var next_uv: vec2f;
+        if !increase_zoom_level_by_one(cur_tile_id, cur_uv, zoomlevel, &next_tile_id, &next_uv) {
+            break;
+        }
+        cur_tile_id = next_tile_id;
+        cur_uv = next_uv;
     }
+    *output_tile_id = cur_tile_id;
+    *output_uv = cur_uv;
     return true;
 }
 
