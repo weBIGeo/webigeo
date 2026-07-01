@@ -34,3 +34,5 @@ bool SchedulerDirector::check_in(QString name, std::shared_ptr<Scheduler> schedu
     scheduler->set_name(name);
     return true;
 }
+
+bool SchedulerDirector::check_out(const QString& name) { return m_schedulers.erase(name) > 0; }

@@ -30,6 +30,7 @@ class SchedulerDirector : public QObject {
 public:
     explicit SchedulerDirector();
     bool check_in(QString name, std::shared_ptr<Scheduler> scheduler);
+    bool check_out(const QString& name);
 
     template <typename Functor> void visit(Functor fun)
     {
