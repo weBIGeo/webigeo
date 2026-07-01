@@ -34,17 +34,13 @@
 @group(2) @binding(0) var<uniform> n_edge_vertices: i32;
 @group(2) @binding(1) var height_texture: texture_2d_array<u32>;
 @group(2) @binding(2) var height_sampler: sampler;
-@group(2) @binding(3) var ortho_texture: texture_2d_array<f32>;
-@group(2) @binding(4) var ortho_sampler: sampler;
 
 struct VertexIn {
     @location(0) bounds: vec4f,
     @location(1) height_texture_layer: i32,
-    @location(2) ortho_texture_layer: i32,
     @location(3) tileset_id: i32,
     @location(4) height_zoomlevel: i32,
     @location(5) tile_id: vec4<u32>,
-    @location(6) ortho_zoomlevel: i32,
 }
 
 struct VertexOut {
@@ -53,10 +49,8 @@ struct VertexOut {
     @location(1) pos_cws: vec3f,
     @location(2) normal: vec3f,
     @location(3) @interpolate(flat) height_texture_layer: i32,
-    @location(4) @interpolate(flat) ortho_texture_layer: i32,
     @location(5) @interpolate(flat) color: vec3f,
     @location(6) @interpolate(flat) tile_id: vec3<u32>,
-    @location(7) @interpolate(flat) ortho_zoomlevel: i32,
 }
 
 struct FragOut {
@@ -194,32 +188,24 @@ fn vertexMain(@builtin(vertex_index) vertex_index: u32, vertex_in: VertexIn) -> 
     vertex_out.pos_cws = position;
     vertex_out.normal = normal;
     vertex_out.height_texture_layer = vertex_in.height_texture_layer;
-    vertex_out.ortho_texture_layer = vertex_in.ortho_texture_layer;
 
     var vertex_color = vec3f(0.0);
     if config.overlay_mode == 2 {
         vertex_color = color_from_id_hash(u32(vertex_in.tileset_id));
     } else if config.overlay_mode == 3 {
         vertex_color = color_from_id_hash(u32(vertex_in.height_zoomlevel));
-        //vertex_color = color_from_id_hash(u32(vertex_in.ortho_zoomlevel));
     } else if config.overlay_mode == 4 {
         vertex_color = color_from_id_hash(u32(vertex_index));
     }
     vertex_out.color = vertex_color;
     vertex_out.tile_id = vertex_in.tile_id.xyz;
-    vertex_out.ortho_zoomlevel = vertex_in.ortho_zoomlevel;
     return vertex_out;
 }
 
 @fragment
 fn fragmentMain(vertex_out: VertexOut) -> FragOut {
-    let tile_id = TileId(vertex_out.tile_id.x, vertex_out.tile_id.y, vertex_out.tile_id.z, 4294967295u);
-
-    //obtain uv coordinates for desired ortho zoom level and sample
-    var ortho_tile_id: TileId;
-    var ortho_uv: vec2f;
-    let found_ortho = decrease_zoom_level_until(tile_id, vertex_out.uv, u32(vertex_out.ortho_zoomlevel), &ortho_tile_id, &ortho_uv);
-    var albedo = textureSample(ortho_texture, ortho_sampler, ortho_uv, vertex_out.ortho_texture_layer).rgb;
+    // Ortho imagery is now supplied by the SlippyTileOverlay; the mesh writes a neutral (white) albedo.
+    let albedo = vec3f(1.0);
 
     var frag_out: FragOut;
 

@@ -221,14 +221,12 @@ void Context::internal_initialise()
             "cloud composite bind group layout");
     });
 
-    // Create the default imagery source (ortho) and upload its GPU array before the terrain mesh
-    // builds its bind group, since the mesh samples this array. is_alive() is still false here, so
-    // add_tile_source() does not init the array itself; we do it explicitly below.
+    // Create the default imagery source (ortho) and upload its GPU array. is_alive() is still false
+    // here, so add_tile_source() does not init the array itself; we do it explicitly below. The source
+    // is consumed by the pre-shading SlippyTileOverlay (added app-side), not by the mesh.
     m_ortho_tile_source = add_tile_source(ortho_config());
     for (auto& source : m_tile_sources)
         source->init(webgpu_ctx());
-    if (m_tile_mesh_renderer)
-        m_tile_mesh_renderer->set_ortho_array(&m_ortho_tile_source->array());
 
     if (m_tile_mesh_renderer)
         m_tile_mesh_renderer->init(webgpu_ctx());
@@ -253,8 +251,18 @@ void Context::internal_initialise()
 
 void Context::internal_destroy()
 {
-    // Tear down engine-owned tile loading first: reset each source's scheduler/load service on the
-    // scheduler thread, then stop the thread. Must happen before the render-thread objects go away.
+    // Reset renderers first: the SlippyTileOverlay holds a non-owning TileSource*, so the tile sources
+    // must outlive the overlay renderer.
+    // this is necessary for a clean shutdown (and we want a clean shutdown for the ci integration test).
+    // m_ortho_layer.reset();
+    m_track_renderer.reset();
+    m_overlay_renderer.reset();
+    m_cloud_renderer.reset();
+    m_sky_renderer.reset();
+    m_tile_mesh_renderer.reset();
+
+    // Then tear down engine-owned tile loading: reset each source's scheduler/load service on the
+    // scheduler thread, then stop the thread.
     for (auto& source : m_tile_sources)
         source->teardown();
 #ifdef ALP_ENABLE_THREADING
@@ -266,14 +274,6 @@ void Context::internal_destroy()
 #endif
     m_ortho_tile_source = nullptr;
     m_tile_sources.clear();
-
-    // this is necessary for a clean shutdown (and we want a clean shutdown for the ci integration test).
-    // m_ortho_layer.reset();
-    m_track_renderer.reset();
-    m_overlay_renderer.reset();
-    m_cloud_renderer.reset();
-    m_sky_renderer.reset();
-    m_tile_mesh_renderer.reset();
 }
 
 TileSource* Context::add_tile_source(const TileSource::Config& config)

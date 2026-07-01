@@ -48,12 +48,9 @@ public:
 
     void init(webgpu::Context& ctx);
 
-    /// Link the (externally owned) ortho tile array this mesh samples. Must be called before init().
-    void set_ortho_array(GpuTileTextureArray* ortho_array);
-
     void draw(WGPURenderPassEncoder render_pass, const nucleus::camera::Definition& camera, const std::vector<nucleus::tile::TileBounds>& draw_tiles) const;
 
-    std::unique_ptr<webgpu::raii::BindGroup> create_bind_group(const webgpu::raii::TextureView& view, const webgpu::raii::Sampler& sampler) const;
+    std::unique_ptr<webgpu::raii::BindGroup> create_bind_group() const;
 
     [[nodiscard]] const webgpu::raii::GenericRenderPipeline& render_tiles_pipeline() const;
 
@@ -70,7 +67,6 @@ private:
     uint32_t m_height_resolution;
     size_t m_num_layers;
     GpuTileTextureArray m_height_array;
-    GpuTileTextureArray* m_ortho_array = nullptr; // owned by the ortho TileSource (engine Context)
 
     webgpu::Context* m_ctx = nullptr;
 
@@ -80,8 +76,6 @@ private:
     std::unique_ptr<webgpu::raii::RawBuffer<int32_t>> m_tileset_id_buffer;
     std::unique_ptr<webgpu::raii::RawBuffer<int32_t>> m_height_zoom_level_buffer;
     std::unique_ptr<webgpu::raii::RawBuffer<int32_t>> m_height_texture_layer_buffer;
-    std::unique_ptr<webgpu::raii::RawBuffer<int32_t>> m_ortho_zoom_level_buffer;
-    std::unique_ptr<webgpu::raii::RawBuffer<int32_t>> m_ortho_texture_layer_buffer;
     std::unique_ptr<webgpu::Buffer<int32_t>> m_n_edge_vertices_buffer;
     std::unique_ptr<webgpu::raii::RawBuffer<nucleus::tile::GpuTileId>> m_tile_id_buffer;
 
