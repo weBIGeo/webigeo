@@ -23,11 +23,16 @@
 #include "UniformBufferObjects.h"
 #include "cloud/CloudRenderer.h"
 #include "nucleus/EngineContext.h"
+#include "nucleus/tile/SchedulerDirector.h"
 #include "nucleus/track/Manager.h"
 #include "overlay/OverlayRenderer.h"
 #include "sky/SkyRenderer.h"
+#include "tile/TileSource.h"
 #include "tile_mesh/TileMeshRenderer.h"
 #include "track/TrackRenderer.h"
+#include <QThread>
+#include <memory>
+#include <vector>
 #include <webgpu/base/Context.h>
 
 namespace webgpu_engine {
@@ -54,6 +59,12 @@ public:
 
     TrackRenderer* track_renderer() const;
     void set_track_renderer(std::shared_ptr<TrackRenderer> new_track_renderer);
+
+    /// Create an imagery tile source owned by this Context, register it with the scheduler director,
+    /// and (if the Context is already alive) create its GPU array. Returns a non-owning pointer.
+    TileSource* add_tile_source(const TileSource::Config& config);
+    TileSource* ortho_tile_source() const { return m_ortho_tile_source; }
+    const std::vector<std::shared_ptr<TileSource>>& tile_sources() const { return m_tile_sources; }
 
     webgpu::Context& webgpu_ctx() { return *m_webgpu_ctx_ptr; }
     void set_webgpu_ctx(webgpu::Context& ctx);
@@ -83,6 +94,12 @@ private:
     std::shared_ptr<OverlayRenderer> m_overlay_renderer;
     std::shared_ptr<TrackRenderer> m_track_renderer;
     // std::shared_ptr<TextureLayer> m_ortho_layer;
+
+    // Engine-owned imagery tile loading (see docs/slippy_tile_overlay_masterplan.md, Plan 2).
+    std::unique_ptr<QThread> m_scheduler_thread;
+    std::unique_ptr<nucleus::tile::SchedulerDirector> m_scheduler_director;
+    std::vector<std::shared_ptr<TileSource>> m_tile_sources;
+    TileSource* m_ortho_tile_source = nullptr;
 };
 
 } // namespace webgpu_engine

@@ -68,15 +68,9 @@ RenderingContext::RenderingContext()
         m_geometry_scheduler_holder.scheduler->set_gpu_quad_limit(256); // TODO
         m_scheduler_director->check_in("geometry", m_geometry_scheduler_holder.scheduler);
         m_data_querier = std::make_shared<nucleus::DataQuerier>(&m_geometry_scheduler_holder.scheduler->ram_cache());
-        auto ortho_service
-            = std::make_unique<nucleus::tile::TileLoadService>("https://gataki.cg.tuwien.ac.at/raw/basemap/tiles/", TilePattern::ZYX_yPointingSouth, ".jpeg");
-        // auto ortho_service = std::make_unique<nucleus::tile::TileLoadService>("https://maps.wien.gv.at/basemap/bmaporthofoto30cm/normal/google3857/",
-        // TilePattern::ZYX_yPointingSouth, ".jpeg"); auto ortho_service =
-        // std::make_unique<nucleus::tile::TileLoadService>("https://mapsneu.wien.gv.at/basemap/bmapgelaende/grau/google3857/", TilePattern::ZYX_yPointingSouth,
-        // ".jpeg");
-        m_ortho_scheduler_holder = nucleus::tile::setup::texture_scheduler(std::move(ortho_service), m_aabb_decorator, m_scheduler_thread.get());
-        m_ortho_scheduler_holder.scheduler->set_gpu_quad_limit(256); // TODO
-        m_scheduler_director->check_in("ortho", m_ortho_scheduler_holder.scheduler);
+        // NOTE: ortho imagery is now an engine-owned TileSource (see webgpu_engine::Context). It is
+        // created in Context::internal_initialise(); ortho_scheduler()/ortho_tile_load_service() below
+        // forward to it so App.cpp / AppPanel wiring keeps working.
 
         auto cloud_service = std::make_unique<nucleus::tile::TileLoadService>("", TilePattern::ZXY, ".ktx2");
         m_cloud_scheduler_holder = nucleus::tile::setup::texture_scheduler_3d(std::move(cloud_service),
@@ -91,11 +85,9 @@ RenderingContext::RenderingContext()
     if (QNetworkInformation::loadDefaultBackend() && QNetworkInformation::instance()) {
         QNetworkInformation* n = QNetworkInformation::instance();
         m_geometry_scheduler_holder.scheduler->set_network_reachability(n->reachability());
-        m_ortho_scheduler_holder.scheduler->set_network_reachability(n->reachability());
         m_cloud_scheduler_holder.scheduler->set_network_reachability(n->reachability());
         // clang-format off
         connect(n, &QNetworkInformation::reachabilityChanged, m_geometry_scheduler_holder.scheduler.get(), &nucleus::tile::Scheduler::set_network_reachability);
-        connect(n, &QNetworkInformation::reachabilityChanged, m_ortho_scheduler_holder.scheduler.get(),    &nucleus::tile::Scheduler::set_network_reachability);
         connect(n, &QNetworkInformation::reachabilityChanged, m_cloud_scheduler_holder.scheduler.get(),    &nucleus::tile::Scheduler::set_network_reachability);
         // clang-format on
     }
@@ -120,7 +112,7 @@ RenderingContext::RenderingContext()
 
 void RenderingContext::initialize(webgpu::Context& ctx)
 {
-    auto tile_mesh_renderer = std::make_shared<webgpu_engine::TileMeshRenderer>(65, 512);
+    auto tile_mesh_renderer = std::make_shared<webgpu_engine::TileMeshRenderer>(65);
     tile_mesh_renderer->set_tile_limit(1024);
     auto cloud_renderer = std::make_shared<webgpu_engine::CloudRenderer>();
     // This doesn't really make any sense if you think about it
@@ -142,21 +134,14 @@ void RenderingContext::initialize(webgpu::Context& ctx)
         &nucleus::tile::GeometryScheduler::gpu_tiles_updated,
         m_engine_context->tile_mesh_renderer(),
         &webgpu_engine::TileMeshRenderer::update_gpu_tiles_height);
-    connect(m_ortho_scheduler_holder.scheduler.get(),
-        &nucleus::tile::TextureScheduler::gpu_tiles_updated,
-        m_engine_context->tile_mesh_renderer(),
-        &webgpu_engine::TileMeshRenderer::update_gpu_tiles_ortho);
+    // ortho tiles are uploaded by the engine-owned ortho TileSource, not the mesh.
     connect(m_cloud_scheduler_holder.scheduler.get(),
         &nucleus::tile::Texture3DScheduler::gpu_tiles_updated,
         m_engine_context->cloud_renderer(),
         &webgpu_engine::CloudRenderer::update_gpu_tiles_cloud);
     nucleus::utils::thread::async_call(m_geometry_scheduler_holder.scheduler.get(), [this]() { m_geometry_scheduler_holder.scheduler->set_enabled(true); });
 
-    // TODO: texture compression
-    nucleus::utils::thread::async_call(m_ortho_scheduler_holder.scheduler.get(), [this]() {
-        m_ortho_scheduler_holder.scheduler->set_texture_compression_algorithm(nucleus::utils::ColourTexture::Format::Uncompressed_RGBA);
-        m_ortho_scheduler_holder.scheduler->set_enabled(true);
-    });
+    // ortho texture compression + enabling is handled by the ortho TileSource (webgpu_engine::Context).
 
     // TODO do we need to connect some destroy signals? in gl app we do this:
 
@@ -192,12 +177,10 @@ void RenderingContext::destroy()
     if (m_scheduler_thread) {
         nucleus::utils::thread::sync_call(m_geometry_scheduler_holder.scheduler.get(), [this]() {
             m_geometry_scheduler_holder.scheduler.reset();
-            m_ortho_scheduler_holder.scheduler.reset();
             m_cloud_scheduler_holder.scheduler.reset();
         });
         nucleus::utils::thread::sync_call(m_geometry_scheduler_holder.tile_service.get(), [this]() {
             m_geometry_scheduler_holder.tile_service.reset();
-            m_ortho_scheduler_holder.tile_service.reset();
             m_cloud_scheduler_holder.tile_service.reset();
         });
         m_scheduler_thread->quit();
@@ -216,13 +199,24 @@ nucleus::tile::GeometryScheduler* RenderingContext::geometry_scheduler() { retur
 
 nucleus::tile::TileLoadService* RenderingContext::geometry_tile_load_service() { return m_geometry_scheduler_holder.tile_service.get(); }
 
-nucleus::tile::TextureScheduler* RenderingContext::ortho_scheduler() { return m_ortho_scheduler_holder.scheduler.get(); }
+nucleus::tile::TextureScheduler* RenderingContext::ortho_scheduler()
+{
+    // ortho is now an engine-owned TileSource; forward so existing App.cpp/AppPanel wiring keeps working.
+    if (!m_engine_context || !m_engine_context->ortho_tile_source())
+        return nullptr;
+    return m_engine_context->ortho_tile_source()->scheduler().get();
+}
 
 nucleus::tile::Texture3DScheduler* RenderingContext::cloud_scheduler() { return m_cloud_scheduler_holder.scheduler.get(); }
 
 nucleus::tile::SchedulerDirector* RenderingContext::scheduler_director() { return m_scheduler_director.get(); }
 
-nucleus::tile::TileLoadService* RenderingContext::ortho_tile_load_service() { return m_ortho_scheduler_holder.tile_service.get(); }
+nucleus::tile::TileLoadService* RenderingContext::ortho_tile_load_service()
+{
+    if (!m_engine_context || !m_engine_context->ortho_tile_source())
+        return nullptr;
+    return m_engine_context->ortho_tile_source()->tile_load_service();
+}
 
 nucleus::tile::TileLoadService* RenderingContext::cloud_tile_load_service() { return m_cloud_scheduler_holder.tile_service.get(); }
 

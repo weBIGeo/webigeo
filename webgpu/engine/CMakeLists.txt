@@ -28,6 +28,7 @@ set(SOURCES
     UniformBufferObjects.h
     tile_mesh/TileMeshRenderer.h tile_mesh/TileMeshRenderer.cpp
     tile/GpuTileTextureArray.h tile/GpuTileTextureArray.cpp
+    tile/TileSource.h tile/TileSource.cpp
     cloud/CloudRenderer.h cloud/CloudRenderer.cpp
     track/TrackRenderer.h track/TrackRenderer.cpp
     sky/params.h sky/params.cpp

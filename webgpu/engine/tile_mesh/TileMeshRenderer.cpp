@@ -52,34 +52,18 @@ WGPUSamplerDescriptor height_sampler_descriptor()
     desc.maxAnisotropy = 1;
     return desc;
 }
-
-WGPUSamplerDescriptor ortho_sampler_descriptor()
-{
-    WGPUSamplerDescriptor desc {};
-    desc.label = WGPUStringView { .data = "ortho sampler", .length = WGPU_STRLEN };
-    desc.addressModeU = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    desc.addressModeV = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    desc.addressModeW = WGPUAddressMode::WGPUAddressMode_ClampToEdge;
-    desc.magFilter = WGPUFilterMode::WGPUFilterMode_Linear;
-    desc.minFilter = WGPUFilterMode::WGPUFilterMode_Linear;
-    desc.mipmapFilter = WGPUMipmapFilterMode::WGPUMipmapFilterMode_Linear;
-    desc.lodMinClamp = 0.0f;
-    desc.lodMaxClamp = 1.0f;
-    desc.compare = WGPUCompareFunction::WGPUCompareFunction_Undefined;
-    desc.maxAnisotropy = 1;
-    return desc;
-}
 } // namespace
 
 namespace webgpu_engine {
 
-TileMeshRenderer::TileMeshRenderer(uint32_t height_resolution, uint32_t ortho_resolution)
+TileMeshRenderer::TileMeshRenderer(uint32_t height_resolution)
     : QObject { nullptr }
     , m_height_resolution { height_resolution }
     , m_height_array(height_resolution, WGPUTextureFormat::WGPUTextureFormat_R16Uint, height_sampler_descriptor(), "height texture")
-    , m_ortho_array(ortho_resolution, WGPUTextureFormat::WGPUTextureFormat_RGBA8Unorm, ortho_sampler_descriptor(), "ortho texture")
 {
 }
+
+void TileMeshRenderer::set_ortho_array(GpuTileTextureArray* ortho_array) { m_ortho_array = ortho_array; }
 
 void TileMeshRenderer::init(webgpu::Context& ctx)
 {
@@ -111,9 +95,10 @@ void TileMeshRenderer::init(webgpu::Context& ctx)
     m_n_edge_vertices_buffer->data = int(m_height_resolution);
     m_n_edge_vertices_buffer->update_gpu_data(m_ctx->queue());
 
-    // TODO mipmaps and compression for the ortho array
+    // The ortho array is owned by the ortho TileSource and initialised by the Context; it must be
+    // linked via set_ortho_array() before this init() runs (the bind group below samples it).
+    assert(m_ortho_array != nullptr);
     m_height_array.init(ctx);
-    m_ortho_array.init(ctx);
 
     auto& reg = ctx.resource_registry();
     reg.register_shader("render_tiles", "webgpu_engine::render_tiles");
@@ -193,7 +178,7 @@ void TileMeshRenderer::init(webgpu::Context& ctx)
                 &reg.bind_group_layout("tile"),
             });
 
-        m_tile_bind_group = create_bind_group(m_ortho_array.texture_view(), m_ortho_array.sampler());
+        m_tile_bind_group = create_bind_group(m_ortho_array->texture_view(), m_ortho_array->sampler());
     });
 }
 
@@ -234,7 +219,7 @@ void TileMeshRenderer::draw(
         height_zoom_levels.emplace_back(int(height_layer_info.id.zoom_level));
         height_texture_layer.emplace_back(int(height_layer_info.index));
 
-        const auto ortho_layer_info = m_ortho_array.layer(tile_id);
+        const auto ortho_layer_info = m_ortho_array->layer(tile_id);
         ortho_zoom_levels.emplace_back(int(ortho_layer_info.id.zoom_level));
         ortho_texture_layers.emplace_back(int(ortho_layer_info.index));
 
@@ -271,7 +256,6 @@ void TileMeshRenderer::draw(
 void TileMeshRenderer::set_tile_limit(unsigned int num_tiles)
 {
     m_height_array.set_tile_limit(num_tiles);
-    m_ortho_array.set_tile_limit(num_tiles);
 }
 
 std::unique_ptr<webgpu::raii::BindGroup> TileMeshRenderer::create_bind_group(const webgpu::raii::TextureView& view, const webgpu::raii::Sampler& sampler) const
@@ -304,22 +288,6 @@ void TileMeshRenderer::update_gpu_tiles_height(const std::vector<radix::tile::Id
         // find empty spot and upload texture
         const uint32_t layer_index = m_height_array.add_tile(tile.id);
         m_height_array.texture().write(m_ctx->queue(), *tile.surface, layer_index);
-    }
-}
-
-void TileMeshRenderer::update_gpu_tiles_ortho(const std::vector<nucleus::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuTextureTile>& new_tiles)
-{
-    for (const auto& id : deleted_tiles) {
-        m_ortho_array.remove_tile(id);
-    }
-    for (const auto& tile : new_tiles) {
-        // test for validity
-        assert(tile.id.zoom_level < 100);
-        assert(tile.texture);
-
-        // find empty spot and upload texture
-        const auto layer_index = m_ortho_array.add_tile(tile.id);
-        m_ortho_array.texture().write(m_ctx->queue(), tile.texture->front(), uint32_t(layer_index));
     }
 }
 

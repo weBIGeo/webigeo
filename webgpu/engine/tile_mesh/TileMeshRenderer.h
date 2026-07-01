@@ -44,9 +44,12 @@ namespace webgpu_engine {
 class TileMeshRenderer : public QObject {
     Q_OBJECT
 public:
-    explicit TileMeshRenderer(uint32_t height_resolution, uint32_t ortho_resolution);
+    explicit TileMeshRenderer(uint32_t height_resolution);
 
     void init(webgpu::Context& ctx);
+
+    /// Link the (externally owned) ortho tile array this mesh samples. Must be called before init().
+    void set_ortho_array(GpuTileTextureArray* ortho_array);
 
     void draw(WGPURenderPassEncoder render_pass, const nucleus::camera::Definition& camera, const std::vector<nucleus::tile::TileBounds>& draw_tiles) const;
 
@@ -62,13 +65,12 @@ signals:
 
 public slots:
     void update_gpu_tiles_height(const std::vector<radix::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuGeometryTile>& new_tiles);
-    void update_gpu_tiles_ortho(const std::vector<nucleus::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuTextureTile>& new_tiles);
 
 private:
     uint32_t m_height_resolution;
     size_t m_num_layers;
     GpuTileTextureArray m_height_array;
-    GpuTileTextureArray m_ortho_array;
+    GpuTileTextureArray* m_ortho_array = nullptr; // owned by the ortho TileSource (engine Context)
 
     webgpu::Context* m_ctx = nullptr;
 
