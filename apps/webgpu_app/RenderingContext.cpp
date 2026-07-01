@@ -30,7 +30,6 @@
 #include "webgpu/engine/cloud/CloudRenderer.h"
 #include "webgpu/engine/overlay/HeightLinesOverlay.h"
 #include "webgpu/engine/overlay/OverlayRenderer.h"
-#include "webgpu/engine/overlay/SlippyTileOverlay.h"
 #include "webgpu/engine/overlay/TextureOverlay.h"
 #include "webgpu/engine/tile_mesh/TileMeshRenderer.h"
 
@@ -69,9 +68,6 @@ RenderingContext::RenderingContext()
         m_geometry_scheduler_holder.scheduler->set_gpu_quad_limit(256); // TODO
         m_scheduler_director->check_in("geometry", m_geometry_scheduler_holder.scheduler);
         m_data_querier = std::make_shared<nucleus::DataQuerier>(&m_geometry_scheduler_holder.scheduler->ram_cache());
-        // NOTE: ortho imagery is now an engine-owned TileSource (see webgpu_engine::Context). It is
-        // created in Context::internal_initialise(); ortho_scheduler()/ortho_tile_load_service() below
-        // forward to it so App.cpp / AppPanel wiring keeps working.
 
         auto cloud_service = std::make_unique<nucleus::tile::TileLoadService>("", TilePattern::ZXY, ".ktx2");
         m_cloud_scheduler_holder = nucleus::tile::setup::texture_scheduler_3d(std::move(cloud_service),
@@ -154,12 +150,8 @@ void RenderingContext::initialize(webgpu::Context& ctx)
 
     m_engine_context->initialise();
 
-    // Ortho imagery is supplied by a pre-shading SlippyTileOverlay sampling the engine-owned ortho
-    // TileSource. (Checkpoint 3: the mesh still writes ortho too; that is removed in Checkpoint 4.)
-    {
-        auto slippy_ortho = std::make_shared<webgpu_engine::SlippyTileOverlay>(m_engine_context->ortho_tile_source());
-        m_engine_context->overlay_renderer()->add_overlay(slippy_ortho, -1);
-    }
+    // The default imagery overlay (pre-shading SlippyTileOverlay sampling the "ortho" preset) is
+    // created lazily by OverlaysPanel::ready() (apps/webgpu_app/overlay), not here.
 
     // ToDo: Maybe the Compute should get its own context to do the following:
 #ifdef ALP_WEBGPU_APP_ENABLE_COMPUTE
@@ -207,24 +199,9 @@ nucleus::tile::GeometryScheduler* RenderingContext::geometry_scheduler() { retur
 
 nucleus::tile::TileLoadService* RenderingContext::geometry_tile_load_service() { return m_geometry_scheduler_holder.tile_service.get(); }
 
-nucleus::tile::TextureScheduler* RenderingContext::ortho_scheduler()
-{
-    // ortho is now an engine-owned TileSource; forward so existing App.cpp/AppPanel wiring keeps working.
-    if (!m_engine_context || !m_engine_context->ortho_tile_source())
-        return nullptr;
-    return m_engine_context->ortho_tile_source()->scheduler().get();
-}
-
 nucleus::tile::Texture3DScheduler* RenderingContext::cloud_scheduler() { return m_cloud_scheduler_holder.scheduler.get(); }
 
 nucleus::tile::SchedulerDirector* RenderingContext::scheduler_director() { return m_scheduler_director.get(); }
-
-nucleus::tile::TileLoadService* RenderingContext::ortho_tile_load_service()
-{
-    if (!m_engine_context || !m_engine_context->ortho_tile_source())
-        return nullptr;
-    return m_engine_context->ortho_tile_source()->tile_load_service();
-}
 
 nucleus::tile::TileLoadService* RenderingContext::cloud_tile_load_service() { return m_cloud_scheduler_holder.tile_service.get(); }
 

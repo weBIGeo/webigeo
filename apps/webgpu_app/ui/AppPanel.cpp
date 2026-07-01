@@ -71,21 +71,6 @@ void AppPanel::draw_panel()
             m_terrain_renderer->get_camera_controller()->update();
         }
 
-        static int ortho_tile_source_index = 0;
-        if (ImGui::Combo("Ortho Tiles", &ortho_tile_source_index, "Gataki Ortho\0Basemap Ortho\0Basemap Gelände\0Basemap Oberfläche\0")) {
-            auto ortho_load_service = m_terrain_renderer->get_rendering_context()->ortho_tile_load_service();
-            if (ortho_tile_source_index == 0) {
-                ortho_load_service->set_base_url("https://gataki.cg.tuwien.ac.at/raw/basemap/tiles/");
-            } else if (ortho_tile_source_index == 1) {
-                ortho_load_service->set_base_url("https://mapsneu.wien.gv.at/basemap/bmaporthofoto30cm/normal/google3857/");
-            } else if (ortho_tile_source_index == 2) {
-                ortho_load_service->set_base_url("https://mapsneu.wien.gv.at/basemap/bmapgelaende/grau/google3857/");
-            } else if (ortho_tile_source_index == 3) {
-                ortho_load_service->set_base_url("https://mapsneu.wien.gv.at/basemap/bmapoberflaeche/grau/google3857/");
-            }
-            m_terrain_renderer->get_rendering_context()->ortho_scheduler()->clear_full_cache();
-            m_terrain_renderer->get_camera_controller()->update();
-        }
     }
 }
 

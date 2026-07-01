@@ -68,10 +68,8 @@ public:
     nucleus::DataQuerier* data_querier();
     nucleus::tile::GeometryScheduler* geometry_scheduler();
     nucleus::tile::TileLoadService* geometry_tile_load_service();
-    nucleus::tile::TextureScheduler* ortho_scheduler();
     nucleus::tile::Texture3DScheduler* cloud_scheduler();
     nucleus::tile::SchedulerDirector* scheduler_director();
-    nucleus::tile::TileLoadService* ortho_tile_load_service();
     nucleus::tile::TileLoadService* cloud_tile_load_service();
     clouds::Manager* clouds_manager();
     SearchService* search_service();
