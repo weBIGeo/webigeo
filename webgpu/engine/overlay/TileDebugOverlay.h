@@ -37,14 +37,13 @@ public:
         Zoomlevel = 3,
         VertexId = 4,
         PositionBuffer = 5,
-        CameraDistancePosW = 6,
-        CameraDistanceCalc = 7,
-        GeometricDepth = 8,
-        LinearDepth = 9,
-        DepthDistance = 10,
-        DepthPosition = 11,
-        PositionDiff = 12,
-        ShadingNormals = 13,
+        CameraDistanceCalc = 6,
+        GeometricDepth = 7,
+        LinearDepth = 8,
+        DepthDistance = 9,
+        DepthPosition = 10,
+        PositionDiff = 11,
+        ShadingNormals = 12,
     };
 
     enum class Region {

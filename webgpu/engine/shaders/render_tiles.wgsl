@@ -223,7 +223,6 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
 
     var frag_out: FragOut;
 
-    var dist = length(vertex_out.pos_cws);
     var normal = vertex_out.normal;
     if config.normal_mode != 0 {
         if config.normal_mode == 1 {
@@ -246,7 +245,8 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
     frag_out.overlay = pack4x8unorm(overlay_color);
     frag_out.albedo = pack4x8unorm(vec4f(albedo, 1.0));
 
-    frag_out.position = vec4f(vertex_out.pos_cws, dist);
+    // position.w carries the render-tile zoom; the Slippy overlay reads it as its walk-up start zoom.
+    frag_out.position = vec4f(vertex_out.pos_cws, f32(vertex_out.tile_id.z));
 
     return frag_out;
 }
