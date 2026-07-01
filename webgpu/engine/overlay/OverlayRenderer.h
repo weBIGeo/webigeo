@@ -38,6 +38,9 @@ public:
     explicit OverlayRenderer();
 
     void add_overlay(std::shared_ptr<Overlay> overlay);
+    // Add an overlay with an explicit z_index (e.g. negative -> pre-shading bucket), bypassing the
+    // auto-assign-highest behavior of the single-argument overload.
+    void add_overlay(std::shared_ptr<Overlay> overlay, int z_index);
     void remove_overlay(size_t index);
     // Re-sort m_overlays by z_index after the GUI has assigned new z_indices.
     // IMPORTANT: Call after any change to the overlay set or its z_indices.

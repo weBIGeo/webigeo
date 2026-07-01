@@ -48,6 +48,19 @@ void OverlayRenderer::add_overlay(std::shared_ptr<Overlay> overlay)
     rebucket();
 }
 
+void OverlayRenderer::add_overlay(std::shared_ptr<Overlay> overlay, int z_index)
+{
+    overlay->z_index = z_index;
+
+    if (m_ctx) {
+        overlay->init(*m_ctx);
+        if (m_is_ready)
+            overlay->ready(m_ctx->webgpu_ctx());
+    }
+    m_overlays.push_back(std::move(overlay));
+    sort_overlays(); // keeps m_overlays ordered by z_index and rebuckets
+}
+
 void OverlayRenderer::remove_overlay(size_t index)
 {
     if (index < m_overlays.size()) {

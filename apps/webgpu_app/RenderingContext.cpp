@@ -30,6 +30,7 @@
 #include "webgpu/engine/cloud/CloudRenderer.h"
 #include "webgpu/engine/overlay/HeightLinesOverlay.h"
 #include "webgpu/engine/overlay/OverlayRenderer.h"
+#include "webgpu/engine/overlay/SlippyTileOverlay.h"
 #include "webgpu/engine/overlay/TextureOverlay.h"
 #include "webgpu/engine/tile_mesh/TileMeshRenderer.h"
 
@@ -152,6 +153,13 @@ void RenderingContext::initialize(webgpu::Context& ctx)
     // clang-format on
 
     m_engine_context->initialise();
+
+    // Ortho imagery is supplied by a pre-shading SlippyTileOverlay sampling the engine-owned ortho
+    // TileSource. (Checkpoint 3: the mesh still writes ortho too; that is removed in Checkpoint 4.)
+    {
+        auto slippy_ortho = std::make_shared<webgpu_engine::SlippyTileOverlay>(m_engine_context->ortho_tile_source());
+        m_engine_context->overlay_renderer()->add_overlay(slippy_ortho, -1);
+    }
 
     // ToDo: Maybe the Compute should get its own context to do the following:
 #ifdef ALP_WEBGPU_APP_ENABLE_COMPUTE

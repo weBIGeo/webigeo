@@ -47,6 +47,7 @@ set(SOURCES
     overlay/ScreenSpaceSnowOverlay.h overlay/ScreenSpaceSnowOverlay.cpp
     overlay/TextureOverlay.h overlay/TextureOverlay.cpp
     overlay/TileDebugOverlay.h overlay/TileDebugOverlay.cpp
+    overlay/SlippyTileOverlay.h overlay/SlippyTileOverlay.cpp
     Context.h Context.cpp
 )
 
@@ -100,6 +101,7 @@ qt_add_resources(webgpu_engine "shaders"
         "${SHADER_BASE_DIR}/overlays/texture_overlay.wgsl"
         "${SHADER_BASE_DIR}/overlays/gbuffer_debug.wgsl"
         "${SHADER_BASE_DIR}/overlays/screen_space_snow.wgsl"
+        "${SHADER_BASE_DIR}/overlays/slippy_tile_overlay.wgsl"
 
         "${SHADER_BASE_DIR}/util/camera_config.wgsl"
         "${SHADER_BASE_DIR}/util/shared_config.wgsl"
