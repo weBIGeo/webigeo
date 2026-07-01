@@ -19,17 +19,24 @@
 #pragma once
 
 #include "OverlayImGuiRenderer.h"
-#include <memory>
+#include <webgpu/engine/overlay/SlippyTileOverlay.h>
 
 namespace webgpu_engine {
 class Context;
-} // namespace webgpu_engine
+}
 
 namespace webgpu_app {
 
-class OverlayImGuiRendererFactory {
+class SlippyTileOverlayImGuiRenderer : public OverlayImGuiRenderer {
 public:
-    static std::unique_ptr<OverlayImGuiRenderer> create(webgpu_engine::Overlay& overlay, webgpu_engine::Context& context);
+    SlippyTileOverlayImGuiRenderer(webgpu_engine::SlippyTileOverlay& overlay, webgpu_engine::Context& context);
+
+    std::string display_name() const override { return "Slippy Tile Overlay"; }
+    bool render_custom_settings() override;
+
+private:
+    webgpu_engine::SlippyTileOverlay* m_slippy_overlay;
+    webgpu_engine::Context* m_context;
 };
 
 } // namespace webgpu_app

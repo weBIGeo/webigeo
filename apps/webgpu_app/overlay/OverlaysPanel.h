@@ -36,6 +36,7 @@ public:
     explicit OverlaysPanel(webgpu_engine::Context* context);
     void draw_panel() override;
     void draw() override;
+    void ready() override;
 
 private:
     void rebuild_renderers();

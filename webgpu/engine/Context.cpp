@@ -20,24 +20,12 @@
 
 #include "Context.h"
 
+#include "overlay/SlippyTileOverlay.h"
+#include <algorithm>
+#include <nucleus/camera/Controller.h>
+#include <nucleus/tile/TileSourcePresets.h>
 #include <nucleus/utils/thread.h>
 #include <webgpu/base/raii/BindGroupLayout.h>
-
-namespace {
-webgpu_engine::TileSource::Config ortho_config()
-{
-    using nucleus::tile::TileLoadService;
-    webgpu_engine::TileSource::Config config;
-    config.name = "ortho";
-    config.url = "https://gataki.cg.tuwien.ac.at/raw/basemap/tiles/";
-    config.pattern = TileLoadService::UrlPattern::ZYX_yPointingSouth;
-    config.file_ending = ".jpeg";
-    config.resolution = 512;
-    config.gpu_quad_limit = 256;
-    config.tile_limit = 1024;
-    return config;
-}
-} // namespace
 
 namespace webgpu_engine {
 
@@ -221,13 +209,6 @@ void Context::internal_initialise()
             "cloud composite bind group layout");
     });
 
-    // Create the default imagery source (ortho) and upload its GPU array. is_alive() is still false
-    // here, so add_tile_source() does not init the array itself; we do it explicitly below. The source
-    // is consumed by the pre-shading SlippyTileOverlay (added app-side), not by the mesh.
-    m_ortho_tile_source = add_tile_source(ortho_config());
-    for (auto& source : m_tile_sources)
-        source->init(webgpu_ctx());
-
     if (m_tile_mesh_renderer)
         m_tile_mesh_renderer->init(webgpu_ctx());
     if (m_sky_renderer)
@@ -245,8 +226,6 @@ void Context::internal_initialise()
     if (m_scheduler_thread)
         m_scheduler_thread->start();
 #endif
-    for (auto& source : m_tile_sources)
-        source->enable();
 }
 
 void Context::internal_destroy()
@@ -272,7 +251,6 @@ void Context::internal_destroy()
         m_scheduler_thread.reset();
     }
 #endif
-    m_ortho_tile_source = nullptr;
     m_tile_sources.clear();
 }
 
@@ -280,11 +258,60 @@ TileSource* Context::add_tile_source(const TileSource::Config& config)
 {
     auto source = std::make_shared<TileSource>(config, aabb_decorator(), m_scheduler_thread.get());
     m_scheduler_director->check_in(config.name, source->scheduler());
-    if (is_alive())
+    // Camera-driven refinement and redraw-on-tile-arrival, generically for every source (existing and
+    // future), instead of one-off per-source wiring in App.cpp. Qt auto-queues across the scheduler thread.
+    if (m_camera_controller)
+        connect(m_camera_controller, &nucleus::camera::Controller::definition_changed, source->scheduler().get(), &nucleus::tile::Scheduler::update_camera);
+    connect(source->scheduler().get(), &nucleus::tile::TextureScheduler::gpu_tiles_updated, this, &Context::request_redraw);
+    if (is_alive()) {
         source->init(webgpu_ctx());
+        source->enable();
+    }
     m_tile_sources.push_back(source);
     return m_tile_sources.back().get();
 }
+
+TileSource* Context::get_or_create_tile_source(const nucleus::tile::TileSourcePreset& preset)
+{
+    for (const auto& src : m_tile_sources)
+        if (src->name() == preset.source_name)
+            return src.get();
+
+    TileSource::Config config;
+    config.name = preset.source_name;
+    config.url = preset.url;
+    config.pattern = preset.pattern;
+    config.file_ending = preset.file_ending;
+    // TextureScheduler::to_raster() assembles each 2x2 quad of raw tiles into one raster before
+    // upload, so the GPU array (config.resolution) must hold the full quad -- double the raw
+    // per-tile size. settings.tile_resolution stays at the raw size (it also sizes the per-tile
+    // fallback raster used for missing tiles, which must match real tiles for concatenation to work).
+    config.resolution = preset.tile_resolution * 2;
+    config.settings.tile_resolution = preset.tile_resolution;
+    config.settings.max_zoom_level = preset.max_possible_zoom;
+    return add_tile_source(config);
+}
+
+bool Context::remove_tile_source(TileSource* source)
+{
+    if (!source)
+        return false;
+    if (m_overlay_renderer) {
+        for (const auto& overlay : m_overlay_renderer->overlays()) {
+            if (auto* slippy = dynamic_cast<SlippyTileOverlay*>(overlay.get()); slippy && slippy->source() == source)
+                return false; // still referenced
+        }
+    }
+    auto it = std::find_if(m_tile_sources.begin(), m_tile_sources.end(), [source](const auto& s) { return s.get() == source; });
+    if (it == m_tile_sources.end())
+        return false;
+    m_scheduler_director->check_out((*it)->name());
+    (*it)->teardown(); // scheduler-thread-safe reset of scheduler/load service (same call internal_destroy uses)
+    m_tile_sources.erase(it);
+    return true;
+}
+
+void Context::set_camera_controller(nucleus::camera::Controller* controller) { m_camera_controller = controller; }
 
 TileMeshRenderer* Context::tile_mesh_renderer() const { return m_tile_mesh_renderer.get(); }
 

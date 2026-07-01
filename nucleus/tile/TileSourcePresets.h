@@ -31,7 +31,7 @@ struct TileSourcePreset {
     QString url;
     TileLoadService::UrlPattern pattern;
     QString file_ending;
-    uint32_t resolution;
+    uint32_t tile_resolution;
     uint32_t max_possible_zoom;
 };
 

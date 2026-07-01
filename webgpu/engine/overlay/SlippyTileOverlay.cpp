@@ -112,6 +112,12 @@ void SlippyTileOverlay::init(Context& context)
     update_settings();
 }
 
+void SlippyTileOverlay::set_source(TileSource* source)
+{
+    m_source = source;
+    name = source ? source->name().toStdString() : std::string("Slippy Tiles");
+}
+
 void SlippyTileOverlay::update_settings()
 {
     if (!m_settings_uniform)

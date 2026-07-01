@@ -59,6 +59,7 @@ set(SOURCES
     overlay/ScreenSpaceSnowOverlayImGuiRenderer.h overlay/ScreenSpaceSnowOverlayImGuiRenderer.cpp
     overlay/TextureOverlayImGuiRenderer.h overlay/TextureOverlayImGuiRenderer.cpp
     overlay/TileDebugOverlayImGuiRenderer.h overlay/TileDebugOverlayImGuiRenderer.cpp
+    overlay/SlippyTileOverlayImGuiRenderer.h overlay/SlippyTileOverlayImGuiRenderer.cpp
 )
 
 if (ALP_WEBGPU_APP_ENABLE_COMPUTE)

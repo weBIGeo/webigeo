@@ -24,17 +24,19 @@
 #include <algorithm>
 #include <imgui.h>
 
+#include <nucleus/tile/TileSourcePresets.h>
 #include <webgpu/engine/Context.h>
 #include <webgpu/engine/overlay/HeightLinesOverlay.h>
 #include <webgpu/engine/overlay/OverlayRenderer.h>
 #include <webgpu/engine/overlay/ScreenSpaceSnowOverlay.h>
+#include <webgpu/engine/overlay/SlippyTileOverlay.h>
 #include <webgpu/engine/overlay/TextureOverlay.h>
 #include <webgpu/engine/overlay/TileDebugOverlay.h>
 
 namespace webgpu_app {
 
-enum AddType { ADD_HEIGHT_LINES = 0, ADD_TEXTURE_OVERLAY = 1, ADD_TILE_DEBUG = 2, ADD_SCREEN_SPACE_SNOW = 3 };
-constexpr const char* ADD_ITEMS[] = { "Height Lines", "Texture Overlay", "Tile Debug", "Screen-Space Snow" };
+enum AddType { ADD_HEIGHT_LINES = 0, ADD_TEXTURE_OVERLAY = 1, ADD_TILE_DEBUG = 2, ADD_SCREEN_SPACE_SNOW = 3, ADD_SLIPPY_TILE_OVERLAY = 4 };
+constexpr const char* ADD_ITEMS[] = { "Height Lines", "Texture Overlay", "Tile Debug", "Screen-Space Snow", "Slippy Tile Overlay" };
 constexpr const char* ADD_POPUP_ID = "Add Overlay###add_overlay";
 
 OverlaysPanel::OverlaysPanel(webgpu_engine::Context* context)
@@ -48,7 +50,7 @@ void OverlaysPanel::rebuild_renderers()
 {
     m_renderers.clear();
     for (auto& overlay : m_overlay_renderer->overlays())
-        m_renderers.push_back(OverlayImGuiRendererFactory::create(*overlay));
+        m_renderers.push_back(OverlayImGuiRendererFactory::create(*overlay, *m_context));
     if (m_selected_engine_idx >= static_cast<int>(m_renderers.size()))
         m_selected_engine_idx = -1;
 }
@@ -93,6 +95,19 @@ void OverlaysPanel::do_move(int gui_row, int direction, int P, int N)
     m_context->request_redraw();
 }
 
+void OverlaysPanel::ready()
+{
+    if (!m_overlay_renderer->overlays().empty())
+        return;
+    // Default imagery overlay: pre-shading (z_index -1), so the compose pass folds it into albedo
+    const auto* preset = nucleus::tile::tile_source_presets::get("ortho");
+    auto* source = preset ? m_context->get_or_create_tile_source(*preset) : nullptr;
+    auto default_overlay = std::make_shared<webgpu_engine::SlippyTileOverlay>(source);
+    m_overlay_renderer->add_overlay(default_overlay, -1);
+    rebuild_renderers();
+    m_context->request_redraw();
+}
+
 void OverlaysPanel::add_overlay_of_type(int type)
 {
     std::shared_ptr<webgpu_engine::Overlay> new_overlay;
@@ -102,7 +117,11 @@ void OverlaysPanel::add_overlay_of_type(int type)
         new_overlay = std::make_shared<webgpu_engine::TextureOverlay>();
     else if (type == ADD_SCREEN_SPACE_SNOW)
         new_overlay = std::make_shared<webgpu_engine::ScreenSpaceSnowOverlay>();
-    else
+    else if (type == ADD_SLIPPY_TILE_OVERLAY) {
+        const auto* preset = nucleus::tile::tile_source_presets::get("ortho");
+        auto* source = preset ? m_context->get_or_create_tile_source(*preset) : nullptr;
+        new_overlay = std::make_shared<webgpu_engine::SlippyTileOverlay>(source);
+    } else
         new_overlay = std::make_shared<webgpu_engine::TileDebugOverlay>();
     // add_overlay() auto-assigns the topmost z_index
     m_overlay_renderer->add_overlay(new_overlay);
@@ -251,7 +270,12 @@ void OverlaysPanel::draw_panel()
     } else if (delete_engine_idx >= 0) {
         if (m_selected_engine_idx == delete_engine_idx)
             m_selected_engine_idx = -1;
+        webgpu_engine::TileSource* freed_source = nullptr;
+        if (auto* slippy = dynamic_cast<webgpu_engine::SlippyTileOverlay*>(m_overlay_renderer->overlays()[static_cast<size_t>(delete_engine_idx)].get()))
+            freed_source = slippy->source();
         m_overlay_renderer->remove_overlay(static_cast<size_t>(delete_engine_idx));
+        if (freed_source)
+            m_context->remove_tile_source(freed_source); // no-op if another overlay still uses it
         rebuild_renderers();
         m_context->request_redraw();
     }

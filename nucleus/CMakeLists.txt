@@ -154,6 +154,7 @@ qt_add_library(nucleus STATIC
     utils/lang.h
     tile/SchedulerDirector.h tile/SchedulerDirector.cpp
     tile/drawing.h tile/drawing.cpp
+    tile/TileSourcePresets.h tile/TileSourcePresets.cpp
     camera/gesture.h
 )
 

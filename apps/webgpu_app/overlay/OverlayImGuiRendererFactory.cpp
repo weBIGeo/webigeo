@@ -20,22 +20,26 @@
 
 #include "HeightLinesOverlayImGuiRenderer.h"
 #include "ScreenSpaceSnowOverlayImGuiRenderer.h"
+#include "SlippyTileOverlayImGuiRenderer.h"
 #include "TextureOverlayImGuiRenderer.h"
 #include "TileDebugOverlayImGuiRenderer.h"
 
 #include <webgpu/engine/overlay/HeightLinesOverlay.h>
 #include <webgpu/engine/overlay/ScreenSpaceSnowOverlay.h>
+#include <webgpu/engine/overlay/SlippyTileOverlay.h>
 #include <webgpu/engine/overlay/TextureOverlay.h>
 #include <webgpu/engine/overlay/TileDebugOverlay.h>
 
 namespace webgpu_app {
 
-std::unique_ptr<OverlayImGuiRenderer> OverlayImGuiRendererFactory::create(webgpu_engine::Overlay& overlay)
+std::unique_ptr<OverlayImGuiRenderer> OverlayImGuiRendererFactory::create(webgpu_engine::Overlay& overlay, webgpu_engine::Context& context)
 {
     if (auto* o = dynamic_cast<webgpu_engine::HeightLinesOverlay*>(&overlay))
         return std::make_unique<HeightLinesOverlayImGuiRenderer>(*o);
     if (auto* o = dynamic_cast<webgpu_engine::ScreenSpaceSnowOverlay*>(&overlay))
         return std::make_unique<ScreenSpaceSnowOverlayImGuiRenderer>(*o);
+    if (auto* o = dynamic_cast<webgpu_engine::SlippyTileOverlay*>(&overlay))
+        return std::make_unique<SlippyTileOverlayImGuiRenderer>(*o, context);
     if (auto* o = dynamic_cast<webgpu_engine::TextureOverlay*>(&overlay))
         return std::make_unique<TextureOverlayImGuiRenderer>(*o);
     if (auto* o = dynamic_cast<webgpu_engine::TileDebugOverlay*>(&overlay))

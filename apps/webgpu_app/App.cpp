@@ -278,18 +278,21 @@ void App::start()
     m_camera_controller = std::make_unique<nucleus::camera::Controller>(
         nucleus::camera::PositionStorage::instance()->get("grossglockner"), m_webgpu_window.get(), m_context->data_querier());
 
+    // Engine-owned imagery TileSources (ortho + any preset picked in the UI) get camera-driven
+    // refinement and redraw-on-tile-arrival generically via Context::set_camera_controller, wired to
+    // every current and future source in Context::add_tile_source -- no per-source connect() here.
+    m_context->engine_context()->set_camera_controller(m_camera_controller.get());
+
     // clang-format off
     // NOTICE ME!!!! READ THIS, IF YOU HAVE TROUBLES WITH SIGNALS NOT REACHING THE QML RENDERING THREAD!!!!111elevenone
     // In Qt/QML the rendering thread goes to sleep (at least until Qt 6.5, See RenderThreadNotifier).
     // At the time of writing, an additional connection from tile_ready and tile_expired to the notifier is made.
     // this only works if ALP_ENABLE_THREADING is on, i.e., the tile scheduler is on an extra thread. -> potential issue on webassembly
     connect(m_camera_controller.get(), &nucleus::camera::Controller::definition_changed, m_context->geometry_scheduler(), &nucleus::tile::Scheduler::update_camera);
-    connect(m_camera_controller.get(), &nucleus::camera::Controller::definition_changed, m_context->ortho_scheduler(),    &nucleus::tile::Scheduler::update_camera);
     connect(m_camera_controller.get(), &nucleus::camera::Controller::definition_changed, m_context->cloud_scheduler(),    &nucleus::tile::Scheduler::update_camera);
     connect(m_camera_controller.get(), &nucleus::camera::Controller::definition_changed, m_webgpu_window.get(),           &webgpu_engine::Window::update_camera);
-    
+
     connect(m_context->geometry_scheduler(), &nucleus::tile::GeometryScheduler::gpu_tiles_updated,  m_webgpu_window.get(), &webgpu_engine::Window::update_requested);
-    connect(m_context->ortho_scheduler(),    &nucleus::tile::TextureScheduler::gpu_tiles_updated,   m_webgpu_window.get(), &webgpu_engine::Window::update_requested);
     connect(m_context->cloud_scheduler(),    &nucleus::tile::Texture3DScheduler::gpu_tiles_updated, m_webgpu_window.get(), &webgpu_engine::Window::update_requested);
     connect(m_context->clouds_manager(),     &clouds::Manager::shadow_texture_ready,                m_webgpu_window.get(), &webgpu_engine::Window::on_shadow_texture_updated);
     // clang-format on

@@ -35,6 +35,13 @@
 #include <vector>
 #include <webgpu/base/Context.h>
 
+namespace nucleus::camera {
+class Controller;
+}
+namespace nucleus::tile {
+struct TileSourcePreset;
+}
+
 namespace webgpu_engine {
 
 class Context : public nucleus::EngineContext {
@@ -63,8 +70,17 @@ public:
     /// Create an imagery tile source owned by this Context, register it with the scheduler director,
     /// and (if the Context is already alive) create its GPU array. Returns a non-owning pointer.
     TileSource* add_tile_source(const TileSource::Config& config);
-    TileSource* ortho_tile_source() const { return m_ortho_tile_source; }
+    /// Remove a tile source if no overlay currently references it. Returns false (no-op) if it's
+    /// still in use by a SlippyTileOverlay, or not found.
+    bool remove_tile_source(TileSource* source);
+    /// Find a tile source previously created from this preset (matched by preset.source_name), or
+    /// create it via add_tile_source() on first use.
+    TileSource* get_or_create_tile_source(const nucleus::tile::TileSourcePreset& preset);
     const std::vector<std::shared_ptr<TileSource>>& tile_sources() const { return m_tile_sources; }
+
+    /// Forwards definition_changed to every current and future tile source's scheduler, so newly
+    /// added sources (e.g. picked in the UI) refine with the camera without per-source app wiring.
+    void set_camera_controller(nucleus::camera::Controller* controller);
 
     webgpu::Context& webgpu_ctx() { return *m_webgpu_ctx_ptr; }
     void set_webgpu_ctx(webgpu::Context& ctx);
@@ -99,7 +115,7 @@ private:
     std::unique_ptr<QThread> m_scheduler_thread;
     std::unique_ptr<nucleus::tile::SchedulerDirector> m_scheduler_director;
     std::vector<std::shared_ptr<TileSource>> m_tile_sources;
-    TileSource* m_ortho_tile_source = nullptr;
+    nucleus::camera::Controller* m_camera_controller = nullptr;
 };
 
 } // namespace webgpu_engine
