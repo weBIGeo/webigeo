@@ -25,7 +25,6 @@
 #include "webgpu/engine/tile/GpuTileTextureArray.h"
 #include <QObject>
 #include <nucleus/tile/GpuArrayHelper.h>
-#include <nucleus/tile/GpuTileId.h>
 #include <nucleus/tile/types.h>
 #include <webgpu/base/Buffer.h>
 #include <webgpu/base/Context.h>
@@ -77,7 +76,7 @@ private:
     std::unique_ptr<webgpu::raii::RawBuffer<int32_t>> m_height_zoom_level_buffer;
     std::unique_ptr<webgpu::raii::RawBuffer<int32_t>> m_height_texture_layer_buffer;
     std::unique_ptr<webgpu::Buffer<int32_t>> m_n_edge_vertices_buffer;
-    std::unique_ptr<webgpu::raii::RawBuffer<nucleus::tile::GpuTileId>> m_tile_id_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<glm::u32vec2>> m_tile_id_buffer;
 
     std::unique_ptr<webgpu::raii::BindGroup> m_tile_bind_group;
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_pipeline;

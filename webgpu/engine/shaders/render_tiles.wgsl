@@ -40,7 +40,7 @@ struct VertexIn {
     @location(1) height_texture_layer: i32,
     @location(3) tileset_id: i32,
     @location(4) height_zoomlevel: i32,
-    @location(5) tile_id: vec4<u32>,
+    @location(5) tile_id: vec2<u32>,
 }
 
 struct VertexOut {
@@ -50,7 +50,7 @@ struct VertexOut {
     @location(2) normal: vec3f,
     @location(3) @interpolate(flat) height_texture_layer: i32,
     @location(5) @interpolate(flat) color: vec3f,
-    @location(6) @interpolate(flat) tile_id: vec3<u32>,
+    @location(6) @interpolate(flat) tile_id: vec2<u32>,
 }
 
 struct FragOut {
@@ -170,7 +170,7 @@ fn normal_by_fragment_position_interpolation(pos_cws: vec3<f32>) -> vec3<f32> {
 
 @vertex
 fn vertexMain(@builtin(vertex_index) vertex_index: u32, vertex_in: VertexIn) -> VertexOut {
-    let render_tile_id = TileId(vertex_in.tile_id.x, vertex_in.tile_id.y, vertex_in.tile_id.z, 4294967295u);
+    let render_tile_id = unpack_tile_id(vertex_in.tile_id);
 
     var position: vec3f;
     var uv: vec2f;
@@ -199,12 +199,14 @@ fn vertexMain(@builtin(vertex_index) vertex_index: u32, vertex_in: VertexIn) -> 
         vertex_color = color_from_id_hash(u32(vertex_index));
     }
     vertex_out.color = vertex_color;
-    vertex_out.tile_id = vertex_in.tile_id.xyz;
+    vertex_out.tile_id = vertex_in.tile_id;
     return vertex_out;
 }
 
 @fragment
 fn fragmentMain(vertex_out: VertexOut) -> FragOut {
+    let tile_id = unpack_tile_id(vertex_out.tile_id);
+
     // Ortho imagery is now supplied by the SlippyTileOverlay; the mesh writes a neutral (white) albedo.
     let albedo = vec3f(1.0);
 
@@ -234,12 +236,12 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
 
     // position.w carries the render-tile zoom; kept for debug/future use (no longer read by SlippyTileOverlay,
     // which instead uses the exact tile_ref below to avoid absolute-world-position float precision loss).
-    frag_out.position = vec4f(vertex_out.pos_cws, f32(vertex_out.tile_id.z));
+    frag_out.position = vec4f(vertex_out.pos_cws, f32(tile_id.zoomlevel));
 
     // Exact render tile id + local uv (precision-safe reference point for tile-pyramid overlays,
     // e.g. SlippyTileOverlay), since deriving it from the (lossy, large-magnitude) world position
     // instead would not be numerically equivalent at high zoom levels.
-    frag_out.tile_ref = vec4u(vertex_out.tile_id.x, vertex_out.tile_id.y, vertex_out.tile_id.z, pack2x16unorm(vertex_out.uv));
+    frag_out.tile_ref = vec4u(tile_id.x, tile_id.y, tile_id.zoomlevel, pack2x16unorm(vertex_out.uv));
 
     return frag_out;
 }
