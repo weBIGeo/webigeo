@@ -20,11 +20,12 @@
 ///use util/shared_config
 ///use util/camera_config
 ///use webgpu::encoder
+///use webgpu::position_util
 ///use screen_pass_vert
 
 @group(0) @binding(0) var<uniform> conf: shared_config;
 @group(1) @binding(0) var<uniform> camera: camera_config;
-@group(2) @binding(0) var position_texture: texture_2d<f32>;
+@group(2) @binding(0) var depth_texture: texture_2d<f32>;
 @group(2) @binding(1) var<uniform> settings: TextureOverlaySettings;
 @group(2) @binding(2) var overlay_texture: texture_2d<f32>;
 @group(2) @binding(3) var overlay_sampler: sampler;
@@ -41,10 +42,10 @@ struct TextureOverlaySettings {
 
 @fragment
 fn fragmentMain(in: VertexOut) -> @location(0) vec4f {
-    let tci = vec2i(in.position.xy);
-    let pos_dist = textureLoad(position_texture, tci, 0);
-    let pos_cws = pos_dist.xyz;
-    let dist = length(pos_cws);
+    let tci = vec2u(in.position.xy);
+    let dims = vec2u(textureDimensions(depth_texture));
+    let raw_depth = textureLoad(depth_texture, tci, 0).r;
+    let pos_cws = camera_relative_pos_from_depth(tci, dims, raw_depth, camera.inv_view_proj_matrix);
     let pos_ws = pos_cws + camera.position.xyz;
 
     let uv = vec2f(
@@ -56,7 +57,7 @@ fn fragmentMain(in: VertexOut) -> @location(0) vec4f {
 
     var src = vec4f(0.0);
     let aabb_max = settings.aabb_min + settings.aabb_size;
-    if !(dist <= 0.0 || any(pos_ws.xy < settings.aabb_min) || any(pos_ws.xy > aabb_max)) {
+    if !(raw_depth <= 0.0 || any(pos_ws.xy < settings.aabb_min) || any(pos_ws.xy > aabb_max)) {
         let sample = textureSampleGrad(overlay_texture, overlay_sampler, uv, ddx_uv, ddy_uv);
         if settings.mode == 1u {
             //EncodedFloat: RGBA encodes a u32 via (r<<24|g<<16|b<<8|a), decoded over
