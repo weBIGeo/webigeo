@@ -227,6 +227,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
     m_shared_config_ubo->update_gpu_data(m_context->webgpu_ctx().queue());
 
     // render tiles to geometry buffers
+    std::vector<nucleus::tile::TileBounds> culled_draw_list;
     sm.start_gpu(SID_TILEMESH, command_encoder);
     {
         std::unique_ptr<webgpu::raii::RenderPassEncoder> render_pass = m_gbuffer->begin_render_pass(command_encoder);
@@ -255,7 +256,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         const auto draw_list = drawing::compute_bounds(
             drawing::limit(drawing::generate_list(m_camera, m_context->aabb_decorator(), m_max_zoom_level, planet_radius_m), 1024),
             m_context->aabb_decorator());
-        const auto culled_draw_list = drawing::sort(drawing::cull(draw_list, m_camera, planet_radius_m), m_camera.position());
+        culled_draw_list = drawing::sort(drawing::cull(draw_list, m_camera, planet_radius_m), m_camera.position());
 
         m_context->tile_mesh_renderer()->draw(render_pass->handle(), m_camera, culled_draw_list);
     }
@@ -281,6 +282,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
             m_gbuffer->color_texture_view(0),
             m_gbuffer->depth_texture_view(),
             m_gbuffer->color_texture_view(1),
+            culled_draw_list,
             m_shared_config_bind_group->handle(),
             m_camera_bind_group->handle());
         if (has_overlays) sm.stop_gpu(SID_OVERLAY, command_encoder);

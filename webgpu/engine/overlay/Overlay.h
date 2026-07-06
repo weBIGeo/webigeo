@@ -19,7 +19,9 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include <nucleus/tile/types.h>
 #include <string>
+#include <vector>
 #include <webgpu/base/Context.h>
 #include <webgpu/base/raii/TextureView.h>
 #include <webgpu/base/raii/TextureWithSampler.h>
@@ -51,6 +53,7 @@ public:
         const webgpu::raii::TextureView& normal_view,
         const webgpu::raii::TextureView& depth_view,
         const webgpu::raii::TextureView& tile_ref_view, // GBuffer slot 1 (exact render tile id + local uv)
+        const std::vector<nucleus::tile::TileBounds>& frame_tile_ids, // this frame's culled draw list; index == the render tile's frame-local id
         const WGPUBindGroup& shared_config_bg,
         const WGPUBindGroup& camera_bg,
         const webgpu::raii::TextureWithSampler& current_input,

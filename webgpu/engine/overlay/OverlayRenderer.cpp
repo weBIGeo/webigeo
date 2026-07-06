@@ -141,12 +141,13 @@ void OverlayRenderer::draw(const WGPUCommandEncoder& command_encoder,
     const webgpu::raii::TextureView& normal_view,
     const webgpu::raii::TextureView& depth_view,
     const webgpu::raii::TextureView& tile_ref_view,
+    const std::vector<nucleus::tile::TileBounds>& frame_tile_ids,
     const WGPUBindGroup& shared_config_bg,
     const WGPUBindGroup& camera_bg)
 {
     const glm::uvec2 output_size(m_pre[0]->texture().width(), m_pre[0]->texture().height());
-    draw_bucket(command_encoder, m_pre_overlays, m_pre, normal_view, depth_view, tile_ref_view, shared_config_bg, camera_bg, output_size);
-    draw_bucket(command_encoder, m_post_overlays, m_post, normal_view, depth_view, tile_ref_view, shared_config_bg, camera_bg, output_size);
+    draw_bucket(command_encoder, m_pre_overlays, m_pre, normal_view, depth_view, tile_ref_view, frame_tile_ids, shared_config_bg, camera_bg, output_size);
+    draw_bucket(command_encoder, m_post_overlays, m_post, normal_view, depth_view, tile_ref_view, frame_tile_ids, shared_config_bg, camera_bg, output_size);
 }
 
 void OverlayRenderer::draw_bucket(const WGPUCommandEncoder& command_encoder,
@@ -155,6 +156,7 @@ void OverlayRenderer::draw_bucket(const WGPUCommandEncoder& command_encoder,
     const webgpu::raii::TextureView& normal_view,
     const webgpu::raii::TextureView& depth_view,
     const webgpu::raii::TextureView& tile_ref_view,
+    const std::vector<nucleus::tile::TileBounds>& frame_tile_ids,
     const WGPUBindGroup& shared_config_bg,
     const WGPUBindGroup& camera_bg,
     glm::uvec2 output_size)
@@ -182,6 +184,7 @@ void OverlayRenderer::draw_bucket(const WGPUCommandEncoder& command_encoder,
             normal_view,
             depth_view,
             tile_ref_view,
+            frame_tile_ids,
             shared_config_bg,
             camera_bg,
             *tex[static_cast<size_t>(current)],
