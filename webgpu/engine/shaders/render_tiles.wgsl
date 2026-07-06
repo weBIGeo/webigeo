@@ -52,8 +52,7 @@ struct VertexOut {
 
 struct FragOut {
     @location(0) normal_enc: vec2u,
-    @location(1) overlay: u32,
-    @location(2) tile_ref: vec4u,
+    @location(1) tile_ref: vec4u,
 }
 
 fn compute_vertex(
@@ -202,8 +201,6 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
 
         frag_out.normal_enc = octNormalEncode2u16(normal);
     }
-
-    frag_out.overlay = pack4x8unorm(vec4f(0.0));
 
     // Exact render tile id + local uv (precision-safe reference point for tile-pyramid overlays,
     // e.g. SlippyTileOverlay), since deriving it from the (lossy, large-magnitude) world position

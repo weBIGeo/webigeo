@@ -83,37 +83,31 @@ void Context::internal_initialise()
         normal_entry.texture.sampleType = WGPUTextureSampleType_Uint;
         normal_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
-        WGPUBindGroupLayoutEntry overlay_entry {};
-        overlay_entry.binding = 1;
-        overlay_entry.visibility = WGPUShaderStage_Compute;
-        overlay_entry.texture.sampleType = WGPUTextureSampleType_Uint;
-        overlay_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
-
         WGPUBindGroupLayoutEntry shadow_texture_entry {};
-        shadow_texture_entry.binding = 2;
+        shadow_texture_entry.binding = 1;
         shadow_texture_entry.visibility = WGPUShaderStage_Compute;
         shadow_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
         shadow_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry shadow_sampler_entry {};
-        shadow_sampler_entry.binding = 3;
+        shadow_sampler_entry.binding = 2;
         shadow_sampler_entry.visibility = WGPUShaderStage_Compute;
         shadow_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
 
         WGPUBindGroupLayoutEntry depth_texture_entry {};
-        depth_texture_entry.binding = 4;
+        depth_texture_entry.binding = 3;
         depth_texture_entry.visibility = WGPUShaderStage_Compute;
         depth_texture_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
         depth_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry overlay_renderer_post_entry {};
-        overlay_renderer_post_entry.binding = 5;
+        overlay_renderer_post_entry.binding = 4;
         overlay_renderer_post_entry.visibility = WGPUShaderStage_Compute;
         overlay_renderer_post_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
         overlay_renderer_post_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry overlay_renderer_pre_entry {};
-        overlay_renderer_pre_entry.binding = 6;
+        overlay_renderer_pre_entry.binding = 5;
         overlay_renderer_pre_entry.visibility = WGPUShaderStage_Compute;
         overlay_renderer_pre_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
         overlay_renderer_pre_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
@@ -121,7 +115,6 @@ void Context::internal_initialise()
         return std::make_unique<webgpu::raii::BindGroupLayout>(device,
             std::vector<WGPUBindGroupLayoutEntry> {
                 normal_entry,
-                overlay_entry,
                 shadow_texture_entry,
                 shadow_sampler_entry,
                 depth_texture_entry,

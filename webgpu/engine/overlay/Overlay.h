@@ -50,7 +50,7 @@ public:
     virtual void draw(const WGPUCommandEncoder& command_encoder,
         const webgpu::raii::TextureView& normal_view,
         const webgpu::raii::TextureView& depth_view,
-        const webgpu::raii::TextureView& tile_ref_view, // GBuffer slot 2 (exact render tile id + local uv)
+        const webgpu::raii::TextureView& tile_ref_view, // GBuffer slot 1 (exact render tile id + local uv)
         const WGPUBindGroup& shared_config_bg,
         const WGPUBindGroup& camera_bg,
         const webgpu::raii::TextureWithSampler& current_input,

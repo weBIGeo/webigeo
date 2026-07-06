@@ -123,7 +123,7 @@ depth, because WebGPU requires depth/stencil texture copies to cover the entire 
 partial regions) — it now reads back the whole depth buffer and indexes the target pixel on the
 CPU (see Plan 5 for a proposed async follow-up).
 
-### Plan 2 — Drop `albedo` + debug `overlay` slots
+### Plan 2 (shipped) — Drop `albedo` + debug `overlay` slots
 
 After Plan 1 the attachments are `albedo`, `normal`, `overlay`, `tile_ref`. Drop the two 4 B debug
 slots (28 → 20 B, 2 attachments = `normal` + `tile_ref` RGBA32Uint; lower the requirement to match):
