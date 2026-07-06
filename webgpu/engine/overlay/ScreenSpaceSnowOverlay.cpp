@@ -41,11 +41,11 @@ void ScreenSpaceSnowOverlay::init(Context& context)
         reg.register_shader("screen_space_snow_compute", "webgpu_engine::overlays/screen_space_snow");
     if (!reg.has_bind_group_layout("screen_space_snow_overlay"))
         reg.register_bind_group_layout("screen_space_snow_overlay", [](WGPUDevice device) {
-            WGPUBindGroupLayoutEntry position_entry {};
-            position_entry.binding = 0;
-            position_entry.visibility = WGPUShaderStage_Compute;
-            position_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
-            position_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+            WGPUBindGroupLayoutEntry depth_entry {};
+            depth_entry.binding = 0;
+            depth_entry.visibility = WGPUShaderStage_Compute;
+            depth_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
+            depth_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
             WGPUBindGroupLayoutEntry normal_entry {};
             normal_entry.binding = 1;
@@ -72,7 +72,7 @@ void ScreenSpaceSnowOverlay::init(Context& context)
             prev_output_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
             return std::make_unique<webgpu::raii::BindGroupLayout>(device,
-                std::vector<WGPUBindGroupLayoutEntry> { position_entry, normal_entry, settings_entry, output_entry, prev_output_entry },
+                std::vector<WGPUBindGroupLayoutEntry> { depth_entry, normal_entry, settings_entry, output_entry, prev_output_entry },
                 "screen space snow overlay bind group layout");
         });
     reg.register_pipeline([this](WGPUDevice device, const webgpu::RenderResourceRegistry& reg) {
@@ -100,10 +100,10 @@ void ScreenSpaceSnowOverlay::update_settings()
 }
 
 void ScreenSpaceSnowOverlay::draw(const WGPUCommandEncoder& command_encoder,
-    const webgpu::raii::TextureView& position_view,
+    const webgpu::raii::TextureView& /*position_view*/,
     const webgpu::raii::TextureView& normal_view,
     const webgpu::raii::TextureView& /*overlay_view*/,
-    const webgpu::raii::TextureView& /*depth_view*/,
+    const webgpu::raii::TextureView& depth_view,
     const webgpu::raii::TextureView& /*tile_ref_view*/,
     const WGPUBindGroup& shared_config_bg,
     const WGPUBindGroup& camera_bg,
@@ -117,7 +117,7 @@ void ScreenSpaceSnowOverlay::draw(const WGPUCommandEncoder& command_encoder,
     webgpu::raii::BindGroup bind_group(m_ctx->device(),
         m_ctx->resource_registry().bind_group_layout("screen_space_snow_overlay"),
         std::vector<WGPUBindGroupEntry> {
-            position_view.create_bind_group_entry(0),
+            depth_view.create_bind_group_entry(0),
             normal_view.create_bind_group_entry(1),
             m_settings_uniform->raw_buffer().create_bind_group_entry(2),
             target_output.texture_view().create_bind_group_entry(3),

@@ -22,10 +22,11 @@
 ///use webgpu::encoder
 ///use webgpu::tile_util
 ///use webgpu::snow
+///use webgpu::position_util
 
 @group(0) @binding(0) var<uniform> conf: shared_config;
 @group(1) @binding(0) var<uniform> camera: camera_config;
-@group(2) @binding(0) var position_texture: texture_2d<f32>;
+@group(2) @binding(0) var depth_texture: texture_2d<f32>;
 @group(2) @binding(1) var normal_texture: texture_2d<u32>;
 @group(2) @binding(2) var<uniform> settings: ScreenSpaceSnowSettings;
 @group(2) @binding(3) var output_texture: texture_storage_2d<rgba8unorm, write>;
@@ -44,23 +45,22 @@ struct ScreenSpaceSnowSettings {
 
 @compute @workgroup_size(16, 16, 1)
 fn computeMain(@builtin(global_invocation_id) id: vec3u) {
-    let dims = vec2u(textureDimensions(position_texture));
+    let dims = vec2u(textureDimensions(depth_texture));
     if id.x >= dims.x || id.y >= dims.y {
         return;
     }
     let tci = id.xy;
 
-    let pos_dist = textureLoad(position_texture, tci, 0);
+    let raw_depth = textureLoad(depth_texture, tci, 0).r;
     let encoded_normal = textureLoad(normal_texture, tci, 0).xy;
 
-    let pos_cws = pos_dist.xyz;
-    let dist = length(pos_cws);
-    let pos_ws = pos_cws + camera.position.xyz;
     let normal = octNormalDecode2u16(encoded_normal);
 
     var out_color = vec4f(0.0);
 
-    if dist > 0.0 {
+    if raw_depth > 0.0 {
+        let pos_cws = camera_relative_pos_from_depth(tci, dims, raw_depth, camera.inv_view_proj_matrix);
+        let pos_ws = pos_cws + camera.position.xyz;
         //Reuse the shared snow math: angle limits live in .yzw, altitude params in .xyz.
         let angle = vec4f(0.0, settings.angle_min, settings.angle_max, settings.angle_blend);
         let altitude = vec4f(settings.altitude_limit, settings.altitude_variation, settings.altitude_blend, 0.0);
