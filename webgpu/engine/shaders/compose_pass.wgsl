@@ -31,15 +31,14 @@
 @group(0) @binding(0) var<uniform> conf: shared_config;
 @group(1) @binding(0) var<uniform> camera: camera_config;
 
-@group(2) @binding(0) var albedo_texture: texture_2d<u32>;
-@group(2) @binding(1) var normal_texture: texture_2d<u32>;
-@group(2) @binding(2) var overlay_texture: texture_2d<u32>;
+@group(2) @binding(0) var normal_texture: texture_2d<u32>;
+@group(2) @binding(1) var overlay_texture: texture_2d<u32>;
 
-@group(2) @binding(3) var cloud_shadow_texture: texture_2d<f32>;
-@group(2) @binding(4) var cloud_shadow_sampler: sampler;
-@group(2) @binding(5) var depth_texture: texture_2d<f32>;
-@group(2) @binding(6) var overlay_renderer_post_texture: texture_2d<f32>;
-@group(2) @binding(7) var overlay_renderer_pre_texture: texture_2d<f32>;
+@group(2) @binding(2) var cloud_shadow_texture: texture_2d<f32>;
+@group(2) @binding(3) var cloud_shadow_sampler: sampler;
+@group(2) @binding(4) var depth_texture: texture_2d<f32>;
+@group(2) @binding(5) var overlay_renderer_post_texture: texture_2d<f32>;
+@group(2) @binding(6) var overlay_renderer_pre_texture: texture_2d<f32>;
 
 @group(3) @binding(0) var output_color:          texture_storage_2d<rgba16float, write>;
 @group(3) @binding(1) var<uniform> atmosphere:   Atmosphere;
@@ -130,7 +129,7 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3u) {
     if gid.x >= dims.x || gid.y >= dims.y { return; }
     let tci = gid.xy;
 
-    var albedo: vec3f = unpack4x8unorm(textureLoad(albedo_texture, tci, 0).r).xyz;
+    var albedo: vec3f = vec3f(1.0);
     let raw_depth = textureLoad(depth_texture, tci, 0).r;
     let pos_cws = camera_relative_pos_from_depth(tci, dims, raw_depth, camera.inv_view_proj_matrix);
     let encoded_normal = textureLoad(normal_texture, tci, 0).xy;

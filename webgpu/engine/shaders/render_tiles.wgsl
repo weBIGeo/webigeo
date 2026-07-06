@@ -54,10 +54,9 @@ struct VertexOut {
 }
 
 struct FragOut {
-    @location(0) albedo: u32,
-    @location(1) normal_enc: vec2u,
-    @location(2) overlay: u32,
-    @location(3) tile_ref: vec4u,
+    @location(0) normal_enc: vec2u,
+    @location(1) overlay: u32,
+    @location(2) tile_ref: vec4u,
 }
 
 fn compute_vertex(
@@ -206,9 +205,6 @@ fn vertexMain(@builtin(vertex_index) vertex_index: u32, vertex_in: VertexIn) -> 
 fn fragmentMain(vertex_out: VertexOut) -> FragOut {
     let tile_id = unpack_tile_id(vertex_out.tile_id);
 
-    // Ortho imagery is now supplied by the SlippyTileOverlay; the mesh writes a neutral (white) albedo.
-    let albedo = vec3f(1.0);
-
     var frag_out: FragOut;
 
     var normal = vertex_out.normal;
@@ -231,7 +227,6 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
         //albedo = mix(albedo, overlay_color.xyz, config.overlay_strength * overlay_color.w);
     }
     frag_out.overlay = pack4x8unorm(overlay_color);
-    frag_out.albedo = pack4x8unorm(vec4f(albedo, 1.0));
 
     // Exact render tile id + local uv (precision-safe reference point for tile-pyramid overlays,
     // e.g. SlippyTileOverlay), since deriving it from the (lossy, large-magnitude) world position

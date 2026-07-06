@@ -131,7 +131,6 @@ void TileMeshRenderer::init(webgpu::Context& ctx)
         webgpu::FramebufferFormat format {};
         format.depth_format = WGPUTextureFormat_Depth32Float;
         format.extra_depth_usage = WGPUTextureUsage_CopySrc;
-        format.color_formats.emplace_back(WGPUTextureFormat_R32Uint); // albedo
         format.color_formats.emplace_back(WGPUTextureFormat_RG16Uint); // normal
         format.color_formats.emplace_back(WGPUTextureFormat_R32Uint); // overlay
         format.color_formats.emplace_back(WGPUTextureFormat_RGBA32Uint); // tile_ref: render tile x, y, zoom + packed uv
