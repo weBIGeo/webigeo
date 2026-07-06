@@ -26,9 +26,8 @@
 @group(0) @binding(1) var<uniform> settings: TileDebugSettings;
 @group(0) @binding(2) var output_texture:   texture_storage_2d<rgba8unorm, write>;
 @group(0) @binding(3) var prev_output:      texture_2d<f32>;
-@group(0) @binding(4) var position_texture: texture_2d<f32>;         // GBuffer slot 1: xyz=pos_cws, w=render tile zoom
-@group(0) @binding(5) var depth_texture:    texture_depth_2d;        // GBuffer depth
-@group(0) @binding(6) var normal_texture:   texture_2d<u32>;         // GBuffer slot 2: oct-encoded true terrain normal
+@group(0) @binding(4) var depth_texture:    texture_depth_2d;        // GBuffer depth
+@group(0) @binding(5) var normal_texture:   texture_2d<u32>;         // GBuffer slot 2: oct-encoded true terrain normal
 
 @group(1) @binding(0) var<uniform> camera: camera_config;
 @group(2) @binding(0) var<uniform> conf: shared_config;
@@ -63,49 +62,31 @@ fn computeMain(@builtin(global_invocation_id) id: vec3u) {
     var overlay_color = unpack4x8unorm(packed);
 
     // For GBuffer-sourced modes, replace rgb from the raw float data before alpha-scaling.
-    let is_geometry = overlay_color.a > 0.0;
+    let raw_depth = textureLoad(depth_texture, tci, 0);
+    let is_geometry = raw_depth > 0.0;
     if is_geometry {
         if settings.mode == 5u {
-            // Position buffer XYZ (camera-relative world space), scaled by user-controlled divisor.
-            let pos = textureLoad(position_texture, tci, 0).xyz;
-            overlay_color = vec4f(pos / settings.scale, 1.0);
-        } else if settings.mode == 6u {
-            // Camera distance computed as length(pos_cws), normalized by scale.
-            let cam_dist = length(textureLoad(position_texture, tci, 0).xyz) / settings.scale;
-            overlay_color = vec4f(cam_dist, cam_dist, cam_dist, 1.0);
-        } else if settings.mode == 7u {
             // Raw (non-linear) clip-space depth from the depth buffer, in [0, 1].
-            let raw_depth = textureLoad(depth_texture, tci, 0);
             overlay_color = vec4f(raw_depth, raw_depth, raw_depth, 1.0);
-        } else if settings.mode == 8u {
+        } else if settings.mode == 6u {
             // Linearized view-space depth (meters), normalized by scale for visibility.
-            let raw_depth = textureLoad(depth_texture, tci, 0);
             let ndc = vec4f(0.0, 0.0, raw_depth, 1.0);
             let view = camera.inv_proj_matrix * ndc;
             let lin_depth = abs(view.z / view.w) / settings.scale;
             overlay_color = vec4f(lin_depth, lin_depth, lin_depth, 1.0);
-        } else if settings.mode == 9u {
+        } else if settings.mode == 7u {
             // True 3D camera distance reconstructed from depth buffer via inv_view_proj_matrix.
-            let raw_depth = textureLoad(depth_texture, tci, 0);
             let dist = length(camera_relative_pos_from_depth(tci, dims, raw_depth, camera.inv_view_proj_matrix)) / settings.scale;
             overlay_color = vec4f(dist, dist, dist, 1.0);
-        } else if settings.mode == 10u {
+        } else if settings.mode == 8u {
             // Camera-relative XYZ position reconstructed from depth buffer, shown as RGB.
-            let raw_depth = textureLoad(depth_texture, tci, 0);
             let pos = camera_relative_pos_from_depth(tci, dims, raw_depth, camera.inv_view_proj_matrix) / settings.scale;
             overlay_color = vec4f(pos, 1.0);
-        } else if settings.mode == 11u {
-            // Absolute difference between position buffer XYZ and depth-reprojected position.
-            let raw_depth = textureLoad(depth_texture, tci, 0);
-            let pos_buffer = textureLoad(position_texture, tci, 0).xyz;
-            let pos_reproj = camera_relative_pos_from_depth(tci, dims, raw_depth, camera.inv_view_proj_matrix);
-            let diff = abs(pos_buffer - pos_reproj) / settings.scale;
-            overlay_color = vec4f(diff, 1.0);
-        } else if settings.mode == 12u {
+        } else if settings.mode == 9u {
             // Shading normal: stored true terrain normal tilted by the earth-curvature deformation
             // (same value compose_pass uses for lighting), shown as RGB via *0.5 + 0.5.
             let normal = octNormalDecode2u16(textureLoad(normal_texture, tci, 0).xy);
-            let pos_cws = textureLoad(position_texture, tci, 0).xyz;
+            let pos_cws = camera_relative_pos_from_depth(tci, dims, raw_depth, camera.inv_view_proj_matrix);
             let shading_normal = curvature_corrected_normal(normal, pos_cws.xy, conf.planet_radius_m);
             overlay_color = vec4f(shading_normal * 0.5 + 0.5, 1.0);
         }

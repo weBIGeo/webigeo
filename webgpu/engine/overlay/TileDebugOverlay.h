@@ -36,14 +36,11 @@ public:
         Tiles = 2,
         Zoomlevel = 3,
         VertexId = 4,
-        PositionBuffer = 5,
-        CameraDistanceCalc = 6,
-        GeometricDepth = 7,
-        LinearDepth = 8,
-        DepthDistance = 9,
-        DepthPosition = 10,
-        PositionDiff = 11,
-        ShadingNormals = 12,
+        GeometricDepth = 5,
+        LinearDepth = 6,
+        DepthDistance = 7,
+        DepthPosition = 8,
+        ShadingNormals = 9,
     };
 
     enum class Region {

@@ -72,26 +72,20 @@ void TileDebugOverlay::init(Context& context)
             prev_output_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
             prev_output_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
-            WGPUBindGroupLayoutEntry position_entry {};
-            position_entry.binding = 4;
-            position_entry.visibility = WGPUShaderStage_Compute;
-            position_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
-            position_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
-
             WGPUBindGroupLayoutEntry depth_entry {};
-            depth_entry.binding = 5;
+            depth_entry.binding = 4;
             depth_entry.visibility = WGPUShaderStage_Compute;
             depth_entry.texture.sampleType = WGPUTextureSampleType_Depth;
             depth_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
             WGPUBindGroupLayoutEntry normal_entry {};
-            normal_entry.binding = 6;
+            normal_entry.binding = 5;
             normal_entry.visibility = WGPUShaderStage_Compute;
             normal_entry.texture.sampleType = WGPUTextureSampleType_Uint;
             normal_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
             return std::make_unique<webgpu::raii::BindGroupLayout>(device,
-                std::vector<WGPUBindGroupLayoutEntry> { overlay_entry, settings_entry, output_entry, prev_output_entry, position_entry, depth_entry, normal_entry },
+                std::vector<WGPUBindGroupLayoutEntry> { overlay_entry, settings_entry, output_entry, prev_output_entry, depth_entry, normal_entry },
                 "tile debug overlay bind group layout");
         });
     reg.register_pipeline([this](WGPUDevice device, const webgpu::RenderResourceRegistry& reg) {
@@ -132,7 +126,7 @@ void TileDebugOverlay::update_settings()
 }
 
 void TileDebugOverlay::draw(const WGPUCommandEncoder& command_encoder,
-    const webgpu::raii::TextureView& position_view,
+    const webgpu::raii::TextureView& /*position_view*/,
     const webgpu::raii::TextureView& normal_view,
     const webgpu::raii::TextureView& overlay_view,
     const webgpu::raii::TextureView& depth_view,
@@ -153,9 +147,8 @@ void TileDebugOverlay::draw(const WGPUCommandEncoder& command_encoder,
             m_settings_uniform->raw_buffer().create_bind_group_entry(1),
             target_output.texture_view().create_bind_group_entry(2),
             current_input.texture_view().create_bind_group_entry(3),
-            position_view.create_bind_group_entry(4),
-            depth_view.create_bind_group_entry(5),
-            normal_view.create_bind_group_entry(6),
+            depth_view.create_bind_group_entry(4),
+            normal_view.create_bind_group_entry(5),
         },
         "tile debug overlay bind group");
 
