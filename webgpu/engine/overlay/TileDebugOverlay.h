@@ -27,20 +27,16 @@
 
 namespace webgpu_engine {
 
-// Displays the per-tile debug data that render_tiles.wgsl packs into GBuffer slot 2.
+// Visualizes depth/normal-derived debug data (see gbuffer_debug.wgsl) in a compute pass.
 class TileDebugOverlay : public Overlay {
 public:
-    // Values must match the overlay_mode branches in render_tiles.wgsl.
+    // Values must match the mode branches in gbuffer_debug.wgsl.
     enum class Mode : int {
-        Normals = 1,
-        Tiles = 2,
-        Zoomlevel = 3,
-        VertexId = 4,
-        GeometricDepth = 5,
-        LinearDepth = 6,
-        DepthDistance = 7,
-        DepthPosition = 8,
-        ShadingNormals = 9,
+        GeometricDepth = 1,
+        LinearDepth = 2,
+        DepthDistance = 3,
+        DepthPosition = 4,
+        ShadingNormals = 5,
     };
 
     enum class Region {
@@ -53,7 +49,7 @@ public:
     };
 
     struct Settings {
-        int mode = static_cast<int>(Mode::Normals); // consumed CPU-side (forwarded to shared_config)
+        int mode = static_cast<int>(Mode::GeometricDepth);
         float strength = 1.0f;
         float scale = 10000.0f;
         Region region = Region::Full;
@@ -63,8 +59,7 @@ public:
     ~TileDebugOverlay() override;
 
     void init(Context& ctx) override;
-    // Pushes settings to the GPU and the selected debug mode into shared_config (consumed by the tile pass).
-    // Call from the frontend whenever settings change.
+    // Pushes settings to the GPU. Call from the frontend whenever settings change.
     void update_settings();
     void draw(const WGPUCommandEncoder& command_encoder,
         const webgpu::raii::TextureView& normal_view,
@@ -90,7 +85,6 @@ private:
     };
 
     webgpu::Context* m_ctx = nullptr;
-    Context* m_engine_ctx = nullptr; // for shared_config access (overlay_mode)
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_pipeline;
     std::unique_ptr<webgpu::Buffer<GpuSettings>> m_settings_uniform;
 };

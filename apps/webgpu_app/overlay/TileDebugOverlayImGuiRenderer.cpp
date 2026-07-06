@@ -35,12 +35,12 @@ bool TileDebugOverlayImGuiRenderer::render_custom_settings()
 
     // Combo order must match TileDebugOverlay::Mode
     static const char* mode_items[]
-        = { "Normals", "Tiles", "Zoomlevel", "Vertex-ID", "Depth-Buffer (raw)", "Depth-Buffer (linear)", "Camera Distance (reproj. Depth-Buffer)",
-              "Position (reproj. Depth-Buffer)", "Shading Normals (curvature-corrected)" };
+        = { "Depth-Buffer (raw)", "Depth-Buffer (linear)", "Camera Distance (reproj. Depth-Buffer)", "Position (reproj. Depth-Buffer)",
+              "Shading Normals (curvature-corrected)" };
     int current = s.mode - 1;
     if (ImGui::Combo("Mode", &current, mode_items, IM_ARRAYSIZE(mode_items))) {
         s.mode = current + 1;
-        m_tile_debug_overlay->update_settings(); // pushes the new mode into shared_config
+        m_tile_debug_overlay->update_settings();
         changed = true;
     }
 

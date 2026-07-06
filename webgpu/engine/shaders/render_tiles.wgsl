@@ -19,7 +19,6 @@
 *****************************************************************************/
 
 ///use util/shared_config
-///use webgpu::hashing
 ///use util/camera_config
 ///use webgpu::encoder
 ///use webgpu::tile_util
@@ -38,7 +37,6 @@
 struct VertexIn {
     @location(0) bounds: vec4f,
     @location(1) height_texture_layer: i32,
-    @location(3) tileset_id: i32,
     @location(4) height_zoomlevel: i32,
     @location(5) tile_id: vec2<u32>,
 }
@@ -49,7 +47,6 @@ struct VertexOut {
     @location(1) pos_cws: vec3f,
     @location(2) normal: vec3f,
     @location(3) @interpolate(flat) height_texture_layer: i32,
-    @location(5) @interpolate(flat) color: vec3f,
     @location(6) @interpolate(flat) tile_id: vec2<u32>,
 }
 
@@ -187,16 +184,6 @@ fn vertexMain(@builtin(vertex_index) vertex_index: u32, vertex_in: VertexIn) -> 
     vertex_out.pos_cws = position;
     vertex_out.normal = normal;
     vertex_out.height_texture_layer = vertex_in.height_texture_layer;
-
-    var vertex_color = vec3f(0.0);
-    if config.overlay_mode == 2 {
-        vertex_color = color_from_id_hash(u32(vertex_in.tileset_id));
-    } else if config.overlay_mode == 3 {
-        vertex_color = color_from_id_hash(u32(vertex_in.height_zoomlevel));
-    } else if config.overlay_mode == 4 {
-        vertex_color = color_from_id_hash(u32(vertex_index));
-    }
-    vertex_out.color = vertex_color;
     vertex_out.tile_id = vertex_in.tile_id;
     return vertex_out;
 }
@@ -216,17 +203,7 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
         frag_out.normal_enc = octNormalEncode2u16(normal);
     }
 
-    //HANDLE DEBUG OVERLAYS THAT CAN JUST BE DONE IN THIS STAGE
-    var overlay_color = vec4f(0.0);
-    if config.overlay_mode > 0u && config.overlay_mode < 100u {
-        if config.overlay_mode == 1 {
-            overlay_color = vec4f(normal * 0.5 + 0.5, 1.0);
-        } else {
-            overlay_color = vec4f(vertex_out.color.xyz, 1);
-        }
-        //albedo = mix(albedo, overlay_color.xyz, config.overlay_strength * overlay_color.w);
-    }
-    frag_out.overlay = pack4x8unorm(overlay_color);
+    frag_out.overlay = pack4x8unorm(vec4f(0.0));
 
     // Exact render tile id + local uv (precision-safe reference point for tile-pyramid overlays,
     // e.g. SlippyTileOverlay), since deriving it from the (lossy, large-magnitude) world position

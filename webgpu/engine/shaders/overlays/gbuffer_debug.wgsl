@@ -22,12 +22,11 @@
 ///use webgpu::encoder
 ///use webgpu::normals_util
 
-@group(0) @binding(0) var overlay_texture:  texture_2d<u32>;        // GBuffer slot 2 (packed RGBA via pack4x8unorm)
-@group(0) @binding(1) var<uniform> settings: TileDebugSettings;
-@group(0) @binding(2) var output_texture:   texture_storage_2d<rgba8unorm, write>;
-@group(0) @binding(3) var prev_output:      texture_2d<f32>;
-@group(0) @binding(4) var depth_texture:    texture_depth_2d;        // GBuffer depth
-@group(0) @binding(5) var normal_texture:   texture_2d<u32>;         // GBuffer slot 1: oct-encoded true terrain normal
+@group(0) @binding(0) var<uniform> settings: TileDebugSettings;
+@group(0) @binding(1) var output_texture:   texture_storage_2d<rgba8unorm, write>;
+@group(0) @binding(2) var prev_output:      texture_2d<f32>;
+@group(0) @binding(3) var depth_texture:    texture_depth_2d;        // GBuffer depth
+@group(0) @binding(4) var normal_texture:   texture_2d<u32>;         // GBuffer slot 0: oct-encoded true terrain normal
 
 @group(1) @binding(0) var<uniform> camera: camera_config;
 @group(2) @binding(0) var<uniform> conf: shared_config;
@@ -57,32 +56,29 @@ fn computeMain(@builtin(global_invocation_id) id: vec3u) {
         return;
     }
 
-    //render_tiles.wgsl writes alpha = 1 on geometry, 0 (transparent) on background.
-    let packed = textureLoad(overlay_texture, tci, 0).r;
-    var overlay_color = unpack4x8unorm(packed);
+    var overlay_color = vec4f(0.0);
 
-    // For GBuffer-sourced modes, replace rgb from the raw float data before alpha-scaling.
     let raw_depth = textureLoad(depth_texture, tci, 0);
     let is_geometry = raw_depth > 0.0;
     if is_geometry {
-        if settings.mode == 5u {
+        if settings.mode == 1u {
             // Raw (non-linear) clip-space depth from the depth buffer, in [0, 1].
             overlay_color = vec4f(raw_depth, raw_depth, raw_depth, 1.0);
-        } else if settings.mode == 6u {
+        } else if settings.mode == 2u {
             // Linearized view-space depth (meters), normalized by scale for visibility.
             let ndc = vec4f(0.0, 0.0, raw_depth, 1.0);
             let view = camera.inv_proj_matrix * ndc;
             let lin_depth = abs(view.z / view.w) / settings.scale;
             overlay_color = vec4f(lin_depth, lin_depth, lin_depth, 1.0);
-        } else if settings.mode == 7u {
+        } else if settings.mode == 3u {
             // True 3D camera distance reconstructed from depth buffer via inv_view_proj_matrix.
             let dist = length(camera_relative_pos_from_depth(tci, dims, raw_depth, camera.inv_view_proj_matrix)) / settings.scale;
             overlay_color = vec4f(dist, dist, dist, 1.0);
-        } else if settings.mode == 8u {
+        } else if settings.mode == 4u {
             // Camera-relative XYZ position reconstructed from depth buffer, shown as RGB.
             let pos = camera_relative_pos_from_depth(tci, dims, raw_depth, camera.inv_view_proj_matrix) / settings.scale;
             overlay_color = vec4f(pos, 1.0);
-        } else if settings.mode == 9u {
+        } else if settings.mode == 5u {
             // Shading normal: stored true terrain normal tilted by the earth-curvature deformation
             // (same value compose_pass uses for lighting), shown as RGB via *0.5 + 0.5.
             let normal = octNormalDecode2u16(textureLoad(normal_texture, tci, 0).xy);

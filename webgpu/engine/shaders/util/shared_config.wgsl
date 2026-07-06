@@ -27,7 +27,7 @@ struct shared_config {
     clouds_enabled: u32,
     shading_enabled: u32,
     normal_mode: u32,
-    overlay_mode: u32,
+    _pad1: u32,
     track_render_mode: u32,
     _padding0: u32,
     planet_radius_m: f32,
