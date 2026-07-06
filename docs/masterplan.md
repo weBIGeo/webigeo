@@ -188,9 +188,33 @@ scheduler thread. Requires re-plumbing the camera→geometry `update_camera` wir
 `DataQuerier` handed to the camera controller, plus deciding whether the cloud scheduler moves too.
 `TileMeshRenderer` keeps consuming the geometry array via the same provider mechanism.
 
+### Plan 5 (optional) — Async, richer CPU position/depth readback
+
+Not required by the gbuffer work; a follow-up to Plan 1's `Window::synchronous_position_readback`
+(mouse-picking / orbit pivot, `nucleus::camera::AbstractDepthTester`). Plan 1 reads back the whole
+depth attachment synchronously per call, because WebGPU requires depth/stencil texture copies to
+cover the entire subresource (no partial regions) — unlike the old RGBA32Float `position` slot,
+which allowed a cheap small‑region copy. That's fine for the current call frequency (mouse press /
+wheel‑tick / touch‑gesture‑start only — `OrbitInteraction::start()`, not per drag sample) but is
+more bandwidth than necessary and still forces a GPU sync‑wait on every call.
+
+Better long‑term shape: a small compute pass, dispatched **every frame** at the current mouse
+position (not just on interaction), writing its result into a persistent 1‑element storage buffer
+that's asynchronously mapped and read a couple of frames later — i.e. `synchronous_position_readback`
+becomes non‑blocking, trading a 1‑3 frame latency for zero pipeline stalls. Since this runs
+continuously rather than on‑demand, it's also a natural place to report *more* than just position —
+e.g. decode `tile_ref` (`.g` low bits, once Plan 3 lands) for the exact render tile under the
+cursor, and derive local slope/steepness from the already‑available oct‑encoded `normal` GBuffer
+slot — useful for a status‑bar readout or steepness‑aware interactions, not just camera pivoting.
+
+**Verify:** orbit pivot / click‑to‑focus still targets the correct terrain point despite the
+latency; confirm interaction doesn't visibly lag behind the reported position during fast
+camera movement.
+
 ## Dependency / ordering
 
 ```
 Plan 1 (drop position) ──► Plan 2 (drop albedo + debug overlay) ──► Plan 3 (frame-local id + side table + derivatives, tile_ref→RG32Uint)
 Plan 4 (scheduler consolidation) — independent, optional
+Plan 5 (async position readback) — independent, optional; benefits from Plan 3's tile_ref if it wants to report tile/slope data too
 ```

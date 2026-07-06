@@ -74,7 +74,7 @@ signals:
     void set_camera_definition_requested(nucleus::camera::Definition definition);
 
 private:
-    std::unique_ptr<webgpu::raii::RawBuffer<glm::vec4>> m_position_readback_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<float>> m_position_readback_buffer;
     glm::vec4 m_last_position_readback;
 
     void create_buffers();
@@ -85,9 +85,8 @@ private:
 
     // A helper function for the depth and position method.
     // ATTENTION: This function is synchronous and will hold rendering. Use with caution!
-    // Note: Depth aswell as the position is saved in the gbuffer. In contrast to the gl version
-    // we can directly readback the content of the position buffer and don't need the readback depth
-    // buffer anymore. May actually increase performance as we don't need to fill the seperate buffer.
+    // WebGPU requires depth/stencil texture copies to cover the entire subresource (no partial
+    // regions), so this reads back the whole Depth32Float depth attachment and reconstructs the
     glm::vec4 synchronous_position_readback(const glm::dvec2& normalised_device_coordinates);
 
     std::unique_ptr<webgpu::raii::TextureWithSampler> create_shadow_texture(uint32_t width, uint32_t height, uint32_t mip_levels);

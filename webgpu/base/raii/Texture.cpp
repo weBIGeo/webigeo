@@ -68,6 +68,8 @@ uint8_t Texture::get_bytes_per_element(WGPUTextureFormat format)
     case WGPUTextureFormat_RGB10A2Uint:
     case WGPUTextureFormat_RGB10A2Unorm:
     case WGPUTextureFormat_RG11B10Ufloat:
+        // Depth format
+    case WGPUTextureFormat_Depth32Float:
         return 4;
 
         // 64-bit formats

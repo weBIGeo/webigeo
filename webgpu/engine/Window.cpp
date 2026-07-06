@@ -166,6 +166,10 @@ void Window::resize_framebuffer(int w, int h)
     m_gbuffer_format.size = glm::uvec2 { w, h };
     m_gbuffer = std::make_unique<webgpu::Framebuffer>(m_context->webgpu_ctx().device(), m_gbuffer_format);
 
+    m_position_readback_buffer = std::make_unique<webgpu::raii::RawBuffer<float>>(m_context->webgpu_ctx().device(),
+        WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead, m_gbuffer->depth_texture().single_layer_size_in_bytes() / sizeof(float),
+        "position readback buffer");
+
     // Intermediate target compose renders into (RGBA16Float required for StorageBinding in compute compose).
     webgpu::FramebufferFormat scene_color_format {};
     scene_color_format.size = glm::uvec2 { w, h };
@@ -370,16 +374,25 @@ glm::vec4 Window::synchronous_position_readback(const glm::dvec2& ndc)
         // clamp device coordinates to the swapchain size
         device_coordinates = glm::clamp(device_coordinates, glm::uvec2(0), glm::uvec2(m_swapchain_size - glm::vec2(1.0)));
 
-        const auto& src_texture = m_gbuffer->color_texture(1);
-        // Need to read a multiple of 16 values to fit requirement for texture_to_buffer copy
-        src_texture.copy_to_buffer(
-            m_context->webgpu_ctx().device(), *m_position_readback_buffer.get(), glm::uvec3(device_coordinates.x, device_coordinates.y, 0), glm::uvec2(16, 1));
+        const auto& src_texture = m_gbuffer->depth_texture();
+        // WebGPU requires depth/stencil texture copies to cover the entire subresource (no partial
+        // regions) -- read back the whole depth buffer and index the pixel we want on the CPU.
+        src_texture.copy_to_buffer(m_context->webgpu_ctx().device(), *m_position_readback_buffer.get());
 
-        std::vector<glm::vec4> pos_buffer;
+        std::vector<float> depth_buffer;
         WGPUMapAsyncStatus result
-            = m_position_readback_buffer->read_back_sync(m_context->webgpu_ctx().instance(), m_context->webgpu_ctx().device(), pos_buffer);
+            = m_position_readback_buffer->read_back_sync(m_context->webgpu_ctx().instance(), m_context->webgpu_ctx().device(), depth_buffer);
         if (result == WGPUMapAsyncStatus_Success) {
-            m_last_position_readback = pos_buffer[0];
+            // Row pitch may be padded (to 256 bytes) beyond the actual pixel width, hence the stride.
+            const size_t row_stride_floats = src_texture.bytes_per_row() / sizeof(float);
+            const float raw_depth = depth_buffer[device_coordinates.y * row_stride_floats + device_coordinates.x];
+
+            // Mirrors camera_relative_pos_from_depth (position_util.wgsl) on the CPU.
+            const glm::vec2 ndc_xy = (glm::vec2(device_coordinates) + 0.5f) / m_swapchain_size * 2.0f - 1.0f;
+            const glm::vec4 clip_pos(ndc_xy.x, -ndc_xy.y, raw_depth, 1.0f);
+            const glm::vec4 world_h = m_camera_config_ubo->data.inv_view_proj_matrix * clip_pos;
+            const glm::vec3 pos_cws = glm::vec3(world_h) / world_h.w;
+            m_last_position_readback = glm::vec4(pos_cws, raw_depth > 0.0f ? 1.0f : 0.0f);
         }
     } // else qDebug() << "Dropped position readback request, buffer still mapping.";
 
@@ -454,8 +467,8 @@ void Window::create_buffers()
         = std::make_unique<webgpu::Buffer<uboSharedConfig>>(m_context->webgpu_ctx().device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
     m_camera_config_ubo
         = std::make_unique<webgpu::Buffer<uboCameraConfig>>(m_context->webgpu_ctx().device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
-    m_position_readback_buffer = std::make_unique<webgpu::raii::RawBuffer<glm::vec4>>(
-        m_context->webgpu_ctx().device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead, 256 / sizeof(glm::vec4), "position readback buffer");
+    // m_position_readback_buffer is sized against the gbuffer's depth texture, so it's (re)created in
+    // resize_framebuffer() once that texture exists.
 }
 
 void Window::create_bind_groups()

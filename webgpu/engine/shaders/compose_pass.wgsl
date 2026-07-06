@@ -24,6 +24,7 @@
 ///use webgpu::general
 ///use webgpu::tile_util
 ///use webgpu::normals_util
+///use webgpu::position_util
 ///use webgpu_engine::sky/common/medium
 ///use webgpu_engine::sky/common/transmittance
 
@@ -131,12 +132,9 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3u) {
     let tci = gid.xy;
 
     var albedo: vec3f = unpack4x8unorm(textureLoad(albedo_texture, tci, 0).r).xyz;
-    let pos_dist = textureLoad(position_texture, tci, 0);
+    let raw_depth = textureLoad(depth_texture, tci, 0).r;
+    let pos_cws = camera_relative_pos_from_depth(tci, dims, raw_depth, camera.inv_view_proj_matrix);
     let encoded_normal = textureLoad(normal_texture, tci, 0).xy;
-
-    let pos_cws = pos_dist.xyz;
-    let dist = length(pos_cws);
-    //let dist = pos_dist.w;
 
     let normal = octNormalDecode2u16(encoded_normal);
     // Stored normal is the true terrain normal. For lighting we tilt it by the earth-curvature
@@ -157,7 +155,7 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3u) {
         cloud_shadow = cloud_shadow_raw * cloud_shadow_raw * cloud_shadow_raw * cloud_shadow_raw;
     }
 
-    if dist > 0.0 {
+    if raw_depth > 0.0 {
         //Apply material color by blending with albedo
         albedo = mix(albedo, conf.material_color.rgb, conf.material_color.a);
 

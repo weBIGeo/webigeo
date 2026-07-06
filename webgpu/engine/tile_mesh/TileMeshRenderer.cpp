@@ -129,7 +129,8 @@ void TileMeshRenderer::init(webgpu::Context& ctx)
         tile_id_buffer_info.add_attribute<uint32_t, 2>(5);
 
         webgpu::FramebufferFormat format {};
-        format.depth_format = WGPUTextureFormat_Depth24Plus;
+        format.depth_format = WGPUTextureFormat_Depth32Float;
+        format.extra_depth_usage = WGPUTextureUsage_CopySrc;
         format.color_formats.emplace_back(WGPUTextureFormat_R32Uint); // albedo
         format.color_formats.emplace_back(WGPUTextureFormat_RGBA32Float); // position
         format.color_formats.emplace_back(WGPUTextureFormat_RG16Uint); // normal
