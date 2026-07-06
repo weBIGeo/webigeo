@@ -279,7 +279,6 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         if (has_overlays) sm.start_gpu(SID_OVERLAY, command_encoder);
         m_context->overlay_renderer()->draw(command_encoder,
             m_gbuffer->color_texture_view(0),
-            m_gbuffer->color_texture_view(1),
             m_gbuffer->depth_texture_view(),
             m_gbuffer->color_texture_view(2),
             m_shared_config_bind_group->handle(),

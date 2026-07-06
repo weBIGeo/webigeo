@@ -46,7 +46,6 @@ public:
     void update_settings();
     void draw(const WGPUCommandEncoder& command_encoder,
         const webgpu::raii::TextureView& normal_view,
-        const webgpu::raii::TextureView& overlay_view,
         const webgpu::raii::TextureView& depth_view,
         const webgpu::raii::TextureView& tile_ref_view,
         const WGPUBindGroup& shared_config_bg,
