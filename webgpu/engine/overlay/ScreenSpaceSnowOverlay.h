@@ -45,7 +45,6 @@ public:
     void init(Context& ctx) override;
     void update_settings();
     void draw(const WGPUCommandEncoder& command_encoder,
-        const webgpu::raii::TextureView& position_view,
         const webgpu::raii::TextureView& normal_view,
         const webgpu::raii::TextureView& overlay_view,
         const webgpu::raii::TextureView& depth_view,

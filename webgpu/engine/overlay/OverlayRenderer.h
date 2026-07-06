@@ -54,7 +54,6 @@ public:
     void resize(int w, int h);
 
     void draw(const WGPUCommandEncoder& command_encoder,
-        const webgpu::raii::TextureView& position_view,
         const webgpu::raii::TextureView& normal_view,
         const webgpu::raii::TextureView& overlay_view,
         const webgpu::raii::TextureView& depth_view,
@@ -76,7 +75,6 @@ private:
     void draw_bucket(const WGPUCommandEncoder& command_encoder,
         const std::vector<Overlay*>& bucket,
         TexturePair& tex,
-        const webgpu::raii::TextureView& position_view,
         const webgpu::raii::TextureView& normal_view,
         const webgpu::raii::TextureView& overlay_view,
         const webgpu::raii::TextureView& depth_view,

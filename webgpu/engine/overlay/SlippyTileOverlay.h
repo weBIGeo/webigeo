@@ -51,7 +51,6 @@ public:
     [[nodiscard]] TileSource* source() const { return m_source; }
     void set_source(TileSource* source);
     void draw(const WGPUCommandEncoder& command_encoder,
-        const webgpu::raii::TextureView& position_view,
         const webgpu::raii::TextureView& normal_view,
         const webgpu::raii::TextureView& overlay_view,
         const webgpu::raii::TextureView& depth_view,

@@ -126,7 +126,6 @@ void TileDebugOverlay::update_settings()
 }
 
 void TileDebugOverlay::draw(const WGPUCommandEncoder& command_encoder,
-    const webgpu::raii::TextureView& /*position_view*/,
     const webgpu::raii::TextureView& normal_view,
     const webgpu::raii::TextureView& overlay_view,
     const webgpu::raii::TextureView& depth_view,

@@ -27,7 +27,7 @@
 
 namespace webgpu_engine {
 
-// Displays the per-tile debug data that render_tiles.wgsl packs into GBuffer slot 3.
+// Displays the per-tile debug data that render_tiles.wgsl packs into GBuffer slot 2.
 class TileDebugOverlay : public Overlay {
 public:
     // Values must match the overlay_mode branches in render_tiles.wgsl.
@@ -67,7 +67,6 @@ public:
     // Call from the frontend whenever settings change.
     void update_settings();
     void draw(const WGPUCommandEncoder& command_encoder,
-        const webgpu::raii::TextureView& position_view,
         const webgpu::raii::TextureView& normal_view,
         const webgpu::raii::TextureView& overlay_view,
         const webgpu::raii::TextureView& depth_view,
