@@ -44,11 +44,11 @@ void SlippyTileOverlay::init(Context& context)
         reg.register_shader("slippy_tile_overlay_compute", "webgpu_engine::overlays/slippy_tile_overlay");
     if (!reg.has_bind_group_layout("slippy_tile_overlay"))
         reg.register_bind_group_layout("slippy_tile_overlay", [](WGPUDevice device) {
-            WGPUBindGroupLayoutEntry position_entry {};
-            position_entry.binding = 0;
-            position_entry.visibility = WGPUShaderStage_Compute;
-            position_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
-            position_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+            WGPUBindGroupLayoutEntry depth_entry {};
+            depth_entry.binding = 0;
+            depth_entry.visibility = WGPUShaderStage_Compute;
+            depth_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
+            depth_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
             WGPUBindGroupLayoutEntry settings_entry {};
             settings_entry.binding = 1;
@@ -98,7 +98,7 @@ void SlippyTileOverlay::init(Context& context)
             tile_ref_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
             return std::make_unique<webgpu::raii::BindGroupLayout>(device,
-                std::vector<WGPUBindGroupLayoutEntry> { position_entry, settings_entry, tile_texture_entry, tile_sampler_entry, output_entry,
+                std::vector<WGPUBindGroupLayoutEntry> { depth_entry, settings_entry, tile_texture_entry, tile_sampler_entry, output_entry,
                     background_entry, dict_ids_entry, dict_layers_entry, tile_ref_entry },
                 "slippy tile overlay bind group layout");
         });
@@ -136,10 +136,10 @@ void SlippyTileOverlay::update_settings()
 }
 
 void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
-    const webgpu::raii::TextureView& position_view,
+    const webgpu::raii::TextureView& /*position_view*/,
     const webgpu::raii::TextureView& /*normal_view*/,
     const webgpu::raii::TextureView& /*overlay_view*/,
-    const webgpu::raii::TextureView& /*depth_view*/,
+    const webgpu::raii::TextureView& depth_view,
     const webgpu::raii::TextureView& tile_ref_view,
     const WGPUBindGroup& shared_config_bg,
     const WGPUBindGroup& camera_bg,
@@ -153,7 +153,7 @@ void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
     webgpu::raii::BindGroup bind_group(m_ctx->device(),
         m_ctx->resource_registry().bind_group_layout("slippy_tile_overlay"),
         std::vector<WGPUBindGroupEntry> {
-            position_view.create_bind_group_entry(0),
+            depth_view.create_bind_group_entry(0),
             m_settings_uniform->raw_buffer().create_bind_group_entry(1),
             m_source->array().texture_view().create_bind_group_entry(2),
             m_source->array().sampler().create_bind_group_entry(3),

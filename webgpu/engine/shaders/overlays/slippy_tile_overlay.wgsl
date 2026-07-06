@@ -19,11 +19,12 @@
 ///use util/shared_config
 ///use util/camera_config
 ///use webgpu::tile_util
+///use webgpu::position_util
 
 @group(0) @binding(0) var<uniform> conf: shared_config;
 @group(1) @binding(0) var<uniform> camera: camera_config;
 
-@group(2) @binding(0) var position_texture: texture_2d<f32>;
+@group(2) @binding(0) var depth_texture: texture_2d<f32>;
 @group(2) @binding(1) var<uniform> settings: SlippyTileSettings;
 @group(2) @binding(2) var tile_texture: texture_2d_array<f32>;
 @group(2) @binding(3) var tile_sampler: sampler;
@@ -97,14 +98,15 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3u) {
     let tci = gid.xy;
 
     let bg = textureLoad(background, tci, 0);
-    let pos_dist = textureLoad(position_texture, tci, 0);
-    let pos_cws = pos_dist.xyz;
+    let raw_depth = textureLoad(depth_texture, tci, 0).r;
 
     // Background pixels (no geometry) pass through unchanged.
-    if length(pos_cws) <= 0.0 {
+    if raw_depth <= 0.0 {
         textureStore(output_texture, tci, bg);
         return;
     }
+
+    let pos_cws = camera_relative_pos_from_depth(tci, dims, raw_depth, camera.inv_view_proj_matrix);
 
     // Exact render tile id + local uv (precision-safe reference point, never touches absolute
     // world coordinates -- see calc_tile_id_and_uv_for_zoom_level below).
