@@ -32,15 +32,14 @@
 @group(1) @binding(0) var<uniform> camera: camera_config;
 
 @group(2) @binding(0) var albedo_texture: texture_2d<u32>;
-@group(2) @binding(1) var position_texture: texture_2d<f32>;
-@group(2) @binding(2) var normal_texture: texture_2d<u32>;
-@group(2) @binding(3) var overlay_texture: texture_2d<u32>;
+@group(2) @binding(1) var normal_texture: texture_2d<u32>;
+@group(2) @binding(2) var overlay_texture: texture_2d<u32>;
 
-@group(2) @binding(4) var cloud_shadow_texture: texture_2d<f32>;
-@group(2) @binding(5) var cloud_shadow_sampler: sampler;
-@group(2) @binding(6) var depth_texture: texture_2d<f32>;
-@group(2) @binding(7) var overlay_renderer_post_texture: texture_2d<f32>;
-@group(2) @binding(8) var overlay_renderer_pre_texture: texture_2d<f32>;
+@group(2) @binding(3) var cloud_shadow_texture: texture_2d<f32>;
+@group(2) @binding(4) var cloud_shadow_sampler: sampler;
+@group(2) @binding(5) var depth_texture: texture_2d<f32>;
+@group(2) @binding(6) var overlay_renderer_post_texture: texture_2d<f32>;
+@group(2) @binding(7) var overlay_renderer_pre_texture: texture_2d<f32>;
 
 @group(3) @binding(0) var output_color:          texture_storage_2d<rgba16float, write>;
 @group(3) @binding(1) var<uniform> atmosphere:   Atmosphere;

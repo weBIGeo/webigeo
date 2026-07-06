@@ -280,9 +280,8 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         m_context->overlay_renderer()->draw(command_encoder,
             m_gbuffer->color_texture_view(1),
             m_gbuffer->color_texture_view(2),
-            m_gbuffer->color_texture_view(3),
             m_gbuffer->depth_texture_view(),
-            m_gbuffer->color_texture_view(4),
+            m_gbuffer->color_texture_view(3),
             m_shared_config_bind_group->handle(),
             m_camera_bind_group->handle());
         if (has_overlays) sm.stop_gpu(SID_OVERLAY, command_encoder);
@@ -489,14 +488,13 @@ void Window::recreate_compose_bind_group()
             m_context->webgpu_ctx().resource_registry().bind_group_layout("compose"),
             std::initializer_list<WGPUBindGroupEntry> {
                 m_gbuffer->color_texture_view(0).create_bind_group_entry(0), // albedo texture
-                m_gbuffer->color_texture_view(1).create_bind_group_entry(1), // position texture
-                m_gbuffer->color_texture_view(2).create_bind_group_entry(2), // normal texture
-                m_gbuffer->color_texture_view(3).create_bind_group_entry(3), // overlay texture
-                m_shadow_texture->texture_view().create_bind_group_entry(4),
-                m_shadow_texture->sampler().create_bind_group_entry(5),
-                m_gbuffer->depth_texture_view().create_bind_group_entry(6),
-                m_context->overlay_renderer()->result_post_view()->create_bind_group_entry(7), // overlay post-shading output
-                m_context->overlay_renderer()->result_pre_view()->create_bind_group_entry(8), // overlay pre-shading output
+                m_gbuffer->color_texture_view(1).create_bind_group_entry(1), // normal texture
+                m_gbuffer->color_texture_view(2).create_bind_group_entry(2), // overlay texture
+                m_shadow_texture->texture_view().create_bind_group_entry(3),
+                m_shadow_texture->sampler().create_bind_group_entry(4),
+                m_gbuffer->depth_texture_view().create_bind_group_entry(5),
+                m_context->overlay_renderer()->result_post_view()->create_bind_group_entry(6), // overlay post-shading output
+                m_context->overlay_renderer()->result_pre_view()->create_bind_group_entry(7), // overlay pre-shading output
             });
     }
 
@@ -570,9 +568,9 @@ void Window::update_required_gpu_limits(WGPULimits& limits, const WGPULimits& su
 {
     const uint32_t max_required_bind_groups = 4u;
     const uint32_t min_recommended_max_texture_array_layers = 1024u;
-    // TODO: Compress gbuffer such that we stay within 32u as its widely supported!
-    // gbuffer: albedo(4) + position(16) + normal(4) + overlay(4) + tile_ref(16) = 44 bytes/sample.
-    const uint32_t min_required_max_color_attachment_bytes_per_sample = 44u;
+    // gbuffer: albedo(4) + normal(4) + overlay(4) + tile_ref(16) = 28 bytes/sample (see docs/masterplan.md
+    // for further planned shrinking down to 12 bytes/sample).
+    const uint32_t min_required_max_color_attachment_bytes_per_sample = 28u;
     const uint64_t min_required_max_storage_buffer_binding_size = 268435456u;
 
     if (supported_limits.maxColorAttachmentBytesPerSample < min_required_max_color_attachment_bytes_per_sample) {

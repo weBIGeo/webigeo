@@ -22,12 +22,12 @@
 ///use webgpu::encoder
 ///use webgpu::normals_util
 
-@group(0) @binding(0) var overlay_texture:  texture_2d<u32>;        // GBuffer slot 3 (packed RGBA via pack4x8unorm)
+@group(0) @binding(0) var overlay_texture:  texture_2d<u32>;        // GBuffer slot 2 (packed RGBA via pack4x8unorm)
 @group(0) @binding(1) var<uniform> settings: TileDebugSettings;
 @group(0) @binding(2) var output_texture:   texture_storage_2d<rgba8unorm, write>;
 @group(0) @binding(3) var prev_output:      texture_2d<f32>;
 @group(0) @binding(4) var depth_texture:    texture_depth_2d;        // GBuffer depth
-@group(0) @binding(5) var normal_texture:   texture_2d<u32>;         // GBuffer slot 2: oct-encoded true terrain normal
+@group(0) @binding(5) var normal_texture:   texture_2d<u32>;         // GBuffer slot 1: oct-encoded true terrain normal
 
 @group(1) @binding(0) var<uniform> camera: camera_config;
 @group(2) @binding(0) var<uniform> conf: shared_config;

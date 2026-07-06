@@ -1,6 +1,7 @@
 # SlippyTileOverlay — Masterplan
 
-Status: `SlippyTileOverlay` shipped and stacking in the UI. Active track: **GBuffer compression**.
+Status: `SlippyTileOverlay` shipped and stacking in the UI. Active track: **GBuffer compression** —
+Plan 1 shipped (44 → 28 B/sample), next up is Plan 2.
 Branch: `feature/slippy-tile-overlay`.
 
 ## Goal
@@ -9,7 +10,8 @@ Branch: `feature/slippy-tile-overlay`.
 stackable at runtime. Imagery is decoupled from the height-mesh stage: `render_tiles` only
 rasterizes geometry into the gbuffer, and each overlay samples its own source in a screen-space
 compute pass. With that shipped, the remaining track is to **shrink the gbuffer** (44 B/sample
-today) — the fat per-pixel payload it carries for imagery is no longer needed in that form.
+originally, 28 B/sample after Plan 1) — the fat per-pixel payload it carries for imagery is no
+longer needed in that form.
 
 ## Baseline (shipped)
 
@@ -29,19 +31,21 @@ today) — the fat per-pixel payload it carries for imagery is no longer needed 
   (`z_index < 0`) and post-shading (`z_index >= 0`) buckets; the compose pass blends the pre bucket
   into albedo *before* lighting and the post bucket over the shaded color *after*.
 
-## Current gbuffer (baseline) — 44 B/sample, 5 attachments
+## Current gbuffer (post Plan 1) — 28 B/sample, 4 attachments
 
 | slot | format | bytes | contents |
 |---|---|---|---|
 | 0 albedo | R32Uint | 4 | neutral white (imagery moved to the overlay) |
-| 1 position | RGBA32Float | 16 | `pos_cws.xyz` + `w = render zoom` |
-| 2 normal | RG16Uint | 4 | oct-encoded terrain normal |
-| 3 overlay | R32Uint | 4 | packed debug color + `alpha = geometry` mask |
-| 4 tile_ref | RGBA32Uint | 16 | render `tile_id.x, y, z` + `pack2x16unorm(uv)` |
+| 1 normal | RG16Uint | 4 | oct-encoded terrain normal |
+| 2 overlay | R32Uint | 4 | packed debug color + `alpha = geometry` mask |
+| 3 tile_ref | RGBA32Uint | 16 | render `tile_id.x, y, z` + `pack2x16unorm(uv)` |
 
-Two 16-byte slots dominate (`position`, `tile_ref`), forcing a device requirement of
-`maxColorAttachmentBytesPerSample >= 44` ([Window.cpp](../webgpu/engine/Window.cpp) — the standing
-TODO wants back under 32).
+The original baseline (pre Plan 1) also carried a 16 B `position` slot (`RGBA32Float`,
+`pos_cws.xyz` + `w = render zoom`) at 44 B/sample total. Plan 1 removed it — everything it provided
+is reconstructed from the depth buffer instead — dropping the device requirement to
+`maxColorAttachmentBytesPerSample >= 28` ([Window.cpp](../webgpu/engine/Window.cpp)), already back
+under the widely-supported 32 B floor. `tile_ref` is now the only 16-byte slot; Plan 3 shrinks it
+to `RG32Uint` (8 B) on the way to the 12 B target below.
 
 ## Design decisions
 
@@ -62,7 +66,8 @@ TODO wants back under 32).
    lossy absolute world position.
 6. **Position is reconstructable from depth.** Distance, altitude, and the no-geometry mask come from
    the depth buffer (already used in [gbuffer_debug.wgsl](../webgpu/engine/shaders/overlays/gbuffer_debug.wgsl)
-   modes 9-11 via `camera_relative_pos_from_depth`), so the 16 B `position` slot can go.
+   modes 9-11 via `camera_relative_pos_from_depth`), so the 16 B `position` slot can go. (Shipped —
+   Plan 1.)
 7. **Isotropic `derivatives`, precomputed in the rasterizer.** The `render_tiles` fragment shader has
    automatic derivatives, so it stores a per-pixel `log2` footprint scalar (the `derivatives` field)
    the compute overlays use for correct mip selection — which they otherwise can't get (no fragment
@@ -89,7 +94,7 @@ Executed one at a time; the repo is built/pushed between plans. The gbuffer shri
 (44 → 28 → 20 → 12 B) — no temporary attachment or byte bump. The involved indirection rework is
 deliberately done **last** (Plan 3), after the cheap slot removals de-risk the device requirement.
 
-### Plan 1 — Drop the `position` attachment
+### Plan 1 (shipped) — Drop the `position` attachment
 
 Reconstruct `pos_cws` from the depth buffer (`camera_relative_pos_from_depth`) everywhere `position`
 is read, then remove the 16 B slot (44 → 28 B; lower the device requirement to match):
@@ -106,6 +111,17 @@ is read, then remove the 16 B slot (44 → 28 B; lower the device requirement to
 
 **Verify:** lighting, cloud shadows, and the sky/background mask unchanged at matched camera
 positions (near / mid / distant horizon).
+
+**Shipped as:** `compose_pass.wgsl`, `gbuffer_debug.wgsl` (+ `TileDebugOverlay` mode cleanup —
+modes 5/6/11 removed rather than reconstructed, remaining modes renumbered 1-9),
+`slippy_tile_overlay.wgsl`, `texture_overlay.wgsl`, `screen_space_snow.wgsl`, `height_lines.wgsl`
+all switched to depth reconstruction; `position_view` removed from the `Overlay`/`OverlayRenderer`
+interface; `render_tiles.wgsl` no longer writes a `position` output; `TileMeshRenderer` drops the
+`RGBA32Float` attachment; device requirement lowered to 28. One deviation from the original plan:
+`Window::synchronous_position_readback` (mouse-picking / orbit pivot) couldn't just repoint at
+depth, because WebGPU requires depth/stencil texture copies to cover the entire subresource (no
+partial regions) — it now reads back the whole depth buffer and indexes the target pixel on the
+CPU (see Plan 5 for a proposed async follow-up).
 
 ### Plan 2 — Drop `albedo` + debug `overlay` slots
 
