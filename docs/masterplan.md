@@ -85,17 +85,50 @@ buffer (not a color attachment → free) covers what `position` provided.
 
 ## Plans
 
-Executed one at a time; the repo is built/pushed between plans.
+Executed one at a time; the repo is built/pushed between plans. The gbuffer shrinks monotonically
+(44 → 28 → 20 → 12 B) — no temporary attachment or byte bump. The involved indirection rework is
+deliberately done **last** (Plan 3), after the cheap slot removals de-risk the device requirement.
 
-### Plan 1 — Isotropic `derivatives` attachment (additive)
+### Plan 1 — Drop the `position` attachment
 
-Add a standalone `R32Uint` "derivatives" attachment (gbuffer index 5) written by the rasterizer.
-Purely additive — no existing slot changes — so it lands and pushes independently. (Plan 2 folds it,
-plus `uv` and the new `id`, into the single `RG32Uint tile_ref`.) The value is an
-**overlay-independent** `log2` footprint scalar in **global mercator-normalized** units, so any
-overlay/zoom decodes it with a single add.
+Reconstruct `pos_cws` from the depth buffer (`camera_relative_pos_from_depth`) everywhere `position`
+is read, then remove the 16 B slot (44 → 28 B; lower the device requirement to match):
 
-Rasterizer computation in `fragmentMain`
+- [compose_pass.wgsl](../webgpu/engine/shaders/compose_pass.wgsl): geometry mask (`dist>0` → depth ≠
+  far), cloud shadows, atmosphere `view_height`, curvature-corrected normal.
+- [gbuffer_debug.wgsl](../webgpu/engine/shaders/overlays/gbuffer_debug.wgsl): move the
+  `alpha = geometry` mask to depth; position-buffer modes (5,6,11) read the reconstruction.
+- [slippy_tile_overlay.wgsl](../webgpu/engine/shaders/overlays/slippy_tile_overlay.wgsl): replace the
+  `position_texture` reads — the `distance` for `ideal_zoom` and the `length(pos_cws) <= 0`
+  background test — with a depth-derived distance and a `depth == far` background test. The existing
+  hashmap / `tile_ref` (RGBA32Uint) path is otherwise unchanged in this plan.
+- Audit remaining gbuffer readers (e.g. `TextureOverlay`, `TrackRenderer`) and repoint to depth.
+
+**Verify:** lighting, cloud shadows, and the sky/background mask unchanged at matched camera
+positions (near / mid / distant horizon).
+
+### Plan 2 — Drop `albedo` + debug `overlay` slots
+
+After Plan 1 the attachments are `albedo`, `normal`, `overlay`, `tile_ref`. Drop the two 4 B debug
+slots (28 → 20 B, 2 attachments = `normal` + `tile_ref` RGBA32Uint; lower the requirement to match):
+
+- Compose uses `pre_overlay_color` as the albedo — drop the `albedo_texture` binding
+  ([compose_pass.wgsl](../webgpu/engine/shaders/compose_pass.wgsl)).
+- Move any remaining use of the debug `overlay` slot's `alpha = geometry` mask to depth; fold the
+  in-rasterizer debug-overlay writes into the `gbuffer_debug` compute path where needed.
+
+**Verify:** full scene (terrain + stacked overlays + all debug modes) renders correctly; device
+reports the lower bytes-per-sample requirement.
+
+### Plan 3 — Frame-local tile-id + per-overlay side table + isotropic `derivatives`
+
+The main rework, done last. Replace the per-pixel `x/y/z` tile id **and** the GPU hashmap/walk with a
+2-byte frame-local id + CPU-resolved side tables, add the rasterizer-computed `derivatives`, and
+collapse `uv` + `id` + `derivatives` into a single `RG32Uint tile_ref` (`.r` = `uv`,
+`.g` = `id` low 16 `|` `derivatives` high 16). This drops `tile_ref` RGBA32Uint → RG32Uint, reaching
+the final **12 B / 2 attachments** (`normal` + `tile_ref`); lower the requirement to 12.
+
+**Derivatives (isotropic footprint), computed in the rasterizer** `fragmentMain`
 ([render_tiles.wgsl](../webgpu/engine/shaders/render_tiles.wgsl), uniform control flow — derivatives
 are already used there for `normal_by_fragment_position_interpolation`):
 
@@ -104,94 +137,48 @@ let inv = 1.0 / exp2(f32(tile_id.zoomlevel));    // render-tile uv -> global nor
 let dgdx = dpdx(vertex_out.uv) * inv;
 let dgdy = dpdy(vertex_out.uv) * inv;
 let foot = max(length(dgdx), length(dgdy));      // conservative isotropic footprint (max axis)
-frag_out.derivatives = pack_derivatives(log2(max(foot, 1e-30)));
+let deriv16 = pack_derivatives(log2(max(foot, 1e-30)));  // 16-bit fixed-point over DERIVATIVES_LOG2_RANGE
+frag_out.tile_ref = vec2u(pack2x16unorm(vertex_out.uv), (deriv16 << 16u) | frame_local_id);
 ```
 
 Add `pack_derivatives` / `unpack_derivatives` to [encoder.wgsl](../webgpu/base/shaders/encoder.wgsl)
-(home of `range_to_u32`), with `DERIVATIVES_LOG2_RANGE = vec2f(-48.0, 0.0)`: quantize `log2_foot` to
-16 bits over that range. In this additive plan it occupies the low 16 bits of its own `u32`; in Plan
-2 the same 16-bit value moves to the **high 16 bits** of `tile_ref.g` (`q << 16`), with `id` in the
-low 16.
+(home of `range_to_u32`), with `DERIVATIVES_LOG2_RANGE = vec2f(-48.0, 0.0)` — an
+**overlay-independent** `log2` footprint in global mercator-normalized units.
 
-Future consumption (documented for Plan 2's overlay): for a tile sampled at zoom `Z`,
-`lod = log2_foot + f32(Z)` feeds `textureSampleLevel` (global-normalized → tile-uv space is a factor
-`exp2(Z)`, i.e. `+Z` in `log2`). This fixes the current `textureSampleLevel(..., 0.0)` aliasing in
-the overlay.
+**Frame-local id (shared, once per frame, render thread):** each drawn render tile gets a dense id
+`0..N-1` (N ≤ 1024, the `limit()` cap in [Window.cpp](../webgpu/engine/Window.cpp)) = its index in
+the culled draw list. Passed to the rasterizer as a flat vertex attribute (mirrors the existing
+`tile_id` flat attribute) and written into `tile_ref.g` low 16 bits. Background pixels write a
+reserved sentinel (`0xFFFF`).
 
-C++ wiring (all additive): append the color format in
-[TileMeshRenderer.cpp](../webgpu/engine/tile_mesh/TileMeshRenderer.cpp) (the `m_gbuffer` inherits it
-via `framebuffer_format()`, and `Framebuffer` allocates + clears it with the rest); add
-`@location(5) derivatives: u32` to `FragOut`; bump
-`min_required_max_color_attachment_bytes_per_sample` 44 → 48 in
-[Window.cpp](../webgpu/engine/Window.cpp) (temporary; Plan 2 brings it to 32, Plan 4 to 12).
+**Per-overlay side table (rebuilt on draw-list / residency change):** a scalar `R` (decision 4) + a
+block of `4^max(R,0)` `(tile_array_index: u16, delta_uv)` entries per render tile — the CPU resolves
+each sub-cell against that source's tile→layer dictionary (walking to a resident ancestor on a miss;
+`delta_uv` remaps the sub-cell uv into the resident tile). Uploaded as a storage buffer (matches the
+buffer-based [tile_hashmap.wgsl](../webgpu/compute/shaders/tile_hashmap.wgsl); replaces the 256×256
+`dict_ids`/`dict_layers` textures). Worst-case CPU cost `1024 × ~16 × N` dictionary probes, only on
+change — single-digit ms at N=4, usually far less.
 
-**Verify:** build + run; app still initializes (device meets 48 B/sample), terrain unchanged. Add a
-temporary `gbuffer_debug` mode decoding `derivatives` (`log2` as grayscale) and confirm it varies
-smoothly with distance / grazing angle and is stable under camera motion.
-
-### Plan 2 — Frame-local tile-id + per-overlay side table (consolidate `tile_ref` → `RG32Uint`)
-
-Replace the per-pixel `x/y/z` tile id and the GPU hashmap/walk with a 2-byte frame-local id +
-CPU-resolved side tables, and collapse `uv` + `id` + `derivatives` into the single `RG32Uint`
-`tile_ref` (dropping the old `RGBA32Uint tile_ref` and the standalone Plan 1 attachment → gbuffer
-back to 32 B).
-
-- **Shared, once per frame (render thread):** each drawn render tile gets a dense id `0..N-1`
-  (N ≤ 1024, the `limit()` cap in [Window.cpp](../webgpu/engine/Window.cpp)) = its index in the
-  culled draw list. Passed to the rasterizer as a flat vertex attribute (mirrors the existing
-  `tile_id` flat attribute) and written into `tile_ref.g` low 16 bits. Background pixels write a
-  reserved sentinel (`0xFFFF`).
-- **Per overlay (rebuilt on draw-list / residency change):** a scalar `R` (decision 4) + a block of
-  `4^max(R,0)` `(tile_array_index: u16, delta_uv)` entries per render tile — the CPU resolves each
-  sub-cell against that source's tile→layer dictionary (walking to a resident ancestor on a miss;
-  `delta_uv` remaps the sub-cell uv into the resident tile). Uploaded as a storage buffer (matches
-  the buffer-based [tile_hashmap.wgsl](../webgpu/compute/shaders/tile_hashmap.wgsl); replaces the
-  256×256 `dict_ids`/`dict_layers` textures).
-- **GPU per pixel (no hashmap, no walk):** load `tile_ref` once → `uv`, `id`, `derivatives` → overlay
-  `R` → sub-cell index from `uv` → one indexed fetch → `textureSampleLevel` at
-  `lod = derivatives + target_zoom`. `R < 0` collapses the block to one entry.
+**GPU per pixel (no hashmap, no walk):** load `tile_ref` once → `uv`, `id`, `derivatives` → overlay
+`R` → sub-cell index from `uv` → one indexed fetch → `textureSampleLevel` at
+`lod = derivatives + target_zoom` (global-normalized → tile-uv space is a factor `exp2(Z)`, i.e. `+Z`
+in `log2` — fixes the current `textureSampleLevel(..., 0.0)` aliasing). `R < 0` collapses the block
+to one entry.
 
 Reuse the existing `tile_util.wgsl` arithmetic helpers (`calc_tile_id_and_uv_for_zoom_level`,
 `decrease_zoom_level_by_one`) for CPU-side block resolution. Update `SlippyTileOverlay`
 ([.wgsl](../webgpu/engine/shaders/overlays/slippy_tile_overlay.wgsl) /
 [.h](../webgpu/engine/overlay/SlippyTileOverlay.h)): drop `dict_ids`/`dict_layers` + `dict_lookup` +
-the walk; add the side-table buffer + `R`; read the new packed `tile_ref`.
-
-Worst-case CPU cost: `1024 × ~16 × N` dictionary probes, only on change — single-digit ms at N=4,
-usually far less.
+the walk; add the side-table buffer + `R`; read the new packed `RG32Uint tile_ref`.
 
 **Verify:** stack 2-3 sources with different `max_zoom` / `pixel_error_threshold`; imagery matches
 current output, is sharper close up (footprint mip), each honors its own quality (independent `R`),
-no per-pixel hashmap artifacts on distant terrain.
-
-### Plan 3 — Drop the `position` attachment
-
-Reconstruct `pos_cws` from the depth buffer (`camera_relative_pos_from_depth`) everywhere `position`
-is read, then remove the 16 B slot:
-
-- [compose_pass.wgsl](../webgpu/engine/shaders/compose_pass.wgsl): geometry mask (`dist>0` → depth ≠
-  far), cloud shadows, atmosphere `view_height`, curvature-corrected normal.
-- [gbuffer_debug.wgsl](../webgpu/engine/shaders/overlays/gbuffer_debug.wgsl): move the
-  `alpha = geometry` mask to depth; position-buffer modes (5,6,11) read the reconstruction.
-- Audit remaining gbuffer readers (e.g. `TextureOverlay`, `TrackRenderer`) and repoint to depth /
-  `tile_ref`.
-
-**Verify:** lighting, cloud shadows, and the sky/background mask unchanged at matched camera
-positions (near / mid / distant horizon).
-
-### Plan 4 — Drop `albedo` + debug `overlay` slots, finalize layout
-
-Compose uses `pre_overlay_color` as the albedo (drops the `albedo_texture` binding); move any
-remaining use of the debug `overlay` slot's `alpha = geometry` mask to depth. Collapse to the final
-2-attachment / 12 B layout (`normal` + `tile_ref`) and lower
-`min_required_max_color_attachment_bytes_per_sample` to 12 in
-[Window.cpp](../webgpu/engine/Window.cpp).
-
-**Verify:** full scene (terrain + stacked overlays + debug modes) renders correctly; device reports
-the lower bytes-per-sample requirement; app still initializes on hardware with
+no per-pixel hashmap artifacts on distant terrain. Add a temporary `gbuffer_debug` mode decoding
+`derivatives` (grayscale) and the frame-local id (flat per tile) to confirm both are stable under
+camera motion. Confirm the device now reports 12 B/sample and still initializes on hardware with
 `maxColorAttachmentBytesPerSample` near 32.
 
-### Plan 5 (optional) — Move the height/geometry scheduler into the engine `Context`
+### Plan 4 (optional) — Move the height/geometry scheduler into the engine `Context`
 
 Not required by the gbuffer work; a consolidation. Today the geometry (height) scheduler, its
 `DataQuerier`, and the cloud scheduler still live in `RenderingContext` while imagery loading is
@@ -204,6 +191,6 @@ scheduler thread. Requires re-plumbing the camera→geometry `update_camera` wir
 ## Dependency / ordering
 
 ```
-Plan 1 (derivatives) ──► Plan 2 (frame-local id + side table, tile_ref→RG32Uint) ──► Plan 3 (drop position) ──► Plan 4 (finalize)
-Plan 5 (scheduler consolidation) — independent, optional
+Plan 1 (drop position) ──► Plan 2 (drop albedo + debug overlay) ──► Plan 3 (frame-local id + side table + derivatives, tile_ref→RG32Uint)
+Plan 4 (scheduler consolidation) — independent, optional
 ```
