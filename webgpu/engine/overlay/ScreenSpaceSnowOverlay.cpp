@@ -100,13 +100,7 @@ void ScreenSpaceSnowOverlay::update_settings()
 }
 
 void ScreenSpaceSnowOverlay::draw(const WGPUCommandEncoder& command_encoder,
-    const webgpu::raii::TextureView& normal_view,
-    const webgpu::raii::TextureView& depth_view,
-    const webgpu::raii::TextureView& /*tile_ref_view*/,
-    const std::vector<nucleus::tile::TileBounds>& /*frame_tile_ids*/,
-    const nucleus::camera::Definition& /*camera*/,
-    const WGPUBindGroup& shared_config_bg,
-    const WGPUBindGroup& camera_bg,
+    const OverlayContext& octx,
     const webgpu::raii::TextureWithSampler& current_input,
     webgpu::raii::TextureWithSampler& target_output,
     glm::uvec2 output_size)
@@ -117,8 +111,8 @@ void ScreenSpaceSnowOverlay::draw(const WGPUCommandEncoder& command_encoder,
     webgpu::raii::BindGroup bind_group(m_ctx->device(),
         m_ctx->resource_registry().bind_group_layout("screen_space_snow_overlay"),
         std::vector<WGPUBindGroupEntry> {
-            depth_view.create_bind_group_entry(0),
-            normal_view.create_bind_group_entry(1),
+            octx.depth_view.create_bind_group_entry(0),
+            octx.normal_view.create_bind_group_entry(1),
             m_settings_uniform->raw_buffer().create_bind_group_entry(2),
             target_output.texture_view().create_bind_group_entry(3),
             current_input.texture_view().create_bind_group_entry(4),
@@ -129,8 +123,8 @@ void ScreenSpaceSnowOverlay::draw(const WGPUCommandEncoder& command_encoder,
     compute_pass_desc.label = WGPUStringView { .data = "screen space snow compute pass", .length = WGPU_STRLEN };
     webgpu::raii::ComputePassEncoder compute_pass(command_encoder, compute_pass_desc);
 
-    wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, shared_config_bg, 0, nullptr);
-    wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 1, camera_bg, 0, nullptr);
+    wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, octx.shared_config_bg, 0, nullptr);
+    wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 1, octx.camera_bg, 0, nullptr);
     wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 2, bind_group.handle(), 0, nullptr);
 
     const glm::uvec3 workgroup_counts = glm::ceil(glm::vec3(float(output_size.x), float(output_size.y), 1.0f) / glm::vec3(16.0f, 16.0f, 1.0f));

@@ -35,6 +35,16 @@ namespace webgpu_engine {
 
 class Context;
 
+struct OverlayContext {
+    const webgpu::raii::TextureView& normal_view;
+    const webgpu::raii::TextureView& depth_view;
+    const webgpu::raii::TextureView& tile_ref_view;
+    const std::vector<nucleus::tile::TileBounds>& frame_tile_ids;
+    const nucleus::camera::Definition& camera;
+    const WGPUBindGroup& shared_config_bg;
+    const WGPUBindGroup& camera_bg;
+};
+
 /// Abstract base class for screen-space overlays rendered by OverlayRenderer.
 class Overlay {
 public:
@@ -54,13 +64,7 @@ public:
     //   and write EVERY pixel. Skipping a pixel leaves color in undefined state!
     //   Use man
     virtual void draw(const WGPUCommandEncoder& command_encoder,
-        const webgpu::raii::TextureView& normal_view,
-        const webgpu::raii::TextureView& depth_view,
-        const webgpu::raii::TextureView& tile_ref_view, // GBuffer slot 1: packed uv + (derivatives | frame-local render-tile id)
-        const std::vector<nucleus::tile::TileBounds>& frame_tile_ids, // this frame's culled draw list; index == the render tile's frame-local id
-        const nucleus::camera::Definition& camera,
-        const WGPUBindGroup& shared_config_bg,
-        const WGPUBindGroup& camera_bg,
+        const OverlayContext& octx,
         const webgpu::raii::TextureWithSampler& current_input,
         webgpu::raii::TextureWithSampler& target_output,
         glm::uvec2 output_size)

@@ -1,7 +1,8 @@
 # SlippyTileOverlay — Masterplan
 
-Status: `SlippyTileOverlay` shipped and stacking in the UI. Active track: **GBuffer compression** —
-Plan 1 shipped (44 → 28 B/sample), next up is Plan 2.
+Status: `SlippyTileOverlay` shipped and stacking in the UI. **GBuffer compression** track complete —
+Plans 1-3 shipped (44 → 28 → 20 → 12 B/sample, down to 2 attachments: `normal` + `tile_ref`).
+Plan 6 (`Overlay::draw()` signature churn) also shipped. Plans 4/5 remain optional and unscheduled.
 Branch: `feature/slippy-tile-overlay`.
 
 ## Goal
@@ -52,18 +53,22 @@ to `RG32Uint` (8 B) on the way to the 12 B target below.
 1. **Engine-owned sources; app only configures.** (Shipped.)
 2. **No overlay-side lighting.** Pre-shading overlays write premultiplied color; the compose pass
    folds it into albedo and lights once. (Shipped.)
-3. **No per-pixel GPU tile lookup.** Tile → resident-array-layer is resolved on the **CPU** (which
+3. **No per-pixel GPU tile lookup.** ~~Tile → resident-array-layer is resolved on the **CPU** (which
    already owns the dictionary) into a compact per-overlay side table; the GPU does one indexed
    fetch. This removes the hashmap + ancestor walk entirely — so there is no hashmap layout to
-   perf-tune.
-4. **Independent per-overlay quality via a scalar refinement offset `R`.** An overlay's ideal zoom is
-   the render tile's zoom + a per-frame scalar `R` (the `distance` term cancels between mesh SSE and
-   overlay SSE, so `R` is not per-pixel); `R` stays small (typically 0-2) and `max_zoom` only clamps
-   it near the camera. A per-render-tile block of `4^max(R,0)` entries lets ortho go **finer** than
-   the render tile without capping at mesh zoom.
+   perf-tune.~~ **Not adopted (see Plan 3's "Shipped as"):** the per-pixel GPU dictionary lookup +
+   ancestor walk was kept; deriving the target zoom straight from per-pixel `derivatives` made the
+   CPU-side table unnecessary.
+4. **Independent per-overlay quality via a scalar refinement offset `R`.** ~~An overlay's ideal zoom
+   is the render tile's zoom + a per-frame scalar `R` (the `distance` term cancels between mesh SSE
+   and overlay SSE, so `R` is not per-pixel); `R` stays small (typically 0-2) and `max_zoom` only
+   clamps it near the camera. A per-render-tile block of `4^max(R,0)` entries lets ortho go
+   **finer** than the render tile without capping at mesh zoom.~~ **Not adopted:** superseded by
+   deriving a continuous per-pixel target zoom from `derivatives` directly
+   (`SlippyTileOverlay::Settings::pixel_error_threshold`/`max_zoom` control it instead of `R`).
 5. **Precision anchor stays exact.** Per pixel we keep the render tile's `uv`; the tile id becomes a
-   small **frame-local index** into the side table. Geographic derivations use `id`+`uv`, never the
-   lossy absolute world position.
+   small **frame-local index** (resolved back to the packed tile id via a per-frame buffer, not a
+   side table). Geographic derivations use `id`+`uv`, never the lossy absolute world position.
 6. **Position is reconstructable from depth.** Distance, altitude, and the no-geometry mask come from
    the depth buffer (already used in [gbuffer_debug.wgsl](../webgpu/engine/shaders/overlays/gbuffer_debug.wgsl)
    modes 9-11 via `camera_relative_pos_from_depth`), so the 16 B `position` slot can go. (Shipped —
@@ -136,7 +141,7 @@ slots (28 → 20 B, 2 attachments = `normal` + `tile_ref` RGBA32Uint; lower the 
 **Verify:** full scene (terrain + stacked overlays + all debug modes) renders correctly; device
 reports the lower bytes-per-sample requirement.
 
-### Plan 3 — Frame-local tile-id + per-overlay side table + isotropic `derivatives`
+### Plan 3 (shipped) — Frame-local tile-id + per-overlay side table + isotropic `derivatives`
 
 The main rework, done last. Replace the per-pixel `x/y/z` tile id **and** the GPU hashmap/walk with a
 2-byte frame-local id + CPU-resolved side tables, add the rasterizer-computed `derivatives`, and
@@ -194,6 +199,25 @@ no per-pixel hashmap artifacts on distant terrain. Add a temporary `gbuffer_debu
 camera motion. Confirm the device now reports 12 B/sample and still initializes on hardware with
 `maxColorAttachmentBytesPerSample` near 32.
 
+**Shipped as:** the gbuffer-shrinking half of the plan landed as designed — frame-local id (dense
+`0..N-1` per culled draw list, written into `tile_ref.g` low 16 bits,
+[render_tiles.wgsl](../webgpu/engine/shaders/render_tiles.wgsl)), isotropic `derivatives`
+(rasterizer-computed `log2` footprint, `pack_derivatives`/`unpack_derivatives` in
+[encoder.wgsl](../webgpu/base/shaders/encoder.wgsl)), and the collapsed `RG32Uint tile_ref`
+reaching the final **12 B / 2 attachments** (`normal` + `tile_ref`); device requirement lowered to
+12 ([Window.cpp](../webgpu/engine/Window.cpp)). **Deviation:** the per-overlay CPU-resolved side
+table (decision 3 — dropping the GPU hashmap/walk) was **not** adopted. `SlippyTileOverlay` derives
+a target zoom directly from `derivatives` per pixel (or one CPU-computed value per render tile in
+its `ZoomSelectionMode::PerTile` mode,
+[SlippyTileOverlay.h](../webgpu/engine/overlay/SlippyTileOverlay.h)) and still walks the existing
+per-source 256×256 GPU dictionary (`dict_lookup` in
+[slippy_tile_overlay.wgsl](../webgpu/engine/shaders/overlays/slippy_tile_overlay.wgsl),
+`dictionary_ids_view`/`dictionary_layers_view` in
+[TileSource.h](../webgpu/engine/tile/TileSource.h)) up to the nearest resident ancestor — same
+mechanism as before Plan 3. The scalar-`R`/`4^R` sub-cell block was correspondingly not needed:
+a continuous per-pixel target zoom from `derivatives` already covers what `R` was meant to provide,
+and the GPU walk turned out cheap enough that replacing it wasn't worth the CPU-side complexity.
+
 ### Plan 4 (optional) — Move the height/geometry scheduler into the engine `Context`
 
 Not required by the gbuffer work; a consolidation. Today the geometry (height) scheduler, its
@@ -227,7 +251,7 @@ slot — useful for a status‑bar readout or steepness‑aware interactions, no
 latency; confirm interaction doesn't visibly lag behind the reported position during fast
 camera movement.
 
-### Plan 6 (optional) — Stop `Overlay::draw()`'s signature from churning on every change
+### Plan 6 (shipped) — Stop `Overlay::draw()`'s signature from churning on every change
 
 Not required by the gbuffer work; a process pain point surfaced repeatedly during Plan 1-3.
 `Overlay::draw()` takes ~10 positional parameters (`normal_view`, `depth_view`, `tile_ref_view`,
@@ -260,12 +284,24 @@ into `draw()` rather than nothing.
 **Verify:** whichever direction is picked, confirm adding a new field (e.g. a hypothetical 6th
 piece of state consumed by only one overlay) touches exactly one file/struct, not all 5 overlays.
 
+**Shipped as:** the `DrawContext` direction, ruled in over the back-reference design (named
+`OverlayContext` / parameter `octx` to avoid confusion with `webgpu::Context`/`Context`) — a struct
+bundling `normal_view`, `depth_view`, `tile_ref_view`, `frame_tile_ids`, `camera`,
+`shared_config_bg`, `camera_bg`, added to [Overlay.h](../webgpu/engine/overlay/Overlay.h).
+`Overlay::draw()` shrinks from 10 params to 5 (`command_encoder`, `octx`, `current_input`,
+`target_output`, `output_size`); `command_encoder` and the ping-pong pair stay explicit per the
+design discussion. `OverlayRenderer::draw()`'s own external signature is unchanged (single call
+site, `Window.cpp`) — it now just constructs one `OverlayContext` and threads it through
+`draw_bucket` (also shrunk to 5 params) to each overlay. All 5 concrete overlays
+(`SlippyTileOverlay`, `TileDebugOverlay`, `TextureOverlay`, `HeightLinesOverlay`,
+`ScreenSpaceSnowOverlay`) updated to the new signature; the unused/commented-out parameter names
+are gone since each overlay now only names the `octx` fields it actually uses.
+
 ## Dependency / ordering
 
 ```
 Plan 1 (drop position) ──► Plan 2 (drop albedo + debug overlay) ──► Plan 3 (frame-local id + side table + derivatives, tile_ref→RG32Uint)
 Plan 4 (scheduler consolidation) — independent, optional
 Plan 5 (async position readback) — independent, optional; benefits from Plan 3's tile_ref if it wants to report tile/slope data too
-Plan 6 (Overlay::draw() signature churn) — independent, optional; cheapest to do before Plan 3's
-  frame_tile_ids/camera plumbing is repeated again by a future overlay, but not blocking it
+Plan 6 (Overlay::draw() signature churn) — shipped; independent of the gbuffer track
 ```

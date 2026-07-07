@@ -111,13 +111,7 @@ void TileDebugOverlay::update_settings()
 }
 
 void TileDebugOverlay::draw(const WGPUCommandEncoder& command_encoder,
-    const webgpu::raii::TextureView& normal_view,
-    const webgpu::raii::TextureView& depth_view,
-    const webgpu::raii::TextureView& /*tile_ref_view*/,
-    const std::vector<nucleus::tile::TileBounds>& /*frame_tile_ids*/,
-    const nucleus::camera::Definition& /*camera*/,
-    const WGPUBindGroup& shared_config_bg,
-    const WGPUBindGroup& camera_bg,
+    const OverlayContext& octx,
     const webgpu::raii::TextureWithSampler& current_input,
     webgpu::raii::TextureWithSampler& target_output,
     glm::uvec2 output_size)
@@ -131,8 +125,8 @@ void TileDebugOverlay::draw(const WGPUCommandEncoder& command_encoder,
             m_settings_uniform->raw_buffer().create_bind_group_entry(0),
             target_output.texture_view().create_bind_group_entry(1),
             current_input.texture_view().create_bind_group_entry(2),
-            depth_view.create_bind_group_entry(3),
-            normal_view.create_bind_group_entry(4),
+            octx.depth_view.create_bind_group_entry(3),
+            octx.normal_view.create_bind_group_entry(4),
         },
         "tile debug overlay bind group");
 
@@ -141,8 +135,8 @@ void TileDebugOverlay::draw(const WGPUCommandEncoder& command_encoder,
     webgpu::raii::ComputePassEncoder compute_pass(command_encoder, compute_pass_desc);
 
     wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, bind_group.handle(), 0, nullptr);
-    wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 1, camera_bg, 0, nullptr);
-    wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 2, shared_config_bg, 0, nullptr);
+    wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 1, octx.camera_bg, 0, nullptr);
+    wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 2, octx.shared_config_bg, 0, nullptr);
 
     const glm::uvec3 workgroup_counts = glm::ceil(glm::vec3(float(output_size.x), float(output_size.y), 1.0f) / glm::vec3(16.0f, 16.0f, 1.0f));
     m_pipeline->run(compute_pass, workgroup_counts);

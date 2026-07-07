@@ -184,13 +184,7 @@ void TextureOverlay::update_gpu_settings()
 }
 
 void TextureOverlay::draw(const WGPUCommandEncoder& command_encoder,
-    const webgpu::raii::TextureView& /*normal_view*/,
-    const webgpu::raii::TextureView& depth_view,
-    const webgpu::raii::TextureView& /*tile_ref_view*/,
-    const std::vector<nucleus::tile::TileBounds>& /*frame_tile_ids*/,
-    const nucleus::camera::Definition& /*camera*/,
-    const WGPUBindGroup& shared_config_bg,
-    const WGPUBindGroup& camera_bg,
+    const OverlayContext& octx,
     const webgpu::raii::TextureWithSampler& current_input,
     webgpu::raii::TextureWithSampler& target_output,
     glm::uvec2 /*output_size*/)
@@ -201,7 +195,7 @@ void TextureOverlay::draw(const WGPUCommandEncoder& command_encoder,
     webgpu::raii::BindGroup bind_group(m_ctx->device(),
         m_ctx->resource_registry().bind_group_layout("texture_overlay"),
         std::vector<WGPUBindGroupEntry> {
-            depth_view.create_bind_group_entry(0),
+            octx.depth_view.create_bind_group_entry(0),
             m_settings_uniform->raw_buffer().create_bind_group_entry(1),
             tex->texture_view().create_bind_group_entry(2),
             tex->sampler().create_bind_group_entry(3),
@@ -225,8 +219,8 @@ void TextureOverlay::draw(const WGPUCommandEncoder& command_encoder,
     webgpu::raii::RenderPassEncoder render_pass(command_encoder, render_pass_desc);
 
     wgpuRenderPassEncoderSetPipeline(render_pass.handle(), m_pipeline->pipeline().handle());
-    wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 0, shared_config_bg, 0, nullptr);
-    wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 1, camera_bg, 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 0, octx.shared_config_bg, 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 1, octx.camera_bg, 0, nullptr);
     wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 2, bind_group.handle(), 0, nullptr);
     wgpuRenderPassEncoderDraw(render_pass.handle(), 3, 1, 0, 0);
 }

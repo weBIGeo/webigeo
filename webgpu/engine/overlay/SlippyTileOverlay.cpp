@@ -163,13 +163,7 @@ void SlippyTileOverlay::update_settings()
 }
 
 void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
-    const webgpu::raii::TextureView& /*normal_view*/,
-    const webgpu::raii::TextureView& depth_view,
-    const webgpu::raii::TextureView& tile_ref_view,
-    const std::vector<nucleus::tile::TileBounds>& frame_tile_ids,
-    const nucleus::camera::Definition& camera,
-    const WGPUBindGroup& shared_config_bg,
-    const WGPUBindGroup& camera_bg,
+    const OverlayContext& octx,
     const webgpu::raii::TextureWithSampler& current_input,
     webgpu::raii::TextureWithSampler& target_output,
     glm::uvec2 output_size)
@@ -177,7 +171,7 @@ void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
     if (!m_pipeline || !m_source)
         return;
 
-    const size_t n_tiles = std::min(frame_tile_ids.size(), size_t(k_max_frame_tiles));
+    const size_t n_tiles = std::min(octx.frame_tile_ids.size(), size_t(k_max_frame_tiles));
     std::vector<glm::u32vec2> packed_ids(n_tiles);
     // Comparison-only alternative to the shader's default per-pixel (derivatives-based) target
     // zoom: one zoom for the whole render tile, from its distance to the camera -- the same
@@ -185,10 +179,10 @@ void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
     // See slippy_tile_overlay.wgsl's ZOOM_SELECTION_MODE define to switch between the two.
     std::vector<uint32_t> target_zooms(n_tiles);
     for (size_t i = 0; i < n_tiles; ++i) {
-        packed_ids[i] = nucleus::srs::pack(frame_tile_ids[i].id);
+        packed_ids[i] = nucleus::srs::pack(octx.frame_tile_ids[i].id);
 
-        const double distance = std::max(1.0, radix::geometry::distance(frame_tile_ids[i].bounds, camera.position()));
-        const float screen_px_per_meter = camera.to_screen_space(1.0f, float(distance));
+        const double distance = std::max(1.0, radix::geometry::distance(octx.frame_tile_ids[i].bounds, octx.camera.position()));
+        const float screen_px_per_meter = octx.camera.to_screen_space(1.0f, float(distance));
         const float desired_pixel_size_m = settings.pixel_error_threshold / std::max(screen_px_per_meter, 1e-9f);
         const float desired_tile_size_m = desired_pixel_size_m * float(std::max<uint32_t>(1, settings.tile_size));
         const int desired_zoom = int(std::round(std::log2(float(k_earth_circumference_m) / std::max(desired_tile_size_m, 1e-3f))));
@@ -202,7 +196,7 @@ void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
     webgpu::raii::BindGroup bind_group(m_ctx->device(),
         m_ctx->resource_registry().bind_group_layout("slippy_tile_overlay"),
         std::vector<WGPUBindGroupEntry> {
-            depth_view.create_bind_group_entry(0),
+            octx.depth_view.create_bind_group_entry(0),
             m_settings_uniform->raw_buffer().create_bind_group_entry(1),
             m_source->array().texture_view().create_bind_group_entry(2),
             m_source->array().sampler().create_bind_group_entry(3),
@@ -210,7 +204,7 @@ void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
             current_input.texture_view().create_bind_group_entry(5),
             m_source->dictionary_ids_view().create_bind_group_entry(6),
             m_source->dictionary_layers_view().create_bind_group_entry(7),
-            tile_ref_view.create_bind_group_entry(8),
+            octx.tile_ref_view.create_bind_group_entry(8),
             m_frame_tile_ids_buffer->create_bind_group_entry(9),
             m_frame_target_zoom_buffer->create_bind_group_entry(10),
         },
@@ -220,8 +214,8 @@ void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
     compute_pass_desc.label = WGPUStringView { .data = "slippy tile overlay compute pass", .length = WGPU_STRLEN };
     webgpu::raii::ComputePassEncoder compute_pass(command_encoder, compute_pass_desc);
 
-    wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, shared_config_bg, 0, nullptr);
-    wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 1, camera_bg, 0, nullptr);
+    wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, octx.shared_config_bg, 0, nullptr);
+    wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 1, octx.camera_bg, 0, nullptr);
     wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 2, bind_group.handle(), 0, nullptr);
 
     const glm::uvec3 workgroup_counts = glm::ceil(glm::vec3(float(output_size.x), float(output_size.y), 1.0f) / glm::vec3(16.0f, 16.0f, 1.0f));
