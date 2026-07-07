@@ -283,6 +283,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
             m_gbuffer->depth_texture_view(),
             m_gbuffer->color_texture_view(1),
             culled_draw_list,
+            m_camera,
             m_shared_config_bind_group->handle(),
             m_camera_bind_group->handle());
         if (has_overlays) sm.stop_gpu(SID_OVERLAY, command_encoder);
@@ -567,9 +568,8 @@ void Window::update_required_gpu_limits(WGPULimits& limits, const WGPULimits& su
 {
     const uint32_t max_required_bind_groups = 4u;
     const uint32_t min_recommended_max_texture_array_layers = 1024u;
-    // gbuffer: normal(4) + tile_ref(16) = 20 bytes/sample (see docs/masterplan.md
-    // for further planned shrinking down to 12 bytes/sample).
-    const uint32_t min_required_max_color_attachment_bytes_per_sample = 20u;
+    // gbuffer: normal(4) + tile_ref(8) = 12 bytes/sample (see docs/masterplan.md).
+    const uint32_t min_required_max_color_attachment_bytes_per_sample = 12u;
     const uint64_t min_required_max_storage_buffer_binding_size = 268435456u;
 
     if (supported_limits.maxColorAttachmentBytesPerSample < min_required_max_color_attachment_bytes_per_sample) {

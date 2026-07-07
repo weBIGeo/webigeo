@@ -27,6 +27,10 @@
 #include <webgpu/base/raii/TextureWithSampler.h>
 #include <webgpu/webgpu.h>
 
+namespace nucleus::camera {
+class Definition;
+}
+
 namespace webgpu_engine {
 
 class Context;
@@ -52,8 +56,9 @@ public:
     virtual void draw(const WGPUCommandEncoder& command_encoder,
         const webgpu::raii::TextureView& normal_view,
         const webgpu::raii::TextureView& depth_view,
-        const webgpu::raii::TextureView& tile_ref_view, // GBuffer slot 1 (exact render tile id + local uv)
+        const webgpu::raii::TextureView& tile_ref_view, // GBuffer slot 1: packed uv + (derivatives | frame-local render-tile id)
         const std::vector<nucleus::tile::TileBounds>& frame_tile_ids, // this frame's culled draw list; index == the render tile's frame-local id
+        const nucleus::camera::Definition& camera,
         const WGPUBindGroup& shared_config_bg,
         const WGPUBindGroup& camera_bg,
         const webgpu::raii::TextureWithSampler& current_input,

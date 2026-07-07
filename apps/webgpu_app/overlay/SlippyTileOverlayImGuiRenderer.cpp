@@ -91,6 +91,20 @@ bool SlippyTileOverlayImGuiRenderer::render_custom_settings()
         changed = true;
     }
 
+    int debug_view = static_cast<int>(s.debug_view);
+    if (ImGui::Combo("Debug View", &debug_view, "None\0Zoom Level\0Target Zoom Level\0")) {
+        s.debug_view = static_cast<webgpu_engine::SlippyTileOverlay::DebugView>(debug_view);
+        m_slippy_overlay->update_settings();
+        changed = true;
+    }
+
+    int zoom_selection_mode = static_cast<int>(s.zoom_selection_mode);
+    if (ImGui::Combo("Zoom Selection", &zoom_selection_mode, "Per Pixel\0Per Tile\0")) {
+        s.zoom_selection_mode = static_cast<webgpu_engine::SlippyTileOverlay::ZoomSelectionMode>(zoom_selection_mode);
+        m_slippy_overlay->update_settings();
+        changed = true;
+    }
+
     return changed;
 }
 

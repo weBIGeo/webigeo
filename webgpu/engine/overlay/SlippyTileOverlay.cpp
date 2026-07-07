@@ -20,11 +20,21 @@
 
 #include "webgpu/engine/Context.h"
 #include "webgpu/engine/tile/TileSource.h"
+#include <algorithm>
+#include <cmath>
+#include <nucleus/camera/Definition.h>
+#include <nucleus/srs.h>
+#include <radix/geometry.h>
 #include <webgpu/base/RenderResourceRegistry.h>
 #include <webgpu/base/raii/BindGroup.h>
 #include <webgpu/base/raii/BindGroupLayout.h>
 
 namespace webgpu_engine {
+
+namespace {
+    constexpr uint32_t k_max_frame_tiles = 1024;
+    constexpr double k_earth_circumference_m = 2.0 * 3.14159265358979323846 * 6378137.0;
+} // namespace
 
 SlippyTileOverlay::SlippyTileOverlay(TileSource* source)
     : Overlay()
@@ -97,9 +107,19 @@ void SlippyTileOverlay::init(Context& context)
             tile_ref_entry.texture.sampleType = WGPUTextureSampleType_Uint;
             tile_ref_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
+            WGPUBindGroupLayoutEntry frame_tile_ids_entry {};
+            frame_tile_ids_entry.binding = 9;
+            frame_tile_ids_entry.visibility = WGPUShaderStage_Compute;
+            frame_tile_ids_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+
+            WGPUBindGroupLayoutEntry frame_target_zoom_entry {};
+            frame_target_zoom_entry.binding = 10;
+            frame_target_zoom_entry.visibility = WGPUShaderStage_Compute;
+            frame_target_zoom_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+
             return std::make_unique<webgpu::raii::BindGroupLayout>(device,
                 std::vector<WGPUBindGroupLayoutEntry> { depth_entry, settings_entry, tile_texture_entry, tile_sampler_entry, output_entry,
-                    background_entry, dict_ids_entry, dict_layers_entry, tile_ref_entry },
+                    background_entry, dict_ids_entry, dict_layers_entry, tile_ref_entry, frame_tile_ids_entry, frame_target_zoom_entry },
                 "slippy tile overlay bind group layout");
         });
 
@@ -116,6 +136,11 @@ void SlippyTileOverlay::init(Context& context)
 
     m_settings_uniform = std::make_unique<webgpu::Buffer<GpuSettings>>(ctx.device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
     update_settings();
+
+    m_frame_tile_ids_buffer = std::make_unique<webgpu::raii::RawBuffer<glm::u32vec2>>(
+        ctx.device(), WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst, k_max_frame_tiles, "slippy tile overlay frame tile ids");
+    m_frame_target_zoom_buffer = std::make_unique<webgpu::raii::RawBuffer<uint32_t>>(
+        ctx.device(), WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst, k_max_frame_tiles, "slippy tile overlay frame target zoom");
 }
 
 void SlippyTileOverlay::set_source(TileSource* source)
@@ -132,6 +157,8 @@ void SlippyTileOverlay::update_settings()
     m_settings_uniform->data.max_zoom = settings.max_zoom;
     m_settings_uniform->data.tile_size = settings.tile_size;
     m_settings_uniform->data.pixel_error_threshold = settings.pixel_error_threshold;
+    m_settings_uniform->data.debug_view = static_cast<uint32_t>(settings.debug_view);
+    m_settings_uniform->data.zoom_selection_mode = static_cast<uint32_t>(settings.zoom_selection_mode);
     m_settings_uniform->update_gpu_data(m_ctx->queue());
 }
 
@@ -139,7 +166,8 @@ void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
     const webgpu::raii::TextureView& /*normal_view*/,
     const webgpu::raii::TextureView& depth_view,
     const webgpu::raii::TextureView& tile_ref_view,
-    const std::vector<nucleus::tile::TileBounds>& /*frame_tile_ids*/,
+    const std::vector<nucleus::tile::TileBounds>& frame_tile_ids,
+    const nucleus::camera::Definition& camera,
     const WGPUBindGroup& shared_config_bg,
     const WGPUBindGroup& camera_bg,
     const webgpu::raii::TextureWithSampler& current_input,
@@ -148,6 +176,28 @@ void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
 {
     if (!m_pipeline || !m_source)
         return;
+
+    const size_t n_tiles = std::min(frame_tile_ids.size(), size_t(k_max_frame_tiles));
+    std::vector<glm::u32vec2> packed_ids(n_tiles);
+    // Comparison-only alternative to the shader's default per-pixel (derivatives-based) target
+    // zoom: one zoom for the whole render tile, from its distance to the camera -- the same
+    // screen-space-error shape nucleus::tile::utils::refineFunctor uses for the mesh's own LOD.
+    // See slippy_tile_overlay.wgsl's ZOOM_SELECTION_MODE define to switch between the two.
+    std::vector<uint32_t> target_zooms(n_tiles);
+    for (size_t i = 0; i < n_tiles; ++i) {
+        packed_ids[i] = nucleus::srs::pack(frame_tile_ids[i].id);
+
+        const double distance = std::max(1.0, radix::geometry::distance(frame_tile_ids[i].bounds, camera.position()));
+        const float screen_px_per_meter = camera.to_screen_space(1.0f, float(distance));
+        const float desired_pixel_size_m = settings.pixel_error_threshold / std::max(screen_px_per_meter, 1e-9f);
+        const float desired_tile_size_m = desired_pixel_size_m * float(std::max<uint32_t>(1, settings.tile_size));
+        const int desired_zoom = int(std::round(std::log2(float(k_earth_circumference_m) / std::max(desired_tile_size_m, 1e-3f))));
+        target_zooms[i] = uint32_t(std::clamp(desired_zoom, 0, int(settings.max_zoom)));
+    }
+    if (!packed_ids.empty()) {
+        m_frame_tile_ids_buffer->write(m_ctx->queue(), packed_ids.data(), packed_ids.size());
+        m_frame_target_zoom_buffer->write(m_ctx->queue(), target_zooms.data(), target_zooms.size());
+    }
 
     webgpu::raii::BindGroup bind_group(m_ctx->device(),
         m_ctx->resource_registry().bind_group_layout("slippy_tile_overlay"),
@@ -161,6 +211,8 @@ void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
             m_source->dictionary_ids_view().create_bind_group_entry(6),
             m_source->dictionary_layers_view().create_bind_group_entry(7),
             tile_ref_view.create_bind_group_entry(8),
+            m_frame_tile_ids_buffer->create_bind_group_entry(9),
+            m_frame_target_zoom_buffer->create_bind_group_entry(10),
         },
         "slippy tile overlay bind group");
 

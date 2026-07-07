@@ -102,3 +102,17 @@ fn u32_to_range(encoded: u32, range: vec2f) -> f32 {
     let normalized = f32(encoded) / f32(0xFFFFFFFFu);
     return mix(range.x, range.y, normalized);
 }
+
+// Isotropic mip-footprint packing: a log2(world-space-texel-size) value, quantized to 16 bits so it
+// can share a u32 with a 16-bit frame-local tile id (see tile_ref in render_tiles.wgsl).
+const DERIVATIVES_LOG2_RANGE: vec2f = vec2f(-48.0, 0.0);
+
+fn pack_derivatives(log2_footprint: f32) -> u32 {
+    let normalized = clamp((log2_footprint - DERIVATIVES_LOG2_RANGE.x) / (DERIVATIVES_LOG2_RANGE.y - DERIVATIVES_LOG2_RANGE.x), 0.0, 1.0);
+    return u32(normalized * 65535.0);
+}
+
+fn unpack_derivatives(encoded: u32) -> f32 {
+    let normalized = f32(encoded & 0xFFFFu) / 65535.0;
+    return mix(DERIVATIVES_LOG2_RANGE.x, DERIVATIVES_LOG2_RANGE.y, normalized);
+}

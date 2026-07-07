@@ -58,6 +58,7 @@ public:
         const webgpu::raii::TextureView& depth_view,
         const webgpu::raii::TextureView& tile_ref_view,
         const std::vector<nucleus::tile::TileBounds>& frame_tile_ids,
+        const nucleus::camera::Definition& camera,
         const WGPUBindGroup& shared_config_bg,
         const WGPUBindGroup& camera_bg);
 
@@ -79,6 +80,7 @@ private:
         const webgpu::raii::TextureView& depth_view,
         const webgpu::raii::TextureView& tile_ref_view,
         const std::vector<nucleus::tile::TileBounds>& frame_tile_ids,
+        const nucleus::camera::Definition& camera,
         const WGPUBindGroup& shared_config_bg,
         const WGPUBindGroup& camera_bg,
         glm::uvec2 output_size);

@@ -227,10 +227,45 @@ slot — useful for a status‑bar readout or steepness‑aware interactions, no
 latency; confirm interaction doesn't visibly lag behind the reported position during fast
 camera movement.
 
+### Plan 6 (optional) — Stop `Overlay::draw()`'s signature from churning on every change
+
+Not required by the gbuffer work; a process pain point surfaced repeatedly during Plan 1-3.
+`Overlay::draw()` takes ~10 positional parameters (`normal_view`, `depth_view`, `tile_ref_view`,
+`frame_tile_ids`, `camera`, `shared_config_bg`, `camera_bg`, `current_input`, `target_output`,
+`output_size`). Every time a *single* concrete overlay needs one more piece of frame state (e.g.
+`SlippyTileOverlay` needing `frame_tile_ids` + `camera` for Plan 3's side table), the parameter has
+to be threaded through `Overlay.h`, `OverlayRenderer.h`/`.cpp` (`draw` + `draw_bucket`), and all
+5 concrete overlays' `.h`/`.cpp` (the other 4 just adding an unused, commented-out parameter name)
+— a lot of mechanical churn for a change that's conceptually local to one overlay.
+
+**Candidate direction (yours, from the Plan 3 session):** `OverlayRenderer` exposes the shared
+per-frame state as getters (`normal_view()`, `depth_view()`, `tile_ref_view()`, `frame_tile_ids()`,
+`camera()`, bind groups, and the current bucket's ping-pong `current_input`/`target_output`,
+updated once per frame / once per overlay-in-bucket respectively), and each `Overlay` holds a
+back-reference to its owning `OverlayRenderer` (set once, e.g. alongside `Context&` in `init()`).
+`draw()` shrinks to just `draw(const WGPUCommandEncoder& command_encoder)` (or no parameter at all,
+if the encoder is also staged on the renderer before the call) — adding a new shared attribute for
+one overlay to consume is then a single addition to `OverlayRenderer`, touching zero other overlays.
+Trade-off: every concrete overlay takes an implicit dependency on `OverlayRenderer`'s internals and
+on being called only during its populated-context window (a state/sequencing invariant instead of
+an explicit function argument) — worth weighing against the alternative below before committing.
+
+**Alternative worth ruling out first:** collapse the parameter list into a single `DrawContext`
+struct (owned/populated by `OverlayRenderer`, passed by `const&`), keeping `draw()` an explicit,
+stateless-looking function of its inputs (still easy to unit-test / call out of sequence) while
+still solving the churn: adding a field means adding it to `DrawContext`, not to every signature.
+Less "renderer-aware" than the back-reference design, at the cost of still passing *something*
+into `draw()` rather than nothing.
+
+**Verify:** whichever direction is picked, confirm adding a new field (e.g. a hypothetical 6th
+piece of state consumed by only one overlay) touches exactly one file/struct, not all 5 overlays.
+
 ## Dependency / ordering
 
 ```
 Plan 1 (drop position) ──► Plan 2 (drop albedo + debug overlay) ──► Plan 3 (frame-local id + side table + derivatives, tile_ref→RG32Uint)
 Plan 4 (scheduler consolidation) — independent, optional
 Plan 5 (async position readback) — independent, optional; benefits from Plan 3's tile_ref if it wants to report tile/slope data too
+Plan 6 (Overlay::draw() signature churn) — independent, optional; cheapest to do before Plan 3's
+  frame_tile_ids/camera plumbing is repeated again by a future overlay, but not blocking it
 ```

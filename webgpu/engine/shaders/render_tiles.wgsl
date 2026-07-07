@@ -48,11 +48,12 @@ struct VertexOut {
     @location(2) normal: vec3f,
     @location(3) @interpolate(flat) height_texture_layer: i32,
     @location(6) @interpolate(flat) tile_id: vec2<u32>,
+    @location(7) @interpolate(flat) frame_local_id: u32,
 }
 
 struct FragOut {
     @location(0) normal_enc: vec2u,
-    @location(1) tile_ref: vec4u,
+    @location(1) tile_ref: vec2u,
 }
 
 fn compute_vertex(
@@ -163,7 +164,7 @@ fn normal_by_fragment_position_interpolation(pos_cws: vec3<f32>) -> vec3<f32> {
 }
 
 @vertex
-fn vertexMain(@builtin(vertex_index) vertex_index: u32, vertex_in: VertexIn) -> VertexOut {
+fn vertexMain(@builtin(vertex_index) vertex_index: u32, @builtin(instance_index) instance_index: u32, vertex_in: VertexIn) -> VertexOut {
     let render_tile_id = unpack_tile_id(vertex_in.tile_id);
 
     var position: vec3f;
@@ -184,6 +185,7 @@ fn vertexMain(@builtin(vertex_index) vertex_index: u32, vertex_in: VertexIn) -> 
     vertex_out.normal = normal;
     vertex_out.height_texture_layer = vertex_in.height_texture_layer;
     vertex_out.tile_id = vertex_in.tile_id;
+    vertex_out.frame_local_id = instance_index;
     return vertex_out;
 }
 
@@ -202,10 +204,18 @@ fn fragmentMain(vertex_out: VertexOut) -> FragOut {
         frag_out.normal_enc = octNormalEncode2u16(normal);
     }
 
-    // Exact render tile id + local uv (precision-safe reference point for tile-pyramid overlays,
-    // e.g. SlippyTileOverlay), since deriving it from the (lossy, large-magnitude) world position
-    // instead would not be numerically equivalent at high zoom levels.
-    frag_out.tile_ref = vec4u(tile_id.x, tile_id.y, tile_id.zoomlevel, pack2x16unorm(vertex_out.uv));
+    // Isotropic mip footprint: uv derivatives converted to global mercator-normalized units so it's
+    // meaningful independent of which zoom level any given overlay resolves this pixel to.
+    let inv = 1.0 / exp2(f32(tile_id.zoomlevel));
+    let dgdx = dpdx(vertex_out.uv) * inv;
+    let dgdy = dpdy(vertex_out.uv) * inv;
+    let foot = max(length(dgdx), length(dgdy));
+    let deriv16 = pack_derivatives(log2(max(foot, 1e-30)));
+
+    // Exact render tile's frame-local id + local uv (precision-safe reference point for tile-pyramid
+    // overlays, e.g. SlippyTileOverlay), since deriving it from the (lossy, large-magnitude) world
+    // position instead would not be numerically equivalent at high zoom levels.
+    frag_out.tile_ref = vec2u(pack2x16unorm(vertex_out.uv), (deriv16 << 16u) | (vertex_out.frame_local_id & 0xFFFFu));
 
     return frag_out;
 }
