@@ -61,9 +61,9 @@ public:
         float opacity = 1.0f;
         uint32_t max_zoom = 20; // ceiling for the resolved per-pixel target zoom
         uint32_t tile_size = 256; // source's tile resolution, used by the per-pixel target-zoom estimate
-        float pixel_error_threshold = 2.0f; // per-overlay SSE threshold (mirrors nucleus::camera::Definition's default)
+        float pixel_error_threshold = 2.0f; // fallback SSE threshold when no source is set; otherwise the TileSource owns it
         DebugView debug_view = DebugView::None;
-        ZoomSelectionMode zoom_selection_mode = ZoomSelectionMode::PerPixel;
+        ZoomSelectionMode zoom_selection_mode = ZoomSelectionMode::PerTile;
     };
 
     explicit SlippyTileOverlay(TileSource* source);

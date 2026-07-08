@@ -83,12 +83,15 @@ bool SlippyTileOverlayImGuiRenderer::render_custom_settings()
     }
 
     // Same "Level of Detail" convention as AppPanel's terrain slider (higher = sharper): displayed
-    // value is the inverse of the raw pixel_error_threshold actually used by the shader.
-    float level_of_detail = 1.0f / s.pixel_error_threshold;
-    if (ImGui::SliderFloat("Level of Detail", &level_of_detail, 0.01f, 2.0f)) {
-        s.pixel_error_threshold = 1.0f / level_of_detail;
-        m_slippy_overlay->update_settings();
-        changed = true;
+    // value is the inverse of the raw pixel_error_threshold. The threshold lives on the TileSource
+    // (single source of truth), so overlays sharing a source show and control the same value.
+    if (auto* source = m_slippy_overlay->source()) {
+        float level_of_detail = 1.0f / source->pixel_error_threshold();
+        if (ImGui::SliderFloat("Level of Detail", &level_of_detail, 0.01f, 2.0f)) {
+            source->set_pixel_error_threshold(1.0f / level_of_detail);
+            m_slippy_overlay->update_settings();
+            changed = true;
+        }
     }
 
     int debug_view = static_cast<int>(s.debug_view);

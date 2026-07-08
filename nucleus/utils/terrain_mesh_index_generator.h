@@ -66,6 +66,35 @@ std::vector<Index> surface_quads(unsigned vertex_side_length)
     return indices;
 }
 
+// generates a LineList index buffer for the top surface grid edges only (no curtains, no diagonals).
+// each pair of consecutive indices is one line segment: all horizontal edges + all vertical edges.
+template<typename Index>
+std::vector<Index> surface_lines(unsigned vertex_side_length)
+{
+    assert(vertex_side_length >= 2);
+    assert(vertex_side_length * vertex_side_length < std::numeric_limits<Index>::max());
+    std::vector<Index> indices;
+    const auto width = vertex_side_length;
+    const auto height = vertex_side_length;
+    const auto index_for = [&width](auto row, auto col) { return col + row * width; };
+
+    // horizontal edges (within each row)
+    for (size_t row = 0; row < height; row++) {
+        for (size_t col = 0; col + 1 < width; col++) {
+            indices.push_back(Index(index_for(row, col)));
+            indices.push_back(Index(index_for(row, col + 1)));
+        }
+    }
+    // vertical edges (within each column)
+    for (size_t col = 0; col < width; col++) {
+        for (size_t row = 0; row + 1 < height; row++) {
+            indices.push_back(Index(index_for(row, col)));
+            indices.push_back(Index(index_for(row + 1, col)));
+        }
+    }
+    return indices;
+}
+
 template<typename Index>
 std::vector<Index> surface_quads_with_curtains(unsigned vertex_side_length)
 {

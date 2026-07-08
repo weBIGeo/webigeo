@@ -77,12 +77,12 @@ TEST_CASE("tile/utils/refine_functor")
         return retval;
     };
 
-    const auto refine_functor_float = utils::refine_functor_float(camera, decorator, 256, 18);
-    BENCHMARK("refine functor float")
+    const auto refine_functor_explicit_threshold = utils::refineFunctor(camera, decorator, 256, 18, 2.0f);
+    BENCHMARK("refine functor explicit threshold")
     {
         auto retval = true;
         for (const auto &id : all_leaves) {
-            retval = retval && !refine_functor_float(id);
+            retval = retval && !refine_functor_explicit_threshold(id);
         }
         return retval;
     };

@@ -27,7 +27,7 @@ namespace webgpu::raii {
 
 GenericRenderPipeline::GenericRenderPipeline(WGPUDevice device, const ShaderModule& vertex_shader, const ShaderModule& fragment_shader,
     const VertexBufferInfos& vertex_buffer_infos, const FramebufferFormat& framebuffer_format, const BindGroupLayouts& bind_group_layouts,
-    const std::vector<std::optional<WGPUBlendState>>& blend_states)
+    const std::vector<std::optional<WGPUBlendState>>& blend_states, WGPUPrimitiveTopology topology)
     : m_framebuffer_format { framebuffer_format }
 {
     assert(blend_states.size() <= framebuffer_format.color_formats.size());
@@ -68,8 +68,11 @@ GenericRenderPipeline::GenericRenderPipeline(WGPUDevice device, const ShaderModu
     pipeline_desc.vertex.buffers = layouts.data();
     pipeline_desc.vertex.constantCount = 0;
     pipeline_desc.vertex.constants = nullptr;
-    pipeline_desc.primitive.topology = WGPUPrimitiveTopology::WGPUPrimitiveTopology_TriangleStrip;
-    pipeline_desc.primitive.stripIndexFormat = WGPUIndexFormat::WGPUIndexFormat_Uint16;
+    pipeline_desc.primitive.topology = topology;
+    // stripIndexFormat is only valid for strip topologies; list topologies (e.g. LineList) require Undefined.
+    const bool is_strip
+        = topology == WGPUPrimitiveTopology_TriangleStrip || topology == WGPUPrimitiveTopology_LineStrip;
+    pipeline_desc.primitive.stripIndexFormat = is_strip ? WGPUIndexFormat::WGPUIndexFormat_Uint16 : WGPUIndexFormat::WGPUIndexFormat_Undefined;
     pipeline_desc.primitive.frontFace = WGPUFrontFace::WGPUFrontFace_CCW;
     pipeline_desc.primitive.cullMode = WGPUCullMode::WGPUCullMode_None;
     pipeline_desc.fragment = &fragment_state;

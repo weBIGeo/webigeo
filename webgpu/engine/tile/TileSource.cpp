@@ -53,6 +53,9 @@ TileSource::TileSource(const Config& config, const nucleus::tile::utils::AabbDec
     m_array.set_tile_limit(config.tile_limit);
 
     connect(m_holder.scheduler.get(), &nucleus::tile::TextureScheduler::gpu_tiles_updated, this, &TileSource::update_gpu_tiles);
+
+    // Seed the scheduler with the source's default threshold (keeps it off the camera fallback).
+    set_pixel_error_threshold(m_pixel_error_threshold);
 }
 
 TileSource::~TileSource() = default;
@@ -146,6 +149,13 @@ void TileSource::set_enabled(bool enabled)
 {
     auto* sched = m_holder.scheduler.get();
     nucleus::utils::thread::async_call(sched, [sched, enabled]() { sched->set_enabled(enabled); });
+}
+
+void TileSource::set_pixel_error_threshold(float error_threshold_px)
+{
+    m_pixel_error_threshold = error_threshold_px;
+    auto* sched = m_holder.scheduler.get();
+    nucleus::utils::thread::async_call(sched, [sched, error_threshold_px]() { sched->set_pixel_error_threshold(error_threshold_px); });
 }
 
 } // namespace webgpu_engine

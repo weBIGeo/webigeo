@@ -117,7 +117,8 @@ void Scheduler::set_network_reachability(QNetworkInformation::Reachability reach
 
 void Scheduler::update_gpu_quads()
 {
-    const auto should_refine = tile::utils::refineFunctor(m_current_camera, m_aabb_decorator, m.tile_resolution, m.max_zoom_level);
+    // m.error_threshold_px (webgpu_app) overrides the camera's threshold; <= 0 falls back to it.
+    const auto should_refine = tile::utils::refineFunctor(m_current_camera, m_aabb_decorator, m.tile_resolution, m.max_zoom_level, m.error_threshold_px);
     std::vector<DataQuad> gpu_candidates;
     m_ram_cache.visit([this, &gpu_candidates, &should_refine](const DataQuad& quad) {
         if (!should_refine(quad.id))
@@ -178,7 +179,7 @@ void Scheduler::purge_ram_cache()
         return;
     }
 
-    const auto should_refine = tile::utils::refineFunctor(m_current_camera, m_aabb_decorator, m.tile_resolution, m.max_zoom_level);
+    const auto should_refine = tile::utils::refineFunctor(m_current_camera, m_aabb_decorator, m.tile_resolution, m.max_zoom_level, m.error_threshold_px);
     m_ram_cache.visit([&should_refine](const DataQuad& quad) { return should_refine(quad.id); });
     m_ram_cache.purge(m.ram_quad_limit);
 
@@ -279,7 +280,7 @@ std::vector<Id> Scheduler::quads_for_current_camera_position() const
 {
     std::vector<Id> all_inner_nodes;
     const auto all_leaves = radix::quad_tree::onTheFlyTraverse(Id { 0, { 0, 0 } },
-        tile::utils::refineFunctor(m_current_camera, m_aabb_decorator, m.tile_resolution, m.max_zoom_level),
+        tile::utils::refineFunctor(m_current_camera, m_aabb_decorator, m.tile_resolution, m.max_zoom_level, m.error_threshold_px),
         [&all_inner_nodes](const Id& v) {
             all_inner_nodes.push_back(v);
             return v.children();
@@ -344,6 +345,14 @@ void Scheduler::set_purge_timeout(unsigned int new_purge_timeout)
 void Scheduler::set_ram_quad_limit(unsigned int new_ram_quad_limit) { m.ram_quad_limit = new_ram_quad_limit; }
 
 void Scheduler::set_gpu_quad_limit(unsigned int new_gpu_quad_limit) { m.gpu_quad_limit = new_gpu_quad_limit; }
+
+void Scheduler::set_pixel_error_threshold(float new_error_threshold_px)
+{
+    if (m.error_threshold_px == new_error_threshold_px)
+        return;
+    m.error_threshold_px = new_error_threshold_px;
+    schedule_update();
+}
 
 void Scheduler::set_aabb_decorator(const utils::AabbDecoratorPtr& new_aabb_decorator)
 {

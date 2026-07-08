@@ -153,10 +153,12 @@ void SlippyTileOverlay::update_settings()
 {
     if (!m_settings_uniform)
         return;
+    // The LOD threshold is owned by the source
+    const float pixel_error_threshold = m_source ? m_source->pixel_error_threshold() : settings.pixel_error_threshold;
     m_settings_uniform->data.opacity = settings.opacity;
     m_settings_uniform->data.max_zoom = settings.max_zoom;
     m_settings_uniform->data.tile_size = settings.tile_size;
-    m_settings_uniform->data.pixel_error_threshold = settings.pixel_error_threshold;
+    m_settings_uniform->data.pixel_error_threshold = pixel_error_threshold;
     m_settings_uniform->data.debug_view = static_cast<uint32_t>(settings.debug_view);
     m_settings_uniform->data.zoom_selection_mode = static_cast<uint32_t>(settings.zoom_selection_mode);
     m_settings_uniform->update_gpu_data(m_ctx->queue());
@@ -178,12 +180,18 @@ void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
     // screen-space-error shape nucleus::tile::utils::refineFunctor uses for the mesh's own LOD.
     // See slippy_tile_overlay.wgsl's ZOOM_SELECTION_MODE define to switch between the two.
     std::vector<uint32_t> target_zooms(n_tiles);
+    const float pixel_error_threshold = m_source->pixel_error_threshold(); // source is authoritative (see update_settings)
+    // Keeps the sampling uniform in sync when another overlay sharing this source changed it
+    if (m_settings_uniform->data.pixel_error_threshold != pixel_error_threshold) {
+        m_settings_uniform->data.pixel_error_threshold = pixel_error_threshold;
+        m_settings_uniform->update_gpu_data(m_ctx->queue());
+    }
     for (size_t i = 0; i < n_tiles; ++i) {
         packed_ids[i] = nucleus::srs::pack(octx.frame_tile_ids[i].id);
 
         const double distance = std::max(1.0, radix::geometry::distance(octx.frame_tile_ids[i].bounds, octx.camera.position()));
         const float screen_px_per_meter = octx.camera.to_screen_space(1.0f, float(distance));
-        const float desired_pixel_size_m = settings.pixel_error_threshold / std::max(screen_px_per_meter, 1e-9f);
+        const float desired_pixel_size_m = pixel_error_threshold / std::max(screen_px_per_meter, 1e-9f);
         const float desired_tile_size_m = desired_pixel_size_m * float(std::max<uint32_t>(1, settings.tile_size));
         const int desired_zoom = int(std::round(std::log2(float(k_earth_circumference_m) / std::max(desired_tile_size_m, 1e-3f))));
         target_zooms[i] = uint32_t(std::clamp(desired_zoom, 0, int(settings.max_zoom)));

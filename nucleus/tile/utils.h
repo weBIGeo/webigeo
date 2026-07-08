@@ -205,8 +205,10 @@ namespace utils {
         return true;
     }
 
-    // Mirrors apply_earth_curvature() in webgpu/base/shaders/position_util.wgsl:
-    // planet_radius_m <= 0 -> fallback to original behaviour
+    // NOTE: The webgpu renderer bends terrain downward apply_earth_curvature() in webgpu/base/shaders/position_util.wgsl.
+    // This function  lowers an AABB's height (z) bounds by that same spherical formula such that
+    // frustum culling operates on bounds matching the curved geometry.
+    // Fallback to original behaviour on planet_radius_m == 0
     inline tile::SrsAndHeightBounds apply_curvature_to_aabb(tile::SrsAndHeightBounds aabb, const glm::dvec3& camera_position, double planet_radius_m)
     {
         if (planet_radius_m <= 0.0)
@@ -227,49 +229,27 @@ namespace utils {
         return aabb;
     }
 
-    inline auto refine_functor_float(const nucleus::camera::Definition &camera,
-                                     const AabbDecoratorPtr &aabb_decorator,
-                                     float error_threshold_px,
-                                     float tile_size = 256)
-    {
-        constexpr auto sqrt2 = 1.414213562373095f;
-        const auto camera_frustum = camera.frustum();
-        auto refine =
-            [camera_frustum, camera, error_threshold_px, tile_size, aabb_decorator](const tile::Id& tile) {
-                if (tile.zoom_level >= 18)
-                    return false;
-
-                auto aabb = aabb_decorator->aabb(tile);
-                if (!tile::utils::camera_frustum_contains_tile(camera_frustum, aabb))
-                    return false;
-                const auto aabb_float = radix::geometry::Aabb<3, float> { aabb.min - camera.position(), aabb.max - camera.position() };
-
-                const auto distance = radix::geometry::distance(aabb_float, glm::vec3 { 0, 0, 0 });
-                const auto pixel_size = sqrt2 * aabb_float.size().x / tile_size;
-
-                return camera.to_screen_space(pixel_size, distance) >= error_threshold_px;
-            };
-        return refine;
-    }
-
-    inline auto refineFunctor(
-        const nucleus::camera::Definition& camera, const AabbDecoratorPtr& aabb_decorator, unsigned tile_size, unsigned max_zoom_level, double planet_radius_m = 0.0)
+    // NOTE: planet_radius_m and error_threshold_px added for webgpu app. (for curvature correction and per overlay thresholds)
+    //   Fallback to original behaviour if set to 0.0
+    inline auto refineFunctor(const nucleus::camera::Definition& camera, const AabbDecoratorPtr& aabb_decorator, unsigned tile_size, unsigned max_zoom_level,
+        float error_threshold_px = 0.0f, double planet_radius_m = 0.0)
     {
         constexpr auto sqrt2 = 1.414213562373095;
         const auto camera_frustum = camera.frustum();
-        auto refine = [&camera, camera_frustum, tile_size, aabb_decorator, max_zoom_level, planet_radius_m](const tile::Id& tile) {
+        const float threshold = error_threshold_px > 0.0f ? error_threshold_px : camera.pixel_error_threshold();
+        auto refine = [&camera, camera_frustum, threshold, tile_size, aabb_decorator, max_zoom_level, planet_radius_m](const tile::Id& tile) {
             if (tile.zoom_level >= max_zoom_level)
                 return false;
 
             const auto aabb = aabb_decorator->aabb(tile);
-            // Curve the AABB to match the rendered geometry; pixel-error distance below stays flat.
+            // Curve the AABB to match the rendered geometry
             if (!tile::utils::camera_frustum_contains_tile(camera_frustum, tile::utils::apply_curvature_to_aabb(aabb, camera.position(), planet_radius_m)))
                 return false;
 
             const auto distance = float(radix::geometry::distance(aabb, camera.position()));
             const auto pixel_size = float(sqrt2 * aabb.size().x / tile_size);
 
-            return camera.to_screen_space(pixel_size, distance) >= camera.pixel_error_threshold();
+            return camera.to_screen_space(pixel_size, distance) >= threshold;
         };
         return refine;
     }

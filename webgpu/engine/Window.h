@@ -60,6 +60,9 @@ public:
     void update_required_gpu_limits(WGPULimits& limits, const WGPULimits& supported_limits);
 
     void set_max_zoom_level(uint32_t max_zoom_level);
+    // Screen-space error threshold (px) for the geometry draw list. Kept in sync with the geometry
+    // scheduler's threshold so drawn tiles match loaded tiles.
+    void set_pixel_error_threshold(float pixel_error_threshold);
 
 public slots:
     void update_camera(const nucleus::camera::Definition& new_definition) override;
@@ -104,6 +107,7 @@ private:
 
     nucleus::camera::Definition m_camera;
     uint32_t m_max_zoom_level = 18;
+    float m_pixel_error_threshold = 2.0f;
 
     webgpu::FramebufferFormat m_gbuffer_format;
     std::unique_ptr<webgpu::Framebuffer> m_gbuffer;

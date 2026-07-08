@@ -22,6 +22,7 @@
 #include "RenderingContext.h"
 
 #include "nucleus/DataQuerier.h"
+#include "nucleus/tile/GeometryScheduler.h"
 #include "nucleus/tile/SchedulerDirector.h"
 #include "nucleus/tile/Texture3DScheduler.h"
 #include "nucleus/tile/TileLoadService.h"
@@ -200,6 +201,12 @@ nucleus::tile::GeometryScheduler* RenderingContext::geometry_scheduler() { retur
 nucleus::tile::TileLoadService* RenderingContext::geometry_tile_load_service() { return m_geometry_scheduler_holder.tile_service.get(); }
 
 nucleus::tile::Texture3DScheduler* RenderingContext::cloud_scheduler() { return m_cloud_scheduler_holder.scheduler.get(); }
+
+void RenderingContext::set_geometry_pixel_error_threshold(float error_threshold_px)
+{
+    auto* scheduler = m_geometry_scheduler_holder.scheduler.get();
+    nucleus::utils::thread::async_call(scheduler, [scheduler, error_threshold_px]() { scheduler->set_pixel_error_threshold(error_threshold_px); });
+}
 
 nucleus::tile::SchedulerDirector* RenderingContext::scheduler_director() { return m_scheduler_director.get(); }
 

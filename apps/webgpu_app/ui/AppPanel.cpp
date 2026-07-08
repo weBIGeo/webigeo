@@ -47,7 +47,10 @@ void AppPanel::draw_panel()
         static float render_quality = 0.5f;
         if (ImGui::SliderFloat("Level of Detail", &render_quality, 0.1f, 2.0f)) {
             const auto permissible_error = 1.0f / render_quality;
-            m_terrain_renderer->get_camera_controller()->set_pixel_error_threshold(permissible_error);
+            // ToDo: The error has to be set for the draw list generation and the scheduler seperately
+            // one single source would probably be better.
+            m_terrain_renderer->get_rendering_context()->set_geometry_pixel_error_threshold(permissible_error);
+            m_terrain_renderer->get_webgpu_window()->set_pixel_error_threshold(permissible_error);
             m_terrain_renderer->update_camera();
             qDebug() << "Setting permissible error to " << permissible_error;
         }

@@ -69,6 +69,8 @@ public:
     nucleus::tile::GeometryScheduler* geometry_scheduler();
     nucleus::tile::TileLoadService* geometry_tile_load_service();
     nucleus::tile::Texture3DScheduler* cloud_scheduler();
+    // Screen-space error threshold (px) for the geometry scheduler, dispatched onto the scheduler thread.
+    void set_geometry_pixel_error_threshold(float error_threshold_px);
     nucleus::tile::SchedulerDirector* scheduler_director();
     nucleus::tile::TileLoadService* cloud_tile_load_service();
     clouds::Manager* clouds_manager();

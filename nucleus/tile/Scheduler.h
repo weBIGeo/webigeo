@@ -50,6 +50,8 @@ public:
     struct Settings {
         unsigned tile_resolution = 256;
         unsigned max_zoom_level = 18;
+        // NOTE: The webgpu_engine uses error_thresholds per scheduler; <= 0 => fall back to original behaviour
+        float error_threshold_px = 0.0f;
         unsigned gpu_quad_limit = 512;
         unsigned ram_quad_limit = 5000;
         unsigned retirement_age_for_tile_cache = 10u * 24u * 3600u * 1000u; // 10 days
@@ -69,6 +71,9 @@ public:
     void set_aabb_decorator(const utils::AabbDecoratorPtr& new_aabb_decorator);
 
     void set_gpu_quad_limit(unsigned int new_gpu_quad_limit);
+
+    // Added for webgpu_app: per-scheduler screen-space error threshold
+    void set_pixel_error_threshold(float new_error_threshold_px);
 
     void set_ram_quad_limit(unsigned int new_ram_quad_limit);
 

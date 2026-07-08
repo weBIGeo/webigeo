@@ -76,6 +76,13 @@ void TileMeshRenderer::init(webgpu::Context& ctx)
     m_index_buffer->write(m_ctx->queue(), indices.data(), indices.size());
     m_index_buffer_size = indices.size();
 
+    // wireframe (debug): LineList index buffer for the top surface grid edges only
+    const std::vector<uint16_t> wireframe_indices = nucleus::utils::terrain_mesh_index_generator::surface_lines<uint16_t>(unsigned(m_height_resolution));
+    m_wireframe_index_buffer
+        = std::make_unique<webgpu::raii::RawBuffer<uint16_t>>(m_ctx->device(), WGPUBufferUsage_Index | WGPUBufferUsage_CopyDst, wireframe_indices.size());
+    m_wireframe_index_buffer->write(m_ctx->queue(), wireframe_indices.data(), wireframe_indices.size());
+    m_wireframe_index_buffer_size = wireframe_indices.size();
+
     // create buffers for bounds, tile ids, zoom level and height texture buffers
     m_bounds_buffer = std::make_unique<webgpu::raii::RawBuffer<glm::vec4>>(m_ctx->device(), WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
     m_tileset_id_buffer = std::make_unique<webgpu::raii::RawBuffer<int32_t>>(m_ctx->device(), WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst, num_layers);
@@ -134,29 +141,32 @@ void TileMeshRenderer::init(webgpu::Context& ctx)
         format.color_formats.emplace_back(WGPUTextureFormat_RG16Uint); // normal
         format.color_formats.emplace_back(WGPUTextureFormat_RG32Uint); // tile_ref: packed uv + (derivatives | frame-local id)
 
-        m_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(dev,
-            reg.shader("render_tiles"),
-            reg.shader("render_tiles"),
-            std::vector<webgpu::util::SingleVertexBufferInfo> {
-                bounds_buffer_info,
-                texture_layer_buffer_info,
-                tileset_id_buffer_info,
-                height_zoomlevel_buffer_info,
-                tile_id_buffer_info,
-            },
-            format,
-            std::vector<const webgpu::raii::BindGroupLayout*> {
-                &reg.bind_group_layout("shared_config"),
-                &reg.bind_group_layout("camera"),
-                &reg.bind_group_layout("tile"),
-            });
+        const std::vector<webgpu::util::SingleVertexBufferInfo> vertex_buffer_infos {
+            bounds_buffer_info,
+            texture_layer_buffer_info,
+            tileset_id_buffer_info,
+            height_zoomlevel_buffer_info,
+            tile_id_buffer_info,
+        };
+        const std::vector<const webgpu::raii::BindGroupLayout*> bind_group_layouts {
+            &reg.bind_group_layout("shared_config"),
+            &reg.bind_group_layout("camera"),
+            &reg.bind_group_layout("tile"),
+        };
+
+        m_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(
+            dev, reg.shader("render_tiles"), reg.shader("render_tiles"), vertex_buffer_infos, format, bind_group_layouts);
+
+        // wireframe (debug): identical pipeline, but LineList topology so we can draw the mesh edges
+        m_wireframe_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(dev, reg.shader("render_tiles"), reg.shader("render_tiles"),
+            vertex_buffer_infos, format, bind_group_layouts, std::vector<std::optional<WGPUBlendState>> {}, WGPUPrimitiveTopology_LineList);
 
         m_tile_bind_group = create_bind_group();
     });
 }
 
-void TileMeshRenderer::draw(
-    WGPURenderPassEncoder render_pass, const nucleus::camera::Definition& camera, const std::vector<nucleus::tile::TileBounds>& draw_tiles) const
+void TileMeshRenderer::draw(WGPURenderPassEncoder render_pass, const nucleus::camera::Definition& camera,
+    const std::vector<nucleus::tile::TileBounds>& draw_tiles, bool wireframe) const
 {
     std::vector<glm::vec4> bounds;
     bounds.reserve(draw_tiles.size());
@@ -199,8 +209,10 @@ void TileMeshRenderer::draw(
     // set bind group for uniforms, textures and samplers
     wgpuRenderPassEncoderSetBindGroup(render_pass, 2, m_tile_bind_group->handle(), 0, nullptr);
 
-    // set index buffer and vertex buffers
-    wgpuRenderPassEncoderSetIndexBuffer(render_pass, m_index_buffer->handle(), WGPUIndexFormat_Uint16, 0, m_index_buffer->size_in_byte());
+    // set index buffer and vertex buffers (wireframe uses the LineList edge index buffer)
+    const auto& index_buffer = wireframe ? *m_wireframe_index_buffer : *m_index_buffer;
+    const size_t index_count = wireframe ? m_wireframe_index_buffer_size : m_index_buffer_size;
+    wgpuRenderPassEncoderSetIndexBuffer(render_pass, index_buffer.handle(), WGPUIndexFormat_Uint16, 0, index_buffer.size_in_byte());
     wgpuRenderPassEncoderSetVertexBuffer(render_pass, 0, m_bounds_buffer->handle(), 0, m_bounds_buffer->size_in_byte());
     wgpuRenderPassEncoderSetVertexBuffer(render_pass, 1, m_height_texture_layer_buffer->handle(), 0, m_height_texture_layer_buffer->size_in_byte());
     wgpuRenderPassEncoderSetVertexBuffer(render_pass, 2, m_tileset_id_buffer->handle(), 0, m_tileset_id_buffer->size_in_byte());
@@ -208,8 +220,9 @@ void TileMeshRenderer::draw(
     wgpuRenderPassEncoderSetVertexBuffer(render_pass, 4, m_tile_id_buffer->handle(), 0, m_tile_id_buffer->size_in_byte());
 
     // set pipeline and draw call
-    wgpuRenderPassEncoderSetPipeline(render_pass, m_pipeline->pipeline().handle());
-    wgpuRenderPassEncoderDrawIndexed(render_pass, uint32_t(m_index_buffer_size), uint32_t(draw_tiles.size()), 0, 0, 0);
+    const auto& pipeline = wireframe ? *m_wireframe_pipeline : *m_pipeline;
+    wgpuRenderPassEncoderSetPipeline(render_pass, pipeline.pipeline().handle());
+    wgpuRenderPassEncoderDrawIndexed(render_pass, uint32_t(index_count), uint32_t(draw_tiles.size()), 0, 0, 0);
 }
 
 void TileMeshRenderer::set_tile_limit(unsigned int num_tiles)

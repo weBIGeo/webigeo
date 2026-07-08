@@ -47,7 +47,8 @@ public:
 
     void init(webgpu::Context& ctx);
 
-    void draw(WGPURenderPassEncoder render_pass, const nucleus::camera::Definition& camera, const std::vector<nucleus::tile::TileBounds>& draw_tiles) const;
+    void draw(WGPURenderPassEncoder render_pass, const nucleus::camera::Definition& camera, const std::vector<nucleus::tile::TileBounds>& draw_tiles,
+        bool wireframe = false) const;
 
     std::unique_ptr<webgpu::raii::BindGroup> create_bind_group() const;
 
@@ -71,6 +72,8 @@ private:
 
     size_t m_index_buffer_size;
     std::unique_ptr<webgpu::raii::RawBuffer<uint16_t>> m_index_buffer;
+    size_t m_wireframe_index_buffer_size;
+    std::unique_ptr<webgpu::raii::RawBuffer<uint16_t>> m_wireframe_index_buffer;
     std::unique_ptr<webgpu::raii::RawBuffer<glm::vec4>> m_bounds_buffer;
     std::unique_ptr<webgpu::raii::RawBuffer<int32_t>> m_tileset_id_buffer;
     std::unique_ptr<webgpu::raii::RawBuffer<int32_t>> m_height_zoom_level_buffer;
@@ -80,6 +83,7 @@ private:
 
     std::unique_ptr<webgpu::raii::BindGroup> m_tile_bind_group;
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_pipeline;
+    std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_wireframe_pipeline; // same as m_pipeline but LineList topology
 };
 
 } // namespace webgpu_engine

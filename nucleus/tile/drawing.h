@@ -24,7 +24,10 @@
 
 namespace nucleus::tile::drawing {
 
-std::vector<tile::Id> generate_list(const camera::Definition& camera, utils::AabbDecoratorPtr aabb_decorator, unsigned max_zoom_level, double planet_radius_m = 0.0);
+// NOTE: error_threshold_px and planet_radius_m were added for the webgpu_app and both fall back to
+// the original behavior: if not set
+std::vector<tile::Id> generate_list(
+    const camera::Definition& camera, utils::AabbDecoratorPtr aabb_decorator, unsigned max_zoom_level, float error_threshold_px = 0.0f, double planet_radius_m = 0.0);
 std::vector<TileBounds> compute_bounds(const std::vector<tile::Id>& tiles, utils::AabbDecoratorPtr aabb_decorator);
 std::vector<tile::Id> limit(std::vector<tile::Id> tiles, uint max_n_tiles);
 std::vector<TileBounds> cull(std::vector<TileBounds> list, const camera::Definition& camera, double planet_radius_m = 0.0);

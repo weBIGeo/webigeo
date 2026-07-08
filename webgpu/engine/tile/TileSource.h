@@ -69,6 +69,11 @@ public:
     void set_base_url(const QString& url);
     void clear_cache();
     void set_enabled(bool enabled);
+    // Per-source screen-space error threshold (px) for tile loading. This is the single source of
+    // truth: overlays bind their LOD slider to it, so multiple overlays sharing this source stay in
+    // sync. Also fed into each overlay's sampling uniform. (<= 0 falls back to the camera.)
+    void set_pixel_error_threshold(float error_threshold_px);
+    [[nodiscard]] float pixel_error_threshold() const { return m_pixel_error_threshold; }
 
     [[nodiscard]] const QString& name() const { return m_config.name; }
     [[nodiscard]] std::shared_ptr<nucleus::tile::TextureScheduler> scheduler() const { return m_holder.scheduler; }
@@ -90,6 +95,7 @@ private:
     Config m_config;
     nucleus::tile::setup::TextureSchedulerHolder m_holder;
     GpuTileTextureArray m_array;
+    float m_pixel_error_threshold = 2.0f;
     webgpu::Context* m_ctx = nullptr;
 
     std::unique_ptr<webgpu::raii::Texture> m_dict_ids; // RG32Uint packed tile ids

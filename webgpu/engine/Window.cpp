@@ -254,11 +254,13 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         }
 
         const auto draw_list = drawing::compute_bounds(
-            drawing::limit(drawing::generate_list(m_camera, m_context->aabb_decorator(), m_max_zoom_level, planet_radius_m), 1024),
+            drawing::limit(drawing::generate_list(m_camera, m_context->aabb_decorator(), m_max_zoom_level, m_pixel_error_threshold, planet_radius_m), 1024),
             m_context->aabb_decorator());
         culled_draw_list = drawing::sort(drawing::cull(draw_list, m_camera, planet_radius_m), m_camera.position());
 
-        m_context->tile_mesh_renderer()->draw(render_pass->handle(), m_camera, culled_draw_list);
+        // Debug: flip to true to render the terrain mesh as a (shaded) wireframe.
+        constexpr bool draw_wireframe = true;
+        m_context->tile_mesh_renderer()->draw(render_pass->handle(), m_camera, culled_draw_list, draw_wireframe);
     }
     sm.stop_gpu(SID_TILEMESH, command_encoder);
 
@@ -402,6 +404,8 @@ glm::vec4 Window::synchronous_position_readback(const glm::dvec2& ndc)
 }
 
 void Window::set_max_zoom_level(uint32_t max_zoom_level) { m_max_zoom_level = max_zoom_level; }
+
+void Window::set_pixel_error_threshold(float pixel_error_threshold) { m_pixel_error_threshold = pixel_error_threshold; }
 
 float Window::depth([[maybe_unused]] const glm::dvec2& normalised_device_coordinates)
 {
