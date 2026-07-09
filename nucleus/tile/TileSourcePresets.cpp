@@ -26,21 +26,21 @@ namespace {
     
 const std::vector<TileSourcePreset> presets = {
     { "Gataki Ortho", "ortho", "https://gataki.cg.tuwien.ac.at/raw/basemap/tiles/", TileLoadService::UrlPattern::ZYX_yPointingSouth, ".jpeg", 256,
-        19 },
+        20 },
     { "Basemap Ortho", "basemap_ortho", "https://mapsneu.wien.gv.at/basemap/bmaporthofoto30cm/normal/google3857/",
-        TileLoadService::UrlPattern::ZYX_yPointingSouth, ".jpeg", 256, 19 },
+        TileLoadService::UrlPattern::ZYX_yPointingSouth, ".jpeg", 256, 20 },
     { "Basemap Gelände", "basemap_gelaende", "https://mapsneu.wien.gv.at/basemap/bmapgelaende/grau/google3857/",
         TileLoadService::UrlPattern::ZYX_yPointingSouth, ".jpeg", 256, 17 },
     { "Basemap Oberfläche", "basemap_oberflaeche", "https://mapsneu.wien.gv.at/basemap/bmapoberflaeche/grau/google3857/",
         TileLoadService::UrlPattern::ZYX_yPointingSouth, ".jpeg", 256, 17 },
     { "Geoland Basemap", "basemap_color", "https://mapsneu.wien.gv.at/basemap/geolandbasemap/normal/google3857/",
-        TileLoadService::UrlPattern::ZYX_yPointingSouth, ".png", 256, 19 },
+        TileLoadService::UrlPattern::ZYX_yPointingSouth, ".png", 256, 20 },
     { "Geoland Basemap Grau", "basemap_grau", "https://mapsneu.wien.gv.at/basemap/bmapgrau/normal/google3857/",
-        TileLoadService::UrlPattern::ZYX_yPointingSouth, ".png", 256, 19 },
+        TileLoadService::UrlPattern::ZYX_yPointingSouth, ".png", 256, 20 },
     { "Basemap High DPI", "basemap_hidpi", "https://mapsneu.wien.gv.at/basemap/bmaphidpi/normal/google3857/",
         TileLoadService::UrlPattern::ZYX_yPointingSouth, ".jpeg", 512, 19 },
     { "Geoland Basemap Overlay", "basemap_overlay", "https://mapsneu.wien.gv.at/basemap/bmapoverlay/normal/google3857/",
-        TileLoadService::UrlPattern::ZYX_yPointingSouth, ".png", 256, 19 },
+        TileLoadService::UrlPattern::ZYX_yPointingSouth, ".png", 256, 20 },
 };
 } // namespace
 
