@@ -259,7 +259,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         culled_draw_list = drawing::sort(drawing::cull(draw_list, m_camera, planet_radius_m), m_camera.position());
 
         // Debug: flip to true to render the terrain mesh as a (shaded) wireframe.
-        constexpr bool draw_wireframe = true;
+        constexpr bool draw_wireframe = false;
         m_context->tile_mesh_renderer()->draw(render_pass->handle(), m_camera, culled_draw_list, draw_wireframe);
     }
     sm.stop_gpu(SID_TILEMESH, command_encoder);

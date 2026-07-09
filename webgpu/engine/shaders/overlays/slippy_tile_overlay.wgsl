@@ -51,40 +51,18 @@ const DEBUG_VIEW_TARGET_ZOOM_LEVEL: u32 = 2u;
 const ZOOM_SELECTION_MODE_PER_PIXEL: u32 = 0u;
 const ZOOM_SELECTION_MODE_PER_TILE: u32 = 1u;
 
-fn hsl_to_rgb(h: f32, s: f32, l: f32) -> vec3f {
-    let c = (1.0 - abs(2.0 * l - 1.0)) * s;
-    let hp = h / 60.0;
-    let x = c * (1.0 - abs(hp % 2.0 - 1.0));
-    var rgb1: vec3f;
-    if hp < 1.0 {
-        rgb1 = vec3f(c, x, 0.0);
-    } else if hp < 2.0 {
-        rgb1 = vec3f(x, c, 0.0);
-    } else if hp < 3.0 {
-        rgb1 = vec3f(0.0, c, x);
-    } else if hp < 4.0 {
-        rgb1 = vec3f(0.0, x, c);
-    } else if hp < 5.0 {
-        rgb1 = vec3f(x, 0.0, c);
-    } else {
-        rgb1 = vec3f(c, 0.0, x);
-    }
-    let m = l - c / 2.0;
-    return rgb1 + vec3f(m);
-}
-
-// Debug color-coding for the resolved (resident) tile's zoom level: hue cycles through 6 evenly
-// spaced primary/secondary colors every level, so *neighboring* zoom levels -- which is where they
-// actually show up adjacent on screen, at LOD transitions -- always differ in hue. Only zoom levels
-// 6 apart ever share a hue, distinguished instead by lightness (band); those aren't normally
-// adjacent on screen. Covers zoom 1-25 (and beyond) in 5 clearly-different lightness bands.
+// Debug color-coding for the resolved (resident) tile's zoom level: the zoom itself is encoded
+// directly in R (r * 255 = zoom), so the raw pixel value is readable as data, not just a color.
+// G/B cycle through the 4 corners of the unit square with period 4, so *neighboring* zoom levels
+// -- which is where they actually show up adjacent on screen, at LOD transitions -- always differ
+// by a full 0/1 step in at least one channel, keeping them visually distinguishable even though
+// their R values are only 1/255 apart.
 fn zoom_level_color(zoom: u32) -> vec3f {
-    let z = max(zoom, 1u) - 1u;
-    let hue_index = z % 6u;
-    let band = z / 6u;
-    let hue = f32(hue_index) * 60.0;
-    let lightness = clamp(0.3 + f32(band) * 0.15, 0.3, 0.85);
-    return hsl_to_rgb(hue, 0.85, lightness);
+    let r = f32(min(zoom, 255u)) / 255.0;
+    let idx = zoom % 4u;
+    let g = f32(idx & 1u);
+    let b = f32((idx >> 1u) & 1u);
+    return vec3f(r, g, b);
 }
 
 // Ports of nucleus::srs::hash_uint16 / pack, matching GpuArrayHelper::generate_dictionary().
