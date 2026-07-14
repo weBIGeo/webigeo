@@ -50,8 +50,8 @@ public:
         nucleus::tile::TileLoadService::UrlPattern pattern = nucleus::tile::TileLoadService::UrlPattern::ZYX_yPointingSouth;
         QString file_ending = ".jpeg";
         uint32_t resolution = 512;
-        nucleus::tile::Scheduler::Settings settings = { .tile_resolution = 256, .max_zoom_level = 20, .gpu_quad_limit = 1024 };
-        unsigned gpu_quad_limit = 256;
+        nucleus::tile::Scheduler::Settings settings = { .tile_resolution = 256, .max_zoom_level = 20 };
+        unsigned gpu_quad_limit = 1024; // must match tile_limit -- the GPU array below is sized to it
         unsigned tile_limit = 1024;
         nucleus::utils::ColourTexture::Format compression = nucleus::utils::ColourTexture::Format::Uncompressed_RGBA;
     };
