@@ -63,7 +63,7 @@ bool SlippyTileOverlayImGuiRenderer::render_custom_settings()
     if (ImGui::Combo("Source", &preset_idx, combo_items.c_str())) {
         const auto& preset = presets[static_cast<size_t>(preset_idx)];
         m_slippy_overlay->set_source(m_context->get_or_create_tile_source(preset));
-        s.max_zoom = std::min(s.max_zoom, preset.max_possible_zoom);
+        s.max_zoom = preset.max_possible_zoom;
         s.tile_size = preset.tile_resolution;
         m_slippy_overlay->update_settings();
         changed = true;
