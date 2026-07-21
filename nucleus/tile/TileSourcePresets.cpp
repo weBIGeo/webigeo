@@ -43,6 +43,8 @@ const std::vector<TileSourcePreset> presets = {
         TileLoadService::UrlPattern::ZYX_yPointingSouth, ".png", 256, 20 },
     { "Debug Localhost Vienna", "debug_localhost_vienna", "http://127.0.0.1:8001/v1/debug-ortho/", TileLoadService::UrlPattern::ZYX_yPointingSouth,
         ".jpeg", 256, 21 },
+    { "Snow", "snow", "http://127.0.0.1:8001/v1/cosmos-snow/2026-02-01/", TileLoadService::UrlPattern::ZXY_yPointingSouth,
+        ".png", 256, 13 },
 };
 } // namespace
 
