@@ -149,22 +149,78 @@ void DateTimePanel::draw()
 
         ImGui::SetNextItemWidth(110.0f);
         bool date_changed = ImGui::DatePicker("##date", m_date, false, 130.0f, "%d.%m.%Y");
-        if (date_changed)
+        if (date_changed) {
+            m_playing = false;
+            m_second = 0;
             recalculate_and_apply(true);
+        }
 
         ImGui::SameLine();
 
         int total_minutes = m_hour * 60 + m_minute;
         char time_label[8];
         std::snprintf(time_label, sizeof(time_label), "%02d:%02d", m_hour, m_minute);
-        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - btn_w - spacing);
         if (ImGui::SliderInt("##time", &total_minutes, 0, 1439, time_label)) {
             m_hour = total_minutes / 60;
             m_minute = total_minutes % 60;
+            m_playing = false;
+            m_second = 0;
             recalculate_and_apply(false);
         }
         if (ImGui::IsItemDeactivatedAfterEdit())
             recalculate_and_apply(true);
+
+        ImGui::SameLine();
+        if (ImGui::Button(m_playing ? ICON_FA_PAUSE "##play_pause" : ICON_FA_PLAY "##play_pause", ImVec2(btn_w, ImGui::GetFrameHeight()))) {
+            m_playing = !m_playing;
+            m_play_fixed_accum = 0.0f;
+            m_play_sim_accum = 0.0;
+            if (!m_playing)
+                recalculate_and_apply(true);
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::BeginTooltip();
+            ImGui::Text(m_playing ? "Pause time animation" : "Play time animation");
+            ImGui::EndTooltip();
+        }
+
+        char speed_label[16];
+        std::snprintf(speed_label, sizeof(speed_label), "%.0fx", m_play_speed);
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+        ImGui::SliderFloat("##play_speed", &m_play_speed, 1.0f, 600.0f, speed_label, ImGuiSliderFlags_Logarithmic);
+        if (ImGui::IsItemHovered()) {
+            ImGui::BeginTooltip();
+            ImGui::Text("Animation speed: %.0f simulated seconds per real second", m_play_speed);
+            ImGui::EndTooltip();
+        }
+
+        if (m_playing) {
+            // Fixed 30Hz animation step, decoupled from the render frame rate.
+            constexpr float fixed_dt = 1.0f / 30.0f;
+            m_play_fixed_accum += ImGui::GetIO().DeltaTime;
+            while (m_play_fixed_accum >= fixed_dt) {
+                m_play_fixed_accum -= fixed_dt;
+                m_play_sim_accum += double(fixed_dt) * double(m_play_speed);
+            }
+
+            int whole_seconds = static_cast<int>(m_play_sim_accum);
+            if (whole_seconds > 0) {
+                m_play_sim_accum -= double(whole_seconds);
+                int new_total_seconds = m_hour * 3600 + m_minute * 60 + m_second + whole_seconds;
+                bool day_end = new_total_seconds >= 24 * 3600 - 1;
+                if (day_end) {
+                    new_total_seconds = 24 * 3600 - 1;
+                    m_playing = false;
+                }
+                m_hour = new_total_seconds / 3600;
+                m_minute = (new_total_seconds / 60) % 60;
+                m_second = new_total_seconds % 60;
+                recalculate_and_apply(true);
+            }
+            if (m_playing)
+                m_context->request_redraw();
+        }
 
         auto world_pos = m_terrain_renderer->get_camera_controller()->definition().position();
         auto lla = nucleus::srs::world_to_lat_long_alt(world_pos);
@@ -180,7 +236,7 @@ void DateTimePanel::recalculate_and_apply(bool load_cloud)
     int month = m_date.tm_mon + 1; // 1-based for QDate
     int day = m_date.tm_mday;
 
-    QDateTime local_dt(QDate(year, month, day), QTime(m_hour, m_minute, 0), Qt::LocalTime);
+    QDateTime local_dt(QDate(year, month, day), QTime(m_hour, m_minute, m_second), Qt::LocalTime);
 
     if (m_sun_linked) {
         auto world_pos = m_terrain_renderer->get_camera_controller()->definition().position();

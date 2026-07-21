@@ -55,11 +55,17 @@ private:
     bool m_sun_linked = true;
     bool m_cloud_linked = true;
 
+    bool m_playing = false;
+    float m_play_speed = 60.0f; // simulated seconds advanced per real second (60x = 1 sim-minute per real second)
+    float m_play_fixed_accum = 0.0f; // leftover real time (s) not yet consumed by the fixed 30Hz animation step
+    double m_play_sim_accum = 0.0; // leftover fractional simulated seconds not yet applied to m_second
+
     CloudLinkState m_cloud_link_state = CloudLinkState::Unavailable;
     int m_cloud_tileset_local_hour = -1; // -1 when no same-day tileset found; local time
 
     tm m_date {}; // tm_year = years since 1900, tm_mon = 0-based, tm_mday = 1-based
     int m_hour = 12, m_minute = 0;
+    int m_second = 0; // only advanced while playing; reset to 0 on manual edits
 };
 
 } // namespace webgpu_app
