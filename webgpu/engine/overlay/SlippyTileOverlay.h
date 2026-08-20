@@ -57,6 +57,14 @@ public:
     //               across every pixel of that tile.
     enum class ZoomSelectionMode : uint32_t { PerPixel = 0, PerTile = 1 };
 
+    // Temporary: how to interpret the sampled tile RGBA, set explicitly via the UI (independent of
+    // which source is selected -- see slippy_tile_overlay.wgsl's DATA_MODE_* consts).
+    enum class DataMode : uint32_t {
+        Rgba = 0, // plain imagery
+        SnowAvg = 1, // snow-depth encoding (R channel), white ramping in over [0, 20cm] avg depth
+        SnowAvgNormals = 2, // SnowAvg, additionally masked by surface steepness (gbuffer normal)
+    };
+
     struct Settings {
         float opacity = 1.0f;
         uint32_t max_zoom = 20; // ceiling for the resolved per-pixel target zoom
@@ -64,6 +72,7 @@ public:
         float pixel_error_threshold = 2.0f; // fallback SSE threshold when no source is set; otherwise the TileSource owns it
         DebugView debug_view = DebugView::None;
         ZoomSelectionMode zoom_selection_mode = ZoomSelectionMode::PerTile;
+        DataMode data_mode = DataMode::Rgba;
     };
 
     explicit SlippyTileOverlay(TileSource* source);
@@ -89,7 +98,7 @@ private:
         float pixel_error_threshold = 2.0f;
         uint32_t debug_view = 0;
         uint32_t zoom_selection_mode = 0;
-        uint32_t _pad0 = 0;
+        uint32_t data_mode = 0; // see DataMode
         uint32_t _pad1 = 0;
     };
 

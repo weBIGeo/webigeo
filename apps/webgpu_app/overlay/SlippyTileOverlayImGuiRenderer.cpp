@@ -108,6 +108,14 @@ bool SlippyTileOverlayImGuiRenderer::render_custom_settings()
         changed = true;
     }
 
+    // Temporary: lets any source's RGBA be reinterpreted as the snow-depth encoding for testing.
+    int data_mode = static_cast<int>(s.data_mode);
+    if (ImGui::Combo("Data Mode", &data_mode, "RGBA\0Snow Avg\0Snow Avg Normals\0")) {
+        s.data_mode = static_cast<webgpu_engine::SlippyTileOverlay::DataMode>(data_mode);
+        m_slippy_overlay->update_settings();
+        changed = true;
+    }
+
     return changed;
 }
 

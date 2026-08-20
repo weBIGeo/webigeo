@@ -19,6 +19,8 @@
 ///use util/shared_config
 ///use webgpu::encoder
 ///use webgpu::tile_util
+///use webgpu::normals_util
+///use webgpu::general
 
 @group(0) @binding(0) var<uniform> conf: shared_config;
 
@@ -33,6 +35,13 @@
 @group(2) @binding(8) var tile_ref_texture: texture_2d<u32>; // RG32Uint: packed uv + (derivatives | frame-local id)
 @group(2) @binding(9) var<storage, read> frame_tile_ids: array<vec2u>; // frame-local id -> packed render tile id
 @group(2) @binding(10) var<storage, read> frame_target_zoom: array<u32>; // frame-local id -> per-tile target zoom (zoom_selection_mode == PER_TILE only)
+@group(2) @binding(11) var normal_texture: texture_2d<u32>; // gbuffer normal, used by DATA_MODE_SNOW_AVG_NORMALS's slope mask
+
+// Temporary: masks the snow-depth ramp by surface steepness, same heuristic as ScreenSpaceSnowOverlay
+// (steep slopes don't hold snow), used by DATA_MODE_SNOW_AVG_NORMALS.
+const SNOW_ANGLE_MIN: f32 = 0.0; // deg, steepness below which snow is unmasked
+const SNOW_ANGLE_MAX: f32 = 45.0; // deg, steepness above which snow is fully masked out
+const SNOW_ANGLE_BLEND: f32 = 5.0; // deg, falloff width around angle_max
 
 struct SlippyTileSettings {
     opacity: f32,
@@ -41,8 +50,18 @@ struct SlippyTileSettings {
     pixel_error_threshold: f32,
     debug_view: u32, // 0 = none, 1 = zoom level (see zoom_level_color)
     zoom_selection_mode: u32, // 0 = per-pixel (derivatives), 1 = per-tile (frame_target_zoom)
-    _pad0: u32,
+    data_mode: u32, // see DATA_MODE_* consts
     _pad1: u32,
+}
+
+const DATA_MODE_RGBA: u32 = 0u;
+const DATA_MODE_SNOW_AVG: u32 = 1u;
+const DATA_MODE_SNOW_AVG_NORMALS: u32 = 2u;
+
+// Snow tiles quantize [0, SNOW_CEILING_CM] linearly into a byte (see nucleus_extra's _encode_cm).
+const SNOW_CEILING_CM: f32 = 500.0;
+fn decode_snow_cm(byte_unorm: f32) -> f32 {
+    return byte_unorm * SNOW_CEILING_CM;
 }
 
 const DEBUG_VIEW_NONE: u32 = 0u;
@@ -178,8 +197,20 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3u) {
             // No mipmaps on the tile array (GpuTileTextureArray::init: mipLevelCount = 1) -- the
             // discrete zoom choice above already is the "mip" selection, so always sample lod 0.
             let sample = textureSampleLevel(tile_texture, tile_sampler, cur_uv, i32(layer), 0.0);
-            let a = settings.opacity * sample.a;
-            src = vec4f(sample.rgb * a, a); // premultiplied
+            if settings.data_mode == DATA_MODE_RGBA {
+                let a = settings.opacity * sample.a;
+                src = vec4f(sample.rgb * a, a); // premultiplied
+            } else {
+                let avg_cm = decode_snow_cm(sample.r);
+                var ramp = clamp(avg_cm / 20.0, 0.0, 1.0);
+                if settings.data_mode == DATA_MODE_SNOW_AVG_NORMALS {
+                    let normal = octNormalDecode2u16(textureLoad(normal_texture, tci, 0).xy);
+                    let steepness_deg = degrees(get_slope_angle(normal));
+                    ramp *= calculate_band_falloff(steepness_deg, SNOW_ANGLE_MIN, SNOW_ANGLE_MAX, SNOW_ANGLE_BLEND);
+                }
+                let a = settings.opacity * sample.a * ramp;
+                src = vec4f(a, a, a, a); // white, premultiplied
+            }
         }
     }
 

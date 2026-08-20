@@ -117,9 +117,17 @@ void SlippyTileOverlay::init(Context& context)
             frame_target_zoom_entry.visibility = WGPUShaderStage_Compute;
             frame_target_zoom_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
 
+            // Temporary: gbuffer normals, used by DataMode::SnowAvgNormals's slope-based masking.
+            WGPUBindGroupLayoutEntry normal_entry {};
+            normal_entry.binding = 11;
+            normal_entry.visibility = WGPUShaderStage_Compute;
+            normal_entry.texture.sampleType = WGPUTextureSampleType_Uint;
+            normal_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
             return std::make_unique<webgpu::raii::BindGroupLayout>(device,
                 std::vector<WGPUBindGroupLayoutEntry> { depth_entry, settings_entry, tile_texture_entry, tile_sampler_entry, output_entry,
-                    background_entry, dict_ids_entry, dict_layers_entry, tile_ref_entry, frame_tile_ids_entry, frame_target_zoom_entry },
+                    background_entry, dict_ids_entry, dict_layers_entry, tile_ref_entry, frame_tile_ids_entry, frame_target_zoom_entry,
+                    normal_entry },
                 "slippy tile overlay bind group layout");
         });
 
@@ -161,6 +169,7 @@ void SlippyTileOverlay::update_settings()
     m_settings_uniform->data.pixel_error_threshold = pixel_error_threshold;
     m_settings_uniform->data.debug_view = static_cast<uint32_t>(settings.debug_view);
     m_settings_uniform->data.zoom_selection_mode = static_cast<uint32_t>(settings.zoom_selection_mode);
+    m_settings_uniform->data.data_mode = static_cast<uint32_t>(settings.data_mode);
     m_settings_uniform->update_gpu_data(m_ctx->queue());
 }
 
@@ -215,6 +224,7 @@ void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
             octx.tile_ref_view.create_bind_group_entry(8),
             m_frame_tile_ids_buffer->create_bind_group_entry(9),
             m_frame_target_zoom_buffer->create_bind_group_entry(10),
+            octx.normal_view.create_bind_group_entry(11),
         },
         "slippy tile overlay bind group");
 
