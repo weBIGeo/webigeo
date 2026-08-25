@@ -102,6 +102,7 @@ qt_add_resources(webgpu_engine "shaders"
         "${SHADER_BASE_DIR}/overlays/gbuffer_debug.wgsl"
         "${SHADER_BASE_DIR}/overlays/screen_space_snow.wgsl"
         "${SHADER_BASE_DIR}/overlays/slippy_tile_overlay.wgsl"
+        "${SHADER_BASE_DIR}/overlays/slippy_tile_gbuffer_normals_pass.wgsl"
 
         "${SHADER_BASE_DIR}/util/camera_config.wgsl"
         "${SHADER_BASE_DIR}/util/shared_config.wgsl"

@@ -57,6 +57,21 @@ struct SlippyTileSettings {
 const DATA_MODE_RGBA: u32 = 0u;
 const DATA_MODE_SNOW_AVG: u32 = 1u;
 const DATA_MODE_SNOW_AVG_NORMALS: u32 = 2u;
+// Decodes and paints the normal as color (opaque debug visualization) -- for comparing side by side
+// against DATA_MODE_NORMALS_OVERWRITE's actual gbuffer write, e.g. to tell apart "the baked normal
+// data itself is wrong" from "the overwrite pass is wrong".
+const DATA_MODE_NORMALS: u32 = 3u;
+// Paints nothing on screen -- slippy_tile_gbuffer_normals_pass.wgsl does the real work of
+// overwriting the gbuffer normal directly, so lighting reacts to it.
+const DATA_MODE_NORMALS_OVERWRITE: u32 = 4u;
+
+fn decode_hemioct_normal_127(sample_rg: vec2f) -> vec3f {
+    let byte = round(sample_rg * 255.0);
+    let e = (byte - vec2f(127.0)) / 127.0;
+    let t = vec2f(e.x + e.y, e.x - e.y) * 0.5;
+    let n = vec3f(t, 1.0 - abs(t.x) - abs(t.y));
+    return normalize(n);
+}
 
 // Snow tiles quantize [0, SNOW_CEILING_CM] linearly into a byte (see nucleus_extra's _encode_cm).
 const SNOW_CEILING_CM: f32 = 500.0;
@@ -118,22 +133,22 @@ fn dict_lookup(id: TileId, out_layer: ptr<function, u32>) -> bool {
     return false;
 }
 
-@compute @workgroup_size(16, 16, 1)
-fn computeMain(@builtin(global_invocation_id) gid: vec3u) {
-    let dims = vec2u(textureDimensions(output_texture));
-    if gid.x >= dims.x || gid.y >= dims.y {
-        return;
-    }
-    let tci = gid.xy;
+// Result of resolving a screen pixel to a resident tile sample -- shared between computeMain (the
+// on-screen overlay) and slippy_tile_gbuffer_normals_pass.wgsl's fragmentMain (which overwrites the
+// gbuffer normal for DATA_MODE_NORMALS), so the tile-residency walk logic exists exactly once.
+// Caller must have already checked depth_texture (this assumes geometry is present at tci).
+struct ResolvedTileSample {
+    found: bool,
+    color: vec4f, // valid only if found
+    target_zoom: u32, // the *ideal* target zoom, valid regardless of found
+    resolved_zoom: u32, // the actually-resolved (resident) tile's zoom, valid only if found
+}
 
-    let bg = textureLoad(background, tci, 0);
-    let raw_depth = textureLoad(depth_texture, tci, 0).r;
-
-    // Background pixels (no geometry) pass through unchanged.
-    if raw_depth <= 0.0 {
-        textureStore(output_texture, tci, bg);
-        return;
-    }
+fn resolve_tile_sample(tci: vec2u) -> ResolvedTileSample {
+    var result: ResolvedTileSample;
+    result.found = false;
+    result.color = vec4f(0.0);
+    result.resolved_zoom = 0u;
 
     // Exact render-tile local uv + frame-local render-tile id + isotropic mip footprint, all packed
     // by render_tiles.wgsl's fragmentMain (see docs/masterplan.md Plan 3).
@@ -154,15 +169,7 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3u) {
         let target_zoom_f = round(-derivatives - log2(f32(settings.tile_size) * settings.pixel_error_threshold));
         target_zoom = u32(clamp(target_zoom_f, 0.0, f32(settings.max_zoom)));
     }
-
-    // Debug visualization of the *ideal* target zoom itself -- color-coded, fully opaque, and
-    // computed before any residency resolution, so it shows what zoom we'd *like* to sample
-    // regardless of which tiles are actually loaded (unlike DEBUG_VIEW_ZOOM_LEVEL, which colors the
-    // resolved/resident tile after the ancestor walk).
-    if settings.debug_view == DEBUG_VIEW_TARGET_ZOOM_LEVEL {
-        textureStore(output_texture, tci, vec4f(zoom_level_color(target_zoom), 1.0));
-        return;
-    }
+    result.target_zoom = target_zoom;
 
     // Jump straight to target_zoom (ascend or descend in one call), then walk up on a miss. The
     // scheduler guarantees every ancestor of a resident tile is also resident, so if target_zoom
@@ -172,12 +179,10 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3u) {
     var cur_uv: vec2f;
     calc_tile_id_and_uv_for_zoom_level(render_tile_id, render_uv, target_zoom, &cur_id, &cur_uv);
 
-    var src = vec4f(0.0);
     var layer: u32;
-    var found = false;
     loop {
         if dict_lookup(cur_id, &layer) {
-            found = true;
+            result.found = true;
             break;
         }
         var parent_id: TileId;
@@ -188,15 +193,58 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3u) {
         cur_id = parent_id;
         cur_uv = parent_uv;
     }
-    if found {
+    if result.found {
+        result.resolved_zoom = cur_id.zoomlevel;
+        // No mipmaps on the tile array (GpuTileTextureArray::init: mipLevelCount = 1) -- the
+        // discrete zoom choice above already is the "mip" selection, so always sample lod 0.
+        result.color = textureSampleLevel(tile_texture, tile_sampler, cur_uv, i32(layer), 0.0);
+    }
+    return result;
+}
+
+@compute @workgroup_size(16, 16, 1)
+fn computeMain(@builtin(global_invocation_id) gid: vec3u) {
+    let dims = vec2u(textureDimensions(output_texture));
+    if gid.x >= dims.x || gid.y >= dims.y {
+        return;
+    }
+    let tci = gid.xy;
+
+    let bg = textureLoad(background, tci, 0);
+    let raw_depth = textureLoad(depth_texture, tci, 0).r;
+
+    // Background pixels (no geometry) pass through unchanged.
+    if raw_depth <= 0.0 {
+        textureStore(output_texture, tci, bg);
+        return;
+    }
+
+    let resolved = resolve_tile_sample(tci);
+
+    // Debug visualization of the *ideal* target zoom itself -- color-coded, fully opaque, and
+    // computed before any residency resolution, so it shows what zoom we'd *like* to sample
+    // regardless of which tiles are actually loaded (unlike DEBUG_VIEW_ZOOM_LEVEL, which colors the
+    // resolved/resident tile after the ancestor walk).
+    if settings.debug_view == DEBUG_VIEW_TARGET_ZOOM_LEVEL {
+        textureStore(output_texture, tci, vec4f(zoom_level_color(resolved.target_zoom), 1.0));
+        return;
+    }
+
+    var src = vec4f(0.0);
+    if resolved.found {
         if settings.debug_view == DEBUG_VIEW_ZOOM_LEVEL {
             // Debug visualization: fully opaque, overrides whatever's beneath so the color-coding
             // reads unambiguously.
-            src = vec4f(zoom_level_color(cur_id.zoomlevel), 1.0);
+            src = vec4f(zoom_level_color(resolved.resolved_zoom), 1.0);
+        } else if settings.data_mode == DATA_MODE_NORMALS {
+            // Debug visualization: decode and paint the normal as color, fully opaque.
+            let normal = decode_hemioct_normal_127(resolved.color.rg);
+            src = vec4f(normal * 0.5 + vec3f(0.5), 1.0);
+        } else if settings.data_mode == DATA_MODE_NORMALS_OVERWRITE {
+            // Nothing to paint on screen -- slippy_tile_gbuffer_normals_pass.wgsl overwrites the
+            // gbuffer normal directly, which is where this mode's actual effect is visible.
         } else {
-            // No mipmaps on the tile array (GpuTileTextureArray::init: mipLevelCount = 1) -- the
-            // discrete zoom choice above already is the "mip" selection, so always sample lod 0.
-            let sample = textureSampleLevel(tile_texture, tile_sampler, cur_uv, i32(layer), 0.0);
+            let sample = resolved.color;
             if settings.data_mode == DATA_MODE_RGBA {
                 let a = settings.opacity * sample.a;
                 src = vec4f(sample.rgb * a, a); // premultiplied

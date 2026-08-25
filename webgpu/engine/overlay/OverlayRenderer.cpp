@@ -19,6 +19,7 @@
 
 #include "OverlayRenderer.h"
 
+#include "SlippyTileOverlay.h"
 #include "webgpu/engine/Context.h"
 #include <algorithm>
 #include <memory>
@@ -179,6 +180,19 @@ void OverlayRenderer::draw_bucket(const WGPUCommandEncoder& command_encoder,
         const int target = current ^ 1;
         overlay->draw(command_encoder, octx, *tex[static_cast<size_t>(current)], *tex[static_cast<size_t>(target)], output_size);
         current = target;
+    }
+}
+
+void OverlayRenderer::write_gbuffer_normals(const WGPUCommandEncoder& command_encoder,
+    const webgpu::raii::TextureView& normal_view,
+    const webgpu::raii::TextureView& depth_view,
+    const webgpu::raii::TextureView& tile_ref_view,
+    const WGPUBindGroup& shared_config_bg,
+    const WGPUBindGroup& camera_bg)
+{
+    for (const auto& overlay : m_overlays) {
+        if (auto* slippy = dynamic_cast<SlippyTileOverlay*>(overlay.get()))
+            slippy->write_normals_to_gbuffer(command_encoder, normal_view, depth_view, tile_ref_view, shared_config_bg, camera_bg);
     }
 }
 

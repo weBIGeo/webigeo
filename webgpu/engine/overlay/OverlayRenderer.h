@@ -62,6 +62,15 @@ public:
         const WGPUBindGroup& shared_config_bg,
         const WGPUBindGroup& camera_bg);
 
+    // Runs each SlippyTileOverlay's DataMode::NormalsOverwrite gbuffer-normal overwrite pass (no-op for
+    // overlays not in that mode). Call after draw(), so per-frame tile-resolution buffers are fresh.
+    void write_gbuffer_normals(const WGPUCommandEncoder& command_encoder,
+        const webgpu::raii::TextureView& normal_view,
+        const webgpu::raii::TextureView& depth_view,
+        const webgpu::raii::TextureView& tile_ref_view,
+        const WGPUBindGroup& shared_config_bg,
+        const WGPUBindGroup& camera_bg);
+
     [[nodiscard]] const webgpu::raii::TextureView* result_pre_view() const;
     [[nodiscard]] const webgpu::raii::TextureView* result_post_view() const;
 

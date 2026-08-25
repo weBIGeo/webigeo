@@ -22,6 +22,7 @@
 #include <memory>
 #include <webgpu/base/Buffer.h>
 #include <webgpu/base/raii/CombinedComputePipeline.h>
+#include <webgpu/base/raii/Pipeline.h>
 #include <webgpu/base/raii/RawBuffer.h>
 
 namespace webgpu_engine {
@@ -63,6 +64,8 @@ public:
         Rgba = 0, // plain imagery
         SnowAvg = 1, // snow-depth encoding (R channel), white ramping in over [0, 20cm] avg depth
         SnowAvgNormals = 2, // SnowAvg, additionally masked by surface steepness (gbuffer normal)
+        Normals = 3,
+        NormalsOverwrite = 4,
     };
 
     struct Settings {
@@ -88,6 +91,13 @@ public:
         webgpu::raii::TextureWithSampler& target_output,
         glm::uvec2 output_size) override;
 
+    void write_normals_to_gbuffer(const WGPUCommandEncoder& command_encoder,
+        const webgpu::raii::TextureView& normal_view,
+        const webgpu::raii::TextureView& depth_view,
+        const webgpu::raii::TextureView& tile_ref_view,
+        const WGPUBindGroup& shared_config_bg,
+        const WGPUBindGroup& camera_bg);
+
     Settings settings;
 
 private:
@@ -105,6 +115,7 @@ private:
     webgpu::Context* m_ctx = nullptr;
     TileSource* m_source = nullptr;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_pipeline;
+    std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_gbuffer_write_pipeline;
     std::unique_ptr<webgpu::Buffer<GpuSettings>> m_settings_uniform;
     // frame_local_id -> packed tile id (nucleus::srs::pack format), rebuilt every draw() call from
     // frame_tile_ids; lets the compute shader recover the render tile's actual id (tile_ref itself

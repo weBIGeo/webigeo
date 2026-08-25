@@ -288,6 +288,14 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
             m_camera,
             m_shared_config_bind_group->handle(),
             m_camera_bind_group->handle());
+        // DataMode::NormalsOverwrite: overwrite the gbuffer normal attachment directly (after draw(), so this
+        // frame's tile-resolution buffers are already uploaded), before compose_pass reads it.
+        m_context->overlay_renderer()->write_gbuffer_normals(command_encoder,
+            m_gbuffer->color_texture_view(0),
+            m_gbuffer->depth_texture_view(),
+            m_gbuffer->color_texture_view(1),
+            m_shared_config_bind_group->handle(),
+            m_camera_bind_group->handle());
         if (has_overlays) sm.stop_gpu(SID_OVERLAY, command_encoder);
     }
 
