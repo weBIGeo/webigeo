@@ -20,7 +20,7 @@
  *****************************************************************************/
 
 ///use webgpu::normals_util
-///use color_mapping
+///use webgpu::color_mapping
 
 ///define USE_ROUGHNESS_FILTERING 1
 ///define ROUGHNESS_THRESHOLD 0.01

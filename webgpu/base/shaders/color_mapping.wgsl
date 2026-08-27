@@ -17,6 +17,26 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
+///use webgpu::hashing
+///use webgpu::tile_util
+
+// Debug color for a zoom level: r*255 = zoom (readable as data), g/b cycle over 4 values so
+// neighboring zoom levels are visually distinguishable.
+fn zoom_level_color(zoom: u32) -> vec3f {
+    let r = f32(min(zoom, 255u)) / 255.0;
+    let idx = zoom % 4u;
+    let g = f32(idx & 1u);
+    let b = f32((idx >> 1u) & 1u);
+    return vec3f(r, g, b);
+}
+
+// Debug color for a full tile id: r*255 = zoom, g/b hashed from x/y so adjacent tiles differ clearly.
+fn tile_id_debug_color(id: TileId) -> vec3f {
+    let seed = compute_hash(id.x) ^ (compute_hash(id.y) * 0x9E3779B9u);
+    let hash_color = color_from_id_hash(seed);
+    return vec3f(f32(min(id.zoomlevel, 255u)) / 255.0, hash_color.r, hash_color.g);
+}
+
 // value in [0,1], represents angle from horizontal to vertical
 // color map from https://www.bergfex.com/
 // values not in [0,1] are mapped to black

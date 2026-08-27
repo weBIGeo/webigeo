@@ -88,7 +88,6 @@ qt_add_resources(webgpu_compute "webgpu_compute_shaders"
         "${SHADER_BASE_DIR}/iterative_simulation_compute.wgsl"
 
         "${SHADER_BASE_DIR}/tile_hashmap.wgsl"
-        "${SHADER_BASE_DIR}/color_mapping.wgsl"
         "${SHADER_BASE_DIR}/random.wgsl"
     )
 
