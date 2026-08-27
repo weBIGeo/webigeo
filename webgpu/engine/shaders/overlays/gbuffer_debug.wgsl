@@ -21,12 +21,16 @@
 ///use webgpu::position_util
 ///use webgpu::encoder
 ///use webgpu::normals_util
+///use webgpu::tile_util
+///use webgpu::color_mapping
 
 @group(0) @binding(0) var<uniform> settings: TileDebugSettings;
 @group(0) @binding(1) var output_texture:   texture_storage_2d<rgba8unorm, write>;
 @group(0) @binding(2) var prev_output:      texture_2d<f32>;
 @group(0) @binding(3) var depth_texture:    texture_depth_2d;        // GBuffer depth
 @group(0) @binding(4) var normal_texture:   texture_2d<u32>;         // GBuffer slot 0: oct-encoded true terrain normal
+@group(0) @binding(5) var tile_ref_texture: texture_2d<u32>;         // GBuffer: packed uv + (derivatives | frame-local id)
+@group(0) @binding(6) var<storage, read> frame_tile_ids: array<vec2u>; // frame-local id -> packed render tile id
 
 @group(1) @binding(0) var<uniform> camera: camera_config;
 @group(2) @binding(0) var<uniform> conf: shared_config;
@@ -85,6 +89,14 @@ fn computeMain(@builtin(global_invocation_id) id: vec3u) {
             let pos_cws = camera_relative_pos_from_depth(tci, dims, raw_depth, camera.inv_view_proj_matrix);
             let shading_normal = curvature_corrected_normal(normal, pos_cws.xy, conf.planet_radius_m);
             overlay_color = vec4f(shading_normal * 0.5 + 0.5, 1.0);
+        } else if settings.mode == 6u {
+            // Colors each pixel by the render tile it belongs to, decoded straight from the tile_ref
+            // gbuffer target -- shows render-tile granularity/boundaries independent of any overlay's
+            // own resolved/resident sampling.
+            let tile_ref = textureLoad(tile_ref_texture, tci, 0);
+            let frame_local_id = tile_ref.y & 0xFFFFu;
+            let render_tile_id = unpack_tile_id(frame_tile_ids[frame_local_id]);
+            overlay_color = vec4f(tile_id_debug_color(render_tile_id), 1.0);
         }
     }
 

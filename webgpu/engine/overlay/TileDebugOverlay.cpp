@@ -20,11 +20,16 @@
 #include "TileDebugOverlay.h"
 
 #include "webgpu/engine/Context.h"
+#include <nucleus/srs.h>
 #include <webgpu/base/RenderResourceRegistry.h>
 #include <webgpu/base/raii/BindGroup.h>
 #include <webgpu/base/raii/BindGroupLayout.h>
 
 namespace webgpu_engine {
+
+namespace {
+    constexpr uint32_t k_max_frame_tiles = 1024;
+} // namespace
 
 TileDebugOverlay::TileDebugOverlay()
     : Overlay()
@@ -73,8 +78,22 @@ void TileDebugOverlay::init(Context& context)
             normal_entry.texture.sampleType = WGPUTextureSampleType_Uint;
             normal_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
+            // Mode::RenderTileId: the gbuffer's per-pixel render-tile reference (frame-local id) and
+            // this frame's frame_local_id -> packed tile id lookup, same pair SlippyTileOverlay uses.
+            WGPUBindGroupLayoutEntry tile_ref_entry {};
+            tile_ref_entry.binding = 5;
+            tile_ref_entry.visibility = WGPUShaderStage_Compute;
+            tile_ref_entry.texture.sampleType = WGPUTextureSampleType_Uint;
+            tile_ref_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+            WGPUBindGroupLayoutEntry frame_tile_ids_entry {};
+            frame_tile_ids_entry.binding = 6;
+            frame_tile_ids_entry.visibility = WGPUShaderStage_Compute;
+            frame_tile_ids_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+
             return std::make_unique<webgpu::raii::BindGroupLayout>(device,
-                std::vector<WGPUBindGroupLayoutEntry> { settings_entry, output_entry, prev_output_entry, depth_entry, normal_entry },
+                std::vector<WGPUBindGroupLayoutEntry> {
+                    settings_entry, output_entry, prev_output_entry, depth_entry, normal_entry, tile_ref_entry, frame_tile_ids_entry },
                 "tile debug overlay bind group layout");
         });
     reg.register_pipeline([this](WGPUDevice device, const webgpu::RenderResourceRegistry& reg) {
@@ -90,6 +109,9 @@ void TileDebugOverlay::init(Context& context)
 
     m_settings_uniform = std::make_unique<webgpu::Buffer<GpuSettings>>(ctx.device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform);
     update_settings();
+
+    m_frame_tile_ids_buffer = std::make_unique<webgpu::raii::RawBuffer<glm::u32vec2>>(
+        ctx.device(), WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst, k_max_frame_tiles, "tile debug overlay frame tile ids");
 }
 
 void TileDebugOverlay::update_settings()
@@ -119,6 +141,14 @@ void TileDebugOverlay::draw(const WGPUCommandEncoder& command_encoder,
     if (!m_pipeline)
         return;
 
+    // Only needed by Mode::RenderTileId, but always uploaded so switching modes is instant.
+    const size_t n_tiles = std::min(octx.frame_tile_ids.size(), size_t(k_max_frame_tiles));
+    std::vector<glm::u32vec2> packed_ids(n_tiles);
+    for (size_t i = 0; i < n_tiles; ++i)
+        packed_ids[i] = nucleus::srs::pack(octx.frame_tile_ids[i].id);
+    if (!packed_ids.empty())
+        m_frame_tile_ids_buffer->write(m_ctx->queue(), packed_ids.data(), packed_ids.size());
+
     webgpu::raii::BindGroup bind_group(m_ctx->device(),
         m_ctx->resource_registry().bind_group_layout("tile_debug_overlay"),
         std::vector<WGPUBindGroupEntry> {
@@ -127,6 +157,8 @@ void TileDebugOverlay::draw(const WGPUCommandEncoder& command_encoder,
             current_input.texture_view().create_bind_group_entry(2),
             octx.depth_view.create_bind_group_entry(3),
             octx.normal_view.create_bind_group_entry(4),
+            octx.tile_ref_view.create_bind_group_entry(5),
+            m_frame_tile_ids_buffer->create_bind_group_entry(6),
         },
         "tile debug overlay bind group");
 

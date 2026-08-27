@@ -23,6 +23,7 @@
 #include <memory>
 #include <webgpu/base/Buffer.h>
 #include <webgpu/base/raii/CombinedComputePipeline.h>
+#include <webgpu/base/raii/RawBuffer.h>
 #include <webgpu/base/raii/TextureWithSampler.h>
 
 namespace webgpu_engine {
@@ -37,6 +38,7 @@ public:
         DepthDistance = 3,
         DepthPosition = 4,
         ShadingNormals = 5,
+        RenderTileId = 6, // decodes the render-tile id straight from the tile_ref gbuffer target
     };
 
     enum class Region {
@@ -82,6 +84,10 @@ private:
     webgpu::Context* m_ctx = nullptr;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_pipeline;
     std::unique_ptr<webgpu::Buffer<GpuSettings>> m_settings_uniform;
+    // frame_local_id -> packed tile id, rebuilt every draw() call from frame_tile_ids -- lets
+    // Mode::RenderTileId recover the render tile's actual id from the tile_ref gbuffer target
+    // (which only carries the 16-bit frame_local_id). Same format as SlippyTileOverlay's buffer.
+    std::unique_ptr<webgpu::raii::RawBuffer<glm::u32vec2>> m_frame_tile_ids_buffer;
 };
 
 } // namespace webgpu_engine

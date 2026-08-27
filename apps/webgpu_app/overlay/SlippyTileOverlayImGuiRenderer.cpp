@@ -95,7 +95,7 @@ bool SlippyTileOverlayImGuiRenderer::render_custom_settings()
     }
 
     int debug_view = static_cast<int>(s.debug_view);
-    if (ImGui::Combo("Debug View", &debug_view, "None\0Zoom Level\0Target Zoom Level\0")) {
+    if (ImGui::Combo("Debug View", &debug_view, "None\0Zoom Level\0Target Zoom Level\0Target Tile Id\0")) {
         s.debug_view = static_cast<webgpu_engine::SlippyTileOverlay::DebugView>(debug_view);
         m_slippy_overlay->update_settings();
         changed = true;

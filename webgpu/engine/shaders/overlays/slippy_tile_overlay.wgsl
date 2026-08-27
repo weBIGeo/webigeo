@@ -21,6 +21,7 @@
 ///use webgpu::tile_util
 ///use webgpu::normals_util
 ///use webgpu::general
+///use webgpu::color_mapping
 
 @group(0) @binding(0) var<uniform> conf: shared_config;
 
@@ -82,22 +83,9 @@ fn decode_snow_cm(byte_unorm: f32) -> f32 {
 const DEBUG_VIEW_NONE: u32 = 0u;
 const DEBUG_VIEW_ZOOM_LEVEL: u32 = 1u;
 const DEBUG_VIEW_TARGET_ZOOM_LEVEL: u32 = 2u;
+const DEBUG_VIEW_TARGET_TILE_ID: u32 = 3u;
 const ZOOM_SELECTION_MODE_PER_PIXEL: u32 = 0u;
 const ZOOM_SELECTION_MODE_PER_TILE: u32 = 1u;
-
-// Debug color-coding for the resolved (resident) tile's zoom level: the zoom itself is encoded
-// directly in R (r * 255 = zoom), so the raw pixel value is readable as data, not just a color.
-// G/B cycle through the 4 corners of the unit square with period 4, so *neighboring* zoom levels
-// -- which is where they actually show up adjacent on screen, at LOD transitions -- always differ
-// by a full 0/1 step in at least one channel, keeping them visually distinguishable even though
-// their R values are only 1/255 apart.
-fn zoom_level_color(zoom: u32) -> vec3f {
-    let r = f32(min(zoom, 255u)) / 255.0;
-    let idx = zoom % 4u;
-    let g = f32(idx & 1u);
-    let b = f32((idx >> 1u) & 1u);
-    return vec3f(r, g, b);
-}
 
 // Ports of nucleus::srs::hash_uint16 / pack, matching GpuArrayHelper::generate_dictionary().
 // Components are truncated to 16 bits before multiplying, exactly like the uint16_t arithmetic in srs.cpp.
@@ -141,6 +129,7 @@ struct ResolvedTileSample {
     found: bool,
     color: vec4f, // valid only if found
     target_zoom: u32, // the *ideal* target zoom, valid regardless of found
+    target_tile_id: TileId, // the *ideal* target tile id (before residency fallback), valid regardless of found
     resolved_zoom: u32, // the actually-resolved (resident) tile's zoom, valid only if found
 }
 
@@ -178,6 +167,7 @@ fn resolve_tile_sample(tci: vec2u) -> ResolvedTileSample {
     var cur_id: TileId;
     var cur_uv: vec2f;
     calc_tile_id_and_uv_for_zoom_level(render_tile_id, render_uv, target_zoom, &cur_id, &cur_uv);
+    result.target_tile_id = cur_id;
 
     var layer: u32;
     loop {
@@ -227,6 +217,11 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3u) {
     // resolved/resident tile after the ancestor walk).
     if settings.debug_view == DEBUG_VIEW_TARGET_ZOOM_LEVEL {
         textureStore(output_texture, tci, vec4f(zoom_level_color(resolved.target_zoom), 1.0));
+        return;
+    } else if settings.debug_view == DEBUG_VIEW_TARGET_TILE_ID {
+        // Same idea as DEBUG_VIEW_TARGET_ZOOM_LEVEL, but color-codes the tile itself (not just its
+        // zoom) so individual target tiles -- not just zoom bands -- are visually distinguishable.
+        textureStore(output_texture, tci, vec4f(tile_id_debug_color(resolved.target_tile_id), 1.0));
         return;
     }
 

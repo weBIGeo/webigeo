@@ -48,6 +48,7 @@ public:
         None = 0,
         ZoomLevel = 1, // color-codes the resolved (resident) tile's zoom level, see zoom_level_color() in the shader
         TargetZoomLevel = 2, // color-codes the *ideal* target zoom (before residency fallback), i.e. ignoring which tiles actually exist
+        TargetTileId = 3, // color-codes the *ideal* target tile id itself (before residency fallback), see tile_id_debug_color() in the shader
     };
 
     // How the per-pixel target zoom is chosen (see docs/masterplan.md Plan 3):

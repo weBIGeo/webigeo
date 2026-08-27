@@ -36,7 +36,7 @@ bool TileDebugOverlayImGuiRenderer::render_custom_settings()
     // Combo order must match TileDebugOverlay::Mode
     static const char* mode_items[]
         = { "Depth-Buffer (raw)", "Depth-Buffer (linear)", "Camera Distance (reproj. Depth-Buffer)", "Position (reproj. Depth-Buffer)",
-              "Shading Normals (curvature-corrected)" };
+              "Shading Normals (curvature-corrected)", "Render Tile Id (gbuffer)" };
     int current = s.mode - 1;
     if (ImGui::Combo("Mode", &current, mode_items, IM_ARRAYSIZE(mode_items))) {
         s.mode = current + 1;
