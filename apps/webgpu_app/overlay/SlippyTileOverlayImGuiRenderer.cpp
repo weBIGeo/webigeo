@@ -108,6 +108,17 @@ bool SlippyTileOverlayImGuiRenderer::render_custom_settings()
         changed = true;
     }
 
+    if (ImGui::Checkbox("Blend Zoom Transitions", &s.blend_zoom_transitions)) {
+        m_slippy_overlay->update_settings();
+        changed = true;
+    }
+    ImGui::BeginDisabled(!s.blend_zoom_transitions);
+    if (ImGui::SliderFloat("Blend Band", &s.zoom_blend_band, 0.01f, 1.0f)) {
+        m_slippy_overlay->update_settings();
+        changed = true;
+    }
+    ImGui::EndDisabled();
+
     // Temporary: lets any source's RGBA be reinterpreted as the snow-depth or normal-map encoding for testing.
     int data_mode = static_cast<int>(s.data_mode);
     if (ImGui::Combo("Data Mode", &data_mode, "RGBA\0Snow Avg\0Snow Avg Normals\0Normals\0Normals Overwrite\0")) {

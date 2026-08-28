@@ -85,6 +85,14 @@ public:
         DebugView debug_view = DebugView::None;
         ZoomSelectionMode zoom_selection_mode = ZoomSelectionMode::PerPixel;
         DataMode data_mode = DataMode::Rgba;
+        // Cross-fades between neighboring zoom levels near a transition instead of popping. Excluded
+        // from DataMode::Normals and DataMode::NormalsOverwrite, which can't blend two encoded
+        // normals with a plain color lerp. Off by default -- opt-in for comparison against the
+        // existing hard cutover.
+        bool blend_zoom_transitions = false;
+        // Width (in zoom units) of the cross-fade band centered on each integer zoom boundary; see
+        // resolve_tile_sample in slippy_tile_overlay.wgsl.
+        float zoom_blend_band = 0.3f;
     };
 
     explicit SlippyTileOverlay(TileSource* source);
@@ -118,7 +126,8 @@ private:
         uint32_t debug_view = 0;
         uint32_t zoom_selection_mode = 0;
         uint32_t data_mode = 0; // see DataMode
-        uint32_t _pad1 = 0;
+        uint32_t blend_zoom_transitions = 0;
+        float zoom_blend_band = 0.3f;
     };
 
     webgpu::Context* m_ctx = nullptr;

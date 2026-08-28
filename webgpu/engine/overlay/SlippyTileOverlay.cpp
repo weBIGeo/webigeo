@@ -235,6 +235,8 @@ void SlippyTileOverlay::update_settings()
     m_settings_uniform->data.debug_view = static_cast<uint32_t>(settings.debug_view);
     m_settings_uniform->data.zoom_selection_mode = static_cast<uint32_t>(settings.zoom_selection_mode);
     m_settings_uniform->data.data_mode = static_cast<uint32_t>(settings.data_mode);
+    m_settings_uniform->data.blend_zoom_transitions = settings.blend_zoom_transitions ? 1u : 0u;
+    m_settings_uniform->data.zoom_blend_band = settings.zoom_blend_band;
     m_settings_uniform->update_gpu_data(m_ctx->queue());
 }
 

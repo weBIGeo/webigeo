@@ -54,7 +54,8 @@ struct SlippyTileSettings {
     debug_view: u32, // 0 = none, 1 = zoom level (see zoom_level_color)
     zoom_selection_mode: u32, // 0 = per-pixel (derivatives), 1 = per-tile (true per-pixel distance)
     data_mode: u32, // see DATA_MODE_* consts
-    _pad1: u32,
+    blend_zoom_transitions: u32, // 0/1 -- cross-fade across zoom transitions instead of popping
+    zoom_blend_band: f32, // width (in zoom units) of the cross-fade band around each integer boundary
 }
 
 const DATA_MODE_RGBA: u32 = 0u;
@@ -130,22 +131,26 @@ fn dict_lookup(id: TileId, out_layer: ptr<function, u32>) -> bool {
 struct ResolvedTileSample {
     found: bool,
     color: vec4f, // valid only if found
-    target_zoom: u32, // the *ideal* target zoom, valid regardless of found
+    target_zoom: u32, // the *ideal* (nearest, i.e. round()ed) target zoom, valid regardless of found
     target_tile_id: TileId, // the *ideal* target tile id (before residency fallback), valid regardless of found
     resolved_zoom: u32, // the actually-resolved (resident) tile's zoom, valid only if found
+    zoom_lo: u32, // floor(desired_zoom_f), used by the debug view's own zoom-transition blend
+    zoom_hi: u32, // min(zoom_lo + 1, max_zoom)
+    blend_t: f32, // 0 = nearest is zoom_lo, 1 = nearest is zoom_hi, fractional inside the transition band
 }
 
 const SQRT2: f32 = 1.4142135623730951;
 
 // Same shape as nucleus::tile::utils::refineFunctor / AabbDecorator's screen-space-error criterion,
 // solved directly for the ideal zoom instead of walking candidates -- to_screen_space is a pure
-// k/distance relation, so it inverts in closed form.
-fn closed_form_target_zoom(distance: f32) -> u32 {
+// k/distance relation, so it inverts in closed form. Returns the continuous (unrounded) zoom so
+// callers can blend between its floor/ceil across a transition instead of popping at round().
+fn closed_form_target_zoom_f(distance: f32) -> f32 {
     let screen_px_per_meter = camera.viewport_size.y * 0.5 * camera.distance_scaling_factor / distance;
     let desired_pixel_size_m = settings.pixel_error_threshold / max(screen_px_per_meter, 1e-9) / SQRT2;
     let desired_tile_size_m = desired_pixel_size_m * f32(settings.tile_size);
-    let desired_zoom = round(log2(EARTH_CIRCUMFERENCE / max(desired_tile_size_m, 1e-3)));
-    return u32(clamp(desired_zoom, 0.0, f32(settings.max_zoom)));
+    let desired_zoom = log2(EARTH_CIRCUMFERENCE / max(desired_tile_size_m, 1e-3));
+    return clamp(desired_zoom, 0.0, f32(settings.max_zoom));
 }
 
 // NOTE: we tried a second PER_TILE variant that corrected this closed-form guess by walking the
@@ -160,51 +165,27 @@ fn closed_form_target_zoom(distance: f32) -> u32 {
 // can't faithfully reproduce the CPU refiner's result here without access to per-tile heights, so
 // that variant was removed; PER_TILE stays this closed-form, per-pixel approximation only.
 
-fn resolve_tile_sample(tci: vec2u, raw_depth: f32) -> ResolvedTileSample {
-    var result: ResolvedTileSample;
+struct SingleTileResult {
+    found: bool,
+    color: vec4f, // valid only if found
+    resolved_zoom: u32, // valid only if found
+}
+
+// Jumps straight to target_zoom (ascend or descend in one call), then walks up on a miss. The
+// scheduler guarantees every ancestor of a resident tile is also resident, so if target_zoom
+// itself isn't resident yet, no level between it and the render tile can be either -- walking up
+// from target_zoom always reaches the deepest actually-resident tile directly. Split out of
+// resolve_tile_sample so the zoom-transition blend below can call it once (fast path, away from a
+// transition) or twice (blend path, near one) without duplicating the walk.
+fn resolve_single_tile(render_tile_id: TileId, render_uv: vec2f, target_zoom: u32) -> SingleTileResult {
+    var result: SingleTileResult;
     result.found = false;
     result.color = vec4f(0.0);
     result.resolved_zoom = 0u;
 
-    // Exact render-tile local uv + frame-local render-tile id + isotropic mip footprint, all packed
-    // by render_tiles.wgsl's fragmentMain (see docs/masterplan.md Plan 3).
-    let tile_ref = textureLoad(tile_ref_texture, tci, 0);
-    let render_uv = unpack2x16unorm(tile_ref.x);
-    let frame_local_id = tile_ref.y & 0xFFFFu;
-    let derivatives = unpack_derivatives(tile_ref.y >> 16u);
-    let render_tile_id = unpack_tile_id(frame_tile_ids[frame_local_id]);
-
-    // Target zoom -- see Settings::zoom_selection_mode (SlippyTileOverlay.h) for the per-pixel vs.
-    // per-tile comparison.
-    var target_zoom: u32;
-    if settings.zoom_selection_mode == ZOOM_SELECTION_MODE_PER_TILE {
-        // Uses this pixel's own true distance, not an aggregate over the whole render tile, so it's
-        // independent of the render/geometry tile's own granularity. XY comes analytically from
-        // (render_tile_id, render_uv) -- exact, no depth precision loss -- Z from the depth buffer,
-        // un-bent from curved to flat space (curvature only ever touches Z, see
-        // apply_earth_curvature) so it lands in the same flat world frame calculate_bounds/
-        // camera.position use.
-        let world_xy = tile_uv_to_world_xy(render_tile_id, render_uv);
-        let dims = vec2u(textureDimensions(depth_texture));
-        let pos_cws_curved = camera_relative_pos_from_depth(tci, dims, raw_depth, camera.inv_view_proj_matrix);
-        let d_sq = pos_cws_curved.x * pos_cws_curved.x + pos_cws_curved.y * pos_cws_curved.y;
-        let world_z = camera.position.z + pos_cws_curved.z + earth_curvature_drop(d_sq, conf.planet_radius_m);
-        let distance = max(1.0, length(vec3f(world_xy - camera.position.xy, world_z - camera.position.z)));
-        target_zoom = closed_form_target_zoom(distance);
-    } else {
-        let target_zoom_f = round(-derivatives - log2(f32(settings.tile_size) * settings.pixel_error_threshold));
-        target_zoom = u32(clamp(target_zoom_f, 0.0, f32(settings.max_zoom)));
-    }
-    result.target_zoom = target_zoom;
-
-    // Jump straight to target_zoom (ascend or descend in one call), then walk up on a miss. The
-    // scheduler guarantees every ancestor of a resident tile is also resident, so if target_zoom
-    // itself isn't resident yet, no level between it and the render tile can be either -- walking
-    // up from target_zoom always reaches the deepest actually-resident tile directly.
     var cur_id: TileId;
     var cur_uv: vec2f;
     calc_tile_id_and_uv_for_zoom_level(render_tile_id, render_uv, target_zoom, &cur_id, &cur_uv);
-    result.target_tile_id = cur_id;
 
     var layer: u32;
     loop {
@@ -225,6 +206,94 @@ fn resolve_tile_sample(tci: vec2u, raw_depth: f32) -> ResolvedTileSample {
         // No mipmaps on the tile array (GpuTileTextureArray::init: mipLevelCount = 1) -- the
         // discrete zoom choice above already is the "mip" selection, so always sample lod 0.
         result.color = textureSampleLevel(tile_texture, tile_sampler, cur_uv, i32(layer), 0.0);
+    }
+    return result;
+}
+
+fn resolve_tile_sample(tci: vec2u, raw_depth: f32) -> ResolvedTileSample {
+    var result: ResolvedTileSample;
+    result.found = false;
+    result.color = vec4f(0.0);
+    result.resolved_zoom = 0u;
+
+    // Exact render-tile local uv + frame-local render-tile id + isotropic mip footprint, all packed
+    // by render_tiles.wgsl's fragmentMain (see docs/masterplan.md Plan 3).
+    let tile_ref = textureLoad(tile_ref_texture, tci, 0);
+    let render_uv = unpack2x16unorm(tile_ref.x);
+    let frame_local_id = tile_ref.y & 0xFFFFu;
+    let derivatives = unpack_derivatives(tile_ref.y >> 16u);
+    let render_tile_id = unpack_tile_id(frame_tile_ids[frame_local_id]);
+
+    // Continuous target zoom -- see Settings::zoom_selection_mode (SlippyTileOverlay.h) for the
+    // per-pixel vs. per-tile comparison. Kept unrounded so floor/ceil can be cross-faded below
+    // instead of popping at round().
+    var desired_zoom_f: f32;
+    if settings.zoom_selection_mode == ZOOM_SELECTION_MODE_PER_TILE {
+        // Uses this pixel's own true distance, not an aggregate over the whole render tile, so it's
+        // independent of the render/geometry tile's own granularity. XY comes analytically from
+        // (render_tile_id, render_uv) -- exact, no depth precision loss -- Z from the depth buffer,
+        // un-bent from curved to flat space (curvature only ever touches Z, see
+        // apply_earth_curvature) so it lands in the same flat world frame calculate_bounds/
+        // camera.position use.
+        let world_xy = tile_uv_to_world_xy(render_tile_id, render_uv);
+        let dims = vec2u(textureDimensions(depth_texture));
+        let pos_cws_curved = camera_relative_pos_from_depth(tci, dims, raw_depth, camera.inv_view_proj_matrix);
+        let d_sq = pos_cws_curved.x * pos_cws_curved.x + pos_cws_curved.y * pos_cws_curved.y;
+        let world_z = camera.position.z + pos_cws_curved.z + earth_curvature_drop(d_sq, conf.planet_radius_m);
+        let distance = max(1.0, length(vec3f(world_xy - camera.position.xy, world_z - camera.position.z)));
+        desired_zoom_f = closed_form_target_zoom_f(distance);
+    } else {
+        let target_zoom_f = -derivatives - log2(f32(settings.tile_size) * settings.pixel_error_threshold);
+        desired_zoom_f = clamp(target_zoom_f, 0.0, f32(settings.max_zoom));
+    }
+
+    let nearest_zoom = u32(round(desired_zoom_f));
+    let zoom_lo = u32(floor(desired_zoom_f));
+    let zoom_hi = min(zoom_lo + 1u, settings.max_zoom);
+    let frac = fract(desired_zoom_f);
+    let half_band = settings.zoom_blend_band * 0.5;
+    let blend_t = smoothstep(0.5 - half_band, 0.5 + half_band, frac);
+
+    result.target_zoom = nearest_zoom;
+    result.zoom_lo = zoom_lo;
+    result.zoom_hi = zoom_hi;
+    result.blend_t = blend_t;
+
+    // target_tile_id always reflects the nearest zoom, independent of whether we end up blending
+    // the actual sampled color below (debug view DEBUG_VIEW_TARGET_TILE_ID relies on this).
+    var target_id: TileId;
+    var target_uv: vec2f;
+    calc_tile_id_and_uv_for_zoom_level(render_tile_id, render_uv, nearest_zoom, &target_id, &target_uv);
+    result.target_tile_id = target_id;
+
+    // DATA_MODE_NORMALS(_OVERWRITE) can't be cross-faded with a plain color lerp -- that would need
+    // decoding both encoded normals, averaging, renormalizing and re-encoding -- so they always take
+    // the single-resolve path below, same as when the toggle is off or we're outside the band.
+    let blendable = settings.blend_zoom_transitions != 0u
+        && settings.data_mode != DATA_MODE_NORMALS && settings.data_mode != DATA_MODE_NORMALS_OVERWRITE;
+
+    if !blendable || blend_t <= 0.0 || blend_t >= 1.0 {
+        let r = resolve_single_tile(render_tile_id, render_uv, nearest_zoom);
+        result.found = r.found;
+        result.color = r.color;
+        result.resolved_zoom = r.resolved_zoom;
+    } else {
+        let lo = resolve_single_tile(render_tile_id, render_uv, zoom_lo);
+        let hi = resolve_single_tile(render_tile_id, render_uv, zoom_hi);
+        if lo.found && hi.found {
+            result.found = true;
+            result.color = mix(lo.color, hi.color, blend_t);
+            // Ambiguous once two different resident levels are blended together -- only used by
+            // DEBUG_VIEW_ZOOM_LEVEL, which isn't part of this blend (that debug view still reads as
+            // "whichever side currently has more weight").
+            result.resolved_zoom = select(lo.resolved_zoom, hi.resolved_zoom, blend_t >= 0.5);
+        } else if lo.found || hi.found {
+            // Only one side is actually resident (e.g. the other's ancestor fallback also missed) --
+            // just show it fully rather than fading toward nothing.
+            result.found = true;
+            result.color = select(hi.color, lo.color, lo.found);
+            result.resolved_zoom = select(hi.resolved_zoom, lo.resolved_zoom, lo.found);
+        }
     }
     return result;
 }
@@ -253,7 +322,13 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3u) {
     // regardless of which tiles are actually loaded (unlike DEBUG_VIEW_ZOOM_LEVEL, which colors the
     // resolved/resident tile after the ancestor walk).
     if settings.debug_view == DEBUG_VIEW_TARGET_ZOOM_LEVEL {
-        textureStore(output_texture, tci, vec4f(zoom_level_color(resolved.target_zoom), 1.0));
+        var color = zoom_level_color(resolved.target_zoom);
+        if settings.blend_zoom_transitions != 0u {
+            // Cross-fades the zoom-level color ramp itself, so the transition band set up in
+            // resolve_tile_sample is visible directly (a smooth gradient instead of a hard edge).
+            color = mix(zoom_level_color(resolved.zoom_lo), zoom_level_color(resolved.zoom_hi), resolved.blend_t);
+        }
+        textureStore(output_texture, tci, vec4f(color, 1.0));
         return;
     } else if settings.debug_view == DEBUG_VIEW_TARGET_TILE_ID {
         // Same idea as DEBUG_VIEW_TARGET_ZOOM_LEVEL, but color-codes the tile itself (not just its
