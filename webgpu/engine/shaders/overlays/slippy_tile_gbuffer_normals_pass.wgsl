@@ -39,7 +39,7 @@ fn fragmentMain(vertex_out: VertexOut) -> @location(0) vec2u {
         discard;
     }
 
-    let resolved = resolve_tile_sample(tci);
+    let resolved = resolve_tile_sample(tci, raw_depth);
     if !resolved.found {
         discard;
     }

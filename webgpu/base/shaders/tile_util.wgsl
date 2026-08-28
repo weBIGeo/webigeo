@@ -83,6 +83,14 @@ fn calculate_bounds(tile_id: TileId) -> vec4<f32> {
     return vec4f(min.x, min.y, max.x, max.y);
 }
 
+// Exact world XY for a uv within tile_id, using calculate_bounds -- avoids the depth buffer's
+// distance-dependent precision loss entirely. uv.y=0 maps to the tile's max Y (north), matching
+// render_tiles.wgsl's own row/uv convention (see its vertex position construction).
+fn tile_uv_to_world_xy(tile_id: TileId, uv: vec2f) -> vec2f {
+    let b = calculate_bounds(tile_id); // (min.x, min.y, max.x, max.y)
+    return vec2f(mix(b.x, b.z, uv.x), mix(b.w, b.y, uv.y));
+}
+
 fn world_to_lat_long_alt(pos_ws: vec3f) -> vec3f {
     let mercN = pos_ws.y * PI / ORIGIN_SHIFT;
     let latRad = 2.0 * (atan(exp(mercN)) - (PI / 4.0));

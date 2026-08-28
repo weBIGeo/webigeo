@@ -17,13 +17,16 @@
 *****************************************************************************/
 
 ///use util/shared_config
+///use util/camera_config
 ///use webgpu::encoder
 ///use webgpu::tile_util
 ///use webgpu::normals_util
 ///use webgpu::general
 ///use webgpu::color_mapping
+///use webgpu::position_util
 
 @group(0) @binding(0) var<uniform> conf: shared_config;
+@group(1) @binding(0) var<uniform> camera: camera_config;
 
 @group(2) @binding(0) var depth_texture: texture_2d<f32>;
 @group(2) @binding(1) var<uniform> settings: SlippyTileSettings;
@@ -35,7 +38,6 @@
 @group(2) @binding(7) var dict_layers: texture_2d<u32>;      // R16Uint: array-layer values (256x256)
 @group(2) @binding(8) var tile_ref_texture: texture_2d<u32>; // RG32Uint: packed uv + (derivatives | frame-local id)
 @group(2) @binding(9) var<storage, read> frame_tile_ids: array<vec2u>; // frame-local id -> packed render tile id
-@group(2) @binding(10) var<storage, read> frame_target_zoom: array<u32>; // frame-local id -> per-tile target zoom (zoom_selection_mode == PER_TILE only)
 @group(2) @binding(11) var normal_texture: texture_2d<u32>; // gbuffer normal, used by DATA_MODE_SNOW_AVG_NORMALS's slope mask
 
 // Temporary: masks the snow-depth ramp by surface steepness, same heuristic as ScreenSpaceSnowOverlay
@@ -50,7 +52,7 @@ struct SlippyTileSettings {
     tile_size: u32,
     pixel_error_threshold: f32,
     debug_view: u32, // 0 = none, 1 = zoom level (see zoom_level_color)
-    zoom_selection_mode: u32, // 0 = per-pixel (derivatives), 1 = per-tile (frame_target_zoom)
+    zoom_selection_mode: u32, // 0 = per-pixel (derivatives), 1 = per-tile (true per-pixel distance)
     data_mode: u32, // see DATA_MODE_* consts
     _pad1: u32,
 }
@@ -133,7 +135,32 @@ struct ResolvedTileSample {
     resolved_zoom: u32, // the actually-resolved (resident) tile's zoom, valid only if found
 }
 
-fn resolve_tile_sample(tci: vec2u) -> ResolvedTileSample {
+const SQRT2: f32 = 1.4142135623730951;
+
+// Same shape as nucleus::tile::utils::refineFunctor / AabbDecorator's screen-space-error criterion,
+// solved directly for the ideal zoom instead of walking candidates -- to_screen_space is a pure
+// k/distance relation, so it inverts in closed form.
+fn closed_form_target_zoom(distance: f32) -> u32 {
+    let screen_px_per_meter = camera.viewport_size.y * 0.5 * camera.distance_scaling_factor / distance;
+    let desired_pixel_size_m = settings.pixel_error_threshold / max(screen_px_per_meter, 1e-9) / SQRT2;
+    let desired_tile_size_m = desired_pixel_size_m * f32(settings.tile_size);
+    let desired_zoom = round(log2(EARTH_CIRCUMFERENCE / max(desired_tile_size_m, 1e-3)));
+    return u32(clamp(desired_zoom, 0.0, f32(settings.max_zoom)));
+}
+
+// NOTE: we tried a second PER_TILE variant that corrected this closed-form guess by walking the
+// hierarchy with the *real* refineFunctor/AabbDecorator test (nearest-point distance to a candidate
+// tile's own rectangle, that tile's own world size) to get grid-aligned transitions instead of the
+// circular iso-distance rings this closed-form guess produces. That test needs a height for the
+// candidate tile, and the real AabbDecorator gets a stable per-tile height *range* from a coarse
+// heightmap that isn't bound in this shader. Substituting a fixed sea-level reference made the
+// decision coherent (no jagged elevation-contour artifacts) but wrong near real elevation extremes
+// (e.g. close to the summit of the Grossglockner, still "thinks" it's at 0m and badly underestimates
+// how close the camera actually is) -- i.e. strictly worse than just accepting this mode's rings. We
+// can't faithfully reproduce the CPU refiner's result here without access to per-tile heights, so
+// that variant was removed; PER_TILE stays this closed-form, per-pixel approximation only.
+
+fn resolve_tile_sample(tci: vec2u, raw_depth: f32) -> ResolvedTileSample {
     var result: ResolvedTileSample;
     result.found = false;
     result.color = vec4f(0.0);
@@ -148,12 +175,22 @@ fn resolve_tile_sample(tci: vec2u) -> ResolvedTileSample {
     let render_tile_id = unpack_tile_id(frame_tile_ids[frame_local_id]);
 
     // Target zoom -- see Settings::zoom_selection_mode (SlippyTileOverlay.h) for the per-pixel vs.
-    // per-tile comparison. per-tile is one CPU-computed value for the whole render tile (uniform
-    // across every pixel of it); per-pixel is derived here from the rasterizer-computed footprint
-    // (hardware-accurate, and immune to the render tile's own zoom being clamped).
+    // per-tile comparison.
     var target_zoom: u32;
     if settings.zoom_selection_mode == ZOOM_SELECTION_MODE_PER_TILE {
-        target_zoom = frame_target_zoom[frame_local_id];
+        // Uses this pixel's own true distance, not an aggregate over the whole render tile, so it's
+        // independent of the render/geometry tile's own granularity. XY comes analytically from
+        // (render_tile_id, render_uv) -- exact, no depth precision loss -- Z from the depth buffer,
+        // un-bent from curved to flat space (curvature only ever touches Z, see
+        // apply_earth_curvature) so it lands in the same flat world frame calculate_bounds/
+        // camera.position use.
+        let world_xy = tile_uv_to_world_xy(render_tile_id, render_uv);
+        let dims = vec2u(textureDimensions(depth_texture));
+        let pos_cws_curved = camera_relative_pos_from_depth(tci, dims, raw_depth, camera.inv_view_proj_matrix);
+        let d_sq = pos_cws_curved.x * pos_cws_curved.x + pos_cws_curved.y * pos_cws_curved.y;
+        let world_z = camera.position.z + pos_cws_curved.z + earth_curvature_drop(d_sq, conf.planet_radius_m);
+        let distance = max(1.0, length(vec3f(world_xy - camera.position.xy, world_z - camera.position.z)));
+        target_zoom = closed_form_target_zoom(distance);
     } else {
         let target_zoom_f = round(-derivatives - log2(f32(settings.tile_size) * settings.pixel_error_threshold));
         target_zoom = u32(clamp(target_zoom_f, 0.0, f32(settings.max_zoom)));
@@ -209,7 +246,7 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3u) {
         return;
     }
 
-    let resolved = resolve_tile_sample(tci);
+    let resolved = resolve_tile_sample(tci, raw_depth);
 
     // Debug visualization of the *ideal* target zoom itself -- color-coded, fully opaque, and
     // computed before any residency resolution, so it shows what zoom we'd *like* to sample

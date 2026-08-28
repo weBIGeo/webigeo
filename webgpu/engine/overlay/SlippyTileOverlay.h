@@ -51,12 +51,20 @@ public:
         TargetTileId = 3, // color-codes the *ideal* target tile id itself (before residency fallback), see tile_id_debug_color() in the shader
     };
 
-    // How the per-pixel target zoom is chosen (see docs/masterplan.md Plan 3):
+    // How the per-pixel target zoom is chosen (see resolve_tile_sample in slippy_tile_overlay.wgsl):
     //   PerPixel -- derived from the rasterizer-computed footprint (derivatives), varies within a
     //               single render tile (correctly accounts for oblique/foreshortened viewing angles).
-    //   PerTile  -- one CPU-computed value for the whole render tile (SlippyTileOverlay::draw,
-    //               camera-distance-based, same shape as the mesh's own SSE LOD criterion), uniform
-    //               across every pixel of that tile.
+    //               Handles anti-aliasing best -- the default.
+    //   PerTile  -- computed per pixel from that pixel's own true distance to the camera (not an
+    //               aggregate over the whole render tile), matching the shape of
+    //               nucleus::tile::utils::refineFunctor/AabbDecorator's SSE LOD criterion. Fully
+    //               decoupled from the underlying render/geometry tile's own granularity, so it
+    //               behaves like an independent scheduler -- but since it's a continuous per-pixel
+    //               value rounded independently, its zoom transitions are circular iso-distance
+    //               rings from the camera that can cut through the middle of a single destination
+    //               tile, rather than the grid-aligned rectangles the real hierarchical scheduler
+    //               produces (see closed_form_target_zoom's NOTE in slippy_tile_overlay.wgsl for why
+    //               that isn't corrected here).
     enum class ZoomSelectionMode : uint32_t { PerPixel = 0, PerTile = 1 };
 
     // Temporary: how to interpret the sampled tile RGBA, set explicitly via the UI (independent of
@@ -75,7 +83,7 @@ public:
         uint32_t tile_size = 256; // source's tile resolution, used by the per-pixel target-zoom estimate
         float pixel_error_threshold = 2.0f; // fallback SSE threshold when no source is set; otherwise the TileSource owns it
         DebugView debug_view = DebugView::None;
-        ZoomSelectionMode zoom_selection_mode = ZoomSelectionMode::PerTile;
+        ZoomSelectionMode zoom_selection_mode = ZoomSelectionMode::PerPixel;
         DataMode data_mode = DataMode::Rgba;
     };
 
@@ -122,9 +130,6 @@ private:
     // frame_tile_ids; lets the compute shader recover the render tile's actual id (tile_ref itself
     // only carries the 16-bit frame_local_id, not raw x/y/zoom -- see docs/masterplan.md Plan 3).
     std::unique_ptr<webgpu::raii::RawBuffer<glm::u32vec2>> m_frame_tile_ids_buffer;
-    // frame_local_id -> a single target zoom for the whole render tile; only read by the shader when
-    // settings.zoom_selection_mode == PerTile, but always uploaded so the UI toggle is instant.
-    std::unique_ptr<webgpu::raii::RawBuffer<uint32_t>> m_frame_target_zoom_buffer;
 };
 
 } // namespace webgpu_engine
