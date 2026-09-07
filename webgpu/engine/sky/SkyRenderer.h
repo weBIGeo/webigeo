@@ -71,6 +71,16 @@ public:
     /// Enable/disable the sky render pass. LUT textures remain valid when disabled.
     void set_sky_enabled(bool enabled) { m_sky_enabled = enabled; }
 
+    /// Debug/test toggle (chunk 4): switch between the LUT-sampling pass and the full-resolution
+    /// per-pixel ray-march pass. Rebuilds the compute renderer immediately if already resized.
+    void set_default_to_per_pixel_ray_march(bool enabled);
+    bool default_to_per_pixel_ray_march() const { return m_default_to_per_pixel_ray_march; }
+
+    /// Bumped every time rebuild_renderer() replaces the atmosphere buffer / transmittance LUT (resize,
+    /// or the ray-march toggle). Callers that cache bind groups referencing those resources (e.g.
+    /// Window::m_compose_output_bind_group) must recreate them when this changes.
+    uint64_t resource_generation() const { return m_resource_generation; }
+
     /// The full-resolution RGBA16Float texture the sky pass writes into (nullptr before the first resize).
     const webgpu::raii::TextureView* result_view() const;
 
@@ -87,9 +97,22 @@ public:
     const uniforms::Uniforms& uniforms() const;
 
 private:
+    /// (Re)creates m_renderer from the current atmosphere/render-target/depth/back-buffer state.
+    /// Shared by resize() and set_default_to_per_pixel_ray_march() so toggling ray-march mode at
+    /// runtime doesn't need a full resize().
+    void rebuild_renderer();
+
     WGPUDevice m_device = nullptr;
     webgpu::RenderResourceRegistry* m_registry = nullptr;
     bool m_sky_enabled = true;
+    bool m_default_to_per_pixel_ray_march = false;
+    uint64_t m_resource_generation = 0;
+
+    // Stored from the last resize() call so rebuild_renderer() can be invoked independently of it.
+    const webgpu::raii::Texture* m_depth_texture = nullptr;
+    const webgpu::raii::TextureView* m_depth_view = nullptr;
+    const webgpu::raii::Texture* m_back_buffer_texture = nullptr;
+    const webgpu::raii::TextureView* m_back_buffer_view = nullptr;
 
     std::unique_ptr<webgpu::raii::Texture> m_render_target;
     std::unique_ptr<webgpu::raii::TextureView> m_render_target_view;

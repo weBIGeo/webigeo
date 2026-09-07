@@ -4,12 +4,33 @@
  * SPDX-License-Identifier: MIT
  */
 
+///use webgpu_engine::sky/common/constants
+///use webgpu_engine::sky/common/intersection
+///use webgpu_engine::sky/common/medium
+///use webgpu_engine::sky/common/phase
+///use webgpu_engine::sky/common/uv
+///use webgpu_engine::sky/common/uniforms
+///use webgpu_engine::sky/common/coordinate_system
+///use webgpu_engine::sky/common/multiple_scattering
+///use webgpu_engine::sky/common/shadow
+///use webgpu_engine::sky/common/sun_disk
+///use webgpu_engine::sky/common/blend
+///use webgpu_engine::sky/common/sample_sagment_t
+
 override USE_MOON: bool = false;
 override INV_DISTANCE_TO_MAX_SAMPLE_COUNT: f32 = 1.0 / 100.0;
 override USE_COLORED_TRANSMISSION: bool = true;
 
 override WORKGROUP_SIZE_X: u32 = 16;
 override WORKGROUP_SIZE_Y: u32 = 16;
+
+// weBIGeo integration: same HDR->LDR tonemap as render_sky_with_luts.wgsl, applied before blending
+// so this pass is visually comparable to the LUT-based path when swapped in via defaultToPerPixelRayMarch.
+fn webigeo_tonemap(rgb: vec3<f32>) -> vec3<f32> {
+	let white_point = vec3<f32>(1.08241, 0.96756, 0.95003);
+	let exposure = 10.0;
+	return pow(vec3<f32>(1.0) - exp(-rgb / white_point * exposure), vec3<f32>(1.0 / 2.2));
+}
 
 @group(0) @binding(0) var<uniform> atmosphere_buffer: Atmosphere;
 @group(0) @binding(1) var<uniform> config_buffer: Uniforms;
@@ -176,10 +197,11 @@ fn render_sky_atmosphere(@builtin(global_invocation_id) global_id: vec3<u32>) {
 		return;
 	}
 	let result = render_sky(global_id.xy);
+	let tonemapped_luminance = vec4<f32>(webigeo_tonemap(result.luminance.rgb), result.luminance.a);
 	if USE_COLORED_TRANSMISSION {
-		dual_source_blend(global_id.xy, result.luminance, result.transmittance);
+		dual_source_blend(global_id.xy, tonemapped_luminance, result.transmittance);
 	} else {
-		blend(global_id.xy, vec4<f32>(result.luminance.rgb, 1.0 - dot(result.transmittance.rgb, vec3<f32>(1.0 / 3.0))));
+		blend(global_id.xy, vec4<f32>(tonemapped_luminance.rgb, 1.0 - dot(result.transmittance.rgb, vec3<f32>(1.0 / 3.0))));
 	}
 }
 

@@ -53,6 +53,13 @@ void SkyPanel::draw_panel()
     bool atmosphere_changed = false; // requires constant-LUT re-render
     bool redraw = false;
 
+    ImGui::SeparatorText("Debug");
+    bool ray_march = m_sky_renderer->default_to_per_pixel_ray_march();
+    if (ImGui::Checkbox("Full-res ray march (debug, chunk 4)", &ray_march)) {
+        m_sky_renderer->set_default_to_per_pixel_ray_march(ray_march);
+        redraw = true;
+    }
+
     ImGui::SeparatorText("Planet (world scale)");
     if (ImGui::DragFloat("Bottom radius (km)", &atm.bottomRadius, 100.0f, 1.0f, 1.0e7f, "%.1f")) {
         cfg.m_planet_radius_m = atm.bottomRadius * 1000.0f; // keep terrain curvature in sync

@@ -202,11 +202,19 @@ void Window::resize_framebuffer(int w, int h)
     recreate_compose_bind_group(); // Do late
     recreate_cloud_composite_bind_groups();
     recreate_present_bind_groups();
+    m_last_sky_resource_generation = m_context->sky_renderer()->resource_generation();
 }
 
 void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_encoder)
 {
     m_needs_redraw = false;
+
+    // sky_renderer's atmosphere buffer / transmittance LUT may have been rebuilt outside of a resize
+    // (e.g. the ray-march debug toggle) — refresh the bind group that caches references to them.
+    if (const uint64_t gen = m_context->sky_renderer()->resource_generation(); gen != m_last_sky_resource_generation) {
+        recreate_compose_bind_group();
+        m_last_sky_resource_generation = gen;
+    }
 
     static constexpr webgpu::timing::StringId SID_TILEMESH("TileMesh", "Engine");
     static constexpr webgpu::timing::StringId SID_CLOUDS("Clouds", "Engine");

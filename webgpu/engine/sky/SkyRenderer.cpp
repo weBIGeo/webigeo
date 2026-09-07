@@ -53,6 +53,11 @@ void SkyRenderer::resize(uint32_t width, uint32_t height, const webgpu::raii::Te
 {
     assert(m_device != nullptr && m_registry != nullptr); // init() must have run
 
+    m_depth_texture = &depth_texture;
+    m_depth_view = &depth_view;
+    m_back_buffer_texture = &back_buffer_texture;
+    m_back_buffer_view = &back_buffer_view;
+
     WGPUTextureDescriptor render_target_desc {};
     render_target_desc.label = sv("sky render target texture");
     render_target_desc.dimension = WGPUTextureDimension_2D;
@@ -64,21 +69,41 @@ void SkyRenderer::resize(uint32_t width, uint32_t height, const webgpu::raii::Te
     m_render_target = std::make_unique<webgpu::raii::Texture>(m_device, render_target_desc);
     m_render_target_view = m_render_target->create_view();
 
+    rebuild_renderer();
+}
+
+void SkyRenderer::set_default_to_per_pixel_ray_march(bool enabled)
+{
+    if (m_default_to_per_pixel_ray_march == enabled) {
+        return;
+    }
+    m_default_to_per_pixel_ray_march = enabled;
+    if (m_render_target) { // only rebuild once resize() has already run at least once
+        rebuild_renderer();
+    }
+}
+
+void SkyRenderer::rebuild_renderer()
+{
     config::SkyAtmosphereRendererConfig config;
     config.label = "sky";
     config.atmosphere = m_atmosphere;
     config.fromKilometersScale = FROM_KM_SCALE;
     config.initializeConstantLuts = true;
-    config.skyRenderer.depthBuffer.texture = &depth_texture;
-    config.skyRenderer.depthBuffer.view = &depth_view;
+    config.skyRenderer.defaultToPerPixelRayMarch = m_default_to_per_pixel_ray_march;
+    // Pure ray march for now; chunk 5 adds the hybrid (rayMarchDistantSky=false) mode.
+    config.skyRenderer.rayMarch.rayMarchDistantSky = m_default_to_per_pixel_ray_march;
+    config.skyRenderer.depthBuffer.texture = m_depth_texture;
+    config.skyRenderer.depthBuffer.view = m_depth_view;
     config.skyRenderer.depthBuffer.reverseZ = true; // weBIGeo uses reverse-Z (sky depth = 0)
-    config.skyRenderer.backBuffer.texture = &back_buffer_texture;
-    config.skyRenderer.backBuffer.view = &back_buffer_view;
+    config.skyRenderer.backBuffer.texture = m_back_buffer_texture;
+    config.skyRenderer.backBuffer.view = m_back_buffer_view;
     config.skyRenderer.renderTarget.texture = m_render_target.get();
     config.skyRenderer.renderTarget.view = m_render_target_view.get();
 
     m_renderer = compute::SkyWithLutsComputeRenderer::create(m_device, *m_registry, config);
     m_atmosphere_dirty = false; // create() already rendered the constant LUTs
+    m_resource_generation++;
 }
 
 void SkyRenderer::update(const nucleus::camera::Definition& camera, const glm::vec3& sun_direction)

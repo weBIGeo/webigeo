@@ -55,13 +55,16 @@ public:
     resources::SkyAtmosphereResources& resources() { return m_lut_renderer->resources(); }
     const resources::SkyAtmosphereResources& resources() const { return m_lut_renderer->resources(); }
 
+    bool does_ray_march_distant_sky() const { return m_does_ray_march_distant_sky; }
+
 public:
     static std::vector<WGPUBindGroupLayoutEntry> make_external_bind_group_layout_entries(config::SkyAtmosphereRendererConfig config);
     static std::unique_ptr<webgpu::raii::BindGroup> make_bind_group(WGPUBindGroupLayout layout, config::SkyRendererComputeConfig compute_config,
-        resources::SkyAtmosphereResources& resources, bool use_custom_uniforms = false);
-    static std::unique_ptr<webgpu::raii::BindGroupLayout> make_bind_group_layout(WGPUDevice device, config::SkyAtmosphereRendererConfig config);
+        resources::SkyAtmosphereResources& resources, bool use_custom_uniforms = false, bool is_ray_march_pass = false);
+    static std::unique_ptr<webgpu::raii::BindGroupLayout> make_bind_group_layout(
+        WGPUDevice device, config::SkyAtmosphereRendererConfig config, bool is_ray_march_pass = false);
     static std::unique_ptr<webgpu::raii::ComputePipeline> make_compute_pipeline(WGPUDevice device, config::SkyAtmosphereRendererConfig config,
-        WGPUPipelineLayout pipeline_layout, WGPUShaderModule shader_module, lut::SkyAtmosphereLutRenderer& lut_renderer);
+        WGPUPipelineLayout pipeline_layout, WGPUShaderModule shader_module, lut::SkyAtmosphereLutRenderer& lut_renderer, bool is_ray_march_pass = false);
     static std::unique_ptr<SkyWithLutsComputeRenderer> create(
         WGPUDevice device, webgpu::RenderResourceRegistry& registry, config::SkyAtmosphereRendererConfig config);
 

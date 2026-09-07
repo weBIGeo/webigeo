@@ -136,6 +136,11 @@ private:
     bool m_needs_redraw = true;
     uint32_t m_paint_number = 0;
 
+    // Tracks sky_renderer()->resource_generation() so m_compose_output_bind_group (which references
+    // the sky atmosphere buffer / transmittance LUT) gets recreated whenever those are rebuilt outside
+    // of a resize (e.g. the ray-march debug toggle in SkyPanel).
+    uint64_t m_last_sky_resource_generation = 0;
+
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_shadow_texture;
 };
 
