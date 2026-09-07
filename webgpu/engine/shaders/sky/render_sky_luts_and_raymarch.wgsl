@@ -1,8 +1,41 @@
+/*****************************************************************************
+ * weBIGeo
+ * Copyright (C) 2026 Gerald Kimmersdorfer
+ * Copyright (C) 2024 Lukas Herzberger
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *****************************************************************************/
+
 /*
  * Copyright (c) 2024 Lukas Herzberger
  * Copyright (c) 2020 Epic Games, Inc.
  * SPDX-License-Identifier: MIT
  */
+
+///use webgpu_engine::sky/common/constants
+///use webgpu_engine::sky/common/intersection
+///use webgpu_engine::sky/common/medium
+///use webgpu_engine::sky/common/phase
+///use webgpu_engine::sky/common/uv
+///use webgpu_engine::sky/common/uniforms
+///use webgpu_engine::sky/common/coordinate_system
+///use webgpu_engine::sky/common/multiple_scattering
+///use webgpu_engine::sky/common/shadow
+///use webgpu_engine::sky/common/sun_disk
+///use webgpu_engine::sky/common/blend
+///use webgpu_engine::sky/common/sample_sagment_t
+///use webgpu_engine::sky/common/sky_view
 
 override USE_MOON: bool = false;
 override INV_DISTANCE_TO_MAX_SAMPLE_COUNT: f32 = 1.0 / 100.0;
@@ -10,6 +43,14 @@ override USE_COLORED_TRANSMISSION: bool = true;
 
 override WORKGROUP_SIZE_X: u32 = 16;
 override WORKGROUP_SIZE_Y: u32 = 16;
+
+// weBIGeo integration: same HDR->LDR tonemap as render_sky_with_luts.wgsl / render_sky_raymarching.wgsl,
+// applied before blending so this pass is visually comparable to the other two.
+fn webigeo_tonemap(rgb: vec3<f32>) -> vec3<f32> {
+	let white_point = vec3<f32>(1.08241, 0.96756, 0.95003);
+	let exposure = 10.0;
+	return pow(vec3<f32>(1.0) - exp(-rgb / white_point * exposure), vec3<f32>(1.0 / 2.2));
+}
 
 @group(0) @binding(0) var<uniform> atmosphere_buffer: Atmosphere;
 @group(0) @binding(1) var<uniform> config_buffer: Uniforms;
@@ -192,10 +233,11 @@ fn render_sky_atmosphere(@builtin(global_invocation_id) global_id: vec3<u32>) {
 		return;
 	}
 	let result = render_sky(global_id.xy);
+	let tonemapped_luminance = vec4<f32>(webigeo_tonemap(result.luminance.rgb), result.luminance.a);
 	if USE_COLORED_TRANSMISSION {
-		dual_source_blend(global_id.xy, result.luminance, result.transmittance);
+		dual_source_blend(global_id.xy, tonemapped_luminance, result.transmittance);
 	} else {
-		blend(global_id.xy, vec4<f32>(result.luminance.rgb, 1.0 - dot(result.transmittance.rgb, vec3<f32>(1.0 / 3.0))));
+		blend(global_id.xy, vec4<f32>(tonemapped_luminance.rgb, 1.0 - dot(result.transmittance.rgb, vec3<f32>(1.0 / 3.0))));
 	}
 }
 

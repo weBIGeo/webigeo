@@ -83,6 +83,17 @@ void SkyRenderer::set_default_to_per_pixel_ray_march(bool enabled)
     }
 }
 
+void SkyRenderer::set_ray_march_distant_sky(bool enabled)
+{
+    if (m_ray_march_distant_sky == enabled) {
+        return;
+    }
+    m_ray_march_distant_sky = enabled;
+    if (m_render_target && m_default_to_per_pixel_ray_march) { // only matters while ray marching is enabled
+        rebuild_renderer();
+    }
+}
+
 void SkyRenderer::rebuild_renderer()
 {
     config::SkyAtmosphereRendererConfig config;
@@ -91,8 +102,7 @@ void SkyRenderer::rebuild_renderer()
     config.fromKilometersScale = FROM_KM_SCALE;
     config.initializeConstantLuts = true;
     config.skyRenderer.defaultToPerPixelRayMarch = m_default_to_per_pixel_ray_march;
-    // Pure ray march for now; chunk 5 adds the hybrid (rayMarchDistantSky=false) mode.
-    config.skyRenderer.rayMarch.rayMarchDistantSky = m_default_to_per_pixel_ray_march;
+    config.skyRenderer.rayMarch.rayMarchDistantSky = m_ray_march_distant_sky;
     config.skyRenderer.depthBuffer.texture = m_depth_texture;
     config.skyRenderer.depthBuffer.view = m_depth_view;
     config.skyRenderer.depthBuffer.reverseZ = true; // weBIGeo uses reverse-Z (sky depth = 0)

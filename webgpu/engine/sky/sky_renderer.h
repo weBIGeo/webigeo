@@ -30,12 +30,19 @@
 
 namespace webgpu_engine::sky::compute {
 
+// Which final sky-compositing shader/bind-group layout is in use. Mirrors the two upstream config
+// flags (defaultToPerPixelRayMarch, rayMarch.rayMarchDistantSky) as one 3-way choice:
+//  - LutOnly:         render_sky_with_luts.wgsl        (samples sky_view_lut + aerial_perspective_lut)
+//  - PureRayMarch:    render_sky_raymarching.wgsl       (samples multi_scattering_lut, ray-marches every pixel)
+//  - HybridRayMarch:  render_sky_luts_and_raymarch.wgsl (ray-marches valid-depth pixels, sky_view_lut for the rest)
+enum class SkyPassVariant { LutOnly, PureRayMarch, HybridRayMarch };
+
 class SkyWithLutsComputeRenderer {
 
 public:
     SkyWithLutsComputeRenderer(std::unique_ptr<lut::SkyAtmosphereLutRenderer> lut_renderer, std::unique_ptr<webgpu::raii::BindGroupLayout> bind_group_layout,
         std::unique_ptr<webgpu::raii::PipelineLayout> pipeline_layout, std::unique_ptr<webgpu::raii::ComputePipeline> pipeline,
-        config::SkyAtmosphereRendererConfig config, bool is_ray_march_pass = false);
+        config::SkyAtmosphereRendererConfig config, SkyPassVariant variant = SkyPassVariant::LutOnly);
 
     void update_uniforms(const uniforms::Uniforms& uniforms);
     void update_atmosphere(const params::Atmosphere& atmosphere);
@@ -55,16 +62,17 @@ public:
     resources::SkyAtmosphereResources& resources() { return m_lut_renderer->resources(); }
     const resources::SkyAtmosphereResources& resources() const { return m_lut_renderer->resources(); }
 
-    bool does_ray_march_distant_sky() const { return m_does_ray_march_distant_sky; }
+    SkyPassVariant variant() const { return m_variant; }
 
 public:
     static std::vector<WGPUBindGroupLayoutEntry> make_external_bind_group_layout_entries(config::SkyAtmosphereRendererConfig config);
     static std::unique_ptr<webgpu::raii::BindGroup> make_bind_group(WGPUBindGroupLayout layout, config::SkyRendererComputeConfig compute_config,
-        resources::SkyAtmosphereResources& resources, bool use_custom_uniforms = false, bool is_ray_march_pass = false);
+        resources::SkyAtmosphereResources& resources, bool use_custom_uniforms = false, SkyPassVariant variant = SkyPassVariant::LutOnly);
     static std::unique_ptr<webgpu::raii::BindGroupLayout> make_bind_group_layout(
-        WGPUDevice device, config::SkyAtmosphereRendererConfig config, bool is_ray_march_pass = false);
+        WGPUDevice device, config::SkyAtmosphereRendererConfig config, SkyPassVariant variant = SkyPassVariant::LutOnly);
     static std::unique_ptr<webgpu::raii::ComputePipeline> make_compute_pipeline(WGPUDevice device, config::SkyAtmosphereRendererConfig config,
-        WGPUPipelineLayout pipeline_layout, WGPUShaderModule shader_module, lut::SkyAtmosphereLutRenderer& lut_renderer, bool is_ray_march_pass = false);
+        WGPUPipelineLayout pipeline_layout, WGPUShaderModule shader_module, lut::SkyAtmosphereLutRenderer& lut_renderer,
+        SkyPassVariant variant = SkyPassVariant::LutOnly);
     static std::unique_ptr<SkyWithLutsComputeRenderer> create(
         WGPUDevice device, webgpu::RenderResourceRegistry& registry, config::SkyAtmosphereRendererConfig config);
 
@@ -76,7 +84,7 @@ private:
     std::unique_ptr<webgpu::raii::ComputePipeline> m_pipeline;
 
     std::unique_ptr<util::ComputePass> m_pass;
-    bool m_does_ray_march_distant_sky = false; // not implemented
+    SkyPassVariant m_variant = SkyPassVariant::LutOnly;
 };
 
 } // namespace webgpu_engine::sky::compute

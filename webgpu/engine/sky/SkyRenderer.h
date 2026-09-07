@@ -76,6 +76,12 @@ public:
     void set_default_to_per_pixel_ray_march(bool enabled);
     bool default_to_per_pixel_ray_march() const { return m_default_to_per_pixel_ray_march; }
 
+    /// Debug/test toggle (chunk 5): only meaningful while ray marching is enabled. false (default,
+    /// matches upstream) selects the hybrid pass - ray-march valid-depth pixels, sky_view_lut for the
+    /// rest. true selects the pure ray-march pass (chunk 4) - ray-march every pixel.
+    void set_ray_march_distant_sky(bool enabled);
+    bool ray_march_distant_sky() const { return m_ray_march_distant_sky; }
+
     /// Bumped every time rebuild_renderer() replaces the atmosphere buffer / transmittance LUT (resize,
     /// or the ray-march toggle). Callers that cache bind groups referencing those resources (e.g.
     /// Window::m_compose_output_bind_group) must recreate them when this changes.
@@ -106,6 +112,7 @@ private:
     webgpu::RenderResourceRegistry* m_registry = nullptr;
     bool m_sky_enabled = true;
     bool m_default_to_per_pixel_ray_march = false;
+    bool m_ray_march_distant_sky = false; // false = hybrid (matches upstream default), true = pure ray march
     uint64_t m_resource_generation = 0;
 
     // Stored from the last resize() call so rebuild_renderer() can be invoked independently of it.
