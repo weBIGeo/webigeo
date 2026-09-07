@@ -1,9 +1,27 @@
+/*****************************************************************************
+ * weBIGeo
+ * Copyright (C) 2026 Gerald Kimmersdorfer
+ * Copyright (C) 2025 Patrick Komon
+ * Copyright (C) 2024 Lukas Herzberger
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *****************************************************************************/
+
 /*
  * Copyright (c) 2024 Lukas Herzberger
  * SPDX-License-Identifier: MIT
  */
-
-// TODO copyright notice?
 
 #include "pipelines.h"
 
@@ -85,10 +103,9 @@ std::unique_ptr<util::ComputePass> TransmittanceLutPipeline::make_compute_pass(c
         qFatal() << "[TransmittanceLutPipeline::makeComputePass]: device mismatch";
     }
 
-    // TODO check
     if (resources.atmosphere_buffer().raw_buffer().descriptor().size != sizeof(resources::AtmosphereUniform)) {
-        qFatal() << "[TransmittanceLutPipeline::makeComputePass]: buffer too small for atmosphere parameters (${resources.atmosphereBuffer.size} < "
-                    "${ATMOSPHERE_BUFFER_SIZE})";
+        qFatal() << "[TransmittanceLutPipeline::makeComputePass]: buffer too small for atmosphere parameters ("
+                  << resources.atmosphere_buffer().raw_buffer().descriptor().size << " < " << sizeof(resources::AtmosphereUniform) << ")";
     }
 
     if (resources.transmittance_lut().texture().descriptor().format != m_transmittance_lut_format) {
@@ -194,10 +211,9 @@ std::unique_ptr<util::ComputePass> MultiScatteringLutPipeline::make_compute_pass
         qFatal() << "[MultiScatteringLutPipeline::makeComputePass]: device mismatch";
     }
 
-    // TODO check
     if (resources.atmosphere_buffer().raw_buffer().descriptor().size != sizeof(resources::AtmosphereUniform)) {
-        qFatal() << "[MultiScatteringLutPipeline::makeComputePass]: buffer too small for atmosphere parameters (${resources.atmosphereBuffer.size} "
-                    "<${ATMOSPHERE_BUFFER_SIZE})";
+        qFatal() << "[MultiScatteringLutPipeline::makeComputePass]: buffer too small for atmosphere parameters ("
+                  << resources.atmosphere_buffer().raw_buffer().descriptor().size << " < " << sizeof(resources::AtmosphereUniform) << ")";
     }
 
     if (resources.multi_scattering_lut().texture().descriptor().format != m_multi_scattering_lut_format) {
@@ -386,13 +402,13 @@ std::unique_ptr<util::ComputePass> SkyViewLutPipeline::make_compute_pass(const r
         qFatal() << "[SkyViewLutPipeline::makeComputePass]: device mismatch";
     }
 
-    // TODO check
     if (resources.atmosphere_buffer().raw_buffer().size_in_byte() < sizeof(resources::AtmosphereUniform)) {
-        qFatal() << "[SkyViewLutPipeline::makeComputePass]: buffer too small for atmosphere parameters (${resources.atmosphereBuffer.size} < "
-                    "${ATMOSPHERE_BUFFER_SIZE})";
+        qFatal() << "[SkyViewLutPipeline::makeComputePass]: buffer too small for atmosphere parameters ("
+                  << resources.atmosphere_buffer().raw_buffer().size_in_byte() << " < " << sizeof(resources::AtmosphereUniform) << ")";
     }
     if (resources.has_uniforms_buffer() && resources.uniforms_buffer().raw_buffer().size_in_byte() < sizeof(uniforms::Uniforms)) {
-        qFatal() << "[SkyViewLutPipeline::makeComputePass]: buffer too small for config (${resources.atmosphereBuffer.size} < ${ATMOSPHERE_BUFFER_SIZE})";
+        qFatal() << "[SkyViewLutPipeline::makeComputePass]: buffer too small for uniforms ("
+                  << resources.uniforms_buffer().raw_buffer().size_in_byte() << " < " << sizeof(uniforms::Uniforms) << ")";
     }
     if (resources.multi_scattering_lut().texture().width() != m_multi_scattering_lut_size.x
         || resources.multi_scattering_lut().texture().height() != m_multi_scattering_lut_size.y) {
@@ -619,14 +635,13 @@ std::unique_ptr<util::ComputePass> AerialPerspectiveLutPipeline::make_compute_pa
     if (resources.device() != m_device) {
         qFatal() << "[AerialPerspectiveLutPipeline::makeComputePass]: device mismatch";
     }
-    // TODO check
     if (resources.atmosphere_buffer().raw_buffer().size_in_byte() < sizeof(resources::AtmosphereUniform)) {
-        qFatal() << "[AerialPerspectiveLutPipeline::makeComputePass]: buffer too small for atmosphere parameters (${resources.atmosphereBuffer.size} < "
-                    "${ATMOSPHERE_BUFFER_SIZE})";
+        qFatal() << "[AerialPerspectiveLutPipeline::makeComputePass]: buffer too small for atmosphere parameters ("
+                  << resources.atmosphere_buffer().raw_buffer().size_in_byte() << " < " << sizeof(resources::AtmosphereUniform) << ")";
     }
     if (resources.has_uniforms_buffer() && resources.uniforms_buffer().raw_buffer().size_in_byte() < sizeof(uniforms::Uniforms)) {
-        qFatal()
-            << "[AerialPerspectiveLutPipeline::makeComputePass]: buffer too small for config (${resources.atmosphereBuffer.size} < ${ATMOSPHERE_BUFFER_SIZE})";
+        qFatal() << "[AerialPerspectiveLutPipeline::makeComputePass]: buffer too small for uniforms ("
+                  << resources.uniforms_buffer().raw_buffer().size_in_byte() << " < " << sizeof(uniforms::Uniforms) << ")";
     }
     if (resources.multi_scattering_lut().texture().width() != m_multi_scattering_lut_size.x
         || resources.multi_scattering_lut().texture().height() != m_multi_scattering_lut_size.y) {

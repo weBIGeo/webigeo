@@ -38,7 +38,6 @@ set(SOURCES
     sky/lut_renderer.h sky/lut_renderer.cpp
     sky/sky_renderer.h sky/sky_renderer.cpp
     sky/SkyRenderer.h sky/SkyRenderer.cpp
-    sky/atmosphere.h
     overlay/OverlayRenderer.h overlay/OverlayRenderer.cpp
     overlay/Overlay.h
     overlay/HeightLinesOverlay.h overlay/HeightLinesOverlay.cpp
