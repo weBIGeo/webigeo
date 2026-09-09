@@ -108,16 +108,11 @@ public:
         webgpu::raii::TextureWithSampler& target_output,
         glm::uvec2 output_size) override;
 
-    void write_normals_to_gbuffer(const WGPUCommandEncoder& command_encoder,
-        const webgpu::raii::TextureView& normal_view,
-        const webgpu::raii::TextureView& depth_view,
-        const webgpu::raii::TextureView& tile_ref_view,
-        const WGPUBindGroup& shared_config_bg,
-        const WGPUBindGroup& camera_bg);
-
     Settings settings;
 
 private:
+    void write_normals_to_gbuffer(const WGPUCommandEncoder& command_encoder, const OverlayContext& octx);
+
     struct GpuSettings {
         float opacity = 1.0f;
         uint32_t max_zoom = 20;

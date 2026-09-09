@@ -279,48 +279,45 @@ void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
         },
         "slippy tile overlay bind group");
 
-    WGPUComputePassDescriptor compute_pass_desc {};
-    compute_pass_desc.label = WGPUStringView { .data = "slippy tile overlay compute pass", .length = WGPU_STRLEN };
-    webgpu::raii::ComputePassEncoder compute_pass(command_encoder, compute_pass_desc);
+    {
+        WGPUComputePassDescriptor compute_pass_desc {};
+        compute_pass_desc.label = WGPUStringView { .data = "slippy tile overlay compute pass", .length = WGPU_STRLEN };
+        webgpu::raii::ComputePassEncoder compute_pass(command_encoder, compute_pass_desc);
 
-    wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, octx.shared_config_bg, 0, nullptr);
-    wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 1, octx.camera_bg, 0, nullptr);
-    wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 2, bind_group.handle(), 0, nullptr);
+        wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, octx.shared_config_bg, 0, nullptr);
+        wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 1, octx.camera_bg, 0, nullptr);
+        wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 2, bind_group.handle(), 0, nullptr);
 
-    const glm::uvec3 workgroup_counts = glm::ceil(glm::vec3(float(output_size.x), float(output_size.y), 1.0f) / glm::vec3(16.0f, 16.0f, 1.0f));
-    m_pipeline->run(compute_pass, workgroup_counts);
+        const glm::uvec3 workgroup_counts = glm::ceil(glm::vec3(float(output_size.x), float(output_size.y), 1.0f) / glm::vec3(16.0f, 16.0f, 1.0f));
+        m_pipeline->run(compute_pass, workgroup_counts);
+    }
+
+    write_normals_to_gbuffer(command_encoder, octx);
 }
 
-void SlippyTileOverlay::write_normals_to_gbuffer(const WGPUCommandEncoder& command_encoder,
-    const webgpu::raii::TextureView& normal_view,
-    const webgpu::raii::TextureView& depth_view,
-    const webgpu::raii::TextureView& tile_ref_view,
-    const WGPUBindGroup& shared_config_bg,
-    const WGPUBindGroup& camera_bg)
+void SlippyTileOverlay::write_normals_to_gbuffer(const WGPUCommandEncoder& command_encoder, const OverlayContext& octx)
 {
     if (!m_gbuffer_write_pipeline || !m_source || settings.data_mode != DataMode::NormalsOverwrite)
         return;
 
-    // Reuses this frame's already-uploaded m_frame_tile_ids_buffer -- this is called right after
-    // draw() in the same frame (see OverlayRenderer::write_gbuffer_normals).
     webgpu::raii::BindGroup bind_group(m_ctx->device(),
         m_ctx->resource_registry().bind_group_layout("slippy_tile_overlay_gbuffer_write"),
         std::vector<WGPUBindGroupEntry> {
-            depth_view.create_bind_group_entry(0),
+            octx.depth_view.create_bind_group_entry(0),
             m_settings_uniform->raw_buffer().create_bind_group_entry(1),
             m_source->array().texture_view().create_bind_group_entry(2),
             m_source->array().sampler().create_bind_group_entry(3),
             m_source->dictionary_ids_view().create_bind_group_entry(6),
             m_source->dictionary_layers_view().create_bind_group_entry(7),
-            tile_ref_view.create_bind_group_entry(8),
+            octx.tile_ref_view.create_bind_group_entry(8),
             m_frame_tile_ids_buffer->create_bind_group_entry(9),
         },
         "slippy tile overlay gbuffer write bind group");
 
     WGPURenderPassColorAttachment color_attachment {};
-    color_attachment.view = normal_view.handle();
+    color_attachment.view = octx.normal_view.handle();
     color_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
-    color_attachment.loadOp = WGPULoadOp_Load; // only overwrite pixels this pass's fragment shader actually writes
+    color_attachment.loadOp = WGPULoadOp_Load;
     color_attachment.storeOp = WGPUStoreOp_Store;
 
     WGPURenderPassDescriptor pass_desc {};
@@ -330,8 +327,8 @@ void SlippyTileOverlay::write_normals_to_gbuffer(const WGPUCommandEncoder& comma
 
     webgpu::raii::RenderPassEncoder render_pass(command_encoder, pass_desc);
     wgpuRenderPassEncoderSetPipeline(render_pass.handle(), m_gbuffer_write_pipeline->pipeline().handle());
-    wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 0, shared_config_bg, 0, nullptr);
-    wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 1, camera_bg, 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 0, octx.shared_config_bg, 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 1, octx.camera_bg, 0, nullptr);
     wgpuRenderPassEncoderSetBindGroup(render_pass.handle(), 2, bind_group.handle(), 0, nullptr);
     wgpuRenderPassEncoderDraw(render_pass.handle(), 3, 1, 0, 0);
 }
