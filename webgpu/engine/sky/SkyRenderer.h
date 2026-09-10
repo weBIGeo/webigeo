@@ -23,6 +23,9 @@
 #include "sky_renderer.h"
 #include <glm/vec3.hpp>
 #include <memory>
+#include <webgpu/base/Buffer.h>
+#include <webgpu/base/raii/BindGroup.h>
+#include <webgpu/base/raii/PipelineLayout.h>
 #include <webgpu/base/raii/Texture.h>
 #include <webgpu/base/raii/TextureView.h>
 #include <webgpu/webgpu.h>
@@ -50,6 +53,10 @@ namespace webgpu_engine::sky {
  */
 class SkyRenderer {
 public:
+    // Auto blends Hybrid and Lut smoothly across a camera-altitude band, since both are correct near
+    // the ground but only one of them looks right from very high up.
+    enum class Mode { Lut, RayMarch, Hybrid, Auto };
+
     /// Stores the device + shader registry. Call once after the webgpu context is initialised.
     void init(webgpu::Context& context);
 
@@ -62,7 +69,8 @@ public:
     /// Updates the per-frame uniforms (camera + sun direction). Call before @ref render.
     void update(const nucleus::camera::Definition& camera, const glm::vec3& sun_direction);
 
-    /// Encodes the LUT + sky compute pass into the given command encoder.
+    /// Encodes the LUT + sky compute pass (or, in Auto mode, both passes plus the blend pass) into the
+    /// given command encoder.
     void render(WGPUCommandEncoder command_encoder);
 
     /// Request a re-render of the constant LUTs on the next @ref render (call after changing atmosphere params).
@@ -71,19 +79,13 @@ public:
     /// Enable/disable the sky render pass. LUT textures remain valid when disabled.
     void set_sky_enabled(bool enabled) { m_sky_enabled = enabled; }
 
-    /// Debug/test toggle (chunk 4): switch between the LUT-sampling pass and the full-resolution
-    /// per-pixel ray-march pass. Rebuilds the compute renderer immediately if already resized.
-    void set_default_to_per_pixel_ray_march(bool enabled);
-    bool default_to_per_pixel_ray_march() const { return m_default_to_per_pixel_ray_march; }
+    /// Switches which sky rendering technique is used. Rebuilds the compute renderer(s) immediately if
+    /// already resized.
+    void set_mode(Mode mode);
+    Mode mode() const { return m_mode; }
 
-    /// Debug/test toggle (chunk 5): only meaningful while ray marching is enabled. false (default,
-    /// matches upstream) selects the hybrid pass - ray-march valid-depth pixels, sky_view_lut for the
-    /// rest. true selects the pure ray-march pass (chunk 4) - ray-march every pixel.
-    void set_ray_march_distant_sky(bool enabled);
-    bool ray_march_distant_sky() const { return m_ray_march_distant_sky; }
-
-    /// Bumped every time rebuild_renderer() replaces the atmosphere buffer / transmittance LUT (resize,
-    /// or the ray-march toggle). Callers that cache bind groups referencing those resources (e.g.
+    /// Bumped every time the atmosphere buffer / transmittance LUT get rebuilt (resize, or a mode
+    /// switch). Callers that cache bind groups referencing those resources (e.g.
     /// Window::m_compose_output_bind_group) must recreate them when this changes.
     uint64_t resource_generation() const { return m_resource_generation; }
 
@@ -103,16 +105,34 @@ public:
     const uniforms::Uniforms& uniforms() const;
 
 private:
-    /// (Re)creates m_renderer from the current atmosphere/render-target/depth/back-buffer state.
-    /// Shared by resize() and set_default_to_per_pixel_ray_march() so toggling ray-march mode at
-    /// runtime doesn't need a full resize().
+    // The renderer whose resources back the cloud-lighting accessors above: m_renderer normally, or
+    // (in Auto mode, where m_renderer is null) whichever auto sub-renderer is available.
+    const compute::SkyWithLutsComputeRenderer* lut_source() const;
+
     void rebuild_renderer();
+    void rebuild_single_renderer(compute::SkyPassVariant variant);
+    void rebuild_auto_renderers();
+    void rebuild_blend_pipeline();
+
+    void render_single(WGPUCommandEncoder command_encoder);
+    void render_auto(WGPUCommandEncoder command_encoder);
+
+    // 0 = pure Lut, 1 = pure Hybrid; derived from m_camera_altitude_m.
+    float auto_blend_factor() const;
+
+    // Builds the compute config for one auto sub-renderer. When direct is true its output target is
+    // m_render_target itself (the sole active side, outside the blend band); otherwise its own scratch
+    // target (m_auto_hybrid_target / m_auto_lut_target), as used while both sides are blended.
+    config::SkyRendererComputeConfig make_auto_compute_config(bool is_hybrid, bool direct) const;
+
+    // Rebinds a renderer's output target only when it doesn't already match, via
+    // compute::SkyWithLutsComputeRenderer::rebind_output (no LUT re-render).
+    void ensure_auto_renderer_target(compute::SkyWithLutsComputeRenderer& renderer, bool is_hybrid, bool direct, bool& current_is_direct);
 
     WGPUDevice m_device = nullptr;
     webgpu::RenderResourceRegistry* m_registry = nullptr;
     bool m_sky_enabled = true;
-    bool m_default_to_per_pixel_ray_march = false;
-    bool m_ray_march_distant_sky = false; // false = hybrid (matches upstream default), true = pure ray march
+    Mode m_mode = Mode::Auto;
     uint64_t m_resource_generation = 0;
 
     // Stored from the last resize() call so rebuild_renderer() can be invoked independently of it.
@@ -120,10 +140,34 @@ private:
     const webgpu::raii::TextureView* m_depth_view = nullptr;
     const webgpu::raii::Texture* m_back_buffer_texture = nullptr;
     const webgpu::raii::TextureView* m_back_buffer_view = nullptr;
+    uint32_t m_width = 0;
+    uint32_t m_height = 0;
 
     std::unique_ptr<webgpu::raii::Texture> m_render_target;
     std::unique_ptr<webgpu::raii::TextureView> m_render_target_view;
-    std::unique_ptr<compute::SkyWithLutsComputeRenderer> m_renderer;
+    std::unique_ptr<compute::SkyWithLutsComputeRenderer> m_renderer; // Lut / RayMarch / Hybrid
+
+    // Auto mode: inside the blend band, hybrid and LUT each render into their own scratch target and a
+    // small compute pass blends the two into m_render_target. Outside the band only one side is active;
+    // that side is rebound (see ensure_auto_renderer_target) to write directly into m_render_target,
+    // so no scratch target or blend/copy pass is needed at all. Scratch targets allocated only while
+    // m_mode == Auto.
+    std::unique_ptr<webgpu::raii::Texture> m_auto_hybrid_target;
+    std::unique_ptr<webgpu::raii::TextureView> m_auto_hybrid_target_view;
+    std::unique_ptr<webgpu::raii::Texture> m_auto_lut_target;
+    std::unique_ptr<webgpu::raii::TextureView> m_auto_lut_target_view;
+    std::unique_ptr<compute::SkyWithLutsComputeRenderer> m_auto_hybrid_renderer;
+    std::unique_ptr<compute::SkyWithLutsComputeRenderer> m_auto_lut_renderer;
+    bool m_auto_hybrid_targets_render_target = false;
+    bool m_auto_lut_targets_render_target = false;
+
+    std::unique_ptr<webgpu::raii::BindGroupLayout> m_blend_bind_group_layout;
+    std::unique_ptr<webgpu::raii::PipelineLayout> m_blend_pipeline_layout;
+    std::unique_ptr<webgpu::raii::ComputePipeline> m_blend_pipeline;
+    std::unique_ptr<webgpu::Buffer<float>> m_blend_factor_buffer;
+    std::unique_ptr<webgpu::raii::BindGroup> m_blend_bind_group;
+
+    float m_camera_altitude_m = 0.0f;
 
     params::Atmosphere m_atmosphere;
     uniforms::Uniforms m_uniforms;

@@ -91,6 +91,21 @@ void SkyWithLutsComputeRenderer::render_luts(
 
 void SkyWithLutsComputeRenderer::render_sky(WGPUComputePassEncoder pass_encoder) { m_pass->encode(pass_encoder); }
 
+void SkyWithLutsComputeRenderer::rebind_output(config::SkyRendererComputeConfig compute_config)
+{
+    std::vector<std::unique_ptr<webgpu::raii::BindGroup>> bind_groups;
+    bind_groups.push_back(
+        make_bind_group(m_bind_group_layout->handle(), compute_config, m_lut_renderer->resources(), m_lut_renderer->uses_custom_uniforms(), m_variant));
+
+    glm::uvec3 dispatch_group_dimensions = glm::uvec3(glm::ceil(glm::vec3 {
+        float(compute_config.renderTarget.texture->width()) / 16.0f,
+        float(compute_config.renderTarget.texture->height()) / 16.0f,
+        1.0f,
+    }));
+
+    m_pass = std::make_unique<util::ComputePass>(m_pipeline->handle(), bind_groups, dispatch_group_dimensions);
+}
+
 void SkyWithLutsComputeRenderer::render_luts_and_sky(WGPUComputePassEncoder pass_encoder, bool force_constant_lut_rendering)
 {
     m_lut_renderer->render_luts(pass_encoder, false, force_constant_lut_rendering, false);

@@ -54,17 +54,11 @@ void SkyPanel::draw_panel()
     bool redraw = false;
 
     ImGui::SeparatorText("Debug");
-    bool ray_march = m_sky_renderer->default_to_per_pixel_ray_march();
-    if (ImGui::Checkbox("Full-res ray march (debug, chunk 4/5)", &ray_march)) {
-        m_sky_renderer->set_default_to_per_pixel_ray_march(ray_march);
+    static const char* MODE_NAMES[] = { "LUTs", "Raymarching", "Hybrid", "Auto" };
+    int mode_index = static_cast<int>(m_sky_renderer->mode());
+    if (ImGui::Combo("Mode", &mode_index, MODE_NAMES, IM_ARRAYSIZE(MODE_NAMES))) {
+        m_sky_renderer->set_mode(static_cast<webgpu_engine::sky::SkyRenderer::Mode>(mode_index));
         redraw = true;
-    }
-    if (ray_march) {
-        bool distant_sky = m_sky_renderer->ray_march_distant_sky();
-        if (ImGui::Checkbox("  Ray-march distant sky too (pure mode; off = hybrid)", &distant_sky)) {
-            m_sky_renderer->set_ray_march_distant_sky(distant_sky);
-            redraw = true;
-        }
     }
 
     ImGui::SeparatorText("Planet (world scale)");

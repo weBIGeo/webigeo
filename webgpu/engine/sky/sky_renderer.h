@@ -59,6 +59,11 @@ public:
     void render_sky(WGPUComputePassEncoder pass_encoder);
     void render_luts_and_sky(WGPUComputePassEncoder pass_encoder, bool force_constant_lut_rendering = false);
 
+    /// Rebuilds only the final sky-compositing bind group against a new depth/back/render target
+    /// (e.g. switching output textures) without touching the LUT pipelines/resources - no shader
+    /// recompilation, no LUT re-render.
+    void rebind_output(config::SkyRendererComputeConfig compute_config);
+
     resources::SkyAtmosphereResources& resources() { return m_lut_renderer->resources(); }
     const resources::SkyAtmosphereResources& resources() const { return m_lut_renderer->resources(); }
 
