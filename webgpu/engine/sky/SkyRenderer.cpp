@@ -23,7 +23,6 @@
 #include "nucleus/camera/Definition.h"
 #include <glm/common.hpp>
 #include <glm/gtc/matrix_inverse.hpp>
-#include <nucleus/srs.h>
 #include <webgpu/base/Context.h>
 #include <webgpu/base/RenderResourceRegistry.h>
 #include <webgpu/base/raii/base_types.h>
@@ -250,10 +249,7 @@ void SkyRenderer::update(const nucleus::camera::Definition& camera, const glm::v
     const glm::vec3 cam_km = glm::vec3(camera.position()) / FROM_KM_SCALE;
     m_atmosphere.center = { cam_km.x, cam_km.y, -m_atmosphere.bottomRadius };
 
-    // Raw world-space z is mercator-scaled by 1/cos(latitude), not true altitude - convert properly
-    // (same conversion the date/time panel uses to show the camera's altitude to the user).
-    const double true_altitude_m = nucleus::srs::world_to_lat_long_alt(camera.position()).z;
-    m_camera_altitude_m = std::max(0.0f, float(true_altitude_m));
+    m_camera_altitude_m = std::max(0.0f, float(camera.altitude()));
 }
 
 void SkyRenderer::render(WGPUCommandEncoder command_encoder)

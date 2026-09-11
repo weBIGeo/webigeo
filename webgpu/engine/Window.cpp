@@ -166,7 +166,6 @@ void Window::resize_framebuffer(int w, int h)
     m_gbuffer_format.size = glm::uvec2 { w, h };
     m_gbuffer = std::make_unique<webgpu::Framebuffer>(m_context->webgpu_ctx().device(), m_gbuffer_format);
 
-    // Intermediate target compose renders into (RGBA16Float required for StorageBinding in compute compose).
     webgpu::FramebufferFormat scene_color_format {};
     scene_color_format.size = glm::uvec2 { w, h };
     scene_color_format.depth_format = WGPUTextureFormat_Depth24Plus;
@@ -209,8 +208,8 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
 {
     m_needs_redraw = false;
 
-    // sky_renderer's atmosphere buffer / transmittance LUT may have been rebuilt outside of a resize
-    // (e.g. the ray-march debug toggle) — refresh the bind group that caches references to them.
+    // sky_renderer atmosphere buffer / transmittance LUT may have been rebuilt outside of a resize
+    // -> refresh the bind group that caches references to them.
     if (const uint64_t gen = m_context->sky_renderer()->resource_generation(); gen != m_last_sky_resource_generation) {
         recreate_compose_bind_group();
         m_last_sky_resource_generation = gen;
@@ -239,27 +238,22 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
 
         using namespace nucleus::tile;
 
-        const double planet_radius_m = double(m_context->shared_config().m_planet_radius_m);
+        const double R = double(m_context->shared_config().m_planet_radius_m);
 
-        // NOTE: The far plane of the camera is used for frustum culling. It used to be set to a constant value.
-        // Knowing the planet size we can calculate an upper bound when using the curvature distortion.
-        // d = sqrt(2Rh + h^2) for a camera at height h above a sphere of radius R; the extra
-        // sqrt(2RH + H^2) term keeps peaks of height H (near the horizon) from being culled.
+        // NOTE: The far plane of the camera is used for frustum culling, so we calculate an upper bound here by calculating the 
+        // distance to the horizon (https://en.wikipedia.org/wiki/Horizon#Distance_to_the_horizon)
         // TODO: Its actually sufficient to update the far plane only when the camera moves (or the planet size changes)
         { 
-            constexpr double max_terrain_height_m = 9000.0;
-            const double R = planet_radius_m;
-            const double h = std::max(0.0, double(m_camera.position().z)); // camera height above surface
-            double far = 1'000'000.0; // floor for ground-level views (curvature handles the rest)
-            if (R > 0.0)
-                far = std::max(far, std::sqrt(2.0 * R * h + h * h) + std::sqrt(2.0 * R * max_terrain_height_m + max_terrain_height_m * max_terrain_height_m));
+            static const double h_max = 8850.0; // Mount Everest
+            const double h = std::max(0.0, m_camera.altitude()); // camera height above surface
+            double far = std::max(1000000.0, std::sqrt(2.0 * R * h + h * h) + std::sqrt(2.0 * R * h_max + h_max * h_max)); // This is for max peak height at horizon but seems negligible
             m_camera.set_far_plane(float(far));
         }
 
         const auto draw_list = drawing::compute_bounds(
-            drawing::limit(drawing::generate_list(m_camera, m_context->aabb_decorator(), m_max_zoom_level, planet_radius_m), 1024),
+            drawing::limit(drawing::generate_list(m_camera, m_context->aabb_decorator(), m_max_zoom_level, R), 1024),
             m_context->aabb_decorator());
-        const auto culled_draw_list = drawing::sort(drawing::cull(draw_list, m_camera, planet_radius_m), m_camera.position());
+        const auto culled_draw_list = drawing::sort(drawing::cull(draw_list, m_camera, R), m_camera.position());
 
         m_context->tile_mesh_renderer()->draw(render_pass->handle(), m_camera, culled_draw_list);
     }

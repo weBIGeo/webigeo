@@ -25,7 +25,6 @@
 #include "App.h"
 #include <glm/gtc/type_ptr.hpp>
 #include <nucleus/camera/PositionStorage.h>
-#include <nucleus/srs.h>
 
 namespace webgpu_app {
 
@@ -68,7 +67,7 @@ void CameraPanel::draw_panel()
             auto pos = camera.position();
             glm::vec3 posf = pos;
             ImGui::InputFloat3("Position", glm::value_ptr(posf), "%.2f", ImGuiInputTextFlags_ReadOnly);
-            glm::vec3 coords = nucleus::srs::world_to_lat_long_alt(pos);
+            glm::vec3 coords = camera.lat_long_alt();
             ImGui::InputFloat3("Coords", glm::value_ptr(coords), "%.6f", ImGuiInputTextFlags_ReadOnly);
             float fov = camera.field_of_view();
             if (ImGui::SliderFloat("FoV", &fov, 1.0f, 179.0f)) {
