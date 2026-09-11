@@ -25,6 +25,7 @@
 #include <QDebug>
 #include <glm/gtx/transform.hpp>
 
+#include "nucleus/srs.h"
 #include "radix/geometry.h"
 
 // camera space in opengl / webgl:
@@ -106,6 +107,10 @@ glm::dvec3 Definition::position() const
 {
     return glm::dvec3(m_camera_transformation[3]);
 }
+
+double Definition::altitude() const { return srs::world_z_to_altitude(position()); }
+
+glm::dvec3 Definition::lat_long_alt() const { return srs::world_to_lat_long_alt(position()); }
 
 glm::dvec3 Definition::x_axis() const
 {

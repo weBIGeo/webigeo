@@ -109,6 +109,14 @@ glm::dvec2 world_to_lat_long(const glm::dvec2& world_pos)
     return { latitude, longitude };
 }
 
+// world-space z is mercator-scaled by 1 / cos(latitude); this converts it to true metric altitude
+// without needing the full lat/long conversion (https://www.johndcook.com/blog/2009/09/21/gudermannian/)
+double world_z_to_altitude(const glm::dvec3& world_pos)
+{
+    const auto mercN = world_pos.y * pi / cOriginShift;
+    return world_pos.z / std::cosh(mercN);
+}
+
 glm::dvec3 world_to_lat_long_alt(const glm::dvec3& world_pos) {
     auto lat_long = world_to_lat_long(world_pos);
     return { lat_long.x, lat_long.y, world_pos.z * cos(lat_long.x * pi / 180) };

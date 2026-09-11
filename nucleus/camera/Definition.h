@@ -51,6 +51,10 @@ public:
     [[nodiscard]] glm::mat4 local_view_projection_matrix(const glm::dvec3& origin_offset) const;
     [[nodiscard]] glm::mat4 local_view_matrix() const;
     [[nodiscard]] glm::dvec3 position() const;
+    // returns true altitude [m] above the surface
+    [[nodiscard]] double altitude() const;
+    // returns latitude and longitude [deg] and true altitude [m] of the camera position
+    [[nodiscard]] glm::dvec3 lat_long_alt() const;
     [[nodiscard]] glm::dvec3 x_axis() const;
     [[nodiscard]] glm::dvec3 y_axis() const;
     [[nodiscard]] glm::dvec3 z_axis() const;
