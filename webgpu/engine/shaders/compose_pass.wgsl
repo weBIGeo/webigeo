@@ -25,7 +25,7 @@
 ///use webgpu::tile_util
 ///use webgpu::normals_util
 ///use webgpu_engine::sky/common/medium
-///use webgpu_engine::sky/common/transmittance
+///use webgpu_engine::sky/common/uv
 
 @group(0) @binding(0) var<uniform> conf: shared_config;
 @group(1) @binding(0) var<uniform> camera: camera_config;
@@ -139,8 +139,6 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3u) {
     //let dist = pos_dist.w;
 
     let normal = octNormalDecode2u16(encoded_normal);
-    // Stored normal is the true terrain normal. For lighting we tilt it by the earth-curvature
-    // deformation so distant facets are lit as the bent geometry, not the flat terrain.
     let shading_normal = curvature_corrected_normal(normal, pos_cws.xy, conf.planet_radius_m);
 
     var amb_occlusion = 1.0;
@@ -168,17 +166,16 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3u) {
         let pre_overlay_color = textureLoad(overlay_renderer_pre_texture, tci, 0);
         albedo = albedo * (1.0 - pre_overlay_color.a) + pre_overlay_color.rgb;
 
-        // Atmosphere-derived sun light: 
-        // NOTE: pos_ws are flat-earth map projection coords (not on the sphere), so using their
-        // full 3D position would compromise view_height for distant pixels beyond the atmosphere top.
-        let view_height  = atmosphere.bottom_radius + max(pos_ws.z * 0.001, 0.0);
-        let rho   = sqrt(max(0.0, view_height*view_height - atmosphere.bottom_radius*atmosphere.bottom_radius));
-        let atm_h = sqrt(max(0.0, atmosphere.top_radius*atmosphere.top_radius - atmosphere.bottom_radius*atmosphere.bottom_radius));
-        let cos_zenith_sun = dot(-normalize(conf.sun_light_dir.xyz), vec3f(0.0, 0.0, 1.0));
+        // Atmosphere-derived sun light
         var effective_sun_light = vec4f(0.0);
         if bool(conf.sky_enabled) {
+            let view_height  = atmosphere.bottom_radius + max(pos_ws.z * 0.001, 0.0);
+            let rho   = sqrt(max(0.0, view_height*view_height - atmosphere.bottom_radius*atmosphere.bottom_radius));
+            let cos_zenith_sun = dot(-normalize(conf.sun_light_dir.xyz), vec3f(0.0, 0.0, 1.0));
+            // Lets check if the sun is above the horizon for this point
             if cos_zenith_sun > -rho / view_height {
-                let atm_transmittance = lookup_transmittance(view_height, cos_zenith_sun, rho, atm_h);
+                let transmittance_uv = transmittance_lut_params_to_uv(atmosphere, view_height, cos_zenith_sun);
+                let atm_transmittance = textureSampleLevel(transmittance_lut, transmittance_sampler, transmittance_uv, 0).rgb;
                 effective_sun_light = vec4f(atm_transmittance * conf.sun_light.a, 1.0);
             }
         } else {
@@ -192,7 +189,6 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3u) {
         shaded_color = max(vec3(0.0), shaded_color);
         out_Color = vec4(shaded_color, 1.0);
     } else {
-        // Black background — the LUT sky compute pass fills sky pixels on top of this
         out_Color = vec4(0.0, 0.0, 0.0, 1.0);
     }
 
