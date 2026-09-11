@@ -9,7 +9,7 @@ graph LR
     Window("Window")
     Context("Context")
 
-    AtmR("AtmosphereRenderer")
+    SkyR("SkyRenderer")
     TileR("TileMeshRenderer")
     CloudR("CloudRenderer")
     TrackR("TrackRenderer")
@@ -23,7 +23,7 @@ graph LR
 
     Window -.-> Context
 
-    Context --> AtmR
+    Context --> SkyR
     Context --> TileR
     Context --> CloudR
     Context --> TrackR
@@ -42,18 +42,48 @@ graph LR
 
 `Window::paint()` drives the frame in this fixed order:
 
+<table>
+<tr>
+<td width="30%" valign="top">
+
 ```mermaid
-graph LR
+graph TD
     classDef highlight fill:#e8a838,stroke:#b07a1a,color:#000
 
-    Atm(["AtmosphereRenderer"])
     Tile(["TileMeshRenderer"])
     Cloud(["CloudRenderer"])
     Ovl(["OverlayRenderer"])
     Compose(["Compose pass"]):::highlight
+    Track(["TrackRenderer"])
+    Sky(["SkyRenderer"])
+    CComp(["Cloud composite pass"]):::highlight
+    Present(["Present pass"]):::highlight
 
-    Atm --> Tile --> Cloud --> Ovl --> Compose
+    Tile --> Cloud --> Ovl --> Compose --> Track --> Sky --> CComp --> Present
 ```
+
+</td>
+<td width="70%" valign="top">
+
+`TileMeshRenderer` renders the visible terrain tiles into the G-buffer (albedo/position/normal/overlay + depth).
+
+`CloudRenderer` draws volumetric clouds into an offscreen target; only runs when `m_clouds_enabled`.
+
+`OverlayRenderer` draws the pre-/post-shading overlay textures (height lines, snow, etc.) that Compose blends in.
+
+`Compose pass` *(`Window`-owned)* resolves the G-buffer into the scene-color target -> blending in the overlay pre-/post-shading textures and terrain lighting/atmosphere transmittance along the way.
+
+`TrackRenderer` renders GPX tracks directly into the scene-color target; only runs when tracks exist and `m_track_render_mode > 0`. Must happen before Sky so track lines get layered under atmospheric aerial perspective.
+
+`SkyRenderer` layers the physically-based atmosphere (LUT sky-view, aerial perspective) over the scene-color back buffer; skipped when `m_sky_enabled` is false, in which case later stages read the scene-color target directly.
+
+`Cloud composite pass` *(`Window`-owned)* blends the volumetric cloud result on top of whichever background (sky or scene color) is active; only runs when clouds are enabled.
+
+`Present pass` *(`Window`-owned)* blits the final result (one of four permutations of sky/no-sky × clouds/no-clouds) to the swapchain.
+
+</td>
+</tr>
+</table>
 
 ## Renderers
 
@@ -63,7 +93,7 @@ Current renderers and their responsibilities:
 
 | Class | Location | Role |
 |-------|----------|------|
-| `AtmosphereRenderer` | `webgpu/engine/atmosphere/` | Sky dome and atmospheric scattering |
+| `SkyRenderer` | `webgpu/engine/sky/` | Physically-based atmosphere/sky (LUT scattering, aerial perspective), layered over the scene color target |
 | `TileMeshRenderer` | `webgpu/engine/tile_mesh/` | Terrain tiles with height maps and orthophoto textures |
 | `CloudRenderer` | `webgpu/engine/cloud/` | Volumetric clouds |
 | `TrackRenderer` | `webgpu/engine/track/` | GPX tracks |
