@@ -20,21 +20,12 @@
 ///use webgpu::tile_util
 ///use webgpu::position_util
 ///use util/shared_config
-///use webgpu_engine::sky/common/uv
+///use webgpu_engine::util/sky
 
 ///define USE_SKY_TRANSMITTANCE_LUT 1
 ///define USE_SKY_AERIAL_LUT 1
 ///define USE_SKY_VIEW_LUT 1
 ///define ENABLE_CURVATURE 1
-
-///if USE_SKY_TRANSMITTANCE_LUT 1
-///use webgpu_engine::sky/common/transmittance
-///endif
-
-///if USE_SKY_VIEW_LUT 1
-///use webgpu_engine::sky/common/constants
-///use webgpu_engine::sky/common/sky_view
-///endif
 
 
 struct tile_info {
@@ -105,6 +96,19 @@ struct ray_accumulator {
 ///endif
 ///if USE_SKY_VIEW_LUT 1
 @group(3) @binding(3) var sky_view_lut: texture_2d<f32>;
+///endif
+
+///if USE_SKY_TRANSMITTANCE_LUT 1
+// Samples the transmittance LUT for the given view_height / cos_zenith pair.
+// rho = sqrt(max(0, view_height^2 - bottom_radius^2))
+// h   = sqrt(max(0, top_radius^2  - bottom_radius^2))
+fn lookup_transmittance(view_height: f32, cos_zenith: f32, rho: f32, h: f32, top_radius: f32) -> vec3f {
+    let discriminant = view_height * view_height * (cos_zenith * cos_zenith - 1.0) + top_radius * top_radius;
+    let d    = max(0.0, -view_height * cos_zenith + sqrt(max(discriminant, 0.0)));
+    let x_mu = (d - (top_radius - view_height)) / (rho + h);
+    let x_r  = rho / h;
+    return textureSampleLevel(transmittance_lut, transmittance_sampler, vec2f(x_mu, x_r), 0).rgb;
+}
 ///endif
 
 // tile size at zoom level 10

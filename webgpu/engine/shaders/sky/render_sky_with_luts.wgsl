@@ -26,11 +26,10 @@
 ///use webgpu_engine::sky/common/constants
 ///use webgpu_engine::sky/common/intersection
 ///use webgpu_engine::sky/common/medium
-///use webgpu_engine::sky/common/uv
+///use webgpu_engine::util/sky
 ///use webgpu_engine::sky/common/uniforms
 ///use webgpu_engine::sky/common/coordinate_system
 ///use webgpu_engine::sky/common/aerial_perspective
-///use webgpu_engine::sky/common/sky_view
 ///use webgpu_engine::sky/common/blend
 ///use webgpu_engine::sky/common/sun_disk
 ///use webgpu_engine::sky/common/vertex_full_screen

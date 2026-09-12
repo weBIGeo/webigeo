@@ -27,7 +27,7 @@
 ///use webgpu_engine::sky/common/intersection
 ///use webgpu_engine::sky/common/medium
 ///use webgpu_engine::sky/common/phase
-///use webgpu_engine::sky/common/uv
+///use webgpu_engine::util/sky
 ///use webgpu_engine::sky/common/uniforms
 ///use webgpu_engine::sky/common/coordinate_system
 ///use webgpu_engine::sky/common/multiple_scattering

@@ -100,6 +100,7 @@ qt_add_resources(webgpu_engine "shaders"
 
         "${SHADER_BASE_DIR}/util/camera_config.wgsl"
         "${SHADER_BASE_DIR}/util/shared_config.wgsl"
+        "${SHADER_BASE_DIR}/util/sky.wgsl"
 
         "${SHADER_BASE_DIR}/sky/render_aerial_perspective_lut.wgsl"
         "${SHADER_BASE_DIR}/sky/render_multi_scattering_lut.wgsl"
@@ -126,10 +127,8 @@ qt_add_resources(webgpu_engine "shaders"
         "${SHADER_BASE_DIR}/sky/common/sample_sagment_t.wgsl"
         "${SHADER_BASE_DIR}/sky/common/shadow.wgsl"
         "${SHADER_BASE_DIR}/sky/common/shadow_base.wgsl"
-        "${SHADER_BASE_DIR}/sky/common/sky_view.wgsl"
         "${SHADER_BASE_DIR}/sky/common/sun_disk.wgsl"
         "${SHADER_BASE_DIR}/sky/common/uniforms.wgsl"
-        "${SHADER_BASE_DIR}/sky/common/uv.wgsl"
         "${SHADER_BASE_DIR}/sky/common/vertex_full_screen.wgsl"
     )
 

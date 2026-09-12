@@ -8,7 +8,7 @@
 ///use webgpu_engine::sky/common/intersection
 ///use webgpu_engine::sky/common/medium
 ///use webgpu_engine::sky/common/phase
-///use webgpu_engine::sky/common/uv
+///use webgpu_engine::util/sky
 
 override SAMPLE_COUNT: u32 = 20;
 

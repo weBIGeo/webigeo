@@ -27,7 +27,7 @@
 ///use webgpu_engine::sky/common/intersection
 ///use webgpu_engine::sky/common/medium
 ///use webgpu_engine::sky/common/phase
-///use webgpu_engine::sky/common/uv
+///use webgpu_engine::util/sky
 ///use webgpu_engine::sky/common/uniforms
 ///use webgpu_engine::sky/common/coordinate_system
 ///use webgpu_engine::sky/common/multiple_scattering
@@ -35,7 +35,6 @@
 ///use webgpu_engine::sky/common/sun_disk
 ///use webgpu_engine::sky/common/blend
 ///use webgpu_engine::sky/common/sample_sagment_t
-///use webgpu_engine::sky/common/sky_view
 
 override USE_MOON: bool = false;
 override INV_DISTANCE_TO_MAX_SAMPLE_COUNT: f32 = 1.0 / 100.0;

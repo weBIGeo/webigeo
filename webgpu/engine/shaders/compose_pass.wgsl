@@ -24,7 +24,7 @@
 ///use webgpu::general
 ///use webgpu::tile_util
 ///use webgpu::normals_util
-///use webgpu_engine::sky/common/uv
+///use webgpu_engine::util/sky
 
 @group(0) @binding(0) var<uniform> conf: shared_config;
 @group(1) @binding(0) var<uniform> camera: camera_config;
