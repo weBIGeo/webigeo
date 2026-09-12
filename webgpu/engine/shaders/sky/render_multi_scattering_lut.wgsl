@@ -25,7 +25,7 @@ var<workgroup> shared_luminance: array<vec3<f32>, workgroup_size_z>;
 
 fn get_transmittance_to_sun(sun_dir: vec3<f32>, zenith: vec3<f32>, atmosphere: Atmosphere, sample_height: f32) -> vec3<f32> {
 	let cos_sun_zenith = dot(sun_dir, zenith);
-	let uv = transmittance_lut_params_to_uv(atmosphere, sample_height, cos_sun_zenith);
+	let uv = transmittance_lut_params_to_uv(atmosphere.bottom_radius, atmosphere.top_radius, sample_height, cos_sun_zenith);
 	return textureSampleLevel(transmittance_lut, lut_sampler, uv, 0).rgb;
 }
 

@@ -62,12 +62,16 @@ void SkyPanel::draw_panel()
     }
 
     ImGui::SeparatorText("Planet (world scale)");
-    if (ImGui::DragFloat("Bottom radius (km)", &atm.bottomRadius, 100.0f, 1.0f, 1.0e7f, "%.1f")) {
-        cfg.m_planet_radius_m = atm.bottomRadius * 1000.0f; // keep terrain curvature in sync
-        atmosphere_changed = true;
+    float bottom_radius_km = cfg.m_planet_radius_m / 1000.0f;
+    if (ImGui::DragFloat("Bottom radius (km)", &bottom_radius_km, 100.0f, 1.0f, 1.0e7f, "%.1f")) {
+        cfg.m_planet_radius_m = bottom_radius_km * 1000.0f;
+        redraw = true;
     }
-    atmosphere_changed |= ImGui::DragFloat("Atmosphere height (km)", &atm.height, 1.0f, 0.1f, 2000.0f, "%.2f");
-    redraw |= ImGui::DragFloat3("Center (km)", glm::value_ptr(atm.center), 10.0f); // per-frame only, no LUT re-render
+    float atmosphere_height_km = cfg.m_atmosphere_height_m / 1000.0f;
+    if (ImGui::DragFloat("Atmosphere height (km)", &atmosphere_height_km, 1.0f, 0.1f, 2000.0f, "%.2f")) {
+        cfg.m_atmosphere_height_m = atmosphere_height_km * 1000.0f;
+        redraw = true;
+    }
 
     ImGui::SeparatorText("Rayleigh");
     atmosphere_changed |= ImGui::DragFloat3("Rayleigh scattering", glm::value_ptr(atm.rayleigh.scattering), 0.001f, 0.0f, 2.0f, "%.4f");

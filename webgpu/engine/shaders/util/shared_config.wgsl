@@ -29,8 +29,9 @@ struct shared_config {
     normal_mode: u32,
     overlay_mode: u32,
     track_render_mode: u32,
-    _padding0: u32,
     planet_radius_m: f32,
+    atmosphere_height_m: f32,
+    atmosphere_planet_center_m: vec4f,
 }
 
 ;

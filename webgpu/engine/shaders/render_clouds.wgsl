@@ -20,7 +20,6 @@
 ///use webgpu::tile_util
 ///use webgpu::position_util
 ///use util/shared_config
-///use webgpu_engine::sky/common/medium
 ///use webgpu_engine::sky/common/uv
 
 ///define USE_SKY_TRANSMITTANCE_LUT 1
@@ -97,16 +96,15 @@ struct ray_accumulator {
 
 @group(2) @binding(0) var<uniform> sconf: shared_config;
 
-@group(3) @binding(0) var<uniform> atmosphere: Atmosphere;
 ///if USE_SKY_TRANSMITTANCE_LUT 1
-@group(3) @binding(1) var transmittance_lut: texture_2d<f32>;
+@group(3) @binding(0) var transmittance_lut: texture_2d<f32>;
 ///endif
-@group(3) @binding(2) var transmittance_sampler: sampler;
+@group(3) @binding(1) var transmittance_sampler: sampler;
 ///if USE_SKY_AERIAL_LUT 1
-@group(3) @binding(3) var aerial_perspective_lut: texture_3d<f32>;
+@group(3) @binding(2) var aerial_perspective_lut: texture_3d<f32>;
 ///endif
 ///if USE_SKY_VIEW_LUT 1
-@group(3) @binding(4) var sky_view_lut: texture_2d<f32>;
+@group(3) @binding(3) var sky_view_lut: texture_2d<f32>;
 ///endif
 
 // tile size at zoom level 10
@@ -383,11 +381,13 @@ fn calculate_point_radiance(
 
     // Pre-compute atmosphere-space position once; shared by horizon test, sun transmittance, sky transmittance.
     // world (m) → atmosphere space (km), relative to planet center
-    let pos_atm = pos / 1000.0 - atmosphere.planet_center;
+    let bottom_radius = sconf.planet_radius_m * 0.001;
+    let top_radius = bottom_radius + sconf.atmosphere_height_m * 0.001;
+    let pos_atm = pos / 1000.0 - sconf.atmosphere_planet_center_m.xyz * 0.001;
     let view_height = length(pos_atm);              // 1 sqrt — shared by all three callers below
     let pos_atm_norm = pos_atm / view_height;
-    let rho = sqrt(max(0.0, view_height * view_height - atmosphere.bottom_radius * atmosphere.bottom_radius)); // 1 sqrt — shared
-    let h = sqrt(max(0.0, atmosphere.top_radius * atmosphere.top_radius - atmosphere.bottom_radius * atmosphere.bottom_radius)); // 1 sqrt — shared
+    let rho = sqrt(max(0.0, view_height * view_height - bottom_radius * bottom_radius)); // 1 sqrt — shared
+    let h = sqrt(max(0.0, top_radius * top_radius - bottom_radius * bottom_radius)); // 1 sqrt — shared
 
     // Height-aware horizon: higher cloud points catch the sun before lower ones, and the terminator is
     // a smooth ramp rather than a global hard switch at the world horizon. Skip the costly light march
@@ -405,7 +405,7 @@ fn calculate_point_radiance(
         var atm_sun_transmittance = vec3f(1.0);
 ///if USE_SKY_TRANSMITTANCE_LUT 1
         if sconf.sky_enabled != 0u {
-            atm_sun_transmittance = lookup_transmittance(view_height, cos_zenith_sun, rho, h);
+            atm_sun_transmittance = lookup_transmittance(view_height, cos_zenith_sun, rho, h, top_radius);
         }
 ///endif
         let sun_radiance = sconf.sun_light.rgb * sconf.sun_light.a * params.sun_light_scale * atm_sun_transmittance * sun_visibility;
@@ -416,7 +416,7 @@ fn calculate_point_radiance(
     var atm_sky_transmittance = vec3f(1.0);
 ///if USE_SKY_TRANSMITTANCE_LUT 1
     if sconf.sky_enabled != 0u {
-        atm_sky_transmittance = lookup_transmittance(view_height, pos_atm_norm.z, rho, h);
+        atm_sky_transmittance = lookup_transmittance(view_height, pos_atm_norm.z, rho, h, top_radius);
     }
 ///endif
     let ambient_occlusion = mix(0.3, 1.0, atm_sky_transmittance.r);
@@ -425,7 +425,7 @@ fn calculate_point_radiance(
     if sconf.sky_enabled != 0u {
         // Sky-view LUT gives the actual scattered sky radiance looking straight up.
         // Scale to match cloud sun units (sky renderer uses illuminance=1; cloud uses sun_light_scale * sun_light.a).
-        let sky_uv = sky_view_lut_params_to_uv(atmosphere, false, 1.0, cos_zenith_sun, view_height);
+        let sky_uv = sky_view_lut_params_to_uv(bottom_radius, false, 1.0, cos_zenith_sun, view_height);
         let sky_radiance = textureSampleLevel(sky_view_lut, transmittance_sampler, sky_uv, 0.0).rgb;
         // Inside dense cloud, multiple scattering desaturates the sky colour toward neutral white.
         // ray_transmittance tracks how much cloud the view ray has already traversed: near 1 at the

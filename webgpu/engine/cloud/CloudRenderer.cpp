@@ -197,39 +197,33 @@ void CloudRenderer::init(webgpu::Context& ctx)
             "upscale clouds bind group layout");
     });
 
-    reg.register_bind_group_layout("render_clouds_atmosphere", [](WGPUDevice device) {
-        WGPUBindGroupLayoutEntry atm_entry {};
-        atm_entry.binding = 0;
-        atm_entry.visibility = WGPUShaderStage_Compute;
-        atm_entry.buffer.type = WGPUBufferBindingType_Uniform;
-        atm_entry.buffer.minBindingSize = 0;
-
+    reg.register_bind_group_layout("render_clouds_sky_luts", [](WGPUDevice device) {
         WGPUBindGroupLayoutEntry lut_tex_entry {};
-        lut_tex_entry.binding = 1;
+        lut_tex_entry.binding = 0;
         lut_tex_entry.visibility = WGPUShaderStage_Compute;
         lut_tex_entry.texture.sampleType = WGPUTextureSampleType_Float;
         lut_tex_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry lut_sampler_entry {};
-        lut_sampler_entry.binding = 2;
+        lut_sampler_entry.binding = 1;
         lut_sampler_entry.visibility = WGPUShaderStage_Compute;
         lut_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
 
         WGPUBindGroupLayoutEntry ap_lut_entry {};
-        ap_lut_entry.binding    = 3;
+        ap_lut_entry.binding    = 2;
         ap_lut_entry.visibility = WGPUShaderStage_Compute;
         ap_lut_entry.texture.sampleType    = WGPUTextureSampleType_Float;
         ap_lut_entry.texture.viewDimension = WGPUTextureViewDimension_3D;
 
         WGPUBindGroupLayoutEntry sky_view_lut_entry {};
-        sky_view_lut_entry.binding    = 4;
+        sky_view_lut_entry.binding    = 3;
         sky_view_lut_entry.visibility = WGPUShaderStage_Compute;
         sky_view_lut_entry.texture.sampleType    = WGPUTextureSampleType_Float;
         sky_view_lut_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         return std::make_unique<webgpu::raii::BindGroupLayout>(device,
-            std::vector<WGPUBindGroupLayoutEntry> { atm_entry, lut_tex_entry, lut_sampler_entry, ap_lut_entry, sky_view_lut_entry },
-            "render clouds atmosphere bind group layout");
+            std::vector<WGPUBindGroupLayoutEntry> { lut_tex_entry, lut_sampler_entry, ap_lut_entry, sky_view_lut_entry },
+            "render clouds sky luts bind group layout");
     });
 
     reg.register_pipeline([this](WGPUDevice dev, const webgpu::RenderResourceRegistry& reg) {
@@ -263,7 +257,7 @@ void CloudRenderer::init(webgpu::Context& ctx)
                 &reg.bind_group_layout("render_clouds"),
                 &reg.bind_group_layout("depth_texture"),
                 &reg.bind_group_layout("shared_config"),
-                &reg.bind_group_layout("render_clouds_atmosphere"),
+                &reg.bind_group_layout("render_clouds_sky_luts"),
             },
             pipeline_desc);
     });
@@ -421,7 +415,6 @@ void CloudRenderer::draw(const WGPUCommandEncoder& command_encoder,
     uint32_t frame_number,
     const webgpu::raii::TextureView& transmittance_lut_view,
     const webgpu::raii::Sampler& transmittance_lut_sampler,
-    WGPUBuffer atmosphere_buffer,
     const webgpu::raii::TextureView& aerial_perspective_lut_view,
     const webgpu::raii::TextureView& sky_view_lut_view)
 {
@@ -470,28 +463,22 @@ void CloudRenderer::draw(const WGPUCommandEncoder& command_encoder,
 
         m_cloud_tile_info_buffer->write(m_ctx->queue(), m_tile_infos.data(), m_tile_infos.size());
 
-        // Rebuild atmosphere bind group each frame (atmosphere center updates every frame).
-        WGPUBindGroupEntry atm_buf_entry {};
-        atm_buf_entry.binding = 0;
-        atm_buf_entry.buffer = atmosphere_buffer;
-        atm_buf_entry.size = WGPU_WHOLE_SIZE;
-        m_atmosphere_bind_group = std::make_unique<webgpu::raii::BindGroup>(
+        m_sky_luts_bind_group = std::make_unique<webgpu::raii::BindGroup>(
             m_ctx->device(),
-            m_ctx->resource_registry().bind_group_layout("render_clouds_atmosphere"),
+            m_ctx->resource_registry().bind_group_layout("render_clouds_sky_luts"),
             std::initializer_list<WGPUBindGroupEntry> {
-                atm_buf_entry,
-                transmittance_lut_view.create_bind_group_entry(1),
-                transmittance_lut_sampler.create_bind_group_entry(2),
-                aerial_perspective_lut_view.create_bind_group_entry(3),
-                sky_view_lut_view.create_bind_group_entry(4),
+                transmittance_lut_view.create_bind_group_entry(0),
+                transmittance_lut_sampler.create_bind_group_entry(1),
+                aerial_perspective_lut_view.create_bind_group_entry(2),
+                sky_view_lut_view.create_bind_group_entry(3),
             },
-            "render clouds atmosphere bind group");
+            "render clouds sky luts bind group");
 
         wgpuComputePassEncoderSetPipeline(compute_pass.handle(), m_render_clouds_pipeline->handle());
         wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, m_render_clouds_bind_group->handle(), 0, nullptr);
         wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 1, depth_texture_bind_group, 0, nullptr);
         wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 2, shared_config_bind_group, 0, nullptr);
-        wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 3, m_atmosphere_bind_group->handle(), 0, nullptr);
+        wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 3, m_sky_luts_bind_group->handle(), 0, nullptr);
 
         wgpuComputePassEncoderDispatchWorkgroups(compute_pass.handle(), ceil_div(m_output_lo_resolution.x, 8u), ceil_div(m_output_lo_resolution.y, 8u), 1);
     }

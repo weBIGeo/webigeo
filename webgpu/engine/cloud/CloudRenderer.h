@@ -94,7 +94,6 @@ public:
         uint32_t frame_number,
         const webgpu::raii::TextureView& transmittance_lut_view,
         const webgpu::raii::Sampler& transmittance_lut_sampler,
-        WGPUBuffer atmosphere_buffer,
         const webgpu::raii::TextureView& aerial_perspective_lut_view,
         const webgpu::raii::TextureView& sky_view_lut_view);
 
@@ -200,7 +199,7 @@ private:
     std::unique_ptr<webgpu::raii::BindGroup> m_upscale_clouds_bind_group_a;
     std::unique_ptr<webgpu::raii::BindGroup> m_upscale_clouds_bind_group_b;
     std::unique_ptr<webgpu::raii::BindGroup> m_camera_bind_group;
-    std::unique_ptr<webgpu::raii::BindGroup> m_atmosphere_bind_group;
+    std::unique_ptr<webgpu::raii::BindGroup> m_sky_luts_bind_group;
 
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_render_clouds_pipeline;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_upscale_clouds_pipeline;

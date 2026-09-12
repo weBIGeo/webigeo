@@ -30,7 +30,7 @@ fn sun_disk_luminance(world_pos: vec3<f32>, world_dir: vec3<f32>, atmosphere: At
 	let height = length(world_pos);
 	let zenith = world_pos / height;
 	let cos_view_zenith = dot(world_dir, zenith);
-	let uv = transmittance_lut_params_to_uv(atmosphere, height, cos_view_zenith);
+	let uv = transmittance_lut_params_to_uv(atmosphere.bottom_radius, atmosphere.top_radius, height, cos_view_zenith);
 	let transmittance_sun = textureSampleLevel(transmittance_lut, lut_sampler, uv, 0).rgb;
 
 	if apply_limb_darkening {

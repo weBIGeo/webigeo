@@ -236,18 +236,29 @@ void SkyRenderer::rebuild_blend_pipeline()
         "sky auto blend bind group");
 }
 
-void SkyRenderer::update(const nucleus::camera::Definition& camera, const glm::vec3& sun_direction)
+void SkyRenderer::update(const nucleus::camera::Definition& camera, uboSharedConfig& shared_config)
 {
+    m_sky_enabled = bool(shared_config.m_sky_enabled);
+
     m_uniforms.screenResolution = glm::vec2(camera.viewport_size());
     m_uniforms.camera.inverseProjection = glm::mat4(glm::inverse(camera.projection_matrix()));
     m_uniforms.camera.inverseView = glm::mat4(glm::inverse(camera.camera_matrix()));
     m_uniforms.camera.position = glm::vec3(camera.position());
-    m_uniforms.sun.direction = glm::normalize(sun_direction);
+    m_uniforms.sun.direction = glm::normalize(-glm::vec3(shared_config.m_sun_light_dir));
+
+    const float new_bottom_radius_km = shared_config.m_planet_radius_m / FROM_KM_SCALE;
+    const float new_height_km = shared_config.m_atmosphere_height_m / FROM_KM_SCALE;
+    if (new_bottom_radius_km != m_atmosphere.bottomRadius || new_height_km != m_atmosphere.height) {
+        m_atmosphere.bottomRadius = new_bottom_radius_km;
+        m_atmosphere.height = new_height_km;
+        mark_atmosphere_dirty();
+    }
 
     // Planet center follows the camera in x/y so view_height stays correct at any location.
     // z is always derived from bottomRadius (planet surface sits at z=0 in world space).
     const glm::vec3 cam_km = glm::vec3(camera.position()) / FROM_KM_SCALE;
     m_atmosphere.center = { cam_km.x, cam_km.y, -m_atmosphere.bottomRadius };
+    shared_config.m_atmosphere_planet_center_m = glm::vec4(m_atmosphere.center * FROM_KM_SCALE, 0.0f);
 
     m_camera_altitude_m = std::max(0.0f, float(camera.altitude()));
 }
@@ -408,11 +419,6 @@ const webgpu::raii::Sampler* SkyRenderer::transmittance_lut_sampler() const
 {
     const auto* src = lut_source();
     return src ? &src->resources().lut_sampler() : nullptr;
-}
-WGPUBuffer SkyRenderer::atmosphere_uniform_buffer() const
-{
-    const auto* src = lut_source();
-    return src ? src->resources().atmosphere_buffer().raw_buffer().handle() : nullptr;
 }
 const webgpu::raii::TextureView* SkyRenderer::aerial_perspective_lut_view() const
 {

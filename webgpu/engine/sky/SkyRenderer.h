@@ -28,6 +28,7 @@
 #include <webgpu/base/raii/PipelineLayout.h>
 #include <webgpu/base/raii/Texture.h>
 #include <webgpu/base/raii/TextureView.h>
+#include <webgpu/engine/UniformBufferObjects.h>
 #include <webgpu/webgpu.h>
 
 namespace webgpu {
@@ -66,8 +67,10 @@ public:
     void resize(uint32_t width, uint32_t height, const webgpu::raii::Texture& depth_texture, const webgpu::raii::TextureView& depth_view,
         const webgpu::raii::Texture& back_buffer_texture, const webgpu::raii::TextureView& back_buffer_view);
 
-    /// Updates the per-frame uniforms (camera + sun direction). Call before @ref render.
-    void update(const nucleus::camera::Definition& camera, const glm::vec3& sun_direction);
+    /// Updates the per-frame uniforms (camera, sun direction, radius/height/sky-enabled) from shared_config,
+    /// and writes the resolved planet center (derived from radius + camera position)
+    /// IMPORTANT: Call before @ref render.
+    void update(const nucleus::camera::Definition& camera, uboSharedConfig& shared_config);
 
     /// Encodes the LUT + sky compute pass (or, in Auto mode, both passes plus the blend pass) into the
     /// given command encoder.
@@ -75,9 +78,6 @@ public:
 
     /// Request a re-render of the constant LUTs on the next @ref render (call after changing atmosphere params).
     void mark_atmosphere_dirty();
-
-    /// Enable/disable the sky render pass. LUT textures remain valid when disabled.
-    void set_sky_enabled(bool enabled) { m_sky_enabled = enabled; }
 
     /// Switches which sky rendering technique is used. Rebuilds the compute renderer(s) immediately if
     /// already resized.
@@ -95,7 +95,6 @@ public:
     /// LUT resources for cloud lighting — valid after the first resize, regardless of m_sky_enabled.
     const webgpu::raii::TextureView* transmittance_lut_view() const;
     const webgpu::raii::Sampler* transmittance_lut_sampler() const;
-    WGPUBuffer atmosphere_uniform_buffer() const;
     const webgpu::raii::TextureView* aerial_perspective_lut_view() const;
     const webgpu::raii::TextureView* sky_view_lut_view() const;
 

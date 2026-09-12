@@ -45,8 +45,9 @@ public:
 
     uint32_t m_overlay_mode = 0; // per-tile debug data packed into GBuffer slot 3 (see TileDebugOverlay)
     uint32_t m_track_render_mode = 1; // 0...none, 1...without depth test, 2...with depth test, 3 semi-transparent if behind terrain
-    uint32_t _padding0 = 0;
     float m_planet_radius_m = 6360000.0f; // Earth radius in meters, used for curvature correction and sky LUT
+    float m_atmosphere_height_m = 100000.0f; // Atmosphere height in meters, added to m_planet_radius_m for the LUT top radius
+    glm::vec4 m_atmosphere_planet_center_m = glm::vec4(0.0f); // Resolved planet center in meters, written once per frame by Window
 };
 
 struct uboCameraConfig {

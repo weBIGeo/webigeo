@@ -225,6 +225,9 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
 
     auto& sm = m_context->webgpu_ctx().stopwatch_manager();
 
+    // Resolve the planet center (radius + camera position) into shared_config before it's uploaded below,
+    m_context->sky_renderer()->update(m_camera, m_context->shared_config());
+
     // ToDo only update on change?
     m_shared_config_ubo->data = m_context->shared_config();
     m_shared_config_ubo->update_gpu_data(m_context->webgpu_ctx().queue());
@@ -265,7 +268,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         sm.start_gpu(SID_CLOUDS, command_encoder);
         m_context->cloud_renderer()->draw(
             command_encoder, m_depth_texture_bind_group->handle(), m_shared_config_bind_group->handle(), m_camera, m_paint_number,
-            *sky->transmittance_lut_view(), *sky->transmittance_lut_sampler(), sky->atmosphere_uniform_buffer(),
+            *sky->transmittance_lut_view(), *sky->transmittance_lut_sampler(),
             *sky->aerial_perspective_lut_view(), *sky->sky_view_lut_view());
         sm.stop_gpu(SID_CLOUDS, command_encoder);
         m_needs_redraw |= m_context->cloud_renderer()->needs_redraw(); // Repaint for TAAU
@@ -317,12 +320,7 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
 
     // Sky: layer physically-based atmosphere over the scene color back buffer
     if (sky_enabled) sm.start_gpu(SID_SKY, command_encoder);
-    {
-        const glm::vec3 sun_direction = -glm::vec3(m_context->shared_config().m_sun_light_dir);
-        m_context->sky_renderer()->set_sky_enabled(sky_enabled);
-        m_context->sky_renderer()->update(m_camera, sun_direction);
-        m_context->sky_renderer()->render(command_encoder);
-    }
+    m_context->sky_renderer()->render(command_encoder);
     if (sky_enabled) sm.stop_gpu(SID_SKY, command_encoder);
 
     // Blend clouds on top of the background (sky render target when sky on, scene color when sky off)
@@ -491,18 +489,12 @@ void Window::recreate_compose_bind_group()
     auto* sky = m_context->sky_renderer();
     if (!sky->transmittance_lut_view()) return;
 
-    WGPUBindGroupEntry atm_buf_entry {};
-    atm_buf_entry.binding = 1;
-    atm_buf_entry.buffer = sky->atmosphere_uniform_buffer();
-    atm_buf_entry.size = WGPU_WHOLE_SIZE;
-
     m_compose_output_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
         m_context->webgpu_ctx().resource_registry().bind_group_layout("compose_output"),
         std::initializer_list<WGPUBindGroupEntry> {
             m_scene_color_framebuffer->color_texture_view(0).create_bind_group_entry(0),
-            atm_buf_entry,
-            sky->transmittance_lut_view()->create_bind_group_entry(2),
-            sky->transmittance_lut_sampler()->create_bind_group_entry(3),
+            sky->transmittance_lut_view()->create_bind_group_entry(1),
+            sky->transmittance_lut_sampler()->create_bind_group_entry(2),
         });
 }
 

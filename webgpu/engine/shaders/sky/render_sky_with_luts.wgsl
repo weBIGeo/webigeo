@@ -70,7 +70,7 @@ fn use_sky_view_lut(view_height: f32, world_pos: vec3<f32>, world_dir: vec3<f32>
 
 	let intersects_ground = ray_intersects_sphere(world_pos, world_dir, vec3<f32>(), atmosphere.bottom_radius);
 
-	let uv = sky_view_lut_params_to_uv(atmosphere, intersects_ground, cos_view_zenith, cos_light_view, view_height);
+	let uv = sky_view_lut_params_to_uv(atmosphere.bottom_radius, intersects_ground, cos_view_zenith, cos_light_view, view_height);
 
 	let sky_view = textureSampleLevel(sky_view_lut, lut_sampler, uv, 0);
 

@@ -7,8 +7,8 @@
 override SKY_VIEW_LUT_RES_X: f32 = 192.0;
 override SKY_VIEW_LUT_RES_Y: f32 = 108.0;
 
-fn sky_view_lut_params_to_uv(atmosphere: Atmosphere, intersects_ground: bool, cos_view_zenith: f32, cos_light_view: f32, view_height: f32) -> vec2<f32> {
-	let v_horizon = sqrt(max(view_height * view_height - atmosphere.bottom_radius * atmosphere.bottom_radius, 0.0));
+fn sky_view_lut_params_to_uv(bottom_radius: f32, intersects_ground: bool, cos_view_zenith: f32, cos_light_view: f32, view_height: f32) -> vec2<f32> {
+	let v_horizon = sqrt(max(view_height * view_height - bottom_radius * bottom_radius, 0.0));
 	let ground_to_horizon = acos(v_horizon / view_height);
 	let zenith_horizon_angle = pi - ground_to_horizon;
 
