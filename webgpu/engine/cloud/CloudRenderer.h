@@ -117,7 +117,7 @@ public slots:
     void update_gpu_tiles_cloud(const std::vector<nucleus::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuTexture3DTile>& new_tiles);
 
 private:
-    struct alignas(16) CameraConfig {
+    struct alignas(16) CameraConfigClouds {
         glm::mat4 view_matrix;
         glm::mat4 proj_matrix;
         glm::mat4 inv_view_matrix;
@@ -126,7 +126,7 @@ private:
     };
 
     struct alignas(16) ShaderParamsRender {
-        CameraConfig camera;
+        CameraConfigClouds camera;
         glm::vec4 bounds_min;
         glm::vec4 bounds_max;
 
@@ -151,8 +151,8 @@ private:
     };
 
     struct alignas(16) ShaderParamsUpscale {
-        CameraConfig current_camera;
-        CameraConfig previous_camera;
+        CameraConfigClouds current_camera;
+        CameraConfigClouds previous_camera;
         glm::vec2 jitter;
         glm::vec2 prev_jitter;
         glm::vec2 low_res_texel_size;

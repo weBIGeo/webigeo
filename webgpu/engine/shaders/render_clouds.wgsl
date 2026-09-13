@@ -33,7 +33,7 @@ struct tile_info {
     zoom: u32,
 }
 
-struct camera_config {
+struct camera_config_clouds {
     view_matrix: mat4x4f,
     proj_matrix: mat4x4f,
     inv_view_matrix: mat4x4f,
@@ -42,7 +42,7 @@ struct camera_config {
 }
 
 struct shader_params {
-    camera: camera_config,
+    camera: camera_config_clouds,
     bounds_min: vec4f,
     bounds_max: vec4f,
     frame_index: u32,
@@ -99,9 +99,6 @@ struct ray_accumulator {
 ///endif
 
 ///if USE_SKY_TRANSMITTANCE_LUT 1
-// Samples the transmittance LUT for the given view_height / cos_zenith pair.
-// rho = sqrt(max(0, view_height^2 - bottom_radius^2))
-// h   = sqrt(max(0, top_radius^2  - bottom_radius^2))
 fn lookup_transmittance(view_height: f32, cos_zenith: f32, rho: f32, h: f32, top_radius: f32) -> vec3f {
     let discriminant = view_height * view_height * (cos_zenith * cos_zenith - 1.0) + top_radius * top_radius;
     let d    = max(0.0, -view_height * cos_zenith + sqrt(max(discriminant, 0.0)));
@@ -182,10 +179,7 @@ fn get_tile_info(tile_id: vec2i) -> tile_info {
     return tile_infos[tile_index];
 }
 
-// Bend a flat-earth ray position so distant samples follow the curved surface, using the exact
-// spherical drop shared with the terrain (see earth_curvature_drop). XY is unchanged; only Z is
-// raised here to map the curved world ray back onto the flat-stored cloud layer (opposite sign to
-// the terrain's clip-space drop). Used before volume sampling; atmosphere calcs use raw pos.
+// Bend a flat-earth ray position so distant samples follow the curved surface
 fn apply_curvature(pos: vec3f) -> vec3f {
 ///if ENABLE_CURVATURE 1
     let rel_xy = pos.xy - params.camera.position.xy;
@@ -197,8 +191,7 @@ fn apply_curvature(pos: vec3f) -> vec3f {
 }
 
 fn sample_volume(pos_world: vec3f, lod: f32, tile_id: vec2i, tile: tile_info, atlas_sampler: sampler) -> f32 {
-    // Cloud data is stored at absolute (flat-earth) altitudes 0–14 km — no curvature baked in.
-    // Curvature is applied by the caller via apply_curvature() before this is called.
+    // Cloud data is stored at absolute (flat-earth) altitudes 0–14 km
     let height_adjusted = pos_world.z * cos(y_to_lat(pos_world.y));
     if height_adjusted < 0.0 || height_adjusted > 14000.0 || tile.zoom == 0u {
         return 0.0;
