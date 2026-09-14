@@ -41,35 +41,43 @@ void ShadingPanel::draw()
 
 void ShadingPanel::draw_panel()
 {
-    if (!m_context->shared_config().m_shading_enabled)
+    const bool enabled = m_context->shared_config().m_shading_enabled;
+
+    if (!enabled) {
+        ImGui::SetNextItemOpen(false);
+        ImGui::BeginDisabled();
+    }
+    bool header_open = ImGui::CollapsingHeader(ICON_FA_SUN "  Shading");
+    if (!enabled)
+        ImGui::EndDisabled();
+
+    if (!header_open)
         return;
 
-    if (ImGui::CollapsingHeader(ICON_FA_SUN "  Shading")) {
-        auto& cfg = m_context->shared_config();
+    auto& cfg = m_context->shared_config();
 
-        bool changed = ImGui::Combo("Normal Mode", (int*)&cfg.m_normal_mode, "None\0Flat\0Smooth\0\0");
-        ImGui::Separator();
-        changed |= ImGui::ColorEdit3("Light Color", (float*)&cfg.m_sun_light);
-        changed |= ImGui::SliderFloat("Light Intensity", &cfg.m_sun_light.w, 0.0f, 10.0f);
-        bool sun_dir_changed = ImGui::DragFloat3("Light Direction", (float*)&cfg.m_sun_light_dir, 0.01f, -1.0f, 1.0f);
-        changed |= sun_dir_changed;
-        ImGui::Separator();
-        changed |= ImGui::ColorEdit3("Ambient Color", (float*)&cfg.m_amb_light);
-        changed |= ImGui::SliderFloat("Ambient Intensity", &cfg.m_amb_light.w, 0.0f, 10.0f);
-        ImGui::Separator();
-        changed |= ImGui::ColorEdit4("Material Color", (float*)&cfg.m_material_color);
-        ImGui::Separator();
-        changed |= ImGui::SliderFloat("Ambient Strength", &cfg.m_material_light_response.x, 0.0f, 5.0f);
-        changed |= ImGui::SliderFloat("Diffuse Strength", &cfg.m_material_light_response.y, 0.0f, 5.0f);
-        changed |= ImGui::SliderFloat("Specular Strength", &cfg.m_material_light_response.z, 0.0f, 5.0f);
-        changed |= ImGui::SliderFloat("Shininess", &cfg.m_material_light_response.w, 1.0f, 256.0f);
+    bool changed = ImGui::Combo("Normal Mode", (int*)&cfg.m_normal_mode, "None\0Flat\0Smooth\0\0");
+    ImGui::Separator();
+    changed |= ImGui::ColorEdit3("Light Color", (float*)&cfg.m_sun_light);
+    changed |= ImGui::SliderFloat("Light Intensity", &cfg.m_sun_light.w, 0.0f, 10.0f);
+    bool sun_dir_changed = ImGui::DragFloat3("Light Direction", (float*)&cfg.m_sun_light_dir, 0.01f, -1.0f, 1.0f);
+    changed |= sun_dir_changed;
+    ImGui::Separator();
+    changed |= ImGui::ColorEdit3("Ambient Color", (float*)&cfg.m_amb_light);
+    changed |= ImGui::SliderFloat("Ambient Intensity", &cfg.m_amb_light.w, 0.0f, 10.0f);
+    ImGui::Separator();
+    changed |= ImGui::ColorEdit4("Material Color", (float*)&cfg.m_material_color);
+    ImGui::Separator();
+    changed |= ImGui::SliderFloat("Ambient Strength", &cfg.m_material_light_response.x, 0.0f, 5.0f);
+    changed |= ImGui::SliderFloat("Diffuse Strength", &cfg.m_material_light_response.y, 0.0f, 5.0f);
+    changed |= ImGui::SliderFloat("Specular Strength", &cfg.m_material_light_response.z, 0.0f, 5.0f);
+    changed |= ImGui::SliderFloat("Shininess", &cfg.m_material_light_response.w, 1.0f, 256.0f);
 
-        if (changed) {
-            cfg.m_sun_light_dir = glm::normalize(cfg.m_sun_light_dir);
-            m_context->request_redraw();
-            if (sun_dir_changed)
-                emit sun_dir_manually_changed();
-        }
+    if (changed) {
+        cfg.m_sun_light_dir = glm::normalize(cfg.m_sun_light_dir);
+        m_context->request_redraw();
+        if (sun_dir_changed)
+            emit sun_dir_manually_changed();
     }
 }
 

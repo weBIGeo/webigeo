@@ -44,7 +44,17 @@ void SkyPanel::draw()
 
 void SkyPanel::draw_panel()
 {
-    if (!ImGui::CollapsingHeader(ICON_FA_GLOBE_EUROPE "  Sky"))
+    const bool enabled = m_context->shared_config().m_sky_enabled;
+
+    if (!enabled) {
+        ImGui::SetNextItemOpen(false);
+        ImGui::BeginDisabled();
+    }
+    bool header_open = ImGui::CollapsingHeader(ICON_FA_GLOBE_EUROPE "  Sky");
+    if (!enabled)
+        ImGui::EndDisabled();
+
+    if (!header_open)
         return;
 
     auto& cfg = m_context->shared_config();
