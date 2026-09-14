@@ -17,9 +17,9 @@
 
 <body onload="init()">
   <div id="qtspinner">
-    <img src="webigeo_logo.svg" width="320" height="320"
-      style="display:inline; padding-bottom: 20px; padding-top: 100px;"></img><br>
-    <strong style="font-size: larger">weBIGeo</strong><br>
+    <object id="webigeoLogo" type="image/svg+xml" data="webigeo_logo.svg"
+      style="width:320px; height:320px; margin-bottom: 20px;">weBIGeo</object>
+    <strong style="font-size: larger">weBIGeo</strong>
     <span id="qtstatus"></span>
     <span id="loadingstatus"></span>
     <noscript>JavaScript is disabled. Please enable JavaScript to use this application.</noscript>
@@ -58,6 +58,7 @@
       if (!hacks.webgpuAvailable) {
         console.error('WebGPU is not supported in this browser');
         status.innerHTML = 'Error: WebGPU is not supported in this browser!';
+        hacks.stopLoadingSpin();
         return;
       }
 
@@ -80,6 +81,7 @@
                 exitData.code !== undefined ? ` with code ${exitData.code}` : '';
               status.innerHTML +=
                 exitData.text !== undefined ? ` (${exitData.text})` : '';
+              hacks.stopLoadingSpin();
               showUi(spinner);
             },
             entryFunction: window.webgpu_app_entry,
@@ -103,6 +105,7 @@
       } catch (e) {
         console.error(e);
         console.error(e.stack);
+        hacks.stopLoadingSpin();
       }
     }
   </script>
