@@ -43,7 +43,7 @@ class Definition;
 namespace webgpu_engine::sky {
 
 /**
- * Thin wrapper around the ported LUT-based sky renderer (@ref compute::SkyWithLutsComputeRenderer).
+ * Wrapper around the ported LUT-based sky renderer (@ref compute::SkyWithLutsComputeRenderer).
  *
  * Owns the full-resolution RGBA16Float render target the sky compute pass writes into and recreates
  * the underlying compute renderer on resize (the back buffer / depth views change with the viewport).
@@ -54,16 +54,16 @@ namespace webgpu_engine::sky {
  */
 class SkyRenderer {
 public:
-    // Auto blends Hybrid and Lut smoothly across a camera-altitude band, since both are correct near
-    // the ground but only one of them looks right from very high up.
-    enum class Mode { Lut, RayMarch, Hybrid, Auto };
+    enum class Mode {
+        Lut,        // Sky color comes purely from the precomputed sky-view LUT, no per-pixel ray marching.
+        RayMarch,   // Every pixel is fully ray-marched through the atmosphere, including the distant sky.
+        Hybrid,     // Per-pixel ray march near the camera/terrain, falls back to the LUT for the distant sky.
+        Auto        // Uses LUT for low altitudes and Hybrid for High ones, blends in between a certain band
+    };
 
-    /// Stores the device + shader registry. Call once after the webgpu context is initialised.
     void init(webgpu::Context& context);
 
     /// (Re)creates the render target + compute renderer for the given viewport size.
-    /// @param depth_texture / depth_view the gbuffer depth (depth-only-aspect view bound as texture_2d<f32>)
-    /// @param back_buffer_texture / back_buffer_view the composed scene color used as background
     void resize(uint32_t width, uint32_t height, const webgpu::raii::Texture& depth_texture, const webgpu::raii::TextureView& depth_view,
         const webgpu::raii::Texture& back_buffer_texture, const webgpu::raii::TextureView& back_buffer_view);
 
@@ -72,27 +72,22 @@ public:
     /// IMPORTANT: Call before @ref render.
     void update(const nucleus::camera::Definition& camera, uboSharedConfig& shared_config);
 
-    /// Encodes the LUT + sky compute pass (or, in Auto mode, both passes plus the blend pass) into the
-    /// given command encoder.
     void render(WGPUCommandEncoder command_encoder);
 
     /// Request a re-render of the constant LUTs on the next @ref render (call after changing atmosphere params).
     void mark_atmosphere_dirty();
 
-    /// Switches which sky rendering technique is used. Rebuilds the compute renderer(s) immediately if
-    /// already resized.
     void set_mode(Mode mode);
     Mode mode() const { return m_mode; }
 
     /// Bumped every time the atmosphere buffer / transmittance LUT get rebuilt (resize, or a mode
-    /// switch). Callers that cache bind groups referencing those resources (e.g.
-    /// Window::m_compose_output_bind_group) must recreate them when this changes.
+    /// switch). Callers that use cache binding groups must recreate them when this changes.
     uint64_t resource_generation() const { return m_resource_generation; }
 
     /// The full-resolution RGBA16Float texture the sky pass writes into (nullptr before the first resize).
     const webgpu::raii::TextureView* result_view() const;
 
-    /// LUT resources for cloud lighting — valid after the first resize, regardless of m_sky_enabled.
+    /// LUT resources for cloud lighting
     const webgpu::raii::TextureView* transmittance_lut_view() const;
     const webgpu::raii::Sampler* transmittance_lut_sampler() const;
     const webgpu::raii::TextureView* aerial_perspective_lut_view() const;
@@ -146,11 +141,7 @@ private:
     std::unique_ptr<webgpu::raii::TextureView> m_render_target_view;
     std::unique_ptr<compute::SkyWithLutsComputeRenderer> m_renderer; // Lut / RayMarch / Hybrid
 
-    // Auto mode: inside the blend band, hybrid and LUT each render into their own scratch target and a
-    // small compute pass blends the two into m_render_target. Outside the band only one side is active;
-    // that side is rebound (see ensure_auto_renderer_target) to write directly into m_render_target,
-    // so no scratch target or blend/copy pass is needed at all. Scratch targets allocated only while
-    // m_mode == Auto.
+    // Scratch targets allocated only while m_mode == Auto.
     std::unique_ptr<webgpu::raii::Texture> m_auto_hybrid_target;
     std::unique_ptr<webgpu::raii::TextureView> m_auto_hybrid_target_view;
     std::unique_ptr<webgpu::raii::Texture> m_auto_lut_target;

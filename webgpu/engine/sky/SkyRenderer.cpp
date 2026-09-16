@@ -20,6 +20,8 @@
 
 #include "SkyRenderer.h"
 
+#include <cassert>
+
 #include "nucleus/camera/Definition.h"
 #include <glm/common.hpp>
 #include <glm/gtc/matrix_inverse.hpp>
@@ -32,9 +34,7 @@ namespace webgpu_engine::sky {
 namespace {
     inline WGPUStringView sv(const char* s) { return WGPUStringView { s, WGPU_STRLEN }; }
 
-    // The LUT renderer works in km (1 = 1km). weBIGeo's world is in meters, so scale by 1000.
-    // The planet is tuned to sit underneath the (web-mercator, z-up) scene; these match the
-    // reference port and are the chief correctness item to tune visually (see plan / memory).
+    // The LUT renderer works in km (1 = 1km). weBIGeo world is in meters
     constexpr float FROM_KM_SCALE = 1000.0f;
 
     // Auto mode crossfades linearly between Lut (below) and Hybrid (above) across this altitude band.
@@ -312,13 +312,10 @@ void SkyRenderer::render_auto(WGPUCommandEncoder command_encoder)
     const bool single_side_active = need_hybrid != need_lut; // outside the blend band
 
     // Outside the band, rebind the sole active side to write straight into m_render_target - no
-    // scratch target, no blend/copy pass at all. Inside it, make sure both are back on their own
-    // scratch targets so the blend pass below has two separate inputs to read.
+    // scratch target, no blend/copy pass at all.
     ensure_auto_renderer_target(*m_auto_lut_renderer, false, single_side_active && need_lut, m_auto_lut_targets_render_target);
     ensure_auto_renderer_target(*m_auto_hybrid_renderer, true, single_side_active && need_hybrid, m_auto_hybrid_targets_render_target);
 
-    // Lut is lut_source()'s stable pick (see there), so its uniforms/atmosphere/dynamic LUTs stay
-    // current every frame regardless of blend weight; hybrid only needs them while actually visible.
     m_auto_lut_renderer->update_uniforms(m_uniforms);
     m_auto_lut_renderer->update_atmosphere(m_atmosphere);
     if (need_hybrid) {
@@ -339,14 +336,13 @@ void SkyRenderer::render_auto(WGPUCommandEncoder command_encoder)
     if (need_lut) {
         m_auto_lut_renderer->render_sky(compute_pass.handle());
     }
-    // Skip hybrid's expensive dynamic LUTs + full-screen ray march entirely when it isn't blended in.
+    // Skip hybrid when it isn't blended in.
     if (need_hybrid) {
         m_auto_hybrid_renderer->render_dynamic_luts(compute_pass.handle());
         m_auto_hybrid_renderer->render_sky(compute_pass.handle());
     }
 
-    // Only actually crossfading inside the band; outside it the active side's render_sky() above
-    // already wrote m_render_target directly, so there's nothing left to do.
+    // Only actually crossfading inside the band
     if (!single_side_active) {
         m_blend_factor_buffer->data = t;
         m_blend_factor_buffer->update_gpu_data(wgpuDeviceGetQueue(m_device));
@@ -401,11 +397,8 @@ const compute::SkyWithLutsComputeRenderer* SkyRenderer::lut_source() const
     if (m_renderer) {
         return m_renderer.get();
     }
-    // Always the lut renderer, regardless of blend weight: Window.cpp caches bind groups referencing
-    // this renderer's buffers/views across frames (rebuilt only on resource_generation() changes), so
-    // the choice must stay stable rather than track the per-frame altitude. render_auto() keeps the
-    // lut renderer's uniforms/atmosphere/dynamic LUTs current every frame for exactly this reason.
-    return m_auto_lut_renderer ? m_auto_lut_renderer.get() : m_auto_hybrid_renderer.get();
+    assert((m_auto_lut_renderer != nullptr) == (m_auto_hybrid_renderer != nullptr));
+    return m_auto_lut_renderer.get();
 }
 
 const webgpu::raii::TextureView* SkyRenderer::result_view() const { return m_render_target_view.get(); }

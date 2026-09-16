@@ -57,7 +57,6 @@ void SkyPanel::draw_panel()
     if (!header_open)
         return;
 
-    auto& cfg = m_context->shared_config();
     auto& atm = m_sky_renderer->atmosphere();
     auto& uni = m_sky_renderer->uniforms();
     bool atmosphere_changed = false; // requires constant-LUT re-render
@@ -68,18 +67,6 @@ void SkyPanel::draw_panel()
     int mode_index = static_cast<int>(m_sky_renderer->mode());
     if (ImGui::Combo("Mode", &mode_index, MODE_NAMES, IM_ARRAYSIZE(MODE_NAMES))) {
         m_sky_renderer->set_mode(static_cast<webgpu_engine::sky::SkyRenderer::Mode>(mode_index));
-        redraw = true;
-    }
-
-    ImGui::SeparatorText("Planet (world scale)");
-    float bottom_radius_km = cfg.m_planet_radius_m / 1000.0f;
-    if (ImGui::DragFloat("Bottom radius (km)", &bottom_radius_km, 100.0f, 1.0f, 1.0e7f, "%.1f")) {
-        cfg.m_planet_radius_m = bottom_radius_km * 1000.0f;
-        redraw = true;
-    }
-    float atmosphere_height_km = cfg.m_atmosphere_height_m / 1000.0f;
-    if (ImGui::DragFloat("Atmosphere height (km)", &atmosphere_height_km, 1.0f, 0.1f, 2000.0f, "%.2f")) {
-        cfg.m_atmosphere_height_m = atmosphere_height_km * 1000.0f;
         redraw = true;
     }
 
@@ -106,7 +93,6 @@ void SkyPanel::draw_panel()
         redraw = true;
     }
     redraw |= ImGui::SliderFloat("Sun disk luminance", &uni.sun.diskLuminanceScale, 0.1f, 100.0f);
-    redraw |= ImGui::DragFloat3("Sun illuminance", glm::value_ptr(uni.sun.illuminance), 0.01f, 0.0f, 20.0f);
 
     if (atmosphere_changed)
         m_sky_renderer->mark_atmosphere_dirty();

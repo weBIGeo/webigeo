@@ -26,12 +26,14 @@ class Context;
 
 namespace webgpu_app {
 
-class ShadingPanel : public ImGuiPanel {
+class SharedConfigPanel : public ImGuiPanel {
     Q_OBJECT
 public:
-    explicit ShadingPanel(webgpu_engine::Context* context);
-    void draw() override;
+    explicit SharedConfigPanel(webgpu_engine::Context* context);
     void draw_panel() override;
+
+signals:
+    void sun_dir_manually_changed();
 
 private:
     webgpu_engine::Context* m_context;

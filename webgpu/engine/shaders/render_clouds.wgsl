@@ -23,8 +23,12 @@
 ///use webgpu_engine::util/sky
 
 ///define USE_SKY_TRANSMITTANCE_LUT 1
+
+// Adds Rayleigh haze between camera and cloud. (Makes clouds appear blue in normal atmosphere)
 ///define USE_SKY_AERIAL_LUT 1
+
 ///define USE_SKY_VIEW_LUT 1
+
 ///define ENABLE_CURVATURE 1
 
 
@@ -628,22 +632,14 @@ fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
 
 ///if USE_SKY_AERIAL_LUT 1
     if sconf.sky_enabled != 0u {
-        // Aerial perspective: Rayleigh haze between camera and cloud.
-        // AP LUT encodes vec4(scattered_luminance, 1 - transmittance).
-        // Only the cloud's own radiance is attenuated/tinted — transmittance is left unchanged
-        // because the sky result already has AP baked in and modifying transmittance would
-        // double-attenuate the background at cloud edges, creating a visible border.
-        // cloud_opacity = 0 for empty pixels so the formula self-cancels; no branch needed.
-        // AP LUT uses squared depth distribution: w = sqrt(slice / AP_SLICE_COUNT)
-        // where slice = depth_km / AP_DISTANCE_PER_SLICE (4 km), AP_SLICE_COUNT = 32 → max 128 km.
         let depth_km      = apparent_depth / 1000.0;
+        // AP LUT uses squared depth distribution: w = sqrt(slice / AP_SLICE_COUNT)
+        // with slice = depth_km / AP_DISTANCE_PER_SLICE (4 km), AP_SLICE_COUNT = 32 => max 128 km
         let ap_w          = sqrt(clamp(depth_km / 128.0, 0.0, 1.0));
         let ap            = textureSampleLevel(aerial_perspective_lut, transmittance_sampler, vec3f(texcoords, ap_w), 0.0);
-        // Guard: empty/degenerate AP cells (rgb == 0, e.g. past the LUT range or above the atmosphere) carry no
-        // valid haze. Skip them — otherwise ap_T = 1 - ap.a (with ap.a = 1) zeroes the cloud's radiance, which
-        // is what produced the black wall at distance. Mirrors render_sky_with_luts' `all(ap.rgb == 0)` guard.
-        if !all(ap.rgb == vec3f(0.0)) {
+        if !all(ap.rgb == vec3f(0.0)) { // Guard against empty/degenerate AP cells
             let ap_T          = 1.0 - ap.a;
+            // IMPORTANT: Only the cloud radiance is attenuated/tinted as the sky is already done in sky stage
             let cloud_opacity = 1.0 - acc.transmittance;
             // AP LUT is computed with sky-renderer sun illuminance = 1.0; cloud radiance is scaled by
             // sun_light_scale * sconf.sun_light.a (~160×). Match units before blending.
