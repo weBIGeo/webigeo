@@ -29,7 +29,6 @@
 #include <ctime>
 #include <imgui.h>
 #include <nucleus/camera/Controller.h>
-#include <nucleus/srs.h>
 #include <nucleus/utils/sun_calculations.h>
 #include <webgpu/engine/Context.h>
 
@@ -61,16 +60,14 @@ void DateTimePanel::draw()
     if (m_manager->is_window_open())
         return;
 
-    const float panel_w = 350.0f, margin = 10.0f;
     ImVec2 avail = m_manager->get_window_size();
-    ImGui::SetNextWindowPos(ImVec2(avail.x - margin, avail.y - margin), ImGuiCond_Always, ImVec2(1.0f, 1.0f));
-    ImGui::SetNextWindowSize(ImVec2(panel_w, 0), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(350.f, 0.f), ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.85f);
 
-    constexpr ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoTitleBar
+    constexpr ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoTitleBar
         | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_AlwaysAutoResize;
 
-    if (ImGui::Begin("##datetime_panel", nullptr, flags)) {
+    if (ImGuiManager::BeginSnapWindow("##datetime_panel", avail, ImGuiManager::SnapEdge::Far, ImGuiManager::SnapEdge::Far, nullptr, flags)) {
         const float btn_w = 30.0f;
         const float spacing = ImGui::GetStyle().ItemSpacing.x;
 
@@ -99,7 +96,7 @@ void DateTimePanel::draw()
 
         ImGui::SameLine();
 
-        // Cloud link button (color by match quality when active)
+        // Cloud link button
         ImVec4 cloud_btn_col;
         if (!m_cloud_linked) {
             cloud_btn_col = ImVec4(0.4f, 0.4f, 0.4f, 1.0f);
@@ -167,12 +164,11 @@ void DateTimePanel::draw()
         if (ImGui::IsItemDeactivatedAfterEdit())
             recalculate_and_apply(true);
 
-        auto world_pos = m_terrain_renderer->get_camera_controller()->definition().position();
-        auto lla = nucleus::srs::world_to_lat_long_alt(world_pos);
+        auto lla = m_terrain_renderer->get_camera_controller()->definition().lat_long_alt();
         ImGui::Separator();
         ImGui::TextDisabled("Location: %.4f° N  %.4f° E  %.0f m", lla.x, lla.y, lla.z);
     }
-    ImGui::End();
+    ImGuiManager::EndSnapWindow();
 }
 
 void DateTimePanel::recalculate_and_apply(bool load_cloud)
@@ -184,8 +180,7 @@ void DateTimePanel::recalculate_and_apply(bool load_cloud)
     QDateTime local_dt(QDate(year, month, day), QTime(m_hour, m_minute, 0), Qt::LocalTime);
 
     if (m_sun_linked) {
-        auto world_pos = m_terrain_renderer->get_camera_controller()->definition().position();
-        auto lla = nucleus::srs::world_to_lat_long_alt(world_pos);
+        auto lla = m_terrain_renderer->get_camera_controller()->definition().lat_long_alt();
         glm::vec2 angles = nucleus::utils::sun_calculations::calculate_sun_angles(local_dt, lla);
         glm::vec3 dir = nucleus::utils::sun_calculations::sun_rays_direction_from_sun_angles(angles);
         auto& cfg = m_context->shared_config();

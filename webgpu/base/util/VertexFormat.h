@@ -23,37 +23,122 @@
 
 namespace webgpu::util {
 
-template <typename T, int N> struct VertexFormat {
+template <typename, int>
+constexpr bool unmapped_vertex_format = false;
+
+template <typename T, int N>
+struct VertexFormat {
     static constexpr WGPUVertexFormat format();
     static constexpr size_t size() { return sizeof(T) * N; }
 };
 
-template <typename T, int N> constexpr WGPUVertexFormat VertexFormat<T, N>::format()
+template <typename T, int N>
+constexpr WGPUVertexFormat VertexFormat<T, N>::format()
 {
-    static_assert(sizeof N != sizeof N, "tried to get unmapped vertex format");
+    static_assert(unmapped_vertex_format<T, N>, "tried to get unmapped vertex format");
     return static_cast<WGPUVertexFormat>(0);
 }
-template <> constexpr WGPUVertexFormat VertexFormat<float, 1>::format() { return WGPUVertexFormat_Float32; }
-template <> constexpr WGPUVertexFormat VertexFormat<float, 2>::format() { return WGPUVertexFormat_Float32x2; }
-template <> constexpr WGPUVertexFormat VertexFormat<float, 3>::format() { return WGPUVertexFormat_Float32x3; }
-template <> constexpr WGPUVertexFormat VertexFormat<float, 4>::format() { return WGPUVertexFormat_Float32x4; }
+template <>
+constexpr WGPUVertexFormat VertexFormat<float, 1>::format()
+{
+    return WGPUVertexFormat_Float32;
+}
+template <>
+constexpr WGPUVertexFormat VertexFormat<float, 2>::format()
+{
+    return WGPUVertexFormat_Float32x2;
+}
+template <>
+constexpr WGPUVertexFormat VertexFormat<float, 3>::format()
+{
+    return WGPUVertexFormat_Float32x3;
+}
+template <>
+constexpr WGPUVertexFormat VertexFormat<float, 4>::format()
+{
+    return WGPUVertexFormat_Float32x4;
+}
 
-template <> constexpr WGPUVertexFormat VertexFormat<uint32_t, 1>::format() { return WGPUVertexFormat_Uint32; }
-template <> constexpr WGPUVertexFormat VertexFormat<uint32_t, 2>::format() { return WGPUVertexFormat_Uint32x2; }
-template <> constexpr WGPUVertexFormat VertexFormat<uint32_t, 3>::format() { return WGPUVertexFormat_Uint32x3; }
-template <> constexpr WGPUVertexFormat VertexFormat<uint32_t, 4>::format() { return WGPUVertexFormat_Uint32x4; }
-template <> constexpr WGPUVertexFormat VertexFormat<uint16_t, 2>::format() { return WGPUVertexFormat_Uint16x2; }
-template <> constexpr WGPUVertexFormat VertexFormat<uint16_t, 4>::format() { return WGPUVertexFormat_Uint16x4; }
-template <> constexpr WGPUVertexFormat VertexFormat<uint8_t, 2>::format() { return WGPUVertexFormat_Uint8x2; }
-template <> constexpr WGPUVertexFormat VertexFormat<uint8_t, 4>::format() { return WGPUVertexFormat_Uint8x4; }
+template <>
+constexpr WGPUVertexFormat VertexFormat<uint32_t, 1>::format()
+{
+    return WGPUVertexFormat_Uint32;
+}
+template <>
+constexpr WGPUVertexFormat VertexFormat<uint32_t, 2>::format()
+{
+    return WGPUVertexFormat_Uint32x2;
+}
+template <>
+constexpr WGPUVertexFormat VertexFormat<uint32_t, 3>::format()
+{
+    return WGPUVertexFormat_Uint32x3;
+}
+template <>
+constexpr WGPUVertexFormat VertexFormat<uint32_t, 4>::format()
+{
+    return WGPUVertexFormat_Uint32x4;
+}
+template <>
+constexpr WGPUVertexFormat VertexFormat<uint16_t, 2>::format()
+{
+    return WGPUVertexFormat_Uint16x2;
+}
+template <>
+constexpr WGPUVertexFormat VertexFormat<uint16_t, 4>::format()
+{
+    return WGPUVertexFormat_Uint16x4;
+}
+template <>
+constexpr WGPUVertexFormat VertexFormat<uint8_t, 2>::format()
+{
+    return WGPUVertexFormat_Uint8x2;
+}
+template <>
+constexpr WGPUVertexFormat VertexFormat<uint8_t, 4>::format()
+{
+    return WGPUVertexFormat_Uint8x4;
+}
 
-template <> constexpr WGPUVertexFormat VertexFormat<int32_t, 1>::format() { return WGPUVertexFormat_Sint32; }
-template <> constexpr WGPUVertexFormat VertexFormat<int32_t, 2>::format() { return WGPUVertexFormat_Sint32x2; }
-template <> constexpr WGPUVertexFormat VertexFormat<int32_t, 3>::format() { return WGPUVertexFormat_Sint32x3; }
-template <> constexpr WGPUVertexFormat VertexFormat<int32_t, 4>::format() { return WGPUVertexFormat_Sint32x4; }
-template <> constexpr WGPUVertexFormat VertexFormat<int16_t, 2>::format() { return WGPUVertexFormat_Sint16x2; }
-template <> constexpr WGPUVertexFormat VertexFormat<int16_t, 4>::format() { return WGPUVertexFormat_Sint16x4; }
-template <> constexpr WGPUVertexFormat VertexFormat<int8_t, 2>::format() { return WGPUVertexFormat_Sint8x2; }
-template <> constexpr WGPUVertexFormat VertexFormat<int8_t, 4>::format() { return WGPUVertexFormat_Sint8x4; }
+template <>
+constexpr WGPUVertexFormat VertexFormat<int32_t, 1>::format()
+{
+    return WGPUVertexFormat_Sint32;
+}
+template <>
+constexpr WGPUVertexFormat VertexFormat<int32_t, 2>::format()
+{
+    return WGPUVertexFormat_Sint32x2;
+}
+template <>
+constexpr WGPUVertexFormat VertexFormat<int32_t, 3>::format()
+{
+    return WGPUVertexFormat_Sint32x3;
+}
+template <>
+constexpr WGPUVertexFormat VertexFormat<int32_t, 4>::format()
+{
+    return WGPUVertexFormat_Sint32x4;
+}
+template <>
+constexpr WGPUVertexFormat VertexFormat<int16_t, 2>::format()
+{
+    return WGPUVertexFormat_Sint16x2;
+}
+template <>
+constexpr WGPUVertexFormat VertexFormat<int16_t, 4>::format()
+{
+    return WGPUVertexFormat_Sint16x4;
+}
+template <>
+constexpr WGPUVertexFormat VertexFormat<int8_t, 2>::format()
+{
+    return WGPUVertexFormat_Sint8x2;
+}
+template <>
+constexpr WGPUVertexFormat VertexFormat<int8_t, 4>::format()
+{
+    return WGPUVertexFormat_Sint8x4;
+}
 
 } // namespace webgpu::util

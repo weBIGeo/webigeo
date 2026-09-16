@@ -1,5 +1,6 @@
 /*****************************************************************************
  * weBIGeo
+ * Copyright (C) 2026 Gerald Kimmersdorfer
  * Copyright (C) 2026 Wendelin Muth
  *
  * This program is free software: you can redistribute it and/or modify
@@ -17,15 +18,35 @@
  *****************************************************************************/
 
 ///use webgpu::tile_util
+///use webgpu::position_util
 ///use util/shared_config
-///use util/atmosphere
+///use webgpu_engine::util/sky
+
+// enables the atmosphere-transmittance lookup used to attenuate both sun and sky-ambient
+// light reaching a cloud point (for proper sunrise/sunset lighting)
+///define USE_SKY_TRANSMITTANCE_LUT 1
+
+// Adds Rayleigh haze between camera and cloud. (Give a bluish tint in normal atmosphere)
+///define USE_SKY_AERIAL_LUT 1
+
+// replaces the flat ambient light with the actual scattered sky radiance sampled from the sky-view LUT
+// looking straight up. (Gives bluish tint inside cloud / blends smoother between surface and cloud)
+// NOTE: Questionable physically accurate :/ Tried to mitigate it with the SELF_SHADOW_HACK though
+///define USE_SKY_VIEW_LUT 1
+
+// Cheap self-shadowing proxy for the sky-view-LUT ambient term: desaturates sky colour toward neutral
+// using ray_transmittance (already computed for the primary view ray)
+///define USE_CLOUD_SKY_SELF_SHADOW 1
+
+// bends cloud sample positions to follow earths curvature
+///define ENABLE_CURVATURE 1
 
 struct tile_info {
     index: u32,
     zoom: u32,
 }
 
-struct camera_config {
+struct camera_config_clouds {
     view_matrix: mat4x4f,
     proj_matrix: mat4x4f,
     inv_view_matrix: mat4x4f,
@@ -34,7 +55,7 @@ struct camera_config {
 }
 
 struct shader_params {
-    camera: camera_config,
+    camera: camera_config_clouds,
     bounds_min: vec4f,
     bounds_max: vec4f,
     frame_index: u32,
@@ -47,7 +68,7 @@ struct shader_params {
     fade_factor: f32,
     sun_light_scale: f32,
     ambient_light_scale: f32,
-    atm_light_scale: f32,
+    horizon_softness: f32,
     shadow_extinction_scale: f32,
     jitter: vec2f,
     powder_scale: f32,
@@ -78,6 +99,27 @@ struct ray_accumulator {
 @group(1) @binding(0) var depth_texture: texture_2d<f32>;
 
 @group(2) @binding(0) var<uniform> sconf: shared_config;
+
+///if USE_SKY_TRANSMITTANCE_LUT 1
+@group(3) @binding(0) var transmittance_lut: texture_2d<f32>;
+///endif
+@group(3) @binding(1) var transmittance_sampler: sampler;
+///if USE_SKY_AERIAL_LUT 1
+@group(3) @binding(2) var aerial_perspective_lut: texture_3d<f32>;
+///endif
+///if USE_SKY_VIEW_LUT 1
+@group(3) @binding(3) var sky_view_lut: texture_2d<f32>;
+///endif
+
+///if USE_SKY_TRANSMITTANCE_LUT 1
+fn lookup_transmittance(view_height: f32, cos_zenith: f32, rho: f32, h: f32, top_radius: f32) -> vec3f {
+    let discriminant = view_height * view_height * (cos_zenith * cos_zenith - 1.0) + top_radius * top_radius;
+    let d = max(0.0, -view_height * cos_zenith + sqrt(max(discriminant, 0.0)));
+    let x_mu = (d - (top_radius - view_height)) / (rho + h);
+    let x_r = rho / h;
+    return textureSampleLevel(transmittance_lut, transmittance_sampler, vec2f(x_mu, x_r), 0).rgb;
+}
+///endif
 
 // tile size at zoom level 10
 override tile_size_xy = 39135.7584820102;
@@ -150,7 +192,18 @@ fn get_tile_info(tile_id: vec2i) -> tile_info {
     return tile_infos[tile_index];
 }
 
+fn apply_curvature(pos: vec3f) -> vec3f {
+    ///if ENABLE_CURVATURE 1
+    let rel_xy = pos.xy - params.camera.position.xy;
+    let curvature_drop = earth_curvature_drop(dot(rel_xy, rel_xy), sconf.planet_radius_m);
+    return vec3f(pos.xy, pos.z + curvature_drop);
+    ///else
+    return pos;
+    ///endif
+}
+
 fn sample_volume(pos_world: vec3f, lod: f32, tile_id: vec2i, tile: tile_info, atlas_sampler: sampler) -> f32 {
+    // Cloud data is stored at absolute (flat-earth) altitudes 0-14 km
     let height_adjusted = pos_world.z * cos(y_to_lat(pos_world.y));
     if height_adjusted < 0.0 || height_adjusted > 14000.0 || tile.zoom == 0u {
         return 0.0;
@@ -225,16 +278,14 @@ fn cloud_phase_function(cos_angle: f32) -> f32 {
 // Calculate how much light reaches a point from the sun (light transmittance)
 // Uses cone-based sampling with decreasing LOD as per Nubis/Guerrilla Games approach
 fn sample_light_energy(pos: vec3f, sun_dir: vec3f, extinction_coeff: f32, base_lod: f32, start_t: f32, cos_angle: f32) -> f32 {
-    if sun_dir.z <= 0.0 {
-        return 0.0;
-    }
-
     if pos.z >= params.bounds_max.z {
         return 1.0;
     }
 
-    // Calculate maximum ray length to volume boundary
-    let max_ray_length = min((params.bounds_max.z - pos.z) / sun_dir.z, 10000.0);
+    // Distance to the top of the cloud slab along the sun ray. 
+    // NOTE: Gets invoked when sun is at/above the points local horizon, but for mountain tops that 
+    // can mean sun_dir.z is <0 (near-horizontal ray), so clamp the divisor to keep length positive.
+    let max_ray_length = min((params.bounds_max.z - pos.z) / max(sun_dir.z, 0.05), 10000.0);
     // Initial step size derived from geometric series sum to exactly span max_ray_length
     const GROWTH_FACTOR = 1.5;
     const STEP_SIZE_CONSTANT = (GROWTH_FACTOR - 1.0) / (pow(GROWTH_FACTOR, f32(MAX_LIGHT_STEPS)) - 1.0);
@@ -328,36 +379,71 @@ fn calculate_point_radiance(
     step_size: f32,
     jitter: f32,
     cloud_phase: f32,
-    cos_angle: f32
+    cos_angle: f32,
+    ray_transmittance: f32
 ) -> vec3f {
     let cloud_extinction = beta * params.extinction_coeff;
     let cloud_scattering = cloud_extinction * params.albedo;
 
-    let cloud_sun_transmittance = sample_light_energy(pos, sun_dir, params.extinction_coeff, lod, step_size, cos_angle);
+    // Precompute atmosphere-space position once; shared by horizon test, sun transmittance, sky transmittance
+    let bottom_radius = sconf.planet_radius_m * 0.001;
+    let top_radius = bottom_radius + sconf.atmosphere_height_m * 0.001;
+    let pos_atm = pos / 1000.0 - sconf.atmosphere_planet_center_m.xyz * 0.001;
+    let view_height = length(pos_atm);
+    let pos_atm_norm = pos_atm / view_height;
+    let rho = sqrt(max(0.0, view_height * view_height - bottom_radius * bottom_radius));
+    let h = sqrt(max(0.0, top_radius * top_radius - bottom_radius * bottom_radius));
 
-    let sun_radiance = sconf.sun_light.rgb * sconf.sun_light.a * params.sun_light_scale;
-    let cloud_sun_inscatter = sun_radiance * cloud_sun_transmittance * cloud_phase;
+    // Height-aware horizon: higher cloud points catch the sun before lower ones
+    // Uses a smooth ramp to not show a hard edge and emulate the size of the sun
+    let cos_zenith_sun = dot(sun_dir, pos_atm_norm);
+    let cos_horizon = -rho / view_height;
+    let softness = max(params.horizon_softness, 1e-4);
+    let sun_visibility = smoothstep(cos_horizon - softness, cos_horizon + softness, cos_zenith_sun);
 
-    // --- Ambient ---
-    // Ambient: only modulate by height, since we have no way to estimate
-    // depth-into-cloud from density alone. Cloud tops receive more sky light.
-    let height_factor = saturate(pos.z / params.bounds_max.z);
-    let ambient_occlusion = mix(0.3, 1.0, height_factor);
+    var cloud_sun_inscatter = vec3f(0.0);
+    if sun_visibility > 0.0 {
+        let cloud_sun_transmittance = sample_light_energy(pos, sun_dir, params.extinction_coeff, lod, step_size, cos_angle);
 
-    let ambient_radiance = sconf.amb_light.rgb * sconf.amb_light.a * params.ambient_light_scale;
-    var ambient_color = ambient_radiance;
-    if bool(sconf.atmosphere_enabled) {
-        let pos_km = pos / 1000.0;
-        let air_density = density_at_height(pos_km.z);
-        let rayleigh_coeff = scattering_coefficients();
-        let atm_scattering = air_density * rayleigh_coeff;
-        let atm_inscatter_density = atmospheric_inscatter_at_point(pos_km, sun_dir);
-        let atm_tint = sun_radiance * atm_inscatter_density * atm_scattering * params.atm_light_scale;
-        // Lerp toward tint rather than adding - controls saturation
-        ambient_color = mix(ambient_radiance, atm_tint, 0.2);
+        var atm_sun_transmittance = vec3f(1.0);
+        ///if USE_SKY_TRANSMITTANCE_LUT 1
+        if sconf.sky_enabled != 0u {
+            // attenuate by atmosphere above this cloud point which gives correct sunset/altitude coloring.
+            atm_sun_transmittance = lookup_transmittance(view_height, cos_zenith_sun, rho, h, top_radius);
+        }
+        ///endif
+        let sun_radiance = sconf.sun_light.rgb * sconf.sun_light.a * params.sun_light_scale * atm_sun_transmittance * sun_visibility;
+        cloud_sun_inscatter = sun_radiance * cloud_sun_transmittance * cloud_phase;
     }
 
-    let cloud_ambient_inscatter = ambient_color * ambient_occlusion;
+    // Ambient: upward transmittance as sky-light proxy. pos_atm_norm.z == dot(vec3(0,0,1), pos_atm_norm).
+    var atm_sky_transmittance = vec3f(1.0);
+    ///if USE_SKY_TRANSMITTANCE_LUT 1
+    if sconf.sky_enabled != 0u {
+        atm_sky_transmittance = lookup_transmittance(view_height, pos_atm_norm.z, rho, h, top_radius);
+    }
+    ///endif
+
+    let ambient_occlusion = mix(0.3, 1.0, atm_sky_transmittance.r);
+    var ambient_radiance = sconf.amb_light.rgb * sconf.amb_light.a * params.ambient_light_scale * atm_sky_transmittance;
+    ///if USE_SKY_VIEW_LUT 1
+    if sconf.sky_enabled != 0u {
+        let sky_uv = sky_view_lut_params_to_uv(bottom_radius, false, 1.0, cos_zenith_sun, view_height);
+        let sky_radiance = textureSampleLevel(sky_view_lut, transmittance_sampler, sky_uv, 0.0).rgb;
+        ///if USE_CLOUD_SKY_SELF_SHADOW 1
+        // Inside dense cloud, multiple scattering desaturates the sky colour toward neutral white.
+        let sky_luma = dot(sky_radiance, vec3f(0.2126, 0.7152, 0.0722));
+        let sky_color = mix(vec3f(sky_luma), sky_radiance, ray_transmittance);
+        ///else
+        let sky_color = sky_radiance;
+        ///endif
+        let sky_ambient = sky_color * params.sun_light_scale * sconf.sun_light.a * params.ambient_light_scale;
+        // Always guarantee at least the authored ambient light so clouds are never fully black at night.
+        let min_ambient = sconf.amb_light.rgb * sconf.amb_light.a * params.ambient_light_scale;
+        ambient_radiance = max(sky_ambient, min_ambient);
+    }
+    ///endif
+    let cloud_ambient_inscatter = ambient_radiance * ambient_occlusion;
 
     let cloud_total_inscatter = cloud_sun_inscatter + cloud_ambient_inscatter;
     return cloud_total_inscatter * cloud_scattering * step_size;
@@ -383,14 +469,15 @@ fn step_coarse(
     }
 
     let pos = ray_origin + ray_dir * sample_t;
-    let tile_id = get_tile_id_at_pos(pos);
+    let pos_s = apply_curvature(pos);
+    let tile_id = get_tile_id_at_pos(pos_s);
     let tile = get_tile_info(tile_id);
 
     // Calculate Coarse LOD
     let base_lod = calculate_lod(fine_step_size, tile.zoom, sample_t, ray_dir);
     let coarse_lod = min(base_lod + 3.0, 5.0);
 
-    let coarse_density = sample_volume(pos, coarse_lod, tile_id, tile, atlas_sampler_l);
+    let coarse_density = sample_volume(pos_s, coarse_lod, tile_id, tile, atlas_sampler_l);
 
     if coarse_density > 0.0 {
         // HIT: Switch state to Fine
@@ -420,7 +507,8 @@ fn step_fine(
     let sample_t = min((*acc).t + fine_step_size * ray_jitter, t_far);
 
     let pos = ray_origin + ray_dir * sample_t;
-    let tile_id = get_tile_id_at_pos(pos);
+    let pos_s = apply_curvature(pos);
+    let tile_id = get_tile_id_at_pos(pos_s);
     let tile = get_tile_info(tile_id);
 
     let lod = calculate_lod(fine_step_size, tile.zoom, sample_t, ray_dir);
@@ -430,14 +518,15 @@ fn step_fine(
     let fade_t = saturate((dist_cylinder - fade_params.x) / (fade_params.y - fade_params.x));
     let fade = fade_t * fade_t * fade_t;
 
-    let base_beta = sample_volume(pos, lod, tile_id, tile, atlas_sampler_l);
+    let base_beta = sample_volume(pos_s, lod, tile_id, tile, atlas_sampler_l);
     let beta = base_beta * fade;
 
     if beta > 0.0 {
         (*acc).consecutive_empty_steps = 0;
 
         let radiance_contribution = calculate_point_radiance(
-            pos, beta, sun_dir, lod, fine_step_size, ray_jitter, cloud_phase, cos_angle
+            pos, beta, sun_dir, lod, fine_step_size, ray_jitter, cloud_phase, cos_angle,
+            (*acc).transmittance
         );
 
         // Accumulate Light
@@ -539,13 +628,31 @@ fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
         acc.step_count++;
     }
 
-    // Note: accumulated radiance is already "alpha-premultiplied" in a sense
-    textureStore(output_color, pixel_coord, vec4f(acc.radiance, acc.transmittance));
-
-    // Output apparent depth (linear depth in NDC Z)
+    // Compute apparent depth before AP so we have it for both the depth store and the LUT lookup.
     var apparent_depth = min(acc.depth / acc.depth_weight, t_far);
     if acc.depth_weight == 0.0 {
         apparent_depth = t_far;
     }
+
+    ///if USE_SKY_AERIAL_LUT 1
+    if sconf.sky_enabled != 0u {
+        let depth_km = apparent_depth / 1000.0;
+        // AP LUT uses squared depth distribution: w = sqrt(slice / AP_SLICE_COUNT)
+        // with slice = depth_km / AP_DISTANCE_PER_SLICE (4 km), AP_SLICE_COUNT = 32 => max 128 km
+        let ap_w = sqrt(clamp(depth_km / 128.0, 0.0, 1.0));
+        let ap = textureSampleLevel(aerial_perspective_lut, transmittance_sampler, vec3f(texcoords, ap_w), 0.0);
+        if !all(ap.rgb == vec3f(0.0)) { // Guard against empty/degenerate AP cells
+            let ap_T = 1.0 - ap.a;
+            // IMPORTANT: Only the cloud radiance is attenuated/tinted as the sky is already done in sky stage
+            let cloud_opacity = 1.0 - acc.transmittance;
+            // AP LUT is computed with sky-renderer sun illuminance = 1.0; cloud radiance is scaled by
+            // sun_light_scale * sconf.sun_light.a (approx. 160x). Match units before blending.
+            let ap_scale = params.sun_light_scale * sconf.sun_light.a;
+            acc.radiance = acc.radiance * ap_T + ap.rgb * cloud_opacity * ap_scale;
+        }
+    }
+    ///endif
+
+    textureStore(output_color, pixel_coord, vec4f(acc.radiance, acc.transmittance));
     textureStore(output_depth, pixel_coord, vec4f(apparent_depth, 0.0, 0.0, 0.0));
 }

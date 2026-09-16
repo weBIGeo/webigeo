@@ -29,7 +29,15 @@ set(SOURCES
     tile_mesh/TileMeshRenderer.h tile_mesh/TileMeshRenderer.cpp
     cloud/CloudRenderer.h cloud/CloudRenderer.cpp
     track/TrackRenderer.h track/TrackRenderer.cpp
-    atmosphere/AtmosphereRenderer.h atmosphere/AtmosphereRenderer.cpp
+    sky/params.h sky/params.cpp
+    sky/uniforms.h sky/uniforms.cpp
+    sky/config.h sky/config.cpp
+    sky/util.h sky/util.cpp
+    sky/resources.h sky/resources.cpp
+    sky/pipelines.h sky/pipelines.cpp
+    sky/lut_renderer.h sky/lut_renderer.cpp
+    sky/sky_renderer.h sky/sky_renderer.cpp
+    sky/SkyRenderer.h sky/SkyRenderer.cpp
     overlay/OverlayRenderer.h overlay/OverlayRenderer.cpp
     overlay/Overlay.h
     overlay/HeightLinesOverlay.h overlay/HeightLinesOverlay.cpp
@@ -77,9 +85,10 @@ qt_add_resources(webgpu_engine "shaders"
     BASE "${SHADER_BASE_DIR}"
     FILES
         "${SHADER_BASE_DIR}/render_tiles.wgsl"
-        "${SHADER_BASE_DIR}/render_atmosphere.wgsl"
         "${SHADER_BASE_DIR}/render_lines.wgsl"
         "${SHADER_BASE_DIR}/compose_pass.wgsl"
+        "${SHADER_BASE_DIR}/present_pass.wgsl"
+        "${SHADER_BASE_DIR}/cloud_composite_pass.wgsl"
         "${SHADER_BASE_DIR}/screen_pass_vert.wgsl"
         "${SHADER_BASE_DIR}/render_clouds.wgsl"
         "${SHADER_BASE_DIR}/upscale_clouds.wgsl"
@@ -89,9 +98,38 @@ qt_add_resources(webgpu_engine "shaders"
         "${SHADER_BASE_DIR}/overlays/gbuffer_debug.wgsl"
         "${SHADER_BASE_DIR}/overlays/screen_space_snow.wgsl"
 
-        "${SHADER_BASE_DIR}/util/atmosphere.wgsl"
         "${SHADER_BASE_DIR}/util/camera_config.wgsl"
         "${SHADER_BASE_DIR}/util/shared_config.wgsl"
+        "${SHADER_BASE_DIR}/util/sky.wgsl"
+
+        "${SHADER_BASE_DIR}/sky/render_aerial_perspective_lut.wgsl"
+        "${SHADER_BASE_DIR}/sky/render_multi_scattering_lut.wgsl"
+        "${SHADER_BASE_DIR}/sky/render_sky_luts_and_raymarch.wgsl"
+        "${SHADER_BASE_DIR}/sky/render_sky_raymarching.wgsl"
+        "${SHADER_BASE_DIR}/sky/render_sky_view_lut.wgsl"
+        "${SHADER_BASE_DIR}/sky/render_sky_with_luts.wgsl"
+        "${SHADER_BASE_DIR}/sky/render_transmittance_lut.wgsl"
+        "${SHADER_BASE_DIR}/sky/common/aerial_perspective.wgsl"
+        "${SHADER_BASE_DIR}/sky/common/blend.wgsl"
+        "${SHADER_BASE_DIR}/sky/common/blend_variants.wgsl"
+        "${SHADER_BASE_DIR}/sky/common/constants.wgsl"
+        "${SHADER_BASE_DIR}/sky/common/coordinate_system.wgsl"
+        "${SHADER_BASE_DIR}/sky/common/custom_uniforms.wgsl"
+        "${SHADER_BASE_DIR}/sky/common/hg_draine_large.wgsl"
+        "${SHADER_BASE_DIR}/sky/common/hg_draine_mid1.wgsl"
+        "${SHADER_BASE_DIR}/sky/common/hg_draine_mid2.wgsl"
+        "${SHADER_BASE_DIR}/sky/common/hg_draine_phase_const.wgsl"
+        "${SHADER_BASE_DIR}/sky/common/hg_draine_small.wgsl"
+        "${SHADER_BASE_DIR}/sky/common/intersection.wgsl"
+        "${SHADER_BASE_DIR}/sky/common/medium.wgsl"
+        "${SHADER_BASE_DIR}/sky/common/multiple_scattering.wgsl"
+        "${SHADER_BASE_DIR}/sky/common/phase.wgsl"
+        "${SHADER_BASE_DIR}/sky/common/sample_sagment_t.wgsl"
+        "${SHADER_BASE_DIR}/sky/common/shadow.wgsl"
+        "${SHADER_BASE_DIR}/sky/common/shadow_base.wgsl"
+        "${SHADER_BASE_DIR}/sky/common/sun_disk.wgsl"
+        "${SHADER_BASE_DIR}/sky/common/uniforms.wgsl"
+        "${SHADER_BASE_DIR}/sky/common/vertex_full_screen.wgsl"
     )
 
 target_link_libraries(webgpu_engine PUBLIC nucleus Qt::Core webgpu)

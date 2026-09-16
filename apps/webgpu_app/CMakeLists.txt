@@ -41,6 +41,7 @@ set(SOURCES
     ui/ImGuiPanel.h
     ui/CameraPanel.h ui/CameraPanel.cpp
     ui/AppPanel.h ui/AppPanel.cpp
+    ui/SharedConfigPanel.h ui/SharedConfigPanel.cpp
     ui/ShadingPanel.h ui/ShadingPanel.cpp
     ui/DateTimePanel.h ui/DateTimePanel.cpp
     ui/AboutPanel.h ui/AboutPanel.cpp
@@ -48,7 +49,7 @@ set(SOURCES
     ui/LogoPanel.h ui/LogoPanel.cpp
     ui/SearchPanel.h ui/SearchPanel.cpp
 
-    atmosphere/AtmospherePanel.h atmosphere/AtmospherePanel.cpp
+    sky/SkyPanel.h sky/SkyPanel.cpp
     cloud/CloudPanel.h cloud/CloudPanel.cpp
     track/TrackPanel.h track/TrackPanel.cpp
 

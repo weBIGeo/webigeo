@@ -30,6 +30,9 @@
 
 #include <webgpu/webgpu.h>
 
+#include <algorithm>
+#include <cmath>
+
 namespace webgpu_engine {
 
 Window::Window() { }
@@ -51,19 +54,38 @@ void Window::initialise_gpu()
     auto& reg = m_context->webgpu_ctx().resource_registry();
     reg.register_shader("compose_pass", "webgpu_engine::compose_pass");
     reg.register_pipeline([this](WGPUDevice dev, const webgpu::RenderResourceRegistry& reg) {
-        webgpu::FramebufferFormat format {};
-        format.depth_format = WGPUTextureFormat_Depth24Plus;
-        format.color_formats.emplace_back(m_context->webgpu_ctx().surface_texture_format());
-        m_compose_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(dev,
+        m_compose_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(dev,
             reg.shader("compose_pass"),
-            reg.shader("compose_pass"),
-            std::vector<webgpu::util::SingleVertexBufferInfo> {},
-            format,
             std::vector<const webgpu::raii::BindGroupLayout*> {
                 &reg.bind_group_layout("shared_config"),
                 &reg.bind_group_layout("camera"),
                 &reg.bind_group_layout("compose"),
+                &reg.bind_group_layout("compose_output"),
+            },
+            "compose compute pipeline");
+    });
+
+    reg.register_shader("present_pass", "webgpu_engine::present_pass");
+    reg.register_pipeline([this](WGPUDevice dev, const webgpu::RenderResourceRegistry& reg) {
+        webgpu::FramebufferFormat format {};
+        format.depth_format = WGPUTextureFormat_Depth24Plus;
+        format.color_formats.emplace_back(m_context->webgpu_ctx().surface_texture_format());
+        m_present_pipeline = std::make_unique<webgpu::raii::GenericRenderPipeline>(dev,
+            reg.shader("present_pass"),
+            reg.shader("present_pass"),
+            std::vector<webgpu::util::SingleVertexBufferInfo> {},
+            format,
+            std::vector<const webgpu::raii::BindGroupLayout*> {
+                &reg.bind_group_layout("present"),
             });
+    });
+
+    reg.register_shader("cloud_composite_pass", "webgpu_engine::cloud_composite_pass");
+    reg.register_pipeline([this](WGPUDevice dev, const webgpu::RenderResourceRegistry& reg) {
+        m_cloud_composite_pipeline = std::make_unique<webgpu::raii::CombinedComputePipeline>(dev,
+            reg.shader("cloud_composite_pass"),
+            std::vector<const webgpu::raii::BindGroupLayout*> { &reg.bind_group_layout("cloud_composite") },
+            "cloud composite pipeline");
     });
 
     m_context->webgpu_ctx().resource_registry().recreate_all(m_context->webgpu_ctx().device());
@@ -142,7 +164,20 @@ void Window::resize_framebuffer(int w, int h)
     m_gbuffer_format.size = glm::uvec2 { w, h };
     m_gbuffer = std::make_unique<webgpu::Framebuffer>(m_context->webgpu_ctx().device(), m_gbuffer_format);
 
-    m_context->atmosphere_renderer()->resize(w, h);
+    webgpu::FramebufferFormat scene_color_format {};
+    scene_color_format.size = glm::uvec2 { w, h };
+    scene_color_format.depth_format = WGPUTextureFormat_Depth24Plus;
+    scene_color_format.color_formats.emplace_back(WGPUTextureFormat_RGBA16Float);
+    scene_color_format.extra_color_usage = WGPUTextureUsage_StorageBinding;
+    m_scene_color_framebuffer = std::make_unique<webgpu::Framebuffer>(m_context->webgpu_ctx().device(), scene_color_format);
+
+    // Recreate the LUT sky renderer for the new viewport: back buffer = scene color, depth = gbuffer depth.
+    m_context->sky_renderer()->resize(uint32_t(w),
+        uint32_t(h),
+        m_gbuffer->depth_texture(),
+        m_gbuffer->depth_texture_view(),
+        m_scene_color_framebuffer->color_texture(0),
+        m_scene_color_framebuffer->color_texture_view(0));
 
     m_depth_texture_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
         m_context->webgpu_ctx().resource_registry().bind_group_layout("depth_texture"),
@@ -153,30 +188,51 @@ void Window::resize_framebuffer(int w, int h)
     m_context->cloud_renderer()->resize(w, h);
     m_context->overlay_renderer()->resize(w, h);
 
+    // Cloud composite output: same size + format as sky render target (TextureBinding for present, StorageBinding for write).
+    WGPUTextureDescriptor composite_desc {};
+    composite_desc.label = WGPUStringView { .data = "cloud composite texture", .length = WGPU_STRLEN };
+    composite_desc.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_StorageBinding;
+    composite_desc.dimension = WGPUTextureDimension_2D;
+    composite_desc.format = WGPUTextureFormat_RGBA16Float;
+    composite_desc.size = { static_cast<uint32_t>(w), static_cast<uint32_t>(h), 1 };
+    composite_desc.mipLevelCount = 1;
+    composite_desc.sampleCount = 1;
+    m_cloud_composite_texture = std::make_unique<webgpu::raii::Texture>(m_context->webgpu_ctx().device(), composite_desc);
+    m_cloud_composite_view = m_cloud_composite_texture->create_view();
+
     recreate_compose_bind_group(); // Do late
+    recreate_cloud_composite_bind_groups();
+    recreate_present_bind_groups();
+    m_last_sky_resource_generation = m_context->sky_renderer()->resource_generation();
 }
 
 void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_encoder)
 {
     m_needs_redraw = false;
 
-    static constexpr webgpu::timing::StringId SID_ATMOSPHERE("Atmosphere", "Engine");
+    // sky_renderer atmosphere buffer / transmittance LUT may have been rebuilt outside of a resize
+    // -> refresh the bind group that caches references to them.
+    if (const uint64_t gen = m_context->sky_renderer()->resource_generation(); gen != m_last_sky_resource_generation) {
+        recreate_compose_bind_group();
+        m_last_sky_resource_generation = gen;
+    }
+
     static constexpr webgpu::timing::StringId SID_TILEMESH("TileMesh", "Engine");
     static constexpr webgpu::timing::StringId SID_CLOUDS("Clouds", "Engine");
     static constexpr webgpu::timing::StringId SID_OVERLAY("Overlay", "Engine");
     static constexpr webgpu::timing::StringId SID_COMPOSE("Compose", "Engine");
     static constexpr webgpu::timing::StringId SID_TRACKS("Tracks", "Engine");
+    static constexpr webgpu::timing::StringId SID_SKY("Sky", "Engine");
+    static constexpr webgpu::timing::StringId SID_CLOUD_COMPOSITE("CloudComposite", "Engine");
 
     auto& sm = m_context->webgpu_ctx().stopwatch_manager();
+
+    // Resolve the planet center (radius + camera position) into shared_config before it's uploaded below,
+    m_context->sky_renderer()->update(m_camera, m_context->shared_config());
 
     // ToDo only update on change?
     m_shared_config_ubo->data = m_context->shared_config();
     m_shared_config_ubo->update_gpu_data(m_context->webgpu_ctx().queue());
-
-    // render atmosphere to color buffer
-    sm.start_gpu(SID_ATMOSPHERE, command_encoder);
-    m_context->atmosphere_renderer()->draw(command_encoder, m_camera_bind_group->handle());
-    sm.stop_gpu(SID_ATMOSPHERE, command_encoder);
 
     // render tiles to geometry buffers
     sm.start_gpu(SID_TILEMESH, command_encoder);
@@ -186,51 +242,125 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 1, m_camera_bind_group->handle(), 0, nullptr);
 
         using namespace nucleus::tile;
+
+        const double R = double(m_context->shared_config().m_planet_radius_m);
+
+        // NOTE: The far plane of the camera is used for frustum culling, so we calculate an upper bound here by calculating the
+        // distance to the horizon (https://en.wikipedia.org/wiki/Horizon#Distance_to_the_horizon)
+        // TODO: Its actually sufficient to update the far plane only when the camera moves (or the planet size changes)
+        {
+            static const double h_max = 8850.0; // Mount Everest
+            const double h = std::max(0.0, m_camera.altitude()); // camera height above surface
+            double far = std::max(1000000.0,
+                std::sqrt(2.0 * R * h + h * h) + std::sqrt(2.0 * R * h_max + h_max * h_max)); // This is for max peak height at horizon but seems negligible
+            m_camera.set_far_plane(float(far));
+        }
+
         const auto draw_list = drawing::compute_bounds(
-            drawing::limit(drawing::generate_list(m_camera, m_context->aabb_decorator(), m_max_zoom_level), 1024), m_context->aabb_decorator());
-        const auto culled_draw_list = drawing::sort(drawing::cull(draw_list, m_camera), m_camera.position());
+            drawing::limit(drawing::generate_list(m_camera, m_context->aabb_decorator(), m_max_zoom_level, R), 1024), m_context->aabb_decorator());
+        const auto culled_draw_list = drawing::sort(drawing::cull(draw_list, m_camera, R), m_camera.position());
 
         m_context->tile_mesh_renderer()->draw(render_pass->handle(), m_camera, culled_draw_list);
     }
     sm.stop_gpu(SID_TILEMESH, command_encoder);
 
-    // render clouds
-    if (m_context->shared_config().m_clouds_enabled) {
+    // render overlay textures (height lines, tile debug, etc.)
+    {
+        const bool has_overlays = !m_context->overlay_renderer()->overlays().empty();
+        if (has_overlays)
+            sm.start_gpu(SID_OVERLAY, command_encoder);
+        m_context->overlay_renderer()->draw(command_encoder,
+            m_gbuffer->color_texture_view(1),
+            m_gbuffer->color_texture_view(2),
+            m_gbuffer->color_texture_view(3),
+            m_gbuffer->depth_texture_view(),
+            m_shared_config_bind_group->handle(),
+            m_camera_bind_group->handle());
+        if (has_overlays)
+            sm.stop_gpu(SID_OVERLAY, command_encoder);
+    }
+
+    // render geometry buffers into the intermediate scene color target (compute)
+    sm.start_gpu(SID_COMPOSE, command_encoder);
+    {
+        const glm::uvec3 compose_workgroups {
+            (static_cast<uint32_t>(m_swapchain_size.x) + 15u) / 16u, (static_cast<uint32_t>(m_swapchain_size.y) + 15u) / 16u, 1u
+        };
+        WGPUComputePassDescriptor compose_pass_desc {};
+        compose_pass_desc.label = WGPUStringView { .data = "compose compute pass", .length = WGPU_STRLEN };
+        webgpu::raii::ComputePassEncoder compose_pass(command_encoder, compose_pass_desc);
+        m_compose_pipeline->set_binding(0, *m_shared_config_bind_group);
+        m_compose_pipeline->set_binding(1, *m_camera_bind_group);
+        m_compose_pipeline->set_binding(2, *m_compose_bind_groups[m_paint_number % 2]);
+        m_compose_pipeline->set_binding(3, *m_compose_output_bind_group);
+        m_compose_pipeline->run(compose_pass, compose_workgroups);
+    }
+    sm.stop_gpu(SID_COMPOSE, command_encoder);
+
+    // render lines into the scene color target (so they become part of the LUT sky back buffer)
+    if (m_context->shared_config().m_track_render_mode > 0 && m_context->track_renderer()->has_tracks()) {
+        sm.start_gpu(SID_TRACKS, command_encoder);
+        m_context->track_renderer()->render(
+            command_encoder, *m_shared_config_bind_group, *m_camera_bind_group, *m_depth_texture_bind_group, m_scene_color_framebuffer->color_texture_view(0));
+        sm.stop_gpu(SID_TRACKS, command_encoder);
+    }
+
+    const bool clouds_enabled = m_context->shared_config().m_clouds_enabled;
+    const bool sky_enabled = bool(m_context->shared_config().m_sky_enabled);
+
+    // Sky: layer physically-based atmosphere over the scene color back buffer
+    if (sky_enabled)
+        sm.start_gpu(SID_SKY, command_encoder);
+    m_context->sky_renderer()->render(command_encoder);
+    if (sky_enabled)
+        sm.stop_gpu(SID_SKY, command_encoder);
+
+    // render clouds (after sky, so this frame's freshly rendered LUTs are sampled instead of last frame's)
+    if (clouds_enabled) {
+        auto* sky = m_context->sky_renderer();
         sm.start_gpu(SID_CLOUDS, command_encoder);
-        m_context->cloud_renderer()->draw(
-            command_encoder, m_depth_texture_bind_group->handle(), m_shared_config_bind_group->handle(), m_camera, m_paint_number);
+        m_context->cloud_renderer()->draw(command_encoder,
+            m_depth_texture_bind_group->handle(),
+            m_shared_config_bind_group->handle(),
+            m_camera,
+            m_paint_number,
+            *sky->transmittance_lut_view(),
+            *sky->transmittance_lut_sampler(),
+            *sky->aerial_perspective_lut_view(),
+            *sky->sky_view_lut_view());
         sm.stop_gpu(SID_CLOUDS, command_encoder);
         m_needs_redraw |= m_context->cloud_renderer()->needs_redraw(); // Repaint for TAAU
     }
 
-    // render overlay textures (height lines, tile debug, etc.)
-    sm.start_gpu(SID_OVERLAY, command_encoder);
-    m_context->overlay_renderer()->draw(command_encoder,
-        m_gbuffer->color_texture_view(1),
-        m_gbuffer->color_texture_view(2),
-        m_gbuffer->color_texture_view(3),
-        m_shared_config_bind_group->handle(),
-        m_camera_bind_group->handle());
-    sm.stop_gpu(SID_OVERLAY, command_encoder);
+    // Blend clouds on top of the background (sky render target when sky on, scene color when sky off)
+    if (clouds_enabled && m_cloud_composite_pipeline) {
+        sm.start_gpu(SID_CLOUD_COMPOSITE, command_encoder);
+        {
+            const auto& bg_bind_group
+                = sky_enabled ? *m_cloud_composite_bind_groups[m_paint_number % 2] : *m_cloud_composite_bind_groups_no_sky[m_paint_number % 2];
+            m_cloud_composite_pipeline->set_binding(0, bg_bind_group);
+            const glm::uvec3 workgroups {
+                (static_cast<uint32_t>(m_swapchain_size.x) + 15u) / 16u, (static_cast<uint32_t>(m_swapchain_size.y) + 15u) / 16u, 1u
+            };
+            WGPUComputePassDescriptor composite_pass_desc {};
+            composite_pass_desc.label = WGPUStringView { .data = "cloud composite pass", .length = WGPU_STRLEN };
+            webgpu::raii::ComputePassEncoder composite_pass(command_encoder, composite_pass_desc);
+            m_cloud_composite_pipeline->run(composite_pass, workgroups);
+        }
+        sm.stop_gpu(SID_CLOUD_COMPOSITE, command_encoder);
+    }
 
-    // render geometry buffers to target framebuffer
-    sm.start_gpu(SID_COMPOSE, command_encoder);
+    // present: blit the chosen result to the swapchain
+    const webgpu::raii::BindGroup* present_bg;
+    if (sky_enabled)
+        present_bg = (clouds_enabled ? m_present_bind_group_sky_clouds : m_present_bind_group_sky).get();
+    else
+        present_bg = (clouds_enabled ? m_present_bind_group_no_sky_clouds : m_present_bind_group_no_sky).get();
     {
         std::unique_ptr<webgpu::raii::RenderPassEncoder> render_pass = framebuffer->begin_render_pass(command_encoder);
-        wgpuRenderPassEncoderSetPipeline(render_pass->handle(), m_compose_pipeline->pipeline().handle());
-        wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 0, m_shared_config_bind_group->handle(), 0, nullptr);
-        wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 1, m_camera_bind_group->handle(), 0, nullptr);
-        wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 2, m_compose_bind_groups[m_paint_number % 2]->handle(), 0, nullptr);
+        wgpuRenderPassEncoderSetPipeline(render_pass->handle(), m_present_pipeline->pipeline().handle());
+        wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 0, present_bg->handle(), 0, nullptr);
         wgpuRenderPassEncoderDraw(render_pass->handle(), 3, 1, 0, 0);
-    }
-    sm.stop_gpu(SID_COMPOSE, command_encoder);
-
-    // render lines to color buffer
-    if (m_context->shared_config().m_track_render_mode > 0) {
-        sm.start_gpu(SID_TRACKS, command_encoder);
-        m_context->track_renderer()->render(
-            command_encoder, *m_shared_config_bind_group, *m_camera_bind_group, *m_depth_texture_bind_group, framebuffer->color_texture_view(0));
-        sm.stop_gpu(SID_TRACKS, command_encoder);
     }
 
     m_paint_number++;
@@ -291,6 +421,8 @@ nucleus::utils::ColourTexture::Format Window::ortho_tile_compression_algorithm()
 
 void Window::update_camera([[maybe_unused]] const nucleus::camera::Definition& new_definition)
 {
+    m_camera = new_definition;
+
     // NOTE: Could also just be done on camera or viewport change!
     uboCameraConfig* cc = &m_camera_config_ubo->data;
     cc->position = glm::vec4(new_definition.position(), 1.0);
@@ -303,7 +435,6 @@ void Window::update_camera([[maybe_unused]] const nucleus::camera::Definition& n
     cc->viewport_size = new_definition.viewport_size();
     cc->distance_scaling_factor = new_definition.distance_scale_factor();
     m_camera_config_ubo->update_gpu_data(m_context->webgpu_ctx().queue());
-    m_camera = new_definition;
 
     emit update_requested();
 }
@@ -316,6 +447,8 @@ void Window::reload_shaders()
 {
     m_context->webgpu_ctx().resource_registry().recreate_all(m_context->webgpu_ctx().device());
     recreate_compose_bind_group();
+    recreate_cloud_composite_bind_groups();
+    recreate_present_bind_groups();
     qDebug() << "reloading shaders done";
     request_redraw();
 }
@@ -350,17 +483,75 @@ void Window::recreate_compose_bind_group()
                 m_gbuffer->color_texture_view(0).create_bind_group_entry(0), // albedo texture
                 m_gbuffer->color_texture_view(1).create_bind_group_entry(1), // position texture
                 m_gbuffer->color_texture_view(2).create_bind_group_entry(2), // normal texture
-                m_context->atmosphere_renderer()->result_view()->create_bind_group_entry(3), // atmosphere texture
-                m_gbuffer->color_texture_view(3).create_bind_group_entry(4), // overlay texture
-                m_context->cloud_renderer()->result_color_view(i)->create_bind_group_entry(5),
-                m_context->cloud_renderer()->result_depth_view()->create_bind_group_entry(6),
-                m_shadow_texture->texture_view().create_bind_group_entry(7),
-                m_shadow_texture->sampler().create_bind_group_entry(8),
-                m_gbuffer->depth_texture_view().create_bind_group_entry(9),
-                m_context->overlay_renderer()->result_post_view()->create_bind_group_entry(10), // overlay post-shading output
-                m_context->overlay_renderer()->result_pre_view()->create_bind_group_entry(11), // overlay pre-shading output
+                m_gbuffer->color_texture_view(3).create_bind_group_entry(3), // overlay texture
+                m_shadow_texture->texture_view().create_bind_group_entry(4),
+                m_shadow_texture->sampler().create_bind_group_entry(5),
+                m_gbuffer->depth_texture_view().create_bind_group_entry(6),
+                m_context->overlay_renderer()->result_post_view()->create_bind_group_entry(7), // overlay post-shading output
+                m_context->overlay_renderer()->result_pre_view()->create_bind_group_entry(8), // overlay pre-shading output
             });
     }
+
+    auto* sky = m_context->sky_renderer();
+    if (!sky->transmittance_lut_view())
+        return;
+
+    m_compose_output_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
+        m_context->webgpu_ctx().resource_registry().bind_group_layout("compose_output"),
+        std::initializer_list<WGPUBindGroupEntry> {
+            m_scene_color_framebuffer->color_texture_view(0).create_bind_group_entry(0),
+            sky->transmittance_lut_view()->create_bind_group_entry(1),
+            sky->transmittance_lut_sampler()->create_bind_group_entry(2),
+        });
+}
+
+void Window::recreate_cloud_composite_bind_groups()
+{
+    if (!m_cloud_composite_view || !m_context->sky_renderer()->result_view())
+        return;
+    for (int i = 0; i < 2; ++i) {
+        m_cloud_composite_bind_groups[i] = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
+            m_context->webgpu_ctx().resource_registry().bind_group_layout("cloud_composite"),
+            std::initializer_list<WGPUBindGroupEntry> {
+                m_context->sky_renderer()->result_view()->create_bind_group_entry(0), // background = sky
+                m_context->cloud_renderer()->result_color_view(i)->create_bind_group_entry(1),
+                m_cloud_composite_view->create_bind_group_entry(2),
+            });
+        m_cloud_composite_bind_groups_no_sky[i] = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
+            m_context->webgpu_ctx().resource_registry().bind_group_layout("cloud_composite"),
+            std::initializer_list<WGPUBindGroupEntry> {
+                m_scene_color_framebuffer->color_texture_view(0).create_bind_group_entry(0), // background = scene color
+                m_context->cloud_renderer()->result_color_view(i)->create_bind_group_entry(1),
+                m_cloud_composite_view->create_bind_group_entry(2),
+            });
+    }
+}
+
+void Window::recreate_present_bind_groups()
+{
+    m_present_bind_group_sky = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
+        m_context->webgpu_ctx().resource_registry().bind_group_layout("present"),
+        std::initializer_list<WGPUBindGroupEntry> {
+            m_context->sky_renderer()->result_view()->create_bind_group_entry(0),
+        });
+
+    m_present_bind_group_sky_clouds = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
+        m_context->webgpu_ctx().resource_registry().bind_group_layout("present"),
+        std::initializer_list<WGPUBindGroupEntry> {
+            m_cloud_composite_view->create_bind_group_entry(0),
+        });
+
+    m_present_bind_group_no_sky = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
+        m_context->webgpu_ctx().resource_registry().bind_group_layout("present"),
+        std::initializer_list<WGPUBindGroupEntry> {
+            m_scene_color_framebuffer->color_texture_view(0).create_bind_group_entry(0),
+        });
+
+    m_present_bind_group_no_sky_clouds = std::make_unique<webgpu::raii::BindGroup>(m_context->webgpu_ctx().device(),
+        m_context->webgpu_ctx().resource_registry().bind_group_layout("present"),
+        std::initializer_list<WGPUBindGroupEntry> {
+            m_cloud_composite_view->create_bind_group_entry(0),
+        });
 }
 
 void Window::update_required_gpu_limits(WGPULimits& limits, const WGPULimits& supported_limits)

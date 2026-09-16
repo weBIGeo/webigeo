@@ -23,14 +23,15 @@ struct shared_config {
     amb_light: vec4f,
     material_color: vec4f,
     material_light_response: vec4f,
-    atmosphere_enabled: u32,
+    sky_enabled: u32,
     clouds_enabled: u32,
     shading_enabled: u32,
     normal_mode: u32,
     overlay_mode: u32,
     track_render_mode: u32,
-    _padding0: u32,
-    _padding1: u32,
+    planet_radius_m: f32,
+    atmosphere_height_m: f32,
+    atmosphere_planet_center_m: vec4f,
 }
 
 ;

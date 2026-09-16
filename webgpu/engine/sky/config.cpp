@@ -1,7 +1,8 @@
 /*****************************************************************************
  * weBIGeo
- * Copyright (C) 2024 Patrick Komon
  * Copyright (C) 2026 Gerald Kimmersdorfer
+ * Copyright (C) 2025 Patrick Komon
+ * Copyright (C) 2024 Lukas Herzberger
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,36 +18,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#pragma once
+/*
+ * Copyright (c) 2024 Lukas Herzberger
+ * SPDX-License-Identifier: MIT
+ */
 
-#include <memory>
-
-#include <QObject>
-#include <webgpu/base/Context.h>
-#include <webgpu/base/Framebuffer.h>
-#include <webgpu/base/raii/Pipeline.h>
-#include <webgpu/base/raii/TextureView.h>
-#include <webgpu/webgpu.h>
-
-namespace webgpu_engine {
-
-class AtmosphereRenderer : public QObject {
-    Q_OBJECT
-public:
-    explicit AtmosphereRenderer();
-
-    void init(webgpu::Context& ctx);
-
-    void resize(int w, int h);
-
-    void draw(const WGPUCommandEncoder& command_encoder, const WGPUBindGroup& camera_bind_group);
-
-    [[nodiscard]] const webgpu::raii::TextureView* result_view() const;
-
-private:
-    webgpu::Context* m_ctx = nullptr;
-    std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_pipeline;
-    std::unique_ptr<webgpu::Framebuffer> m_atmosphere_framebuffer;
-};
-
-} // namespace webgpu_engine
+#include "config.h"

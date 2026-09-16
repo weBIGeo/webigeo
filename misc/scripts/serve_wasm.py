@@ -7,6 +7,7 @@ import subprocess
 import platform
 import time
 import threading
+import shutil
 from pathlib import Path
 
 SUPPORTED_TARGETS = [
@@ -40,6 +41,21 @@ def get_css_files(build_dir):
     return list(build_dir.glob("*.css"))
 
 
+def sync_shell_files(shell_dir, build_dir):
+    """Copy shell source files newer than their build_dir counterpart. Returns True if any file changed."""
+    if not shell_dir.exists():
+        return False
+    changed = False
+    for src in shell_dir.iterdir():
+        if not src.is_file():
+            continue
+        dst = build_dir / src.name
+        if not dst.exists() or src.stat().st_mtime > dst.stat().st_mtime:
+            shutil.copy2(src, dst)
+            changed = True
+    return changed
+
+
 def open_browser(url):
     try:
         if platform.system() == "Windows":
@@ -64,6 +80,9 @@ def serve_wasm(port=8000):
 
         print(f"Auto-detected build target: {build_type}")
         build_dir = project_root / "build" / build_type / "apps" / "webgpu_app"
+        shell_dir = project_root / "apps" / "webgpu_app" / "shell"
+
+        sync_shell_files(shell_dir, build_dir)
 
         html_file = get_html_file(build_dir)
         if not html_file:
@@ -105,6 +124,9 @@ def serve_wasm(port=8000):
             while True:
                 time.sleep(1)
 
+                if sync_shell_files(shell_dir, build_dir):
+                    pending_change_time = time.time()
+
                 current_build_type = auto_detect_build_type(project_root)
                 if current_build_type != last_build_type:
                     print(f"\n[RELOAD] Build type changed: {last_build_type} -> {current_build_type}")
@@ -133,18 +155,31 @@ def serve_wasm(port=8000):
                             pending_change_time = time.time()
                             css_mtimes[css_file] = current_mtime
 
+        def watch_stdin():
+            while True:
+                try:
+                    input()
+                except EOFError:
+                    return
+                print("[MANUAL] Reopening browser...")
+                open_browser(url)
+
         with socketserver.TCPServer(("", port), WasmHandler) as httpd:
             url = f"http://localhost:{port}/webgpu_app.html"
             print(f"Serving: {build_dir}")
             print(f"Monitoring: {html_file.name}")
             if css_files:
                 print(f"Monitoring CSS: {[f.name for f in css_files]}")
-            print(f"Opening: {url}\n")
+            print(f"Opening: {url}")
+            print("Press Enter to reopen the browser manually.\n")
 
             open_browser(url)
 
             monitor_thread = threading.Thread(target=monitor_changes, daemon=True)
             monitor_thread.start()
+
+            stdin_thread = threading.Thread(target=watch_stdin, daemon=True)
+            stdin_thread.start()
 
             try:
                 httpd.serve_forever()

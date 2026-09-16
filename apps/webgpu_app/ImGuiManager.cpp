@@ -30,12 +30,12 @@
 #include <filesystem>
 #endif
 
-#include "atmosphere/AtmospherePanel.h"
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_wgpu.h"
 #include "cloud/CloudPanel.h"
 #include "overlay/OverlaysPanel.h"
 #include "profiling/ProfilingPanel.h"
+#include "sky/SkyPanel.h"
 #include "track/TrackPanel.h"
 #include "ui/AboutPanel.h"
 #include "ui/AppPanel.h"
@@ -45,6 +45,7 @@
 #include "ui/LogoPanel.h"
 #include "ui/SearchPanel.h"
 #include "ui/ShadingPanel.h"
+#include "ui/SharedConfigPanel.h"
 #ifdef ALP_WEBGPU_APP_ENABLE_COMPUTE
 #include "compute/NodeGraphPanel.h"
 #endif
@@ -100,11 +101,12 @@ void ImGuiManager::init(
     m_panels.push_back(std::make_unique<ProfilingPanel>(m_terrain_renderer));
     m_panels.push_back(std::make_unique<CameraPanel>(m_terrain_renderer));
     m_panels.push_back(std::make_unique<AppPanel>(m_terrain_renderer));
+    m_panels.push_back(std::make_unique<SharedConfigPanel>(engine_ctx));
+    SharedConfigPanel& shared_config_panel = static_cast<SharedConfigPanel&>(*m_panels.back());
     m_panels.push_back(std::make_unique<CloudPanel>(engine_ctx, rc->clouds_manager(), engine_ctx->cloud_renderer()));
     CloudPanel& cloud_panel = static_cast<CloudPanel&>(*m_panels.back());
-    m_panels.push_back(std::make_unique<AtmospherePanel>(engine_ctx));
+    m_panels.push_back(std::make_unique<SkyPanel>(engine_ctx, engine_ctx->sky_renderer()));
     m_panels.push_back(std::make_unique<ShadingPanel>(engine_ctx));
-    ShadingPanel& shading_panel = static_cast<ShadingPanel&>(*m_panels.back());
     m_panels.push_back(std::make_unique<DateTimePanel>(m_terrain_renderer, engine_ctx, rc->clouds_manager()));
     DateTimePanel& datetime_panel = static_cast<DateTimePanel&>(*m_panels.back());
     m_panels.push_back(std::make_unique<TrackPanel>(engine_ctx, m_terrain_renderer));
@@ -116,7 +118,7 @@ void ImGuiManager::init(
     for (auto& p : m_panels)
         p->m_manager = this;
 
-    connect(&shading_panel, &ShadingPanel::sun_dir_manually_changed, &datetime_panel, &DateTimePanel::disable_sun_link);
+    connect(&shared_config_panel, &SharedConfigPanel::sun_dir_manually_changed, &datetime_panel, &DateTimePanel::disable_sun_link);
     connect(&cloud_panel, &CloudPanel::tileset_manually_selected, &datetime_panel, &DateTimePanel::disable_cloud_link);
     connect(&search_panel, &SearchPanel::search_requested, rc->search_service(), &SearchService::search);
     connect(&search_panel,
@@ -238,6 +240,44 @@ ImVec2 ImGuiManager::get_window_size() const { return m_current_window_size; }
 float ImGuiManager::s_tool_button_y = 0.0f;
 ImFont* ImGuiManager::s_node_font = nullptr;
 std::unordered_map<std::string, ImGuiManager::FilePickerState> ImGuiManager::s_picker_states;
+std::unordered_map<std::string, ImGuiManager::SnapWindowState> ImGuiManager::s_snap_window_states;
+
+bool ImGuiManager::BeginSnapWindow(const char* id, ImVec2 avail, SnapEdge default_x, SnapEdge default_y, bool* p_open, ImGuiWindowFlags flags, float margin)
+{
+    auto& st = s_snap_window_states[id];
+
+    // Use ImGui's internal MovingWindow to detect if THIS specific window is being dragged
+    ImGuiWindow* win = ImGui::FindWindowByName(id);
+    const bool this_window_moving = win != nullptr && ImGui::GetCurrentContext()->MovingWindow == win;
+
+    const bool just_released = st.was_window_moving && !this_window_moving;
+    st.was_window_moving = this_window_moving;
+
+    if (!st.initialized) {
+        st.snap_x = default_x;
+        st.snap_y = default_y;
+    } else if (just_released) {
+        st.snap_x = (st.last_pos.x + st.last_size.x) > avail.x - margin ? SnapEdge::Far : st.last_pos.x < margin ? SnapEdge::Near : SnapEdge::None;
+        st.snap_y = (st.last_pos.y + st.last_size.y) > avail.y - margin ? SnapEdge::Far : st.last_pos.y < margin ? SnapEdge::Near : SnapEdge::None;
+    }
+
+    const bool any_snapped = st.snap_x != SnapEdge::None || st.snap_y != SnapEdge::None;
+    if (!this_window_moving && any_snapped) {
+        const float px = st.snap_x == SnapEdge::Far ? avail.x - margin : st.snap_x == SnapEdge::Near ? margin : st.last_pos.x;
+        const float py = st.snap_y == SnapEdge::Far ? avail.y - margin : st.snap_y == SnapEdge::Near ? margin : st.last_pos.y;
+        const float pivot_x = st.snap_x == SnapEdge::Far ? 1.f : 0.f;
+        const float pivot_y = st.snap_y == SnapEdge::Far ? 1.f : 0.f;
+        ImGui::SetNextWindowPos(ImVec2(px, py), ImGuiCond_Always, ImVec2(pivot_x, pivot_y));
+    }
+
+    const bool open = ImGui::Begin(id, p_open, flags);
+    st.last_pos = ImGui::GetWindowPos();
+    st.last_size = ImGui::GetWindowSize();
+    st.initialized = true;
+    return open;
+}
+
+void ImGuiManager::EndSnapWindow() { ImGui::End(); }
 
 #ifdef __EMSCRIPTEN__
 void ImGuiManager::on_file_uploaded(const std::string& filename, const std::string& tag)

@@ -25,6 +25,7 @@
 #include <string>
 #include <vector>
 
+#include "../ImGuiManager.h"
 #include "../util/format_time.h"
 #include "App.h"
 #include "ProfilingStore.h"
@@ -36,14 +37,27 @@ ProfilingPanel::ProfilingPanel(App* app)
 {
 }
 
-void ProfilingPanel::draw_panel()
+void ProfilingPanel::draw()
 {
-    if (!ImGui::CollapsingHeader(ICON_FA_STOPWATCH "  Profiling"))
+    if (!ImGui::GetIO().WantTextInput && ImGui::GetIO().KeyShift && ImGui::IsKeyPressed(ImGuiKey_P, false))
+        m_visible = !m_visible;
+
+    if (!m_visible)
         return;
+
+    ImVec2 avail = m_manager->get_window_size();
+    ImGui::SetNextWindowBgAlpha(0.85f);
+
+    constexpr ImGuiWindowFlags flags = ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_AlwaysAutoResize;
+
+    if (!ImGuiManager::BeginSnapWindow(
+            ICON_FA_STOPWATCH "  Profiling##profiling_panel", avail, ImGuiManager::SnapEdge::Far, ImGuiManager::SnapEdge::Near, &m_visible, flags)) {
+        ImGuiManager::EndSnapWindow();
+        return;
+    }
 
     const auto& data = m_app->get_profiling_store()->data();
 
-    // Group entries by group name, sorted alphabetically for stable order.
     std::map<std::string, std::vector<const TimingSeries*>> groups;
     for (const auto& [hash, series] : data) {
         const std::string group = series.group ? series.group : "";
@@ -52,7 +66,6 @@ void ProfilingPanel::draw_panel()
 
     static constexpr uint64_t STALE_THRESHOLD = 10;
     static constexpr float COL_TIME_W = 72.0f;
-    static constexpr float COL_BAR_W = 130.0f;
 
     for (const auto& [group_name, entries] : groups) {
         uint64_t max_frame = 0;
@@ -81,14 +94,12 @@ void ProfilingPanel::draw_panel()
 
                 ImGui::TableNextRow();
 
-                // Name column
                 ImGui::TableSetColumnIndex(0);
                 if (stale)
                     ImGui::TextDisabled("%s", series->name ? series->name : "?");
                 else
                     ImGui::TextUnformatted(series->name ? series->name : "?");
 
-                // Time column (right-aligned)
                 ImGui::TableSetColumnIndex(1);
                 const std::string time_str = format_time(avg);
                 const float text_w = ImGui::CalcTextSize(time_str.c_str()).x;
@@ -98,7 +109,6 @@ void ProfilingPanel::draw_panel()
                 else
                     ImGui::TextUnformatted(time_str.c_str());
 
-                // Bar column
                 ImGui::TableSetColumnIndex(2);
                 {
                     const float pct = (!stale && group_sum > 0.0f) ? avg / group_sum : 0.0f;
@@ -119,8 +129,11 @@ void ProfilingPanel::draw_panel()
             ImGui::TreePop();
     }
 
+    ImGui::Separator();
     if (ImGui::Button("Reset All Timers"))
         m_app->get_profiling_store()->reset_all();
+
+    ImGuiManager::EndSnapWindow();
 }
 
 } // namespace webgpu_app

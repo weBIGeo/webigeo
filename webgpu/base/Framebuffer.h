@@ -29,6 +29,7 @@ struct FramebufferFormat {
     glm::uvec2 size;
     WGPUTextureFormat depth_format;
     std::vector<WGPUTextureFormat> color_formats;
+    WGPUTextureUsage extra_color_usage = WGPUTextureUsage_None;
 };
 
 class Framebuffer {

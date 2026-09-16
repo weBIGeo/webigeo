@@ -51,6 +51,7 @@ public:
         const webgpu::raii::TextureView& position_view,
         const webgpu::raii::TextureView& normal_view,
         const webgpu::raii::TextureView& overlay_view, // GBuffer slot 3 (packed tile-debug data)
+        const webgpu::raii::TextureView& depth_view,
         const WGPUBindGroup& shared_config_bg,
         const WGPUBindGroup& camera_bg,
         const webgpu::raii::TextureWithSampler& current_input,

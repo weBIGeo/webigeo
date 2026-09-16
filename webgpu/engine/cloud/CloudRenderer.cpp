@@ -197,6 +197,35 @@ void CloudRenderer::init(webgpu::Context& ctx)
             "upscale clouds bind group layout");
     });
 
+    reg.register_bind_group_layout("render_clouds_sky_luts", [](WGPUDevice device) {
+        WGPUBindGroupLayoutEntry lut_tex_entry {};
+        lut_tex_entry.binding = 0;
+        lut_tex_entry.visibility = WGPUShaderStage_Compute;
+        lut_tex_entry.texture.sampleType = WGPUTextureSampleType_Float;
+        lut_tex_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+        WGPUBindGroupLayoutEntry lut_sampler_entry {};
+        lut_sampler_entry.binding = 1;
+        lut_sampler_entry.visibility = WGPUShaderStage_Compute;
+        lut_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
+
+        WGPUBindGroupLayoutEntry ap_lut_entry {};
+        ap_lut_entry.binding = 2;
+        ap_lut_entry.visibility = WGPUShaderStage_Compute;
+        ap_lut_entry.texture.sampleType = WGPUTextureSampleType_Float;
+        ap_lut_entry.texture.viewDimension = WGPUTextureViewDimension_3D;
+
+        WGPUBindGroupLayoutEntry sky_view_lut_entry {};
+        sky_view_lut_entry.binding = 3;
+        sky_view_lut_entry.visibility = WGPUShaderStage_Compute;
+        sky_view_lut_entry.texture.sampleType = WGPUTextureSampleType_Float;
+        sky_view_lut_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+        return std::make_unique<webgpu::raii::BindGroupLayout>(device,
+            std::vector<WGPUBindGroupLayoutEntry> { lut_tex_entry, lut_sampler_entry, ap_lut_entry, sky_view_lut_entry },
+            "render clouds sky luts bind group layout");
+    });
+
     reg.register_pipeline([this](WGPUDevice dev, const webgpu::RenderResourceRegistry& reg) {
         glm::dvec2 bounds_min = nucleus::srs::lat_long_to_world(BOUNDS_MIN);
         // Note: This is different from nucleus::srs::world_xy_to_tile_id because it doesn't apply the origin shift, resulting in signed coords.
@@ -228,6 +257,7 @@ void CloudRenderer::init(webgpu::Context& ctx)
                 &reg.bind_group_layout("render_clouds"),
                 &reg.bind_group_layout("depth_texture"),
                 &reg.bind_group_layout("shared_config"),
+                &reg.bind_group_layout("render_clouds_sky_luts"),
             },
             pipeline_desc);
     });
@@ -382,7 +412,11 @@ void CloudRenderer::draw(const WGPUCommandEncoder& command_encoder,
     const WGPUBindGroup& depth_texture_bind_group,
     const WGPUBindGroup& shared_config_bind_group,
     const nucleus::camera::Definition& camera,
-    uint32_t frame_number)
+    uint32_t frame_number,
+    const webgpu::raii::TextureView& transmittance_lut_view,
+    const webgpu::raii::Sampler& transmittance_lut_sampler,
+    const webgpu::raii::TextureView& aerial_perspective_lut_view,
+    const webgpu::raii::TextureView& sky_view_lut_view)
 {
     auto jitter_offset = generate_jitter_simple_4x(frame_number, m_output_lo_resolution);
     glm::mat4 unjittered_projection = camera.projection_matrix();
@@ -421,7 +455,7 @@ void CloudRenderer::draw(const WGPUCommandEncoder& command_encoder,
         m_render_shader_params_ubo->data.albedo = shader_params.albedo;
         m_render_shader_params_ubo->data.sun_light_scale = shader_params.sun_light_scale;
         m_render_shader_params_ubo->data.ambient_light_scale = shader_params.ambient_light_scale;
-        m_render_shader_params_ubo->data.atm_light_scale = shader_params.atmospheric_light_scale;
+        m_render_shader_params_ubo->data.horizon_softness = shader_params.horizon_softness;
         m_render_shader_params_ubo->data.shadow_extinction_scale = shader_params.shadow_extinction_scale;
         m_render_shader_params_ubo->data.fade_factor = shader_params.fade_factor;
         m_render_shader_params_ubo->data.powder_scale = shader_params.powder_scale;
@@ -429,10 +463,21 @@ void CloudRenderer::draw(const WGPUCommandEncoder& command_encoder,
 
         m_cloud_tile_info_buffer->write(m_ctx->queue(), m_tile_infos.data(), m_tile_infos.size());
 
+        m_sky_luts_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_ctx->device(),
+            m_ctx->resource_registry().bind_group_layout("render_clouds_sky_luts"),
+            std::initializer_list<WGPUBindGroupEntry> {
+                transmittance_lut_view.create_bind_group_entry(0),
+                transmittance_lut_sampler.create_bind_group_entry(1),
+                aerial_perspective_lut_view.create_bind_group_entry(2),
+                sky_view_lut_view.create_bind_group_entry(3),
+            },
+            "render clouds sky luts bind group");
+
         wgpuComputePassEncoderSetPipeline(compute_pass.handle(), m_render_clouds_pipeline->handle());
         wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 0, m_render_clouds_bind_group->handle(), 0, nullptr);
         wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 1, depth_texture_bind_group, 0, nullptr);
         wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 2, shared_config_bind_group, 0, nullptr);
+        wgpuComputePassEncoderSetBindGroup(compute_pass.handle(), 3, m_sky_luts_bind_group->handle(), 0, nullptr);
 
         wgpuComputePassEncoderDispatchWorkgroups(compute_pass.handle(), ceil_div(m_output_lo_resolution.x, 8u), ceil_div(m_output_lo_resolution.y, 8u), 1);
     }

@@ -20,12 +20,11 @@
 
 ///use util/shared_config
 ///use util/camera_config
-///use util/atmosphere
 ///use webgpu::encoder
 ///use webgpu::general
 ///use webgpu::tile_util
-
-///use screen_pass_vert
+///use webgpu::normals_util
+///use webgpu_engine::util/sky
 
 @group(0) @binding(0) var<uniform> conf: shared_config;
 @group(1) @binding(0) var<uniform> camera: camera_config;
@@ -33,16 +32,17 @@
 @group(2) @binding(0) var albedo_texture: texture_2d<u32>;
 @group(2) @binding(1) var position_texture: texture_2d<f32>;
 @group(2) @binding(2) var normal_texture: texture_2d<u32>;
-@group(2) @binding(3) var atmosphere_texture: texture_2d<f32>;
-@group(2) @binding(4) var overlay_texture: texture_2d<u32>;
+@group(2) @binding(3) var overlay_texture: texture_2d<u32>;
 
-@group(2) @binding(5) var clouds_texture: texture_2d<f32>;
-@group(2) @binding(6) var clouds_depth_texture: texture_storage_2d<r32float, read>;
-@group(2) @binding(7) var cloud_shadow_texture: texture_2d<f32>;
-@group(2) @binding(8) var cloud_shadow_sampler: sampler;
-@group(2) @binding(9) var depth_texture: texture_2d<f32>;
-@group(2) @binding(10) var overlay_renderer_post_texture: texture_2d<f32>;
-@group(2) @binding(11) var overlay_renderer_pre_texture: texture_2d<f32>;
+@group(2) @binding(4) var cloud_shadow_texture: texture_2d<f32>;
+@group(2) @binding(5) var cloud_shadow_sampler: sampler;
+@group(2) @binding(6) var depth_texture: texture_2d<f32>;
+@group(2) @binding(7) var overlay_renderer_post_texture: texture_2d<f32>;
+@group(2) @binding(8) var overlay_renderer_pre_texture: texture_2d<f32>;
+
+@group(3) @binding(0) var output_color: texture_storage_2d<rgba16float, write>;
+@group(3) @binding(1) var transmittance_lut: texture_2d<f32>;
+@group(3) @binding(2) var transmittance_sampler: sampler;
 
 const CLOUD_SHADOW_AABB_MIN = vec3f(1045658.54694121, 5811660.13457852, 0.0);
 const CLOUD_SHADOW_AABB_MAX = vec3f(1937220.04485951, 6309418.06277159, 14000.0);
@@ -100,14 +100,12 @@ fn get_cloud_shadow_occlusion(world_pos: vec3f) -> f32 {
     const SHADOW_BIAS = 0.05;
     const ESM_CONSTANT = 4.0;
 
-    //TODO: Future improvement: Implement parallax
-
     let uv = vec2f(
         (world_pos.x - CLOUD_SHADOW_AABB_MIN.x) / (CLOUD_SHADOW_AABB_MAX.x - CLOUD_SHADOW_AABB_MIN.x),
         (CLOUD_SHADOW_AABB_MAX.y - world_pos.y) / (CLOUD_SHADOW_AABB_MAX.y - CLOUD_SHADOW_AABB_MIN.y)
     );
 
-    let shadow_map_val = textureSample(cloud_shadow_texture, cloud_shadow_sampler, uv).r;
+    let shadow_map_val = textureSampleLevel(cloud_shadow_texture, cloud_shadow_sampler, uv, 0.0).r;
 
     let height_adjusted = world_pos.z / cos(y_to_lat(world_pos.y));
     let h_receiver_norm = height_adjusted / CLOUD_SHADOW_AABB_MAX.z + SHADOW_BIAS;
@@ -124,114 +122,79 @@ fn get_cloud_shadow_occlusion(world_pos: vec3f) -> f32 {
     return 1.0 - shadow_factor;
 }
 
-@fragment
-fn fragmentMain(vertex_out: VertexOut) -> @location(0) vec4f {
-    let tci: vec2<u32> = vec2u(vertex_out.texcoords * camera.viewport_size);
+@compute @workgroup_size(16, 16, 1)
+fn computeMain(@builtin(global_invocation_id) gid: vec3u) {
+    let dims = textureDimensions(output_color);
+    if gid.x >= dims.x || gid.y >= dims.y { return; }
+    let tci = gid.xy;
 
     var albedo: vec3f = unpack4x8unorm(textureLoad(albedo_texture, tci, 0).r).xyz;
     let pos_dist = textureLoad(position_texture, tci, 0);
     let encoded_normal = textureLoad(normal_texture, tci, 0).xy;
 
     let pos_cws = pos_dist.xyz;
-    let dist = length(pos_cws); //pos_dist.w
-    let tile_dist = pos_dist.w;
+    let dist = length(pos_cws);
+    //let dist = pos_dist.w;
 
     let normal = octNormalDecode2u16(encoded_normal);
+    let shading_normal = curvature_corrected_normal(normal, pos_cws.xy, conf.planet_radius_m);
 
     var amb_occlusion = 1.0;
-    /* TODO : Implement ambient occlusion
-    if (bool(conf.ssao_enabled))
-    {
-        amb_occlusion = texture(texin_ssao, texcoords).r;
-    }*/
-
-    let sampled_shadow_layer: i32 = -1;
 
     let origin = camera.position.xyz;
     let pos_ws = pos_cws + origin;
 
     var out_Color = vec4f(0.0);
-    let atmospheric_color = textureLoad(atmosphere_texture, vec2u(0, tci.y), 0).rgb;
 
     var cloud_shadow = 0.0;
     if bool(conf.clouds_enabled) {
         //must be called from uniform control flow :(
         let cloud_shadow_raw = get_cloud_shadow_occlusion(pos_ws);
-
-        //Make it softer
         cloud_shadow = cloud_shadow_raw * cloud_shadow_raw * cloud_shadow_raw * cloud_shadow_raw;
     }
 
-    //Don't do shading if not visible anyway and also don't for pixels where there is no geometry (depth==0.0)
     if dist > 0.0 {
-        let ray_direction = pos_cws / dist;
-        var material_light_response = conf.material_light_response;
-
         //Apply material color by blending with albedo
         albedo = mix(albedo, conf.material_color.rgb, conf.material_color.a);
 
         var shadow_term = cloud_shadow;
         amb_occlusion *= 1.0 - cloud_shadow * 0.3;
 
-        /*TODO : implement shadow
-        if (bool(conf.csm_enabled))
-        {
-            shadow_term = csm_shadow_term(vec4(pos_cws, 1.0), normal, sampled_shadow_layer);
-        }*/
-
         //Pre-shading overlay renderer output (applied to albedo before lighting)
         let pre_overlay_color = textureLoad(overlay_renderer_pre_texture, tci, 0);
         albedo = albedo * (1.0 - pre_overlay_color.a) + pre_overlay_color.rgb;
 
+        // Atmosphere-derived sun light
+        var effective_sun_light = vec4f(0.0);
+        if bool(conf.sky_enabled) {
+            let bottom_radius = conf.planet_radius_m * 0.001;
+
+            let view_height = bottom_radius + max(pos_ws.z * 0.001, 0.0);
+            let rho = sqrt(max(0.0, view_height * view_height - bottom_radius * bottom_radius));
+            let cos_zenith_sun = dot(-normalize(conf.sun_light_dir.xyz), vec3f(0.0, 0.0, 1.0));
+            // Lets check if the sun is above the horizon for this point
+            if cos_zenith_sun > -rho / view_height {
+                let transmittance_uv = transmittance_lut_params_to_uv(bottom_radius, bottom_radius + conf.atmosphere_height_m * 0.001, view_height, cos_zenith_sun);
+                let atm_transmittance = textureSampleLevel(transmittance_lut, transmittance_sampler, transmittance_uv, 0).rgb;
+                effective_sun_light = vec4f(atm_transmittance * conf.sun_light.a, 1.0);
+            }
+        } else {
+            effective_sun_light = conf.sun_light * conf.sun_light.a * 5.0;
+        }
+
         var shaded_color = albedo;
         if bool(conf.shading_enabled) {
-            shaded_color = calculate_illumination(shaded_color, origin, pos_ws, normal, conf.sun_light, conf.amb_light, conf.sun_light_dir.xyz, material_light_response, amb_occlusion, shadow_term);
-        }
-        if bool(conf.atmosphere_enabled) {
-            shaded_color = calculate_atmospheric_light(origin / 1000.0, ray_direction, dist / 1000.0, shaded_color, 10);
+            shaded_color = calculate_illumination(shaded_color, origin, pos_ws, shading_normal, effective_sun_light, conf.amb_light, conf.sun_light_dir.xyz, conf.material_light_response, amb_occlusion, shadow_term);
         }
         shaded_color = max(vec3(0.0), shaded_color);
-        if dist > 0 && bool(conf.atmosphere_enabled) {
-            let atmosphere_blend = calculate_falloff(dist, 300000.0, 600000.0);
-            shaded_color = mix(atmospheric_color, shaded_color, atmosphere_blend);
-        }
         out_Color = vec4(shaded_color, 1.0);
     } else {
-        if bool(conf.atmosphere_enabled) {
-            out_Color = vec4(atmospheric_color, 1.0);
-        } else {
-            out_Color = vec4(1.0);
-        }
+        out_Color = vec4(0.0, 0.0, 0.0, 1.0);
     }
 
     //Post-shading overlay renderer output
     let post_overlay_color = textureLoad(overlay_renderer_post_texture, tci, 0);
     out_Color = vec4f(out_Color.rgb * (1.0 - post_overlay_color.a) + post_overlay_color.rgb, out_Color.a);
 
-    //Clouds
-    if bool(conf.clouds_enabled) {
-        let clouds_color = textureLoad(clouds_texture, tci, 0);
-        let clouds_depth = textureLoad(clouds_depth_texture, tci / 2).x;
-
-        //convert transmittance to alpha
-        let raw_alpha = 1.0 - clouds_color.a;
-        let safe_alpha = max(raw_alpha, 0.00001);
-        let straight_rgb = clouds_color.rgb / safe_alpha;
-        var tonemapped_rgb = straight_rgb / (straight_rgb + 1.0);
-
-        //atmosphere
-        if clouds_depth > 0.0 && bool(conf.atmosphere_enabled) {
-            let atmosphere_blend = calculate_falloff(clouds_depth, 300000.0, 600000.0);
-            tonemapped_rgb = mix(atmospheric_color, tonemapped_rgb, atmosphere_blend);
-        }
-
-        var blend_alpha = raw_alpha;
-
-        out_Color = vec4(
-            out_Color.rgb * (1.0 - blend_alpha) + tonemapped_rgb * blend_alpha,
-            1.0 - (1.0 - out_Color.a) * (1.0 - blend_alpha)
-        );
-    }
-
-    return out_Color;
+    textureStore(output_color, gid.xy, out_Color);
 }

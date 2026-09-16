@@ -16,25 +16,33 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#include "AtmospherePanel.h"
+#pragma once
 
-#include "ImGuiManager.h"
-#include <IconsFontAwesome5.h>
+#include "ui/ImGuiPanel.h"
 
-#include <webgpu/engine/Context.h>
+namespace webgpu_engine {
+class Context;
+namespace sky {
+    class SkyRenderer;
+}
+} // namespace webgpu_engine
 
 namespace webgpu_app {
 
-AtmospherePanel::AtmospherePanel(webgpu_engine::Context* context)
-    : m_context(context)
-{
-}
+/**
+ * GUI for the LUT-based sky renderer: a floating toggle to switch between the legacy gradient
+ * atmosphere and the LUT sky (for performance comparison) plus live atmosphere parameter controls.
+ */
+class SkyPanel : public ImGuiPanel {
+public:
+    SkyPanel(webgpu_engine::Context* context, webgpu_engine::sky::SkyRenderer* sky_renderer);
 
-void AtmospherePanel::draw()
-{
-    auto& cfg = m_context->shared_config();
-    if (ImGuiManager::FloatingToggleButton("ToggleAtmosphereButton", ICON_FA_GLOBE, "Atmosphere", &cfg.m_atmosphere_enabled))
-        m_context->request_redraw();
-}
+    void draw() override;
+    void draw_panel() override;
+
+private:
+    webgpu_engine::Context* m_context;
+    webgpu_engine::sky::SkyRenderer* m_sky_renderer;
+};
 
 } // namespace webgpu_app

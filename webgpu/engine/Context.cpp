@@ -69,73 +69,54 @@ void Context::internal_initialise()
     reg.register_bind_group_layout("compose", [](WGPUDevice device) {
         WGPUBindGroupLayoutEntry albedo_entry {};
         albedo_entry.binding = 0;
-        albedo_entry.visibility = WGPUShaderStage_Fragment;
+        albedo_entry.visibility = WGPUShaderStage_Compute;
         albedo_entry.texture.sampleType = WGPUTextureSampleType_Uint;
         albedo_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry position_entry {};
         position_entry.binding = 1;
-        position_entry.visibility = WGPUShaderStage_Fragment;
+        position_entry.visibility = WGPUShaderStage_Compute;
         position_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
         position_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry normal_entry {};
         normal_entry.binding = 2;
-        normal_entry.visibility = WGPUShaderStage_Fragment;
+        normal_entry.visibility = WGPUShaderStage_Compute;
         normal_entry.texture.sampleType = WGPUTextureSampleType_Uint;
         normal_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
-        WGPUBindGroupLayoutEntry atmosphere_entry {};
-        atmosphere_entry.binding = 3;
-        atmosphere_entry.visibility = WGPUShaderStage_Fragment;
-        atmosphere_entry.texture.sampleType = WGPUTextureSampleType_Float;
-        atmosphere_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
-
         WGPUBindGroupLayoutEntry overlay_entry {};
-        overlay_entry.binding = 4;
-        overlay_entry.visibility = WGPUShaderStage_Fragment;
+        overlay_entry.binding = 3;
+        overlay_entry.visibility = WGPUShaderStage_Compute;
         overlay_entry.texture.sampleType = WGPUTextureSampleType_Uint;
         overlay_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
-        WGPUBindGroupLayoutEntry clouds_texture_entry {};
-        clouds_texture_entry.binding = 5;
-        clouds_texture_entry.visibility = WGPUShaderStage_Fragment;
-        clouds_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
-        clouds_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
-
-        WGPUBindGroupLayoutEntry clouds_depth_entry {};
-        clouds_depth_entry.binding = 6;
-        clouds_depth_entry.visibility = WGPUShaderStage_Fragment;
-        clouds_depth_entry.storageTexture.access = WGPUStorageTextureAccess_ReadOnly;
-        clouds_depth_entry.storageTexture.format = WGPUTextureFormat_R32Float;
-        clouds_depth_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
-
         WGPUBindGroupLayoutEntry shadow_texture_entry {};
-        shadow_texture_entry.binding = 7;
-        shadow_texture_entry.visibility = WGPUShaderStage_Fragment;
+        shadow_texture_entry.binding = 4;
+        shadow_texture_entry.visibility = WGPUShaderStage_Compute;
         shadow_texture_entry.texture.sampleType = WGPUTextureSampleType_Float;
         shadow_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry shadow_sampler_entry {};
-        shadow_sampler_entry.binding = 8;
-        shadow_sampler_entry.visibility = WGPUShaderStage_Fragment;
+        shadow_sampler_entry.binding = 5;
+        shadow_sampler_entry.visibility = WGPUShaderStage_Compute;
         shadow_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
 
         WGPUBindGroupLayoutEntry depth_texture_entry {};
-        depth_texture_entry.binding = 9;
-        depth_texture_entry.visibility = WGPUShaderStage_Fragment;
+        depth_texture_entry.binding = 6;
+        depth_texture_entry.visibility = WGPUShaderStage_Compute;
         depth_texture_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
         depth_texture_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry overlay_renderer_post_entry {};
-        overlay_renderer_post_entry.binding = 10;
-        overlay_renderer_post_entry.visibility = WGPUShaderStage_Fragment;
+        overlay_renderer_post_entry.binding = 7;
+        overlay_renderer_post_entry.visibility = WGPUShaderStage_Compute;
         overlay_renderer_post_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
         overlay_renderer_post_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         WGPUBindGroupLayoutEntry overlay_renderer_pre_entry {};
-        overlay_renderer_pre_entry.binding = 11;
-        overlay_renderer_pre_entry.visibility = WGPUShaderStage_Fragment;
+        overlay_renderer_pre_entry.binding = 8;
+        overlay_renderer_pre_entry.visibility = WGPUShaderStage_Compute;
         overlay_renderer_pre_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
         overlay_renderer_pre_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
@@ -144,10 +125,7 @@ void Context::internal_initialise()
                 albedo_entry,
                 position_entry,
                 normal_entry,
-                atmosphere_entry,
                 overlay_entry,
-                clouds_texture_entry,
-                clouds_depth_entry,
                 shadow_texture_entry,
                 shadow_sampler_entry,
                 depth_texture_entry,
@@ -157,10 +135,67 @@ void Context::internal_initialise()
             "compose bind group layout");
     });
 
+    reg.register_bind_group_layout("compose_output", [](WGPUDevice device) {
+        WGPUBindGroupLayoutEntry output_entry {};
+        output_entry.binding = 0;
+        output_entry.visibility = WGPUShaderStage_Compute;
+        output_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
+        output_entry.storageTexture.format = WGPUTextureFormat_RGBA16Float;
+        output_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+
+        WGPUBindGroupLayoutEntry transmittance_lut_entry {};
+        transmittance_lut_entry.binding = 1;
+        transmittance_lut_entry.visibility = WGPUShaderStage_Compute;
+        transmittance_lut_entry.texture.sampleType = WGPUTextureSampleType_Float;
+        transmittance_lut_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+        WGPUBindGroupLayoutEntry transmittance_sampler_entry {};
+        transmittance_sampler_entry.binding = 2;
+        transmittance_sampler_entry.visibility = WGPUShaderStage_Compute;
+        transmittance_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
+
+        return std::make_unique<webgpu::raii::BindGroupLayout>(device,
+            std::vector<WGPUBindGroupLayoutEntry> { output_entry, transmittance_lut_entry, transmittance_sampler_entry },
+            "compose output bind group layout");
+    });
+
+    reg.register_bind_group_layout("present", [](WGPUDevice device) {
+        WGPUBindGroupLayoutEntry source_entry {};
+        source_entry.binding = 0;
+        source_entry.visibility = WGPUShaderStage_Fragment;
+        source_entry.texture.sampleType = WGPUTextureSampleType_Float;
+        source_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+        return std::make_unique<webgpu::raii::BindGroupLayout>(device, std::vector<WGPUBindGroupLayoutEntry> { source_entry }, "present bind group layout");
+    });
+
+    reg.register_bind_group_layout("cloud_composite", [](WGPUDevice device) {
+        WGPUBindGroupLayoutEntry sky_entry {};
+        sky_entry.binding = 0;
+        sky_entry.visibility = WGPUShaderStage_Compute;
+        sky_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
+        sky_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+        WGPUBindGroupLayoutEntry cloud_entry {};
+        cloud_entry.binding = 1;
+        cloud_entry.visibility = WGPUShaderStage_Compute;
+        cloud_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
+        cloud_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+
+        WGPUBindGroupLayoutEntry out_entry {};
+        out_entry.binding = 2;
+        out_entry.visibility = WGPUShaderStage_Compute;
+        out_entry.storageTexture.access = WGPUStorageTextureAccess_WriteOnly;
+        out_entry.storageTexture.format = WGPUTextureFormat_RGBA16Float;
+        out_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
+
+        return std::make_unique<webgpu::raii::BindGroupLayout>(
+            device, std::vector<WGPUBindGroupLayoutEntry> { sky_entry, cloud_entry, out_entry }, "cloud composite bind group layout");
+    });
+
     if (m_tile_mesh_renderer)
         m_tile_mesh_renderer->init(webgpu_ctx());
-    if (m_atmosphere_renderer)
-        m_atmosphere_renderer->init(webgpu_ctx());
+    if (m_sky_renderer)
+        m_sky_renderer->init(webgpu_ctx());
     if (m_cloud_renderer)
         m_cloud_renderer->init(webgpu_ctx());
     if (m_overlay_renderer)
@@ -178,7 +213,7 @@ void Context::internal_destroy()
     m_track_renderer.reset();
     m_overlay_renderer.reset();
     m_cloud_renderer.reset();
-    m_atmosphere_renderer.reset();
+    m_sky_renderer.reset();
     m_tile_mesh_renderer.reset();
 }
 
@@ -198,12 +233,12 @@ void Context::set_cloud_renderer(std::shared_ptr<CloudRenderer> new_cloud_render
     m_cloud_renderer = std::move(new_cloud_renderer);
 }
 
-AtmosphereRenderer* Context::atmosphere_renderer() const { return m_atmosphere_renderer.get(); }
+sky::SkyRenderer* Context::sky_renderer() const { return m_sky_renderer.get(); }
 
-void Context::set_atmosphere_renderer(std::shared_ptr<AtmosphereRenderer> new_atmosphere_renderer)
+void Context::set_sky_renderer(std::shared_ptr<sky::SkyRenderer> new_sky_renderer)
 {
     assert(!is_alive()); // only set before init is called.
-    m_atmosphere_renderer = std::move(new_atmosphere_renderer);
+    m_sky_renderer = std::move(new_sky_renderer);
 }
 
 OverlayRenderer* Context::overlay_renderer() const { return m_overlay_renderer.get(); }

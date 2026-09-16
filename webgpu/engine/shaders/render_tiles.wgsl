@@ -25,6 +25,7 @@
 ///use webgpu::tile_util
 ///use webgpu::normals_util
 ///use webgpu::filtering
+///use webgpu::position_util
 
 @group(0) @binding(0) var<uniform> config: shared_config;
 
@@ -183,7 +184,9 @@ fn vertexMain(@builtin(vertex_index) vertex_index: u32, vertex_in: VertexIn) -> 
     compute_vertex(i32(vertex_index), render_tile_id, vertex_in.bounds, u32(vertex_in.height_zoomlevel), vertex_in.height_texture_layer,
         &position, &uv, &height_tile_id, true, &normal);
 
-    let clip_pos: vec4f = camera.view_proj_matrix * vec4f(position, 1.0);
+    // Curvature is applied to the clip position only; pos_cws below keeps the true (web mercator) position.
+    let curved = apply_earth_curvature(position, config.planet_radius_m);
+    let clip_pos: vec4f = camera.view_proj_matrix * vec4f(curved, 1.0);
 
     var vertex_out: VertexOut;
     vertex_out.position = clip_pos;

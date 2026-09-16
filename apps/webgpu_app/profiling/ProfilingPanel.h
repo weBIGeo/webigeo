@@ -27,10 +27,11 @@ class App;
 class ProfilingPanel : public ImGuiPanel {
 public:
     explicit ProfilingPanel(App* app);
-    void draw_panel() override;
+    void draw() override;
 
 private:
     App* m_app;
+    bool m_visible = false;
 };
 
 } // namespace webgpu_app

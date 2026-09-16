@@ -1,6 +1,7 @@
 /*****************************************************************************
  * weBIGeo
  * Copyright (C) 2026 Gerald Kimmersdorfer
+ * Copyright (C) 2024 Lukas Herzberger
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,23 +17,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-#pragma once
+/*
+ * Copyright (c) 2024 Lukas Herzberger
+ * SPDX-License-Identifier: MIT
+ */
 
-#include "ui/ImGuiPanel.h"
+// Default (no-op) shadow implementation: nothing is in shadow.
+// Mirrors the upstream port's make_shadow_shader_code("") path.
+fn get_shadow(p: vec3<f32>, i: u32) -> f32 { return 1.0; }
 
-namespace webgpu_engine {
-class Context;
-}
-
-namespace webgpu_app {
-
-class AtmospherePanel : public ImGuiPanel {
-public:
-    explicit AtmospherePanel(webgpu_engine::Context* context);
-    void draw() override;
-
-private:
-    webgpu_engine::Context* m_context;
-};
-
-} // namespace webgpu_app
+///use webgpu_engine::sky/common/shadow_base

@@ -21,6 +21,7 @@
 
 #include "ImGuiManager.h"
 #include <IconsFontAwesome5.h>
+#include <glm/trigonometric.hpp>
 #include <imgui.h>
 
 #include "cloud/CloudsManager.h"
@@ -45,93 +46,110 @@ void CloudPanel::draw()
 
 void CloudPanel::draw_panel()
 {
-    if (!m_context->shared_config().m_clouds_enabled)
+    const bool enabled = m_context->shared_config().m_clouds_enabled;
+
+    if (!enabled) {
+        ImGui::SetNextItemOpen(false);
+        ImGui::BeginDisabled();
+    }
+    bool header_open = ImGui::CollapsingHeader(ICON_FA_CLOUD "  Clouds");
+    if (!enabled)
+        ImGui::EndDisabled();
+
+    if (!header_open)
         return;
 
     const auto& tilesets = m_clouds_manager->get_tilesets();
     auto selected_slot = m_clouds_manager->selected_time_slot();
 
-    if (ImGui::CollapsingHeader(ICON_FA_CLOUD "  Clouds")) {
+    ImGui::SeparatorText("Data");
 
-        ImGui::SeparatorText("Data");
-
-        if (tilesets.empty()) {
-            if (m_clouds_manager->is_loading()) {
-                ImGui::Text("Loading cloud data...");
-            } else {
-                ImGui::Text("No cloud data available.");
-                ImGui::SameLine();
-                if (ImGui::Button(ICON_FA_SYNC "##reload_clouds")) {
-                    m_clouds_manager->refresh_tileset_list();
-                }
-            }
+    if (tilesets.empty()) {
+        if (m_clouds_manager->is_loading()) {
+            ImGui::Text("Loading cloud data...");
         } else {
-            std::string preview_str = "Select time";
-            if (!selected_slot.id.isEmpty()) {
-                preview_str = selected_slot.format_string();
-            }
-            if (ImGui::BeginCombo("(UTC)", preview_str.c_str())) {
-                for (int n = 0; n < (int)tilesets.size(); n++) {
-                    const auto& slot = tilesets[n];
-                    ImGui::PushID(slot.id.toStdString().c_str());
-                    const bool is_selected = slot.id == selected_slot.id;
-                    std::string label = slot.format_string();
-                    if (ImGui::Selectable(label.c_str(), is_selected)) {
-                        m_clouds_manager->select_time_slot(tilesets[n]);
-                        emit tileset_manually_selected();
-                    }
-                    if (is_selected)
-                        ImGui::SetItemDefaultFocus();
-                    ImGui::PopID();
-                }
-                ImGui::EndCombo();
-            }
-
+            ImGui::Text("No cloud data available.");
             ImGui::SameLine();
-            const bool loading = m_clouds_manager->is_loading();
-            if (loading)
-                ImGui::BeginDisabled();
             if (ImGui::Button(ICON_FA_SYNC "##reload_clouds")) {
                 m_clouds_manager->refresh_tileset_list();
             }
-            if (loading)
-                ImGui::EndDisabled();
+        }
+    } else {
+        std::string preview_str = "Select time";
+        if (!selected_slot.id.isEmpty()) {
+            preview_str = selected_slot.format_string();
+        }
+        if (ImGui::BeginCombo("(UTC)", preview_str.c_str())) {
+            for (int n = 0; n < (int)tilesets.size(); n++) {
+                const auto& slot = tilesets[n];
+                ImGui::PushID(slot.id.toStdString().c_str());
+                const bool is_selected = slot.id == selected_slot.id;
+                std::string label = slot.format_string();
+                if (ImGui::Selectable(label.c_str(), is_selected)) {
+                    m_clouds_manager->select_time_slot(tilesets[n]);
+                    emit tileset_manually_selected();
+                }
+                if (is_selected)
+                    ImGui::SetItemDefaultFocus();
+                ImGui::PopID();
+            }
+            ImGui::EndCombo();
         }
 
-        ImGui::SeparatorText("Shading");
-        auto& shader_params = m_cloud_renderer->shader_params;
-        ImGui::Text("Step Size");
-        ImGui::Indent();
-        ImGui::DragFloat("Minimum", &shader_params.step_size_min, 1.0f, 0.0f, 10000.0f);
-        float inv_dist_fact = 1.0f / shader_params.step_size_distance_factor;
-        if (ImGui::DragFloat("Distance Factor", &inv_dist_fact, 1.0f, 0.0f, 10000.0f)) {
-            shader_params.step_size_distance_factor = 1.0f / inv_dist_fact;
+        ImGui::SameLine();
+        const bool loading = m_clouds_manager->is_loading();
+        if (loading)
+            ImGui::BeginDisabled();
+        if (ImGui::Button(ICON_FA_SYNC "##reload_clouds")) {
+            m_clouds_manager->refresh_tileset_list();
         }
-        ImGui::DragFloat("Horizon Factor", &shader_params.step_size_horizon_factor, 1.0f, 0.0f, 10000.0f);
-        ImGui::Unindent();
-        ImGui::Text("Scattering");
-        ImGui::Indent();
-        ImGui::SliderFloat("Scattering Coeff", &shader_params.scattering_coeff, -1.0f, 1.0f);
-        ImGui::SliderFloat("Extinction Coeff", &shader_params.extinction_coeff, 0.0f, 1.0f, "%.5f");
-        ImGui::SliderFloat("Albedo", &shader_params.albedo, 0.0f, 1.0f);
-        ImGui::Unindent();
-        ImGui::Text("Lighting");
-        ImGui::Indent();
-        ImGui::DragFloat("Sun Light Scale", &shader_params.sun_light_scale, 1.0f, 0.0f, 10000.0f);
-        ImGui::DragFloat("Ambient Light Scale", &shader_params.ambient_light_scale, 0.01f, 0.0f, 10000.0f);
-        ImGui::DragFloat("Atmospheric Light Scale", &shader_params.atmospheric_light_scale, 0.01f, 0.0f, 10000.0f);
-        ImGui::DragFloat("Shadow Extinction Scale", &shader_params.shadow_extinction_scale, 0.01f, 0.0f, 10000.0f);
-        ImGui::SliderFloat("Powder Effect Scale", &shader_params.powder_scale, 0.0f, 1.0f);
-        ImGui::Unindent();
-        ImGui::Text("Visibility");
-        ImGui::Indent();
-        ImGui::SliderFloat("Fade", &shader_params.fade_factor, 0.001f, 1.0f);
-        ImGui::Unindent();
-        ImGui::Text("Accumulation");
-        ImGui::Indent();
-        ImGui::SliderInt("Stable Frames Limit", &shader_params.stable_frames_limit, 1, 256);
-        ImGui::Unindent();
+        if (loading)
+            ImGui::EndDisabled();
     }
+
+    ImGui::SeparatorText("Shading");
+    auto& shader_params = m_cloud_renderer->shader_params;
+    bool changed = false;
+    ImGui::Text("Step Size");
+    ImGui::Indent();
+    changed |= ImGui::DragFloat("Minimum", &shader_params.step_size_min, 1.0f, 0.0f, 10000.0f);
+    float inv_dist_fact = 1.0f / shader_params.step_size_distance_factor;
+    if (ImGui::DragFloat("Distance Factor", &inv_dist_fact, 1.0f, 0.0f, 10000.0f)) {
+        shader_params.step_size_distance_factor = 1.0f / inv_dist_fact;
+        changed = true;
+    }
+    changed |= ImGui::DragFloat("Horizon Factor", &shader_params.step_size_horizon_factor, 1.0f, 0.0f, 10000.0f);
+    ImGui::Unindent();
+    ImGui::Text("Scattering");
+    ImGui::Indent();
+    changed |= ImGui::SliderFloat("Scattering Coeff", &shader_params.scattering_coeff, -1.0f, 1.0f);
+    changed |= ImGui::SliderFloat("Extinction Coeff", &shader_params.extinction_coeff, 0.0f, 1.0f, "%.5f");
+    changed |= ImGui::SliderFloat("Albedo", &shader_params.albedo, 0.0f, 1.0f);
+    ImGui::Unindent();
+    ImGui::Text("Lighting");
+    ImGui::Indent();
+    changed |= ImGui::DragFloat("Sun Light Scale", &shader_params.sun_light_scale, 1.0f, 0.0f, 10000.0f);
+    changed |= ImGui::DragFloat("Ambient Light Scale", &shader_params.ambient_light_scale, 0.01f, 0.0f, 10000.0f);
+    changed |= ImGui::DragFloat("Shadow Extinction Scale", &shader_params.shadow_extinction_scale, 0.01f, 0.0f, 10000.0f);
+    changed |= ImGui::SliderFloat("Powder Effect Scale", &shader_params.powder_scale, 0.0f, 1.0f);
+    {
+        float deg = glm::degrees(glm::asin(glm::clamp(shader_params.horizon_softness, 0.0f, 1.0f)));
+        if (ImGui::SliderFloat("Horizon Softness", &deg, 0.0f, 15.0f, "%.1f deg")) {
+            shader_params.horizon_softness = glm::sin(glm::radians(deg));
+            changed = true;
+        }
+    }
+    ImGui::Unindent();
+    ImGui::Text("Visibility");
+    ImGui::Indent();
+    changed |= ImGui::SliderFloat("Fade", &shader_params.fade_factor, 0.001f, 1.0f);
+    ImGui::Unindent();
+    ImGui::Text("Accumulation");
+    ImGui::Indent();
+    changed |= ImGui::SliderInt("Stable Frames Limit", &shader_params.stable_frames_limit, 1, 256);
+    ImGui::Unindent();
+    if (changed)
+        m_context->request_redraw();
 }
 
 } // namespace webgpu_app
