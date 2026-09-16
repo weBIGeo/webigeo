@@ -654,5 +654,7 @@ fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
 ///endif
 
     textureStore(output_color, pixel_coord, vec4f(acc.radiance, acc.transmittance));
+    //textureStore(output_color, pixel_coord, vec4f(vec3f(clamp(apparent_depth / t_far, 0.0, 1.0)), 1.0));
+    //textureStore(output_color, pixel_coord, vec4f(1.0, 0.0, 0.0, 1.0));
     textureStore(output_depth, pixel_coord, vec4f(apparent_depth, 0.0, 0.0, 0.0));
 }

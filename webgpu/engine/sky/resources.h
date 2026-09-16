@@ -176,7 +176,7 @@ private:
     /**
      * The multiple scattering look up table.
      * Stores multiple scattering contribution.
-     *      * Paramterized by the sun / zenith angle in x (range: [π, 0]) and the altitude in y (range: [0, top], where top is the height of the
+     *      * Paramterized by the sun / zenith angle in x (range: [pi, 0]) and the altitude in y (range: [0, top], where top is the height of the
      * atmosphere).
      */
     std::unique_ptr<util::LookUpTable> m_multi_scattering_lut;
@@ -184,7 +184,7 @@ private:
     /**
      * The sky view look up table.
      * Stores the distant sky around the camera with respect to it's altitude within the atmosphere.
-     *      * Parameterized by the longitude in x (range: [0, 2π]) and latitude in y (range: [-π/2, π/2]).
+     *      * Parameterized by the longitude in x (range: [0, 2pi]) and latitude in y (range: [-pi/2, pi/2]).
      */
     std::unique_ptr<util::LookUpTable> m_sky_view_lut;
 

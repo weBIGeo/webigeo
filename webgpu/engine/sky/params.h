@@ -70,8 +70,8 @@ struct Mie {
      *
      * For Cornette-Shanks, this is the excentricity, i.e., the asymmetry paraemter of the phase function in range ]-1, 1[.
      *
-     * For Henyey-Greenstein + Draine, this is the droplet diameter in µm. This should be in range ]2, 20[
-     * (according to the paper, the lower bound for plausible fog particle sizes is 5 µm). For Henyey-Greenstein + Draine using a constant droplet diameter,
+     * For Henyey-Greenstein + Draine, this is the droplet diameter in um. This should be in range ]2, 20[
+     * (according to the paper, the lower bound for plausible fog particle sizes is 5 um). For Henyey-Greenstein + Draine using a constant droplet diameter,
      * this parameter has no effect.
      */
     float phaseParam;

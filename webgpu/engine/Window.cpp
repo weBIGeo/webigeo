@@ -262,18 +262,6 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
     }
     sm.stop_gpu(SID_TILEMESH, command_encoder);
 
-    // render clouds
-    if (m_context->shared_config().m_clouds_enabled) {
-        auto* sky = m_context->sky_renderer();
-        sm.start_gpu(SID_CLOUDS, command_encoder);
-        m_context->cloud_renderer()->draw(
-            command_encoder, m_depth_texture_bind_group->handle(), m_shared_config_bind_group->handle(), m_camera, m_paint_number,
-            *sky->transmittance_lut_view(), *sky->transmittance_lut_sampler(),
-            *sky->aerial_perspective_lut_view(), *sky->sky_view_lut_view());
-        sm.stop_gpu(SID_CLOUDS, command_encoder);
-        m_needs_redraw |= m_context->cloud_renderer()->needs_redraw(); // Repaint for TAAU
-    }
-
     // render overlay textures (height lines, tile debug, etc.)
     {
         const bool has_overlays = !m_context->overlay_renderer()->overlays().empty();
@@ -322,6 +310,18 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
     if (sky_enabled) sm.start_gpu(SID_SKY, command_encoder);
     m_context->sky_renderer()->render(command_encoder);
     if (sky_enabled) sm.stop_gpu(SID_SKY, command_encoder);
+
+    // render clouds (after sky, so this frame's freshly rendered LUTs are sampled instead of last frame's)
+    if (clouds_enabled) {
+        auto* sky = m_context->sky_renderer();
+        sm.start_gpu(SID_CLOUDS, command_encoder);
+        m_context->cloud_renderer()->draw(
+            command_encoder, m_depth_texture_bind_group->handle(), m_shared_config_bind_group->handle(), m_camera, m_paint_number,
+            *sky->transmittance_lut_view(), *sky->transmittance_lut_sampler(),
+            *sky->aerial_perspective_lut_view(), *sky->sky_view_lut_view());
+        sm.stop_gpu(SID_CLOUDS, command_encoder);
+        m_needs_redraw |= m_context->cloud_renderer()->needs_redraw(); // Repaint for TAAU
+    }
 
     // Blend clouds on top of the background (sky render target when sky on, scene color when sky off)
     if (clouds_enabled && m_cloud_composite_pipeline) {
