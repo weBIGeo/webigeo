@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-// 5 µm ≤ 𝑑 ≤ 50 µm
+// 5 um <= d <= 50 um
 override HG_DRAINE_G_HG = exp(-(0.0990567 / (HG_DRAINE_DROPLET_DIAMETER - 1.67154)));
 override HG_DRAINE_G_D = exp(-(2.20679 / (HG_DRAINE_DROPLET_DIAMETER + 3.91029)) - 0.428934);
 override HG_DRAINE_ALPHA = exp(3.62489 - (8.29288 / (HG_DRAINE_DROPLET_DIAMETER + 5.52825)));

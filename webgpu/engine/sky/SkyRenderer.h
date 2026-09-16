@@ -55,17 +55,21 @@ namespace webgpu_engine::sky {
 class SkyRenderer {
 public:
     enum class Mode {
-        Lut,        // Sky color comes purely from the precomputed sky-view LUT, no per-pixel ray marching.
-        RayMarch,   // Every pixel is fully ray-marched through the atmosphere, including the distant sky.
-        Hybrid,     // Per-pixel ray march near the camera/terrain, falls back to the LUT for the distant sky.
-        Auto        // Uses LUT for low altitudes and Hybrid for High ones, blends in between a certain band
+        Lut, // Sky color comes purely from the precomputed sky-view LUT, no per-pixel ray marching.
+        RayMarch, // Every pixel is fully ray-marched through the atmosphere, including the distant sky.
+        Hybrid, // Per-pixel ray march near the camera/terrain, falls back to the LUT for the distant sky.
+        Auto // Uses LUT for low altitudes and Hybrid for High ones, blends in between a certain band
     };
 
     void init(webgpu::Context& context);
 
     /// (Re)creates the render target + compute renderer for the given viewport size.
-    void resize(uint32_t width, uint32_t height, const webgpu::raii::Texture& depth_texture, const webgpu::raii::TextureView& depth_view,
-        const webgpu::raii::Texture& back_buffer_texture, const webgpu::raii::TextureView& back_buffer_view);
+    void resize(uint32_t width,
+        uint32_t height,
+        const webgpu::raii::Texture& depth_texture,
+        const webgpu::raii::TextureView& depth_view,
+        const webgpu::raii::Texture& back_buffer_texture,
+        const webgpu::raii::TextureView& back_buffer_view);
 
     /// Updates the per-frame uniforms (camera, sun direction, radius/height/sky-enabled) from shared_config,
     /// and writes the resolved planet center (derived from radius + camera position)

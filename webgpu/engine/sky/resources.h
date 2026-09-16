@@ -29,8 +29,8 @@
 #include "params.h"
 #include "uniforms.h"
 #include "util.h"
-#include <webgpu/base/Buffer.h>
 #include <memory>
+#include <webgpu/base/Buffer.h>
 #include <webgpu/webgpu.h>
 
 namespace webgpu_engine::sky::resources {

@@ -66,8 +66,12 @@ void SkyRenderer::init(webgpu::Context& context)
     m_atmosphere.center = { 0.0f, 0.0f, -m_atmosphere.bottomRadius };
 }
 
-void SkyRenderer::resize(uint32_t width, uint32_t height, const webgpu::raii::Texture& depth_texture, const webgpu::raii::TextureView& depth_view,
-    const webgpu::raii::Texture& back_buffer_texture, const webgpu::raii::TextureView& back_buffer_view)
+void SkyRenderer::resize(uint32_t width,
+    uint32_t height,
+    const webgpu::raii::Texture& depth_texture,
+    const webgpu::raii::TextureView& depth_view,
+    const webgpu::raii::Texture& back_buffer_texture,
+    const webgpu::raii::TextureView& back_buffer_view)
 {
     assert(m_device != nullptr && m_registry != nullptr); // init() must have run
 
@@ -210,8 +214,8 @@ void SkyRenderer::rebuild_blend_pipeline()
         out_entry.storageTexture.format = WGPUTextureFormat_RGBA16Float;
         out_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
 
-        m_blend_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(m_device,
-            std::vector<WGPUBindGroupLayoutEntry> { factor_entry, tex_a_entry, tex_b_entry, out_entry }, "sky auto blend bind group layout");
+        m_blend_bind_group_layout = std::make_unique<webgpu::raii::BindGroupLayout>(
+            m_device, std::vector<WGPUBindGroupLayoutEntry> { factor_entry, tex_a_entry, tex_b_entry, out_entry }, "sky auto blend bind group layout");
         m_blend_pipeline_layout = std::make_unique<webgpu::raii::PipelineLayout>(
             m_device, std::vector<WGPUBindGroupLayout> { m_blend_bind_group_layout->handle() }, "sky auto blend pipeline layout");
 
@@ -226,7 +230,8 @@ void SkyRenderer::rebuild_blend_pipeline()
     }
 
     // tex_a = lut (factor 0 -> pure lut), tex_b = hybrid (factor 1 -> pure hybrid).
-    m_blend_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device, m_blend_bind_group_layout->handle(),
+    m_blend_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_device,
+        m_blend_bind_group_layout->handle(),
         std::vector<WGPUBindGroupEntry> {
             m_blend_factor_buffer->raw_buffer().create_bind_group_entry(0),
             m_auto_lut_target_view->create_bind_group_entry(1),

@@ -154,8 +154,7 @@ void Context::internal_initialise()
         transmittance_sampler_entry.visibility = WGPUShaderStage_Compute;
         transmittance_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
 
-        return std::make_unique<webgpu::raii::BindGroupLayout>(
-            device,
+        return std::make_unique<webgpu::raii::BindGroupLayout>(device,
             std::vector<WGPUBindGroupLayoutEntry> { output_entry, transmittance_lut_entry, transmittance_sampler_entry },
             "compose output bind group layout");
     });
@@ -189,9 +188,8 @@ void Context::internal_initialise()
         out_entry.storageTexture.format = WGPUTextureFormat_RGBA16Float;
         out_entry.storageTexture.viewDimension = WGPUTextureViewDimension_2D;
 
-        return std::make_unique<webgpu::raii::BindGroupLayout>(device,
-            std::vector<WGPUBindGroupLayoutEntry> { sky_entry, cloud_entry, out_entry },
-            "cloud composite bind group layout");
+        return std::make_unique<webgpu::raii::BindGroupLayout>(
+            device, std::vector<WGPUBindGroupLayoutEntry> { sky_entry, cloud_entry, out_entry }, "cloud composite bind group layout");
     });
 
     if (m_tile_mesh_renderer)

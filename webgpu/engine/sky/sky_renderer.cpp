@@ -34,8 +34,11 @@ namespace {
 } // namespace
 
 SkyWithLutsComputeRenderer::SkyWithLutsComputeRenderer(std::unique_ptr<lut::SkyAtmosphereLutRenderer> lut_renderer,
-    std::unique_ptr<webgpu::raii::BindGroupLayout> bind_group_layout, std::unique_ptr<webgpu::raii::PipelineLayout> pipeline_layout,
-    std::unique_ptr<webgpu::raii::ComputePipeline> pipeline, config::SkyAtmosphereRendererConfig config, SkyPassVariant variant)
+    std::unique_ptr<webgpu::raii::BindGroupLayout> bind_group_layout,
+    std::unique_ptr<webgpu::raii::PipelineLayout> pipeline_layout,
+    std::unique_ptr<webgpu::raii::ComputePipeline> pipeline,
+    config::SkyAtmosphereRendererConfig config,
+    SkyPassVariant variant)
     : m_lut_renderer(std::move(lut_renderer))
     , m_bind_group_layout(std::move(bind_group_layout))
     , m_pipeline_layout(std::move(pipeline_layout))
@@ -43,8 +46,8 @@ SkyWithLutsComputeRenderer::SkyWithLutsComputeRenderer(std::unique_ptr<lut::SkyA
     , m_variant { variant }
 {
     std::vector<std::unique_ptr<webgpu::raii::BindGroup>> bind_groups;
-    bind_groups.push_back(make_bind_group(
-        m_bind_group_layout->handle(), config.skyRenderer, m_lut_renderer->resources(), m_lut_renderer->uses_custom_uniforms(), variant));
+    bind_groups.push_back(
+        make_bind_group(m_bind_group_layout->handle(), config.skyRenderer, m_lut_renderer->resources(), m_lut_renderer->uses_custom_uniforms(), variant));
     // TODO custom uniforms
     // TODO shadows
 
@@ -140,7 +143,10 @@ std::vector<WGPUBindGroupLayoutEntry> SkyWithLutsComputeRenderer::make_external_
 }
 
 std::unique_ptr<webgpu::raii::BindGroup> SkyWithLutsComputeRenderer::make_bind_group(WGPUBindGroupLayout layout,
-    config::SkyRendererComputeConfig compute_config, resources::SkyAtmosphereResources& resources, bool use_custom_uniforms, SkyPassVariant variant)
+    config::SkyRendererComputeConfig compute_config,
+    resources::SkyAtmosphereResources& resources,
+    bool use_custom_uniforms,
+    SkyPassVariant variant)
 {
     std::vector<WGPUBindGroupEntry> bind_group_entries {
         resources.atmosphere_buffer().raw_buffer().create_bind_group_entry(0),
@@ -178,7 +184,7 @@ std::unique_ptr<webgpu::raii::BindGroup> SkyWithLutsComputeRenderer::make_bind_g
 
     const char* label = variant == SkyPassVariant::LutOnly ? "Render sky with LUTs bind group"
         : variant == SkyPassVariant::PureRayMarch          ? "Render sky (ray march) bind group"
-                                                             : "Render sky (hybrid ray march) bind group";
+                                                           : "Render sky (hybrid ray march) bind group";
     return std::make_unique<webgpu::raii::BindGroup>(resources.device(), layout, bind_group_entries, label);
 }
 
@@ -274,12 +280,16 @@ std::unique_ptr<webgpu::raii::BindGroupLayout> SkyWithLutsComputeRenderer::make_
 
     const char* label = variant == SkyPassVariant::LutOnly ? "Render sky with LUTs bind group layout"
         : variant == SkyPassVariant::PureRayMarch          ? "Render sky (ray march) bind group layout"
-                                                             : "Render sky (hybrid ray march) bind group layout";
+                                                           : "Render sky (hybrid ray march) bind group layout";
     return std::make_unique<webgpu::raii::BindGroupLayout>(device, entries, label);
 }
 
-std::unique_ptr<webgpu::raii::ComputePipeline> SkyWithLutsComputeRenderer::make_compute_pipeline(WGPUDevice device, config::SkyAtmosphereRendererConfig config,
-    WGPUPipelineLayout pipeline_layout, WGPUShaderModule shader_module, lut::SkyAtmosphereLutRenderer& lut_renderer, SkyPassVariant variant)
+std::unique_ptr<webgpu::raii::ComputePipeline> SkyWithLutsComputeRenderer::make_compute_pipeline(WGPUDevice device,
+    config::SkyAtmosphereRendererConfig config,
+    WGPUPipelineLayout pipeline_layout,
+    WGPUShaderModule shader_module,
+    lut::SkyAtmosphereLutRenderer& lut_renderer,
+    SkyPassVariant variant)
 {
     // Constants shared by all three shader variants.
     std::vector<WGPUConstantEntry> constants = {
@@ -375,7 +385,7 @@ std::unique_ptr<webgpu::raii::ComputePipeline> SkyWithLutsComputeRenderer::make_
     WGPUComputePipelineDescriptor descriptor {};
     descriptor.label = variant == SkyPassVariant::LutOnly ? sv("Render sky with LUTs pipeline")
         : variant == SkyPassVariant::PureRayMarch         ? sv("Render sky (ray march) pipeline")
-                                                            : sv("Render sky (hybrid ray march) pipeline");
+                                                          : sv("Render sky (hybrid ray march) pipeline");
     descriptor.layout = pipeline_layout;
     descriptor.compute = {};
     descriptor.compute.entryPoint = sv("render_sky_atmosphere");
@@ -404,16 +414,16 @@ std::unique_ptr<SkyWithLutsComputeRenderer> SkyWithLutsComputeRenderer::create(
         layouts.push_back(custom_bind_group_layout);
     }
     const char* pipeline_layout_label = variant == SkyPassVariant::LutOnly ? "Render sky with LUTs pipeline layout"
-        : variant == SkyPassVariant::PureRayMarch                         ? "Render sky (ray march) pipeline layout"
-                                                                            : "Render sky (hybrid ray march) pipeline layout";
+        : variant == SkyPassVariant::PureRayMarch                          ? "Render sky (ray march) pipeline layout"
+                                                                           : "Render sky (hybrid ray march) pipeline layout";
     auto pipeline_layout = std::make_unique<webgpu::raii::PipelineLayout>(device, layouts, pipeline_layout_label);
 
     const char* shader_name = variant == SkyPassVariant::LutOnly ? "sky_render_with_luts"
         : variant == SkyPassVariant::PureRayMarch                ? "sky_render_raymarching"
-                                                                   : "sky_render_luts_and_raymarch";
+                                                                 : "sky_render_luts_and_raymarch";
     const char* shader_path = variant == SkyPassVariant::LutOnly ? "webgpu_engine::sky/render_sky_with_luts"
         : variant == SkyPassVariant::PureRayMarch                ? "webgpu_engine::sky/render_sky_raymarching"
-                                                                   : "webgpu_engine::sky/render_sky_luts_and_raymarch";
+                                                                 : "webgpu_engine::sky/render_sky_luts_and_raymarch";
     registry.register_shader(shader_name, shader_path);
 
     auto pipeline = make_compute_pipeline(device, config, pipeline_layout->handle(), registry.shader(shader_name).handle(), *lut_renderer, variant);

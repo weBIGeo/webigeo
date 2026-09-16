@@ -117,7 +117,8 @@ double world_z_to_altitude(const glm::dvec3& world_pos)
     return world_pos.z / std::cosh(mercN);
 }
 
-glm::dvec3 world_to_lat_long_alt(const glm::dvec3& world_pos) {
+glm::dvec3 world_to_lat_long_alt(const glm::dvec3& world_pos)
+{
     auto lat_long = world_to_lat_long(world_pos);
     return { lat_long.x, lat_long.y, world_pos.z * cos(lat_long.x * pi / 180) };
 }

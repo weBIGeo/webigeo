@@ -31,7 +31,6 @@ namespace nucleus::srs {
 // This coordinate system is clamped at at 85 degrees north and south (https://epsg.io/3857),
 // so the tiles do not go until the poles.
 
-
 // for now it's the same, but if we ever switch to wgs84 / epsg 4326 / the one with 2 tiles in level zero
 inline unsigned number_of_horizontal_tiles_for_zoom_level(unsigned z) { return 1 << z; }
 inline unsigned number_of_vertical_tiles_for_zoom_level(unsigned z) { return 1 << z; }
@@ -53,4 +52,4 @@ double world_z_to_altitude(const glm::dvec3& world_pos);
 uint16_t hash_uint16(const tile::Id& id);
 glm::vec<2, uint32_t> pack(const tile::Id& id);
 tile::Id unpack(const glm::vec<2, uint32_t>& packed);
-}
+} // namespace nucleus::srs

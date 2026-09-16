@@ -40,8 +40,8 @@
 @group(2) @binding(7) var overlay_renderer_post_texture: texture_2d<f32>;
 @group(2) @binding(8) var overlay_renderer_pre_texture: texture_2d<f32>;
 
-@group(3) @binding(0) var output_color:          texture_storage_2d<rgba16float, write>;
-@group(3) @binding(1) var transmittance_lut:     texture_2d<f32>;
+@group(3) @binding(0) var output_color: texture_storage_2d<rgba16float, write>;
+@group(3) @binding(1) var transmittance_lut: texture_2d<f32>;
 @group(3) @binding(2) var transmittance_sampler: sampler;
 
 const CLOUD_SHADOW_AABB_MIN = vec3f(1045658.54694121, 5811660.13457852, 0.0);
@@ -169,8 +169,8 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3u) {
         if bool(conf.sky_enabled) {
             let bottom_radius = conf.planet_radius_m * 0.001;
 
-            let view_height  = bottom_radius + max(pos_ws.z * 0.001, 0.0);
-            let rho   = sqrt(max(0.0, view_height*view_height - bottom_radius*bottom_radius));
+            let view_height = bottom_radius + max(pos_ws.z * 0.001, 0.0);
+            let rho = sqrt(max(0.0, view_height * view_height - bottom_radius * bottom_radius));
             let cos_zenith_sun = dot(-normalize(conf.sun_light_dir.xyz), vec3f(0.0, 0.0, 1.0));
             // Lets check if the sun is above the horizon for this point
             if cos_zenith_sun > -rho / view_height {

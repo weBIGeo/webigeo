@@ -20,8 +20,8 @@
 #include "CloudPanel.h"
 
 #include "ImGuiManager.h"
-#include <glm/trigonometric.hpp>
 #include <IconsFontAwesome5.h>
+#include <glm/trigonometric.hpp>
 #include <imgui.h>
 
 #include "cloud/CloudsManager.h"

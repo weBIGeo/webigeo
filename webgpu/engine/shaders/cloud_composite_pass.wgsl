@@ -24,23 +24,23 @@
 // cloud_color:  full-res RGBA16F upscaled cloud color (rgb=premultiplied radiance, a=transmittance)
 // composite_out: write target, same format/size as sky_result
 
-@group(0) @binding(0) var sky_result:     texture_2d<f32>;
-@group(0) @binding(1) var cloud_color:    texture_2d<f32>;
-@group(0) @binding(2) var composite_out:  texture_storage_2d<rgba16float, write>;
+@group(0) @binding(0) var sky_result: texture_2d<f32>;
+@group(0) @binding(1) var cloud_color: texture_2d<f32>;
+@group(0) @binding(2) var composite_out: texture_storage_2d<rgba16float, write>;
 
 @compute @workgroup_size(16, 16, 1)
 fn computeMain(@builtin(global_invocation_id) gid: vec3<u32>) {
     let size = vec2<u32>(textureDimensions(composite_out));
     if gid.x >= size.x || gid.y >= size.y { return; }
 
-    let sky   = textureLoad(sky_result,  gid.xy, 0);
+    let sky = textureLoad(sky_result, gid.xy, 0);
     let cloud = textureLoad(cloud_color, gid.xy, 0);
 
     // cloud.a = transmittance; blend_alpha = 1 - transmittance (same convention as compose_pass)
     let blend_alpha = 1.0 - cloud.a;
-    let safe_alpha  = max(blend_alpha, 0.00001);
+    let safe_alpha = max(blend_alpha, 0.00001);
     let straight_rgb = cloud.rgb / safe_alpha;
-    let tonemapped   = straight_rgb / (straight_rgb + 1.0); // Reinhard, matching compose_pass
+    let tonemapped = straight_rgb / (straight_rgb + 1.0); // Reinhard, matching compose_pass
 
     let out_rgb = sky.rgb * (1.0 - blend_alpha) + tonemapped * blend_alpha;
     textureStore(composite_out, gid.xy, vec4<f32>(out_rgb, sky.a));

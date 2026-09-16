@@ -91,7 +91,8 @@ void TileDebugOverlay::init(Context& context)
             normal_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
             return std::make_unique<webgpu::raii::BindGroupLayout>(device,
-                std::vector<WGPUBindGroupLayoutEntry> { overlay_entry, settings_entry, output_entry, prev_output_entry, position_entry, depth_entry, normal_entry },
+                std::vector<WGPUBindGroupLayoutEntry> {
+                    overlay_entry, settings_entry, output_entry, prev_output_entry, position_entry, depth_entry, normal_entry },
                 "tile debug overlay bind group layout");
         });
     reg.register_pipeline([this](WGPUDevice device, const webgpu::RenderResourceRegistry& reg) {
@@ -117,12 +118,24 @@ void TileDebugOverlay::update_settings()
     m_settings_uniform->data.scale = settings.scale;
     m_settings_uniform->data.mode = static_cast<uint32_t>(settings.mode);
     switch (settings.region) {
-    case TileDebugOverlay::Region::LeftHalf:    m_settings_uniform->data.x_region = { 0.0f,       0.5f };       break;
-    case TileDebugOverlay::Region::RightHalf:   m_settings_uniform->data.x_region = { 0.5f,       1.0f };       break;
-    case TileDebugOverlay::Region::LeftThird:   m_settings_uniform->data.x_region = { 0.0f,       1.0f/3.0f };  break;
-    case TileDebugOverlay::Region::MiddleThird: m_settings_uniform->data.x_region = { 1.0f/3.0f,  2.0f/3.0f };  break;
-    case TileDebugOverlay::Region::RightThird:  m_settings_uniform->data.x_region = { 2.0f/3.0f,  1.0f };       break;
-    default:                                    m_settings_uniform->data.x_region = { 0.0f,       1.0f };       break;
+    case TileDebugOverlay::Region::LeftHalf:
+        m_settings_uniform->data.x_region = { 0.0f, 0.5f };
+        break;
+    case TileDebugOverlay::Region::RightHalf:
+        m_settings_uniform->data.x_region = { 0.5f, 1.0f };
+        break;
+    case TileDebugOverlay::Region::LeftThird:
+        m_settings_uniform->data.x_region = { 0.0f, 1.0f / 3.0f };
+        break;
+    case TileDebugOverlay::Region::MiddleThird:
+        m_settings_uniform->data.x_region = { 1.0f / 3.0f, 2.0f / 3.0f };
+        break;
+    case TileDebugOverlay::Region::RightThird:
+        m_settings_uniform->data.x_region = { 2.0f / 3.0f, 1.0f };
+        break;
+    default:
+        m_settings_uniform->data.x_region = { 0.0f, 1.0f };
+        break;
     }
     m_settings_uniform->update_gpu_data(m_ctx->queue());
 

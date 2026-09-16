@@ -67,8 +67,7 @@ void DateTimePanel::draw()
     constexpr ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoTitleBar
         | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_AlwaysAutoResize;
 
-    if (ImGuiManager::BeginSnapWindow("##datetime_panel", avail,
-            ImGuiManager::SnapEdge::Far, ImGuiManager::SnapEdge::Far, nullptr, flags)) {
+    if (ImGuiManager::BeginSnapWindow("##datetime_panel", avail, ImGuiManager::SnapEdge::Far, ImGuiManager::SnapEdge::Far, nullptr, flags)) {
         const float btn_w = 30.0f;
         const float spacing = ImGui::GetStyle().ItemSpacing.x;
 

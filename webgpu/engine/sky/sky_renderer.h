@@ -40,9 +40,12 @@ enum class SkyPassVariant { LutOnly, PureRayMarch, HybridRayMarch };
 class SkyWithLutsComputeRenderer {
 
 public:
-    SkyWithLutsComputeRenderer(std::unique_ptr<lut::SkyAtmosphereLutRenderer> lut_renderer, std::unique_ptr<webgpu::raii::BindGroupLayout> bind_group_layout,
-        std::unique_ptr<webgpu::raii::PipelineLayout> pipeline_layout, std::unique_ptr<webgpu::raii::ComputePipeline> pipeline,
-        config::SkyAtmosphereRendererConfig config, SkyPassVariant variant = SkyPassVariant::LutOnly);
+    SkyWithLutsComputeRenderer(std::unique_ptr<lut::SkyAtmosphereLutRenderer> lut_renderer,
+        std::unique_ptr<webgpu::raii::BindGroupLayout> bind_group_layout,
+        std::unique_ptr<webgpu::raii::PipelineLayout> pipeline_layout,
+        std::unique_ptr<webgpu::raii::ComputePipeline> pipeline,
+        config::SkyAtmosphereRendererConfig config,
+        SkyPassVariant variant = SkyPassVariant::LutOnly);
 
     void update_uniforms(const uniforms::Uniforms& uniforms);
     void update_atmosphere(const params::Atmosphere& atmosphere);
@@ -53,7 +56,9 @@ public:
     void render_aerial_perspective_lut(WGPUComputePassEncoder pass_encoder);
     void render_constant_luts(WGPUComputePassEncoder pass_encoder);
     void render_dynamic_luts(WGPUComputePassEncoder pass_encoder);
-    void render_luts(WGPUComputePassEncoder pass_encoder, bool force_constant_lut_rendering = false, bool skip_dynamic_lut_rendering = false,
+    void render_luts(WGPUComputePassEncoder pass_encoder,
+        bool force_constant_lut_rendering = false,
+        bool skip_dynamic_lut_rendering = false,
         bool force_sky_view_rendering = false);
 
     void render_sky(WGPUComputePassEncoder pass_encoder);
@@ -71,12 +76,18 @@ public:
 
 public:
     static std::vector<WGPUBindGroupLayoutEntry> make_external_bind_group_layout_entries(config::SkyAtmosphereRendererConfig config);
-    static std::unique_ptr<webgpu::raii::BindGroup> make_bind_group(WGPUBindGroupLayout layout, config::SkyRendererComputeConfig compute_config,
-        resources::SkyAtmosphereResources& resources, bool use_custom_uniforms = false, SkyPassVariant variant = SkyPassVariant::LutOnly);
+    static std::unique_ptr<webgpu::raii::BindGroup> make_bind_group(WGPUBindGroupLayout layout,
+        config::SkyRendererComputeConfig compute_config,
+        resources::SkyAtmosphereResources& resources,
+        bool use_custom_uniforms = false,
+        SkyPassVariant variant = SkyPassVariant::LutOnly);
     static std::unique_ptr<webgpu::raii::BindGroupLayout> make_bind_group_layout(
         WGPUDevice device, config::SkyAtmosphereRendererConfig config, SkyPassVariant variant = SkyPassVariant::LutOnly);
-    static std::unique_ptr<webgpu::raii::ComputePipeline> make_compute_pipeline(WGPUDevice device, config::SkyAtmosphereRendererConfig config,
-        WGPUPipelineLayout pipeline_layout, WGPUShaderModule shader_module, lut::SkyAtmosphereLutRenderer& lut_renderer,
+    static std::unique_ptr<webgpu::raii::ComputePipeline> make_compute_pipeline(WGPUDevice device,
+        config::SkyAtmosphereRendererConfig config,
+        WGPUPipelineLayout pipeline_layout,
+        WGPUShaderModule shader_module,
+        lut::SkyAtmosphereLutRenderer& lut_renderer,
         SkyPassVariant variant = SkyPassVariant::LutOnly);
     static std::unique_ptr<SkyWithLutsComputeRenderer> create(
         WGPUDevice device, webgpu::RenderResourceRegistry& registry, config::SkyAtmosphereRendererConfig config);

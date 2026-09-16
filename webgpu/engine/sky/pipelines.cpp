@@ -35,8 +35,10 @@ namespace {
     inline WGPUStringView sv(const char* s) { return WGPUStringView { s, WGPU_STRLEN }; }
 } // namespace
 
-TransmittanceLutPipeline::TransmittanceLutPipeline(WGPUDevice device, std::unique_ptr<webgpu::raii::BindGroupLayout> bind_group_layout,
-    std::unique_ptr<webgpu::raii::PipelineLayout> pipeline_layout, std::unique_ptr<webgpu::raii::ComputePipeline> pipeline,
+TransmittanceLutPipeline::TransmittanceLutPipeline(WGPUDevice device,
+    std::unique_ptr<webgpu::raii::BindGroupLayout> bind_group_layout,
+    std::unique_ptr<webgpu::raii::PipelineLayout> pipeline_layout,
+    std::unique_ptr<webgpu::raii::ComputePipeline> pipeline,
     WGPUTextureFormat transmittance_lut_format)
     : m_device { device }
     , m_bind_group_layout(std::move(bind_group_layout))
@@ -105,7 +107,7 @@ std::unique_ptr<util::ComputePass> TransmittanceLutPipeline::make_compute_pass(c
 
     if (resources.atmosphere_buffer().raw_buffer().descriptor().size != sizeof(resources::AtmosphereUniform)) {
         qFatal() << "[TransmittanceLutPipeline::makeComputePass]: buffer too small for atmosphere parameters ("
-                  << resources.atmosphere_buffer().raw_buffer().descriptor().size << " < " << sizeof(resources::AtmosphereUniform) << ")";
+                 << resources.atmosphere_buffer().raw_buffer().descriptor().size << " < " << sizeof(resources::AtmosphereUniform) << ")";
     }
 
     if (resources.transmittance_lut().texture().descriptor().format != m_transmittance_lut_format) {
@@ -114,7 +116,8 @@ std::unique_ptr<util::ComputePass> TransmittanceLutPipeline::make_compute_pass(c
     }
 
     std::vector<std::unique_ptr<webgpu::raii::BindGroup>> bind_groups;
-    bind_groups.push_back(std::make_unique<webgpu::raii::BindGroup>(m_device, *m_bind_group_layout,
+    bind_groups.push_back(std::make_unique<webgpu::raii::BindGroup>(m_device,
+        *m_bind_group_layout,
         std::vector<WGPUBindGroupEntry> {
             resources.atmosphere_buffer().raw_buffer().create_bind_group_entry(0),
             resources.transmittance_lut().view().create_bind_group_entry(1),
@@ -129,8 +132,10 @@ std::unique_ptr<util::ComputePass> TransmittanceLutPipeline::make_compute_pass(c
     return std::make_unique<util::ComputePass>(m_pipeline->handle(), bind_groups, dispatch_group_dimensions);
 }
 
-MultiScatteringLutPipeline::MultiScatteringLutPipeline(WGPUDevice device, std::unique_ptr<webgpu::raii::BindGroupLayout> bind_group_layout,
-    std::unique_ptr<webgpu::raii::PipelineLayout> pipeline_layout, std::unique_ptr<webgpu::raii::ComputePipeline> pipeline,
+MultiScatteringLutPipeline::MultiScatteringLutPipeline(WGPUDevice device,
+    std::unique_ptr<webgpu::raii::BindGroupLayout> bind_group_layout,
+    std::unique_ptr<webgpu::raii::PipelineLayout> pipeline_layout,
+    std::unique_ptr<webgpu::raii::ComputePipeline> pipeline,
     WGPUTextureFormat multi_scattering_lut_format)
     : m_device { device }
     , m_bind_group_layout(std::move(bind_group_layout))
@@ -213,7 +218,7 @@ std::unique_ptr<util::ComputePass> MultiScatteringLutPipeline::make_compute_pass
 
     if (resources.atmosphere_buffer().raw_buffer().descriptor().size != sizeof(resources::AtmosphereUniform)) {
         qFatal() << "[MultiScatteringLutPipeline::makeComputePass]: buffer too small for atmosphere parameters ("
-                  << resources.atmosphere_buffer().raw_buffer().descriptor().size << " < " << sizeof(resources::AtmosphereUniform) << ")";
+                 << resources.atmosphere_buffer().raw_buffer().descriptor().size << " < " << sizeof(resources::AtmosphereUniform) << ")";
     }
 
     if (resources.multi_scattering_lut().texture().descriptor().format != m_multi_scattering_lut_format) {
@@ -222,7 +227,8 @@ std::unique_ptr<util::ComputePass> MultiScatteringLutPipeline::make_compute_pass
     }
 
     std::vector<std::unique_ptr<webgpu::raii::BindGroup>> bind_groups;
-    bind_groups.push_back(std::make_unique<webgpu::raii::BindGroup>(m_device, *m_bind_group_layout,
+    bind_groups.push_back(std::make_unique<webgpu::raii::BindGroup>(m_device,
+        *m_bind_group_layout,
         std::vector<WGPUBindGroupEntry> {
             resources.atmosphere_buffer().raw_buffer().create_bind_group_entry(0),
             resources.lut_sampler().create_bind_group_entry(1),
@@ -239,9 +245,13 @@ std::unique_ptr<util::ComputePass> MultiScatteringLutPipeline::make_compute_pass
     return std::make_unique<util::ComputePass>(m_pipeline->handle(), bind_groups, dispatch_group_dimensions);
 }
 
-SkyViewLutPipeline::SkyViewLutPipeline(WGPUDevice device, std::unique_ptr<webgpu::raii::BindGroupLayout> bind_group_layout,
-    std::unique_ptr<webgpu::raii::PipelineLayout> pipeline_layout, std::unique_ptr<webgpu::raii::ComputePipeline> pipeline,
-    WGPUTextureFormat sky_view_lut_format, glm::uvec2 sky_view_lut_size, glm::uvec2 multi_scattering_lut_size)
+SkyViewLutPipeline::SkyViewLutPipeline(WGPUDevice device,
+    std::unique_ptr<webgpu::raii::BindGroupLayout> bind_group_layout,
+    std::unique_ptr<webgpu::raii::PipelineLayout> pipeline_layout,
+    std::unique_ptr<webgpu::raii::ComputePipeline> pipeline,
+    WGPUTextureFormat sky_view_lut_format,
+    glm::uvec2 sky_view_lut_size,
+    glm::uvec2 multi_scattering_lut_size)
     : m_device { device }
     , m_bind_group_layout(std::move(bind_group_layout))
     , m_pipeline_layout(std::move(pipeline_layout))
@@ -309,9 +319,15 @@ std::unique_ptr<webgpu::raii::BindGroupLayout> SkyViewLutPipeline::make_bind_gro
     return std::make_unique<webgpu::raii::BindGroupLayout>(device, entries, "sky view LUT layout");
 }
 
-std::unique_ptr<webgpu::raii::ComputePipeline> SkyViewLutPipeline::make_compute_pipeline(WGPUDevice device, WGPUPipelineLayout pipeline_layout,
-    WGPUShaderModule shader_module, glm::uvec2 skyViewLutSize, glm::uvec2 multiscatteringLutSize, float distanceToMaxSampleCount,
-    float fromKilometersScaleFactor, bool use_moon, config::MieHgDPhaseConfig miePhaseConfig)
+std::unique_ptr<webgpu::raii::ComputePipeline> SkyViewLutPipeline::make_compute_pipeline(WGPUDevice device,
+    WGPUPipelineLayout pipeline_layout,
+    WGPUShaderModule shader_module,
+    glm::uvec2 skyViewLutSize,
+    glm::uvec2 multiscatteringLutSize,
+    float distanceToMaxSampleCount,
+    float fromKilometersScaleFactor,
+    bool use_moon,
+    config::MieHgDPhaseConfig miePhaseConfig)
 {
     WGPUConstantEntry sky_view_lut_res_x_constant {};
     sky_view_lut_res_x_constant.key = sv("SKY_VIEW_LUT_RES_X");
@@ -371,9 +387,16 @@ std::unique_ptr<webgpu::raii::ComputePipeline> SkyViewLutPipeline::make_compute_
     return std::make_unique<webgpu::raii::ComputePipeline>(device, descriptor);
 }
 
-std::unique_ptr<SkyViewLutPipeline> SkyViewLutPipeline::create(WGPUDevice device, webgpu::RenderResourceRegistry& registry,
-    WGPUTextureFormat sky_view_lut_format, glm::uvec2 sky_view_lut_size, glm::uvec2 multi_scattering_lut_size, float distanceToMaxSampleCount,
-    float fromKilometersScaleFactor, bool useMoon, config::ShadowConfig shadowConfig, config::CustomUniformsSourceConfig customUniformsConfig,
+std::unique_ptr<SkyViewLutPipeline> SkyViewLutPipeline::create(WGPUDevice device,
+    webgpu::RenderResourceRegistry& registry,
+    WGPUTextureFormat sky_view_lut_format,
+    glm::uvec2 sky_view_lut_size,
+    glm::uvec2 multi_scattering_lut_size,
+    float distanceToMaxSampleCount,
+    float fromKilometersScaleFactor,
+    bool useMoon,
+    config::ShadowConfig shadowConfig,
+    config::CustomUniformsSourceConfig customUniformsConfig,
     config::MieHgDPhaseConfig miePhaseConfig)
 {
     auto bind_group_layout = make_bind_group_layout(device, sky_view_lut_format);
@@ -388,15 +411,28 @@ std::unique_ptr<SkyViewLutPipeline> SkyViewLutPipeline::create(WGPUDevice device
     auto pipeline_layout = std::make_unique<webgpu::raii::PipelineLayout>(device, layouts, "sky view LUT");
 
     registry.register_shader("sky_sky_view_lut", "webgpu_engine::sky/render_sky_view_lut");
-    auto pipeline = make_compute_pipeline(device, pipeline_layout->handle(), registry.shader("sky_sky_view_lut").handle(), sky_view_lut_size,
-        multi_scattering_lut_size, distanceToMaxSampleCount, fromKilometersScaleFactor, useMoon, miePhaseConfig);
+    auto pipeline = make_compute_pipeline(device,
+        pipeline_layout->handle(),
+        registry.shader("sky_sky_view_lut").handle(),
+        sky_view_lut_size,
+        multi_scattering_lut_size,
+        distanceToMaxSampleCount,
+        fromKilometersScaleFactor,
+        useMoon,
+        miePhaseConfig);
 
-    return std::make_unique<SkyViewLutPipeline>(device, std::move(bind_group_layout), std::move(pipeline_layout), std::move(pipeline), sky_view_lut_format,
-        sky_view_lut_size, multi_scattering_lut_size);
+    return std::make_unique<SkyViewLutPipeline>(device,
+        std::move(bind_group_layout),
+        std::move(pipeline_layout),
+        std::move(pipeline),
+        sky_view_lut_format,
+        sky_view_lut_size,
+        multi_scattering_lut_size);
 }
 
 std::unique_ptr<util::ComputePass> SkyViewLutPipeline::make_compute_pass(const resources::SkyAtmosphereResources& resources,
-    const std::vector<WGPUBindGroup>& shadow_bind_groups, const std::vector<WGPUBindGroup>& custom_uniforms_bind_groups)
+    const std::vector<WGPUBindGroup>& shadow_bind_groups,
+    const std::vector<WGPUBindGroup>& custom_uniforms_bind_groups)
 {
     if (resources.device() != m_device) {
         qFatal() << "[SkyViewLutPipeline::makeComputePass]: device mismatch";
@@ -404,11 +440,11 @@ std::unique_ptr<util::ComputePass> SkyViewLutPipeline::make_compute_pass(const r
 
     if (resources.atmosphere_buffer().raw_buffer().size_in_byte() < sizeof(resources::AtmosphereUniform)) {
         qFatal() << "[SkyViewLutPipeline::makeComputePass]: buffer too small for atmosphere parameters ("
-                  << resources.atmosphere_buffer().raw_buffer().size_in_byte() << " < " << sizeof(resources::AtmosphereUniform) << ")";
+                 << resources.atmosphere_buffer().raw_buffer().size_in_byte() << " < " << sizeof(resources::AtmosphereUniform) << ")";
     }
     if (resources.has_uniforms_buffer() && resources.uniforms_buffer().raw_buffer().size_in_byte() < sizeof(uniforms::Uniforms)) {
-        qFatal() << "[SkyViewLutPipeline::makeComputePass]: buffer too small for uniforms ("
-                  << resources.uniforms_buffer().raw_buffer().size_in_byte() << " < " << sizeof(uniforms::Uniforms) << ")";
+        qFatal() << "[SkyViewLutPipeline::makeComputePass]: buffer too small for uniforms (" << resources.uniforms_buffer().raw_buffer().size_in_byte() << " < "
+                 << sizeof(uniforms::Uniforms) << ")";
     }
     if (resources.multi_scattering_lut().texture().width() != m_multi_scattering_lut_size.x
         || resources.multi_scattering_lut().texture().height() != m_multi_scattering_lut_size.y) {
@@ -470,9 +506,13 @@ std::vector<std::pair<std::string, double>> makeMiePhaseOverrides(std::optional<
     }
 }
 
-AerialPerspectiveLutPipeline::AerialPerspectiveLutPipeline(WGPUDevice device, std::unique_ptr<webgpu::raii::BindGroupLayout> bind_group_layout,
-    std::unique_ptr<webgpu::raii::PipelineLayout> pipeline_layout, std::unique_ptr<webgpu::raii::ComputePipeline> pipeline,
-    WGPUTextureFormat aerial_perspective_lut_format, float aerial_perspective_slice_count, float aerial_perspective_distance_per_slice,
+AerialPerspectiveLutPipeline::AerialPerspectiveLutPipeline(WGPUDevice device,
+    std::unique_ptr<webgpu::raii::BindGroupLayout> bind_group_layout,
+    std::unique_ptr<webgpu::raii::PipelineLayout> pipeline_layout,
+    std::unique_ptr<webgpu::raii::ComputePipeline> pipeline,
+    WGPUTextureFormat aerial_perspective_lut_format,
+    float aerial_perspective_slice_count,
+    float aerial_perspective_distance_per_slice,
     glm::uvec2 multi_scattering_lut_size)
     : m_device { device }
     , m_bind_group_layout(std::move(bind_group_layout))
@@ -542,9 +582,16 @@ std::unique_ptr<webgpu::raii::BindGroupLayout> AerialPerspectiveLutPipeline::mak
     return std::make_unique<webgpu::raii::BindGroupLayout>(device, entries, "sky view LUT layout");
 }
 
-std::unique_ptr<webgpu::raii::ComputePipeline> AerialPerspectiveLutPipeline::make_compute_pipeline(WGPUDevice device, WGPUPipelineLayout pipeline_layout,
-    WGPUShaderModule shader_module, float aerial_perspective_slice_count, float aerial_perspective_distance_per_slice, glm::uvec2 multi_scattering_lut_size,
-    float from_kilometers_scale_factor, bool randomize_sample_offsets, bool use_moon, config::MieHgDPhaseConfig mie_phase_config)
+std::unique_ptr<webgpu::raii::ComputePipeline> AerialPerspectiveLutPipeline::make_compute_pipeline(WGPUDevice device,
+    WGPUPipelineLayout pipeline_layout,
+    WGPUShaderModule shader_module,
+    float aerial_perspective_slice_count,
+    float aerial_perspective_distance_per_slice,
+    glm::uvec2 multi_scattering_lut_size,
+    float from_kilometers_scale_factor,
+    bool randomize_sample_offsets,
+    bool use_moon,
+    config::MieHgDPhaseConfig mie_phase_config)
 {
     WGPUConstantEntry ap_slice_count_constant {};
     ap_slice_count_constant.key = sv("AP_SLICE_COUNT");
@@ -604,10 +651,18 @@ std::unique_ptr<webgpu::raii::ComputePipeline> AerialPerspectiveLutPipeline::mak
     return std::make_unique<webgpu::raii::ComputePipeline>(device, descriptor);
 }
 
-std::unique_ptr<AerialPerspectiveLutPipeline> AerialPerspectiveLutPipeline::create(WGPUDevice device, webgpu::RenderResourceRegistry& registry,
-    WGPUTextureFormat aerial_perspective_lut_format, float aerial_perspective_slice_count, float aerial_perspective_distance_per_slice,
-    glm::uvec2 multi_scattering_lut_size, float from_kilometers_scale_factor, bool randomize_sample_offsets, bool use_moon, config::ShadowConfig shadow_config,
-    config::CustomUniformsSourceConfig custom_uniforms_config, config::MieHgDPhaseConfig mie_phase_config)
+std::unique_ptr<AerialPerspectiveLutPipeline> AerialPerspectiveLutPipeline::create(WGPUDevice device,
+    webgpu::RenderResourceRegistry& registry,
+    WGPUTextureFormat aerial_perspective_lut_format,
+    float aerial_perspective_slice_count,
+    float aerial_perspective_distance_per_slice,
+    glm::uvec2 multi_scattering_lut_size,
+    float from_kilometers_scale_factor,
+    bool randomize_sample_offsets,
+    bool use_moon,
+    config::ShadowConfig shadow_config,
+    config::CustomUniformsSourceConfig custom_uniforms_config,
+    config::MieHgDPhaseConfig mie_phase_config)
 {
     // TODO pass custom uniform config
     std::unique_ptr<webgpu::raii::BindGroupLayout> bind_group_layout = make_bind_group_layout(device, aerial_perspective_lut_format);
@@ -622,26 +677,41 @@ std::unique_ptr<AerialPerspectiveLutPipeline> AerialPerspectiveLutPipeline::crea
     auto pipeline_layout = std::make_unique<webgpu::raii::PipelineLayout>(device, layouts, "aerial perspective LUT");
 
     registry.register_shader("sky_aerial_perspective_lut", "webgpu_engine::sky/render_aerial_perspective_lut");
-    auto pipeline = make_compute_pipeline(device, pipeline_layout->handle(), registry.shader("sky_aerial_perspective_lut").handle(), aerial_perspective_slice_count,
-        aerial_perspective_distance_per_slice, multi_scattering_lut_size, from_kilometers_scale_factor, randomize_sample_offsets, use_moon, mie_phase_config);
+    auto pipeline = make_compute_pipeline(device,
+        pipeline_layout->handle(),
+        registry.shader("sky_aerial_perspective_lut").handle(),
+        aerial_perspective_slice_count,
+        aerial_perspective_distance_per_slice,
+        multi_scattering_lut_size,
+        from_kilometers_scale_factor,
+        randomize_sample_offsets,
+        use_moon,
+        mie_phase_config);
 
-    return std::make_unique<AerialPerspectiveLutPipeline>(device, std::move(bind_group_layout), std::move(pipeline_layout), std::move(pipeline),
-        aerial_perspective_lut_format, aerial_perspective_slice_count, aerial_perspective_distance_per_slice, multi_scattering_lut_size);
+    return std::make_unique<AerialPerspectiveLutPipeline>(device,
+        std::move(bind_group_layout),
+        std::move(pipeline_layout),
+        std::move(pipeline),
+        aerial_perspective_lut_format,
+        aerial_perspective_slice_count,
+        aerial_perspective_distance_per_slice,
+        multi_scattering_lut_size);
 }
 
 std::unique_ptr<util::ComputePass> AerialPerspectiveLutPipeline::make_compute_pass(const resources::SkyAtmosphereResources& resources,
-    const std::vector<WGPUBindGroup>& shadow_bind_groups, const std::vector<WGPUBindGroup>& custom_uniforms_bind_groups)
+    const std::vector<WGPUBindGroup>& shadow_bind_groups,
+    const std::vector<WGPUBindGroup>& custom_uniforms_bind_groups)
 {
     if (resources.device() != m_device) {
         qFatal() << "[AerialPerspectiveLutPipeline::makeComputePass]: device mismatch";
     }
     if (resources.atmosphere_buffer().raw_buffer().size_in_byte() < sizeof(resources::AtmosphereUniform)) {
         qFatal() << "[AerialPerspectiveLutPipeline::makeComputePass]: buffer too small for atmosphere parameters ("
-                  << resources.atmosphere_buffer().raw_buffer().size_in_byte() << " < " << sizeof(resources::AtmosphereUniform) << ")";
+                 << resources.atmosphere_buffer().raw_buffer().size_in_byte() << " < " << sizeof(resources::AtmosphereUniform) << ")";
     }
     if (resources.has_uniforms_buffer() && resources.uniforms_buffer().raw_buffer().size_in_byte() < sizeof(uniforms::Uniforms)) {
         qFatal() << "[AerialPerspectiveLutPipeline::makeComputePass]: buffer too small for uniforms ("
-                  << resources.uniforms_buffer().raw_buffer().size_in_byte() << " < " << sizeof(uniforms::Uniforms) << ")";
+                 << resources.uniforms_buffer().raw_buffer().size_in_byte() << " < " << sizeof(uniforms::Uniforms) << ")";
     }
     if (resources.multi_scattering_lut().texture().width() != m_multi_scattering_lut_size.x
         || resources.multi_scattering_lut().texture().height() != m_multi_scattering_lut_size.y) {
@@ -690,7 +760,8 @@ float AerialPerspectiveLutPipeline::aerial_perspective_distance_per_slice() cons
 float AerialPerspectiveLutPipeline::aerial_perspective_inv_distance_per_slice() const { return 1.0f / this->m_aerial_perspective_distance_per_slice; }
 
 SkyAtmospherePipelines::SkyAtmospherePipelines(std::unique_ptr<TransmittanceLutPipeline> transmittance_lut_pipeline,
-    std::unique_ptr<MultiScatteringLutPipeline> multi_scattering_lut_pipeline, std::unique_ptr<SkyViewLutPipeline> sky_view_lut_pipeline,
+    std::unique_ptr<MultiScatteringLutPipeline> multi_scattering_lut_pipeline,
+    std::unique_ptr<SkyViewLutPipeline> sky_view_lut_pipeline,
     std::unique_ptr<AerialPerspectiveLutPipeline> aerial_perspective_lut_pipeline)
     : m_transmittance_lut_pipeline(std::move(transmittance_lut_pipeline))
     , m_multi_scattering_lut_pipeline(std::move(multi_scattering_lut_pipeline))
@@ -706,19 +777,34 @@ std::unique_ptr<SkyAtmospherePipelines> SkyAtmospherePipelines::create(
         device, registry, config.lookUpTables.transmittanceLut.format, config.lookUpTables.transmittanceLut.sampleCount);
     auto multi_scattering_lut_pipeline = sky::pipelines::MultiScatteringLutPipeline::create(
         device, registry, config.lookUpTables.multiScatteringLut.format, config.lookUpTables.multiScatteringLut.sampleCount);
-    auto sky_view_lut_pipeline = sky::pipelines::SkyViewLutPipeline::create(device, registry, config.lookUpTables.skyViewLut.format,
-        config.lookUpTables.skyViewLut.size, config.lookUpTables.multiScatteringLut.size, config.skyRenderer.distanceToMaxSampleCount,
-        config.fromKilometersScale, config.lights.useMoon, config.lookUpTables.skyViewLut.affectedByShadow ? config.shadow : sky::config::ShadowConfig(),
-        config.customUniformsSource, config.mieHgDrainePhase);
-    auto aerial_perspective_lut_pipeline = sky::pipelines::AerialPerspectiveLutPipeline::create(device, registry,
-        config.lookUpTables.aerialPerspectiveLut.format, config.lookUpTables.aerialPerspectiveLut.size.z,
-        config.lookUpTables.aerialPerspectiveLut.distancePerSlice, config.lookUpTables.multiScatteringLut.size, config.fromKilometersScale,
-        config.lookUpTables.aerialPerspectiveLut.randomizeRayOffsets, config.lights.useMoon,
-        config.lookUpTables.aerialPerspectiveLut.affectedByShadow ? config.shadow : sky::config::ShadowConfig(), config.customUniformsSource,
+    auto sky_view_lut_pipeline = sky::pipelines::SkyViewLutPipeline::create(device,
+        registry,
+        config.lookUpTables.skyViewLut.format,
+        config.lookUpTables.skyViewLut.size,
+        config.lookUpTables.multiScatteringLut.size,
+        config.skyRenderer.distanceToMaxSampleCount,
+        config.fromKilometersScale,
+        config.lights.useMoon,
+        config.lookUpTables.skyViewLut.affectedByShadow ? config.shadow : sky::config::ShadowConfig(),
+        config.customUniformsSource,
+        config.mieHgDrainePhase);
+    auto aerial_perspective_lut_pipeline = sky::pipelines::AerialPerspectiveLutPipeline::create(device,
+        registry,
+        config.lookUpTables.aerialPerspectiveLut.format,
+        config.lookUpTables.aerialPerspectiveLut.size.z,
+        config.lookUpTables.aerialPerspectiveLut.distancePerSlice,
+        config.lookUpTables.multiScatteringLut.size,
+        config.fromKilometersScale,
+        config.lookUpTables.aerialPerspectiveLut.randomizeRayOffsets,
+        config.lights.useMoon,
+        config.lookUpTables.aerialPerspectiveLut.affectedByShadow ? config.shadow : sky::config::ShadowConfig(),
+        config.customUniformsSource,
         config.mieHgDrainePhase);
 
-    return std::make_unique<SkyAtmospherePipelines>(std::move(transmittance_lut_pipeline), std::move(multi_scattering_lut_pipeline),
-        std::move(sky_view_lut_pipeline), std::move(aerial_perspective_lut_pipeline));
+    return std::make_unique<SkyAtmospherePipelines>(std::move(transmittance_lut_pipeline),
+        std::move(multi_scattering_lut_pipeline),
+        std::move(sky_view_lut_pipeline),
+        std::move(aerial_perspective_lut_pipeline));
 }
 
 TransmittanceLutPipeline& SkyAtmospherePipelines::transmittance_lut_pipeline() { return *m_transmittance_lut_pipeline; }

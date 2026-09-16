@@ -30,12 +30,12 @@
 #include <filesystem>
 #endif
 
-#include "sky/SkyPanel.h"
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_wgpu.h"
 #include "cloud/CloudPanel.h"
 #include "overlay/OverlaysPanel.h"
 #include "profiling/ProfilingPanel.h"
+#include "sky/SkyPanel.h"
 #include "track/TrackPanel.h"
 #include "ui/AboutPanel.h"
 #include "ui/AppPanel.h"
@@ -242,9 +242,7 @@ ImFont* ImGuiManager::s_node_font = nullptr;
 std::unordered_map<std::string, ImGuiManager::FilePickerState> ImGuiManager::s_picker_states;
 std::unordered_map<std::string, ImGuiManager::SnapWindowState> ImGuiManager::s_snap_window_states;
 
-bool ImGuiManager::BeginSnapWindow(const char* id, ImVec2 avail,
-    SnapEdge default_x, SnapEdge default_y,
-    bool* p_open, ImGuiWindowFlags flags, float margin)
+bool ImGuiManager::BeginSnapWindow(const char* id, ImVec2 avail, SnapEdge default_x, SnapEdge default_y, bool* p_open, ImGuiWindowFlags flags, float margin)
 {
     auto& st = s_snap_window_states[id];
 
@@ -259,29 +257,21 @@ bool ImGuiManager::BeginSnapWindow(const char* id, ImVec2 avail,
         st.snap_x = default_x;
         st.snap_y = default_y;
     } else if (just_released) {
-        st.snap_x = (st.last_pos.x + st.last_size.x) > avail.x - margin ? SnapEdge::Far
-                  :  st.last_pos.x < margin                               ? SnapEdge::Near
-                  :                                                          SnapEdge::None;
-        st.snap_y = (st.last_pos.y + st.last_size.y) > avail.y - margin ? SnapEdge::Far
-                  :  st.last_pos.y < margin                               ? SnapEdge::Near
-                  :                                                          SnapEdge::None;
+        st.snap_x = (st.last_pos.x + st.last_size.x) > avail.x - margin ? SnapEdge::Far : st.last_pos.x < margin ? SnapEdge::Near : SnapEdge::None;
+        st.snap_y = (st.last_pos.y + st.last_size.y) > avail.y - margin ? SnapEdge::Far : st.last_pos.y < margin ? SnapEdge::Near : SnapEdge::None;
     }
 
     const bool any_snapped = st.snap_x != SnapEdge::None || st.snap_y != SnapEdge::None;
     if (!this_window_moving && any_snapped) {
-        const float px      = st.snap_x == SnapEdge::Far  ? avail.x - margin
-                            : st.snap_x == SnapEdge::Near ? margin
-                            :                               st.last_pos.x;
-        const float py      = st.snap_y == SnapEdge::Far  ? avail.y - margin
-                            : st.snap_y == SnapEdge::Near ? margin
-                            :                               st.last_pos.y;
-        const float pivot_x = st.snap_x == SnapEdge::Far  ? 1.f : 0.f;
-        const float pivot_y = st.snap_y == SnapEdge::Far  ? 1.f : 0.f;
+        const float px = st.snap_x == SnapEdge::Far ? avail.x - margin : st.snap_x == SnapEdge::Near ? margin : st.last_pos.x;
+        const float py = st.snap_y == SnapEdge::Far ? avail.y - margin : st.snap_y == SnapEdge::Near ? margin : st.last_pos.y;
+        const float pivot_x = st.snap_x == SnapEdge::Far ? 1.f : 0.f;
+        const float pivot_y = st.snap_y == SnapEdge::Far ? 1.f : 0.f;
         ImGui::SetNextWindowPos(ImVec2(px, py), ImGuiCond_Always, ImVec2(pivot_x, pivot_y));
     }
 
     const bool open = ImGui::Begin(id, p_open, flags);
-    st.last_pos  = ImGui::GetWindowPos();
+    st.last_pos = ImGui::GetWindowPos();
     st.last_size = ImGui::GetWindowSize();
     st.initialized = true;
     return open;

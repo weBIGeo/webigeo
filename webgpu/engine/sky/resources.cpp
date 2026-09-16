@@ -112,8 +112,9 @@ SkyAtmosphereResources::SkyAtmosphereResources(WGPUDevice device, const config::
 
     WGPUTextureDescriptor aerialPerspectiveLutDescriptor {};
     aerialPerspectiveLutDescriptor.label = WGPUStringView { .data = "aerial perspective LUT", .length = WGPU_STRLEN };
-    aerialPerspectiveLutDescriptor.size = WGPUExtent3D { config.lookUpTables.aerialPerspectiveLut.size.x, config.lookUpTables.aerialPerspectiveLut.size.y,
-        config.lookUpTables.aerialPerspectiveLut.size.z };
+    aerialPerspectiveLutDescriptor.size = WGPUExtent3D {
+        config.lookUpTables.aerialPerspectiveLut.size.x, config.lookUpTables.aerialPerspectiveLut.size.y, config.lookUpTables.aerialPerspectiveLut.size.z
+    };
     aerialPerspectiveLutDescriptor.format = config.lookUpTables.aerialPerspectiveLut.format;
     aerialPerspectiveLutDescriptor.dimension = WGPUTextureDimension_3D;
     aerialPerspectiveLutDescriptor.mipLevelCount = 1;

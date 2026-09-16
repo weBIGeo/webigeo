@@ -35,9 +35,13 @@ namespace {
 } // namespace
 
 SkyAtmosphereLutRenderer::SkyAtmosphereLutRenderer(std::unique_ptr<resources::SkyAtmosphereResources> resources,
-    std::unique_ptr<pipelines::SkyAtmospherePipelines> pipelines, bool skip_dynamic_lut_rendering, bool uses_custom_uniforms,
-    std::unique_ptr<util::ComputePass> transmittance_lut_pass, std::unique_ptr<util::ComputePass> multi_scattering_lut_pass,
-    std::unique_ptr<util::ComputePass> sky_view_lut_pass, std::unique_ptr<util::ComputePass> aerial_perspective_lut_pass)
+    std::unique_ptr<pipelines::SkyAtmospherePipelines> pipelines,
+    bool skip_dynamic_lut_rendering,
+    bool uses_custom_uniforms,
+    std::unique_ptr<util::ComputePass> transmittance_lut_pass,
+    std::unique_ptr<util::ComputePass> multi_scattering_lut_pass,
+    std::unique_ptr<util::ComputePass> sky_view_lut_pass,
+    std::unique_ptr<util::ComputePass> aerial_perspective_lut_pass)
     : m_resources(std::move(resources))
     , m_pipelines(std::move(pipelines))
     , m_skip_dynamic_lut_rendering { skip_dynamic_lut_rendering }
@@ -129,8 +133,14 @@ std::unique_ptr<SkyAtmosphereLutRenderer> SkyAtmosphereLutRenderer::create(
     bool skip_dynamic_lut_rendering = config.skyRenderer.defaultToPerPixelRayMarch;
     bool uses_custom_uniforms = false;
 
-    auto lut_renderer = std::make_unique<SkyAtmosphereLutRenderer>(std::move(resources), std::move(pipelines), skip_dynamic_lut_rendering, uses_custom_uniforms,
-        std::move(transmittance_pass), std::move(multi_scattering_pass), std::move(sky_view_lut_pass), std::move(aerial_perspective_lut_pass));
+    auto lut_renderer = std::make_unique<SkyAtmosphereLutRenderer>(std::move(resources),
+        std::move(pipelines),
+        skip_dynamic_lut_rendering,
+        uses_custom_uniforms,
+        std::move(transmittance_pass),
+        std::move(multi_scattering_pass),
+        std::move(sky_view_lut_pass),
+        std::move(aerial_perspective_lut_pass));
 
     if (config.initializeConstantLuts) {
         WGPUCommandEncoderDescriptor descriptor {};

@@ -210,15 +210,15 @@ void CloudRenderer::init(webgpu::Context& ctx)
         lut_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
 
         WGPUBindGroupLayoutEntry ap_lut_entry {};
-        ap_lut_entry.binding    = 2;
+        ap_lut_entry.binding = 2;
         ap_lut_entry.visibility = WGPUShaderStage_Compute;
-        ap_lut_entry.texture.sampleType    = WGPUTextureSampleType_Float;
+        ap_lut_entry.texture.sampleType = WGPUTextureSampleType_Float;
         ap_lut_entry.texture.viewDimension = WGPUTextureViewDimension_3D;
 
         WGPUBindGroupLayoutEntry sky_view_lut_entry {};
-        sky_view_lut_entry.binding    = 3;
+        sky_view_lut_entry.binding = 3;
         sky_view_lut_entry.visibility = WGPUShaderStage_Compute;
-        sky_view_lut_entry.texture.sampleType    = WGPUTextureSampleType_Float;
+        sky_view_lut_entry.texture.sampleType = WGPUTextureSampleType_Float;
         sky_view_lut_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
         return std::make_unique<webgpu::raii::BindGroupLayout>(device,
@@ -463,8 +463,7 @@ void CloudRenderer::draw(const WGPUCommandEncoder& command_encoder,
 
         m_cloud_tile_info_buffer->write(m_ctx->queue(), m_tile_infos.data(), m_tile_infos.size());
 
-        m_sky_luts_bind_group = std::make_unique<webgpu::raii::BindGroup>(
-            m_ctx->device(),
+        m_sky_luts_bind_group = std::make_unique<webgpu::raii::BindGroup>(m_ctx->device(),
             m_ctx->resource_registry().bind_group_layout("render_clouds_sky_luts"),
             std::initializer_list<WGPUBindGroupEntry> {
                 transmittance_lut_view.create_bind_group_entry(0),

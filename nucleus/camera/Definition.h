@@ -1,4 +1,4 @@
- /*****************************************************************************
+/*****************************************************************************
  * Alpine Renderer
  * Copyright (C) 2022 Adam Celarek
  * Copyright (C) 2023 Jakob Lindner
@@ -26,11 +26,11 @@
 #include <glm/glm.hpp>
 #include <radix/geometry.h>
 
- namespace nucleus::camera {
+namespace nucleus::camera {
 
- struct Frustum {
-     std::array<radix::geometry::Plane<double>, 6> clipping_planes; // the order of clipping panes is front, back, top, down, left, and right
-     std::array<glm::dvec3, 8> corners; // the order of corners is ccw, starting from top left, front plane -> back plane
+struct Frustum {
+    std::array<radix::geometry::Plane<double>, 6> clipping_planes; // the order of clipping panes is front, back, top, down, left, and right
+    std::array<glm::dvec3, 8> corners; // the order of corners is ccw, starting from top left, front plane -> back plane
 };
 
 class Definition {
@@ -107,4 +107,4 @@ private:
     float m_pixel_error_threshold = 2.f;
 };
 
-}
+} // namespace nucleus::camera

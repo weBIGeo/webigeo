@@ -35,9 +35,13 @@ namespace webgpu_engine::sky::lut {
 
 class SkyAtmosphereLutRenderer {
 public:
-    SkyAtmosphereLutRenderer(std::unique_ptr<resources::SkyAtmosphereResources> resources, std::unique_ptr<pipelines::SkyAtmospherePipelines> pipelines,
-        bool skip_dynamic_lut_rendering, bool uses_custom_uniforms, std::unique_ptr<sky::util::ComputePass> transmittance_lut_pass,
-        std::unique_ptr<sky::util::ComputePass> multi_scattering_lut_pass, std::unique_ptr<sky::util::ComputePass> sky_view_lut_pass,
+    SkyAtmosphereLutRenderer(std::unique_ptr<resources::SkyAtmosphereResources> resources,
+        std::unique_ptr<pipelines::SkyAtmospherePipelines> pipelines,
+        bool skip_dynamic_lut_rendering,
+        bool uses_custom_uniforms,
+        std::unique_ptr<sky::util::ComputePass> transmittance_lut_pass,
+        std::unique_ptr<sky::util::ComputePass> multi_scattering_lut_pass,
+        std::unique_ptr<sky::util::ComputePass> sky_view_lut_pass,
         std::unique_ptr<sky::util::ComputePass> aerial_perspective_lut_pass);
 
 public:
@@ -54,7 +58,9 @@ public:
     void render_dynamic_luts(WGPUComputePassEncoder pass_encoder);
     void render_dynamic_luts(WGPUComputePassEncoder pass_encoder, uniforms::Uniforms uniforms);
 
-    void render_luts(WGPUComputePassEncoder pass_encoder, bool force_constant_lut_rendering = false, bool skip_dynamic_lut_rendering = false,
+    void render_luts(WGPUComputePassEncoder pass_encoder,
+        bool force_constant_lut_rendering = false,
+        bool skip_dynamic_lut_rendering = false,
         bool force_sky_view_rendering = false);
 
     resources::SkyAtmosphereResources& resources();

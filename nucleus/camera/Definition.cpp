@@ -1,4 +1,4 @@
- /*****************************************************************************
+/*****************************************************************************
  * Alpine Renderer
  * Copyright (C) 2022 Adam Celarek
  * Copyright (C) 2023 Jakob Lindner
@@ -43,12 +43,12 @@ using namespace nucleus::camera;
 namespace geometry = radix::geometry;
 
 Definition::Definition()
-    : Definition({1, 1, 1}, {0, 0, 0})
+    : Definition({ 1, 1, 1 }, { 0, 0, 0 })
 {
 }
 
 Definition::Definition(const glm::dvec3& position,
-                       const glm::dvec3& view_at_point) // : m_position(position)
+    const glm::dvec3& view_at_point) // : m_position(position)
 {
     look_at(position, view_at_point);
 
@@ -74,58 +74,34 @@ Definition Definition::looking_down_at_aabb(const geometry::Aabb<2, double>& aab
     return definition;
 }
 
-glm::dmat4 Definition::camera_matrix() const
-{
-    return glm::inverse(m_camera_transformation);
-}
+glm::dmat4 Definition::camera_matrix() const { return glm::inverse(m_camera_transformation); }
 
 glm::dmat4 Definition::model_matrix() const { return m_camera_transformation; }
 
 void Definition::set_model_matrix(const glm::dmat4& new_camera_transformation) { m_camera_transformation = new_camera_transformation; }
 
-glm::dmat4 Definition::projection_matrix() const
-{
-    return m_projection_matrix;
-}
+glm::dmat4 Definition::projection_matrix() const { return m_projection_matrix; }
 
-glm::mat4 Definition::local_view_matrix() const
-{
-    return camera_matrix() * glm::translate(this->position());
-}
+glm::mat4 Definition::local_view_matrix() const { return camera_matrix() * glm::translate(this->position()); }
 
-glm::dmat4 Definition::world_view_projection_matrix() const
-{
-    return m_projection_matrix * camera_matrix();
-}
+glm::dmat4 Definition::world_view_projection_matrix() const { return m_projection_matrix * camera_matrix(); }
 
 glm::mat4 Definition::local_view_projection_matrix(const glm::dvec3& origin_offset) const
 {
     return glm::mat4(m_projection_matrix * camera_matrix() * glm::translate(origin_offset));
 }
 
-glm::dvec3 Definition::position() const
-{
-    return glm::dvec3(m_camera_transformation[3]);
-}
+glm::dvec3 Definition::position() const { return glm::dvec3(m_camera_transformation[3]); }
 
 double Definition::altitude() const { return srs::world_z_to_altitude(position()); }
 
 glm::dvec3 Definition::lat_long_alt() const { return srs::world_to_lat_long_alt(position()); }
 
-glm::dvec3 Definition::x_axis() const
-{
-    return glm::dvec3(m_camera_transformation[0]);
-}
+glm::dvec3 Definition::x_axis() const { return glm::dvec3(m_camera_transformation[0]); }
 
-glm::dvec3 Definition::y_axis() const
-{
-    return glm::dvec3(m_camera_transformation[1]);
-}
+glm::dvec3 Definition::y_axis() const { return glm::dvec3(m_camera_transformation[1]); }
 
-glm::dvec3 Definition::z_axis() const
-{
-    return glm::dvec3(m_camera_transformation[2]);
-}
+glm::dvec3 Definition::z_axis() const { return glm::dvec3(m_camera_transformation[2]); }
 
 glm::dvec3 Definition::ray_direction(const glm::dvec2& normalised_device_coordinates) const
 {
@@ -141,25 +117,24 @@ Frustum Definition::frustum() const
     Frustum frustum;
     // front and back
     const auto p0 = position() + -z_axis() * double(m_near_clipping);
-    frustum.clipping_planes[0] = {.normal = -z_axis(), .distance = -dot(-z_axis(), p0)};
+    frustum.clipping_planes[0] = { .normal = -z_axis(), .distance = -dot(-z_axis(), p0) };
     const auto p1 = position() + -z_axis() * double(m_far_clipping);
-    frustum.clipping_planes[1] = {.normal = z_axis(), .distance = -dot(z_axis(), p1)};
+    frustum.clipping_planes[1] = { .normal = z_axis(), .distance = -dot(z_axis(), p1) };
 
-    constexpr auto tl = glm::dvec2{-1, 1};
-    constexpr auto bl = glm::dvec2{-1, -1};
-    constexpr auto br = glm::dvec2{1, -1};
-    constexpr auto tr = glm::dvec2{1, 1};
+    constexpr auto tl = glm::dvec2 { -1, 1 };
+    constexpr auto bl = glm::dvec2 { -1, -1 };
+    constexpr auto br = glm::dvec2 { 1, -1 };
+    constexpr auto tr = glm::dvec2 { 1, 1 };
 
     const auto ray_tl = ray_direction(tl);
     const auto ray_bl = ray_direction(bl);
     const auto ray_br = ray_direction(br);
     const auto ray_tr = ray_direction(tr);
 
-
     const auto clippingPane = [this](const glm::dvec3& v_a, const glm::dvec3& v_b) {
         const auto normal = glm::normalize(cross(v_a, v_b));
         const auto distance = -dot(normal, position());
-        return geometry::Plane<double>{normal, distance};
+        return geometry::Plane<double> { normal, distance };
     };
 
     // top and down
@@ -171,24 +146,21 @@ Frustum Definition::frustum() const
     frustum.clipping_planes[5] = clippingPane(ray_tr, ray_br);
 
     // near corners
-    frustum.corners[0] = geometry::intersection(geometry::Line<3, double>{position(), ray_tl}, frustum.clipping_planes[0]).value();
-    frustum.corners[1] = geometry::intersection(geometry::Line<3, double>{position(), ray_bl}, frustum.clipping_planes[0]).value();
-    frustum.corners[2] = geometry::intersection(geometry::Line<3, double>{position(), ray_br}, frustum.clipping_planes[0]).value();
-    frustum.corners[3] = geometry::intersection(geometry::Line<3, double>{position(), ray_tr}, frustum.clipping_planes[0]).value();
+    frustum.corners[0] = geometry::intersection(geometry::Line<3, double> { position(), ray_tl }, frustum.clipping_planes[0]).value();
+    frustum.corners[1] = geometry::intersection(geometry::Line<3, double> { position(), ray_bl }, frustum.clipping_planes[0]).value();
+    frustum.corners[2] = geometry::intersection(geometry::Line<3, double> { position(), ray_br }, frustum.clipping_planes[0]).value();
+    frustum.corners[3] = geometry::intersection(geometry::Line<3, double> { position(), ray_tr }, frustum.clipping_planes[0]).value();
 
     // far corners
-    frustum.corners[4] = geometry::intersection(geometry::Line<3, double>{position(), ray_tl}, frustum.clipping_planes[1]).value();
-    frustum.corners[5] = geometry::intersection(geometry::Line<3, double>{position(), ray_bl}, frustum.clipping_planes[1]).value();
-    frustum.corners[6] = geometry::intersection(geometry::Line<3, double>{position(), ray_br}, frustum.clipping_planes[1]).value();
-    frustum.corners[7] = geometry::intersection(geometry::Line<3, double>{position(), ray_tr}, frustum.clipping_planes[1]).value();
+    frustum.corners[4] = geometry::intersection(geometry::Line<3, double> { position(), ray_tl }, frustum.clipping_planes[1]).value();
+    frustum.corners[5] = geometry::intersection(geometry::Line<3, double> { position(), ray_bl }, frustum.clipping_planes[1]).value();
+    frustum.corners[6] = geometry::intersection(geometry::Line<3, double> { position(), ray_br }, frustum.clipping_planes[1]).value();
+    frustum.corners[7] = geometry::intersection(geometry::Line<3, double> { position(), ray_tr }, frustum.clipping_planes[1]).value();
 
     return frustum;
 }
 
-std::array<geometry::Plane<double>, 6> Definition::clipping_planes() const
-{
-    return frustum().clipping_planes;
-}
+std::array<geometry::Plane<double>, 6> Definition::clipping_planes() const { return frustum().clipping_planes; }
 
 std::vector<geometry::Plane<double>> Definition::four_clipping_planes() const
 {
@@ -212,14 +184,9 @@ std::vector<geometry::Plane<double>> Definition::four_clipping_planes() const
     return clipping_panes;
 }
 
-float Definition::distance_scale_factor() const
-{
-    return m_distance_scaling_factor;
-}
+float Definition::distance_scale_factor() const { return m_distance_scaling_factor; }
 
-void Definition::set_perspective_params(float fov_degrees,
-                                        const glm::uvec2& viewport_size,
-                                        float near_plane)
+void Definition::set_perspective_params(float fov_degrees, const glm::uvec2& viewport_size, float near_plane)
 {
     m_distance_scaling_factor = 1.f / std::tan(0.5f * fov_degrees * 3.1415926535897932384626433f / 180);
     m_near_clipping = near_plane;
@@ -241,25 +208,13 @@ void Definition::set_perspective_params(float fov_degrees,
     m_projection_matrix = inverse_z_perspective(glm::radians(double(fov_degrees)), double(viewport_size.x) / double(viewport_size.y), m_near_clipping);
 }
 
-void Definition::set_near_plane(float near_plane)
-{
-    set_perspective_params(m_field_of_view, m_viewport_size, near_plane);
-}
+void Definition::set_near_plane(float near_plane) { set_perspective_params(m_field_of_view, m_viewport_size, near_plane); }
 
-float Definition::near_plane() const
-{
-    return m_near_clipping;
-}
+float Definition::near_plane() const { return m_near_clipping; }
 
-void Definition::set_far_plane(float far_plane)
-{
-    m_far_clipping = far_plane;
-}
+void Definition::set_far_plane(float far_plane) { m_far_clipping = far_plane; }
 
-float Definition::far_plane() const
-{
-    return m_far_clipping;
-}
+float Definition::far_plane() const { return m_far_clipping; }
 
 void Definition::pan(const glm::dvec2& v)
 {
@@ -268,10 +223,7 @@ void Definition::pan(const glm::dvec2& v)
     m_camera_transformation = glm::translate(-1.0 * (v.x * x_dir + v.y * y_dir)) * m_camera_transformation;
 }
 
-void Definition::move(const glm::dvec3& v)
-{
-    m_camera_transformation = glm::translate(v) * m_camera_transformation;
-}
+void Definition::move(const glm::dvec3& v) { m_camera_transformation = glm::translate(v) * m_camera_transformation; }
 
 void Definition::orbit(const glm::dvec3& centre, const glm::dvec2& degrees)
 {
@@ -289,31 +241,23 @@ void Definition::orbit_clamped(const glm::dvec3& centre, const glm::dvec2& degre
     auto degY = degrees.y;
     if (degFromUp + degY > 179.0) {
         degY = 179.0 - degFromUp;
-    }
-    else if (degFromUp + degY < 1.0) {
+    } else if (degFromUp + degY < 1.0) {
         degY = 1.0 - degFromUp;
     }
     orbit(centre, glm::vec2(degrees.x, degY));
 }
 
-void Definition::zoom(double v)
-{
-    move(z_axis() * v);
-}
+void Definition::zoom(double v) { move(z_axis() * v); }
 
 void Definition::look_at(const glm::dvec3& camera_position, const glm::dvec3& view_at_point)
 {
-    m_camera_transformation = glm::inverse(glm::lookAt(camera_position, view_at_point, {0, 0, 1}));
+    m_camera_transformation = glm::inverse(glm::lookAt(camera_position, view_at_point, { 0, 0, 1 }));
     if (std::isnan(m_camera_transformation[0][0])) {
-        m_camera_transformation = glm::inverse(
-            glm::lookAt(camera_position, view_at_point, {0, 1, 0}));
+        m_camera_transformation = glm::inverse(glm::lookAt(camera_position, view_at_point, { 0, 1, 0 }));
     }
 }
 
-const glm::uvec2& Definition::viewport_size() const
-{
-    return m_viewport_size;
-}
+const glm::uvec2& Definition::viewport_size() const { return m_viewport_size; }
 
 glm::dvec2 Definition::to_ndc(const glm::dvec2& screen_space_coordinates) const
 {
@@ -327,7 +271,8 @@ float Definition::to_screen_space(float world_space_size, float world_space_dist
     return float(m_viewport_size.y) * 0.5f * world_space_size * m_distance_scaling_factor / world_space_distance;
 }
 
-glm::dvec3 Definition::calculate_lookat_position(double distance) const {
+glm::dvec3 Definition::calculate_lookat_position(double distance) const
+{
     auto view_matrix = camera_matrix();
     // This gets us the right, up and backwards vectors from the view matrix
     glm::dvec3 f(view_matrix[0][2], view_matrix[1][2], view_matrix[2][2]);
@@ -351,24 +296,16 @@ void Definition::set_pixel_error_threshold(float new_pixel_error_threshold) { m_
 
 namespace nucleus::camera {
 
-float Definition::field_of_view() const
-{
-    return m_field_of_view;
-}
+float Definition::field_of_view() const { return m_field_of_view; }
 
-void Definition::set_field_of_view(float new_field_of_view_degrees)
-{
-    set_perspective_params(new_field_of_view_degrees, m_viewport_size, m_near_clipping);
-}
+void Definition::set_field_of_view(float new_field_of_view_degrees) { set_perspective_params(new_field_of_view_degrees, m_viewport_size, m_near_clipping); }
 
 bool Definition::operator==(const Definition& other) const
 {
-    return m_camera_transformation == other.m_camera_transformation && m_projection_matrix == other.m_projection_matrix && m_viewport_size == other.m_viewport_size;
+    return m_camera_transformation == other.m_camera_transformation && m_projection_matrix == other.m_projection_matrix
+        && m_viewport_size == other.m_viewport_size;
 }
 
-void Definition::set_viewport_size(const glm::uvec2& new_viewport_size)
-{
-    set_perspective_params(m_field_of_view, new_viewport_size, m_near_clipping);
-}
+void Definition::set_viewport_size(const glm::uvec2& new_viewport_size) { set_perspective_params(m_field_of_view, new_viewport_size, m_near_clipping); }
 
-}
+} // namespace nucleus::camera
