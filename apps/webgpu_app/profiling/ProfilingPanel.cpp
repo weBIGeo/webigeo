@@ -25,6 +25,7 @@
 #include <string>
 #include <vector>
 
+#include "../ImGuiManager.h"
 #include "../util/format_time.h"
 #include "../ImGuiManager.h"
 #include "App.h"
@@ -50,8 +51,8 @@ void ProfilingPanel::draw()
 
     constexpr ImGuiWindowFlags flags = ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_AlwaysAutoResize;
 
-    if (!ImGuiManager::BeginSnapWindow(ICON_FA_STOPWATCH "  Profiling##profiling_panel", avail,
-            ImGuiManager::SnapEdge::Far, ImGuiManager::SnapEdge::Near, &m_visible, flags)) {
+    if (!ImGuiManager::BeginSnapWindow(
+            ICON_FA_STOPWATCH "  Profiling##profiling_panel", avail, ImGuiManager::SnapEdge::Far, ImGuiManager::SnapEdge::Near, &m_visible, flags)) {
         ImGuiManager::EndSnapWindow();
         return;
     }

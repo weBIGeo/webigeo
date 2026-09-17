@@ -1,9 +1,27 @@
+/*****************************************************************************
+ * weBIGeo
+ * Copyright (C) 2026 Gerald Kimmersdorfer
+ * Copyright (C) 2025 Patrick Komon
+ * Copyright (C) 2024 Lukas Herzberger
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *****************************************************************************/
+
 /*
  * Copyright (c) 2024 Lukas Herzberger
  * SPDX-License-Identifier: MIT
  */
-
-// TODO copyright notice?
 
 #pragma once
 
@@ -11,8 +29,8 @@
 #include "params.h"
 #include "uniforms.h"
 #include "util.h"
-#include <webgpu/base/Buffer.h>
 #include <memory>
+#include <webgpu/base/Buffer.h>
 #include <webgpu/webgpu.h>
 
 namespace webgpu_engine::sky::resources {
@@ -158,7 +176,7 @@ private:
     /**
      * The multiple scattering look up table.
      * Stores multiple scattering contribution.
-     *      * Paramterized by the sun / zenith angle in x (range: [π, 0]) and the altitude in y (range: [0, top], where top is the height of the
+     *      * Paramterized by the sun / zenith angle in x (range: [pi, 0]) and the altitude in y (range: [0, top], where top is the height of the
      * atmosphere).
      */
     std::unique_ptr<util::LookUpTable> m_multi_scattering_lut;
@@ -166,7 +184,7 @@ private:
     /**
      * The sky view look up table.
      * Stores the distant sky around the camera with respect to it's altitude within the atmosphere.
-     *      * Parameterized by the longitude in x (range: [0, 2π]) and latitude in y (range: [-π/2, π/2]).
+     *      * Parameterized by the longitude in x (range: [0, 2pi]) and latitude in y (range: [-pi/2, pi/2]).
      */
     std::unique_ptr<util::LookUpTable> m_sky_view_lut;
 

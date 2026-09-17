@@ -98,15 +98,9 @@ void Framebuffer::recreate_all_textures()
 
 glm::uvec2 Framebuffer::size() const { return m_format.size; }
 
-const raii::TextureView& Framebuffer::color_texture_view(size_t index)
-{
-    return *m_color_texture_views.at(index);
-}
+const raii::TextureView& Framebuffer::color_texture_view(size_t index) { return *m_color_texture_views.at(index); }
 
-const raii::Texture& Framebuffer::color_texture(size_t index)
-{
-    return *m_color_textures.at(index);
-}
+const raii::Texture& Framebuffer::color_texture(size_t index) { return *m_color_textures.at(index); }
 
 const raii::TextureView& Framebuffer::depth_texture_view()
 {
@@ -139,8 +133,7 @@ std::unique_ptr<raii::RenderPassEncoder> Framebuffer::begin_render_pass(WGPUComm
     render_pass_desc.colorAttachments = render_pass_color_attachments.data();
 
     WGPURenderPassDepthStencilAttachment depth_stencil_attachment {};
-    if (m_format.depth_format != WGPUTextureFormat_Undefined)
-    {
+    if (m_format.depth_format != WGPUTextureFormat_Undefined) {
         depth_stencil_attachment.view = m_depth_texture_view->handle();
         depth_stencil_attachment.depthClearValue = 0.0f;
         depth_stencil_attachment.depthLoadOp = WGPULoadOp::WGPULoadOp_Clear;
@@ -159,7 +152,8 @@ std::unique_ptr<raii::RenderPassEncoder> Framebuffer::begin_render_pass(WGPUComm
 }
 
 // ToDo: Implement this function
-glm::vec4 Framebuffer::read_colour_attachment_pixel(size_t index, const glm::dvec2& normalised_device_coordinates) {
+glm::vec4 Framebuffer::read_colour_attachment_pixel(size_t index, const glm::dvec2& normalised_device_coordinates)
+{
     assert(index < m_color_textures.size());
     assert(normalised_device_coordinates.x >= 0.0 && normalised_device_coordinates.x <= 1.0);
     return {};

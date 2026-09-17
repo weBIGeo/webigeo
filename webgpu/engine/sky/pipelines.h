@@ -1,9 +1,27 @@
+/*****************************************************************************
+ * weBIGeo
+ * Copyright (C) 2026 Gerald Kimmersdorfer
+ * Copyright (C) 2025 Patrick Komon
+ * Copyright (C) 2024 Lukas Herzberger
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *****************************************************************************/
+
 /*
  * Copyright (c) 2024 Lukas Herzberger
  * SPDX-License-Identifier: MIT
  */
-
-// TODO copyright notice?
 
 #pragma once
 
@@ -29,8 +47,10 @@ const uint32_t MULTI_SCATTERING_LUT_MIN_SAMPLE_COUNT = 10u;
 
 class TransmittanceLutPipeline {
 public:
-    TransmittanceLutPipeline(WGPUDevice device, std::unique_ptr<webgpu::raii::BindGroupLayout> bind_group_layout,
-        std::unique_ptr<webgpu::raii::PipelineLayout> pipeline_layout, std::unique_ptr<webgpu::raii::ComputePipeline> pipeline,
+    TransmittanceLutPipeline(WGPUDevice device,
+        std::unique_ptr<webgpu::raii::BindGroupLayout> bind_group_layout,
+        std::unique_ptr<webgpu::raii::PipelineLayout> pipeline_layout,
+        std::unique_ptr<webgpu::raii::ComputePipeline> pipeline,
         WGPUTextureFormat transmittance_lut_format);
 
     static std::unique_ptr<webgpu::raii::BindGroupLayout> make_bind_group_layout(WGPUDevice device, WGPUTextureFormat transmittance_lut_format);
@@ -53,8 +73,10 @@ private:
 
 class MultiScatteringLutPipeline {
 public:
-    MultiScatteringLutPipeline(WGPUDevice device, std::unique_ptr<webgpu::raii::BindGroupLayout> bind_group_layout,
-        std::unique_ptr<webgpu::raii::PipelineLayout> pipeline_layout, std::unique_ptr<webgpu::raii::ComputePipeline> pipeline,
+    MultiScatteringLutPipeline(WGPUDevice device,
+        std::unique_ptr<webgpu::raii::BindGroupLayout> bind_group_layout,
+        std::unique_ptr<webgpu::raii::PipelineLayout> pipeline_layout,
+        std::unique_ptr<webgpu::raii::ComputePipeline> pipeline,
         WGPUTextureFormat multi_scattering_lut_format);
 
     static std::unique_ptr<webgpu::raii::BindGroupLayout> make_bind_group_layout(WGPUDevice device, WGPUTextureFormat multi_scattering_lut_format);
@@ -79,23 +101,42 @@ std::vector<std::pair<std::string, double>> makeMiePhaseOverrides(std::optional<
 
 class SkyViewLutPipeline {
 public:
-    SkyViewLutPipeline(WGPUDevice device, std::unique_ptr<webgpu::raii::BindGroupLayout> bind_group_layout,
-        std::unique_ptr<webgpu::raii::PipelineLayout> pipeline_layout, std::unique_ptr<webgpu::raii::ComputePipeline> pipeline,
-        WGPUTextureFormat sky_view_lut_format, glm::uvec2 sky_view_lut_size, glm::uvec2 multi_scattering_lut_size);
+    SkyViewLutPipeline(WGPUDevice device,
+        std::unique_ptr<webgpu::raii::BindGroupLayout> bind_group_layout,
+        std::unique_ptr<webgpu::raii::PipelineLayout> pipeline_layout,
+        std::unique_ptr<webgpu::raii::ComputePipeline> pipeline,
+        WGPUTextureFormat sky_view_lut_format,
+        glm::uvec2 sky_view_lut_size,
+        glm::uvec2 multi_scattering_lut_size);
 
     static std::unique_ptr<webgpu::raii::BindGroupLayout> make_bind_group_layout(
         WGPUDevice device, WGPUTextureFormat sky_view_lut_format, bool use_custom_uniforms_config = false);
 
-    static std::unique_ptr<webgpu::raii::ComputePipeline> make_compute_pipeline(WGPUDevice device, WGPUPipelineLayout pipeline_layout,
-        WGPUShaderModule shader_module, glm::uvec2 skyViewLutSize, glm::uvec2 multiscatteringLutSize, float distanceToMaxSampleCount,
-        float fromKilometersScaleFactor, bool use_moon, config::MieHgDPhaseConfig miePhaseConfig);
+    static std::unique_ptr<webgpu::raii::ComputePipeline> make_compute_pipeline(WGPUDevice device,
+        WGPUPipelineLayout pipeline_layout,
+        WGPUShaderModule shader_module,
+        glm::uvec2 skyViewLutSize,
+        glm::uvec2 multiscatteringLutSize,
+        float distanceToMaxSampleCount,
+        float fromKilometersScaleFactor,
+        bool use_moon,
+        config::MieHgDPhaseConfig miePhaseConfig);
 
-    static std::unique_ptr<SkyViewLutPipeline> create(WGPUDevice device, webgpu::RenderResourceRegistry& registry, WGPUTextureFormat sky_view_lut_format,
-        glm::uvec2 sky_view_lut_size, glm::uvec2 multi_scattering_lut_size, float distanceToMaxSampleCount, float fromKilometersScaleFactor, bool useMoon,
-        config::ShadowConfig shadowConfig, config::CustomUniformsSourceConfig customUniformsConfig, config::MieHgDPhaseConfig miePhaseConfig);
+    static std::unique_ptr<SkyViewLutPipeline> create(WGPUDevice device,
+        webgpu::RenderResourceRegistry& registry,
+        WGPUTextureFormat sky_view_lut_format,
+        glm::uvec2 sky_view_lut_size,
+        glm::uvec2 multi_scattering_lut_size,
+        float distanceToMaxSampleCount,
+        float fromKilometersScaleFactor,
+        bool useMoon,
+        config::ShadowConfig shadowConfig,
+        config::CustomUniformsSourceConfig customUniformsConfig,
+        config::MieHgDPhaseConfig miePhaseConfig);
 
     std::unique_ptr<util::ComputePass> make_compute_pass(const resources::SkyAtmosphereResources& resources,
-        const std::vector<WGPUBindGroup>& shadow_bind_groups, const std::vector<WGPUBindGroup>& custom_uniforms_bind_groups);
+        const std::vector<WGPUBindGroup>& shadow_bind_groups,
+        const std::vector<WGPUBindGroup>& custom_uniforms_bind_groups);
 
 private:
     WGPUDevice m_device;
@@ -107,29 +148,47 @@ private:
     glm::uvec2 m_multi_scattering_lut_size;
 };
 
-// TODO LEFT OFF HERE - PORT NEXT PIPELINE!
-
 class AerialPerspectiveLutPipeline {
 public:
-    AerialPerspectiveLutPipeline(WGPUDevice device, std::unique_ptr<webgpu::raii::BindGroupLayout> bind_group_layout,
-        std::unique_ptr<webgpu::raii::PipelineLayout> pipeline_layout, std::unique_ptr<webgpu::raii::ComputePipeline> pipeline,
-        WGPUTextureFormat aerial_perspective_lut_format, float aerial_perspective_slice_count, float aerial_perspective_distance_per_slice,
+    AerialPerspectiveLutPipeline(WGPUDevice device,
+        std::unique_ptr<webgpu::raii::BindGroupLayout> bind_group_layout,
+        std::unique_ptr<webgpu::raii::PipelineLayout> pipeline_layout,
+        std::unique_ptr<webgpu::raii::ComputePipeline> pipeline,
+        WGPUTextureFormat aerial_perspective_lut_format,
+        float aerial_perspective_slice_count,
+        float aerial_perspective_distance_per_slice,
         glm::uvec2 multi_scattering_lut_size);
 
     static std::unique_ptr<webgpu::raii::BindGroupLayout> make_bind_group_layout(
         WGPUDevice device, WGPUTextureFormat aerial_perspective_lut_format, bool use_custom_uniforms_config = false);
 
-    static std::unique_ptr<webgpu::raii::ComputePipeline> make_compute_pipeline(WGPUDevice device, WGPUPipelineLayout pipeline_layout,
-        WGPUShaderModule shader_module, float aerial_perspective_slice_count, float aerial_perspective_distance_per_slice, glm::uvec2 multi_scattering_lut_size,
-        float from_kilometers_scale_factor, bool randomize_sample_offsets, bool use_moon, config::MieHgDPhaseConfig mie_phase_config);
+    static std::unique_ptr<webgpu::raii::ComputePipeline> make_compute_pipeline(WGPUDevice device,
+        WGPUPipelineLayout pipeline_layout,
+        WGPUShaderModule shader_module,
+        float aerial_perspective_slice_count,
+        float aerial_perspective_distance_per_slice,
+        glm::uvec2 multi_scattering_lut_size,
+        float from_kilometers_scale_factor,
+        bool randomize_sample_offsets,
+        bool use_moon,
+        config::MieHgDPhaseConfig mie_phase_config);
 
-    static std::unique_ptr<AerialPerspectiveLutPipeline> create(WGPUDevice device, webgpu::RenderResourceRegistry& registry,
-        WGPUTextureFormat aerial_perspective_lut_format, float aerial_perspective_slice_count, float aerial_perspective_distance_per_slice,
-        glm::uvec2 multi_scattering_lut_size, float from_kilometers_scale_factor, bool randomize_sample_offsets, bool use_moon,
-        config::ShadowConfig shadow_config, config::CustomUniformsSourceConfig custom_uniforms_config, config::MieHgDPhaseConfig mie_phase_config);
+    static std::unique_ptr<AerialPerspectiveLutPipeline> create(WGPUDevice device,
+        webgpu::RenderResourceRegistry& registry,
+        WGPUTextureFormat aerial_perspective_lut_format,
+        float aerial_perspective_slice_count,
+        float aerial_perspective_distance_per_slice,
+        glm::uvec2 multi_scattering_lut_size,
+        float from_kilometers_scale_factor,
+        bool randomize_sample_offsets,
+        bool use_moon,
+        config::ShadowConfig shadow_config,
+        config::CustomUniformsSourceConfig custom_uniforms_config,
+        config::MieHgDPhaseConfig mie_phase_config);
 
     std::unique_ptr<util::ComputePass> make_compute_pass(const resources::SkyAtmosphereResources& resources,
-        const std::vector<WGPUBindGroup>& shadow_bind_groups, const std::vector<WGPUBindGroup>& custom_uniforms_bind_groups);
+        const std::vector<WGPUBindGroup>& shadow_bind_groups,
+        const std::vector<WGPUBindGroup>& custom_uniforms_bind_groups);
 
     float aerial_perspective_distance_per_slice() const;
     float aerial_perspective_inv_distance_per_slice() const;
@@ -148,10 +207,12 @@ private:
 class SkyAtmospherePipelines {
 public:
     SkyAtmospherePipelines(std::unique_ptr<TransmittanceLutPipeline> transmittance_lut_pipeline,
-        std::unique_ptr<MultiScatteringLutPipeline> multi_scattering_lut_pipeline, std::unique_ptr<SkyViewLutPipeline> sky_view_lut_pipeline,
+        std::unique_ptr<MultiScatteringLutPipeline> multi_scattering_lut_pipeline,
+        std::unique_ptr<SkyViewLutPipeline> sky_view_lut_pipeline,
         std::unique_ptr<AerialPerspectiveLutPipeline> aerial_perspective_lut_pipeline);
 
-    static std::unique_ptr<SkyAtmospherePipelines> create(WGPUDevice device, webgpu::RenderResourceRegistry& registry, config::SkyAtmosphereRendererConfig config);
+    static std::unique_ptr<SkyAtmospherePipelines> create(
+        WGPUDevice device, webgpu::RenderResourceRegistry& registry, config::SkyAtmosphereRendererConfig config);
 
     TransmittanceLutPipeline& transmittance_lut_pipeline();
     const TransmittanceLutPipeline& transmittance_lut_pipeline() const;

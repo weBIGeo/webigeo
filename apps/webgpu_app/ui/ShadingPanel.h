@@ -33,9 +33,6 @@ public:
     void draw() override;
     void draw_panel() override;
 
-signals:
-    void sun_dir_manually_changed();
-
 private:
     webgpu_engine::Context* m_context;
 };

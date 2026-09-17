@@ -120,16 +120,16 @@ private:
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_compose_pipeline;
     std::unique_ptr<webgpu::raii::BindGroup> m_compose_output_bind_group;
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_present_pipeline; // raw blit to swapchain (both modes)
-    std::unique_ptr<webgpu::raii::BindGroup> m_present_bind_group_sky;          // sky on, no clouds
-    std::unique_ptr<webgpu::raii::BindGroup> m_present_bind_group_sky_clouds;    // sky on, clouds on top
-    std::unique_ptr<webgpu::raii::BindGroup> m_present_bind_group_no_sky;        // sky off, no clouds (scene color direct)
+    std::unique_ptr<webgpu::raii::BindGroup> m_present_bind_group_sky; // sky on, no clouds
+    std::unique_ptr<webgpu::raii::BindGroup> m_present_bind_group_sky_clouds; // sky on, clouds on top
+    std::unique_ptr<webgpu::raii::BindGroup> m_present_bind_group_no_sky; // sky off, no clouds (scene color direct)
     std::unique_ptr<webgpu::raii::BindGroup> m_present_bind_group_no_sky_clouds; // sky off, clouds over scene color
 
     // Cloud composite pass: blends upscaled clouds over the background.
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_cloud_composite_pipeline;
     std::unique_ptr<webgpu::raii::Texture> m_cloud_composite_texture;
     std::unique_ptr<webgpu::raii::TextureView> m_cloud_composite_view;
-    std::array<std::unique_ptr<webgpu::raii::BindGroup>, 2> m_cloud_composite_bind_groups;        // background = sky render target
+    std::array<std::unique_ptr<webgpu::raii::BindGroup>, 2> m_cloud_composite_bind_groups; // background = sky render target
     std::array<std::unique_ptr<webgpu::raii::BindGroup>, 2> m_cloud_composite_bind_groups_no_sky; // background = scene color
 
     // ToDo: Swapchain should get a raii class and the size could be saved in there
@@ -138,6 +138,11 @@ private:
 
     bool m_needs_redraw = true;
     uint32_t m_paint_number = 0;
+
+    // Tracks sky_renderer()->resource_generation() so m_compose_output_bind_group (which references
+    // the sky atmosphere buffer / transmittance LUT) gets recreated whenever those are rebuilt outside
+    // of a resize (e.g. the ray-march debug toggle in SkyPanel).
+    uint64_t m_last_sky_resource_generation = 0;
 
     std::unique_ptr<webgpu::raii::TextureWithSampler> m_shadow_texture;
 };

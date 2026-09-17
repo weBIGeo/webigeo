@@ -44,22 +44,31 @@ void SkyPanel::draw()
 
 void SkyPanel::draw_panel()
 {
-    if (!ImGui::CollapsingHeader(ICON_FA_GLOBE_EUROPE "  Sky"))
+    const bool enabled = m_context->shared_config().m_sky_enabled;
+
+    if (!enabled) {
+        ImGui::SetNextItemOpen(false);
+        ImGui::BeginDisabled();
+    }
+    bool header_open = ImGui::CollapsingHeader(ICON_FA_GLOBE_EUROPE "  Sky");
+    if (!enabled)
+        ImGui::EndDisabled();
+
+    if (!header_open)
         return;
 
-    auto& cfg = m_context->shared_config();
     auto& atm = m_sky_renderer->atmosphere();
     auto& uni = m_sky_renderer->uniforms();
     bool atmosphere_changed = false; // requires constant-LUT re-render
     bool redraw = false;
 
-    ImGui::SeparatorText("Planet (world scale)");
-    if (ImGui::DragFloat("Bottom radius (km)", &atm.bottomRadius, 100.0f, 1.0f, 1.0e7f, "%.1f")) {
-        cfg.m_planet_radius_m = atm.bottomRadius * 1000.0f; // keep terrain curvature in sync
-        atmosphere_changed = true;
+    ImGui::SeparatorText("Debug");
+    static const char* MODE_NAMES[] = { "LUTs", "Raymarching", "Hybrid", "Auto" };
+    int mode_index = static_cast<int>(m_sky_renderer->mode());
+    if (ImGui::Combo("Mode", &mode_index, MODE_NAMES, IM_ARRAYSIZE(MODE_NAMES))) {
+        m_sky_renderer->set_mode(static_cast<webgpu_engine::sky::SkyRenderer::Mode>(mode_index));
+        redraw = true;
     }
-    atmosphere_changed |= ImGui::DragFloat("Atmosphere height (km)", &atm.height, 1.0f, 0.1f, 2000.0f, "%.2f");
-    redraw |= ImGui::DragFloat3("Center (km)", glm::value_ptr(atm.center), 10.0f); // per-frame only, no LUT re-render
 
     ImGui::SeparatorText("Rayleigh");
     atmosphere_changed |= ImGui::DragFloat3("Rayleigh scattering", glm::value_ptr(atm.rayleigh.scattering), 0.001f, 0.0f, 2.0f, "%.4f");
@@ -84,7 +93,6 @@ void SkyPanel::draw_panel()
         redraw = true;
     }
     redraw |= ImGui::SliderFloat("Sun disk luminance", &uni.sun.diskLuminanceScale, 0.1f, 100.0f);
-    redraw |= ImGui::DragFloat3("Sun illuminance", glm::value_ptr(uni.sun.illuminance), 0.01f, 0.0f, 20.0f);
 
     if (atmosphere_changed)
         m_sky_renderer->mark_atmosphere_dirty();

@@ -40,7 +40,6 @@ set(SOURCES
     sky/lut_renderer.h sky/lut_renderer.cpp
     sky/sky_renderer.h sky/sky_renderer.cpp
     sky/SkyRenderer.h sky/SkyRenderer.cpp
-    sky/atmosphere.h
     overlay/OverlayRenderer.h overlay/OverlayRenderer.cpp
     overlay/Overlay.h
     overlay/HeightLinesOverlay.h overlay/HeightLinesOverlay.cpp
@@ -106,6 +105,7 @@ qt_add_resources(webgpu_engine "shaders"
 
         "${SHADER_BASE_DIR}/util/camera_config.wgsl"
         "${SHADER_BASE_DIR}/util/shared_config.wgsl"
+        "${SHADER_BASE_DIR}/util/sky.wgsl"
 
         "${SHADER_BASE_DIR}/sky/render_aerial_perspective_lut.wgsl"
         "${SHADER_BASE_DIR}/sky/render_multi_scattering_lut.wgsl"
@@ -116,6 +116,7 @@ qt_add_resources(webgpu_engine "shaders"
         "${SHADER_BASE_DIR}/sky/render_transmittance_lut.wgsl"
         "${SHADER_BASE_DIR}/sky/common/aerial_perspective.wgsl"
         "${SHADER_BASE_DIR}/sky/common/blend.wgsl"
+        "${SHADER_BASE_DIR}/sky/common/blend_variants.wgsl"
         "${SHADER_BASE_DIR}/sky/common/constants.wgsl"
         "${SHADER_BASE_DIR}/sky/common/coordinate_system.wgsl"
         "${SHADER_BASE_DIR}/sky/common/custom_uniforms.wgsl"

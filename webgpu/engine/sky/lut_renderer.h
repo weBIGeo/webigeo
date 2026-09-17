@@ -1,10 +1,28 @@
+/*****************************************************************************
+ * weBIGeo
+ * Copyright (C) 2026 Gerald Kimmersdorfer
+ * Copyright (C) 2025 Patrick Komon
+ * Copyright (C) 2024 Lukas Herzberger
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *****************************************************************************/
+
 /*
  *
  * Copyright (c) 2024 Lukas Herzberger
  * SPDX-License-Identifier: MIT
  */
-
-// TODO copyright notice?
 
 #pragma once
 
@@ -17,9 +35,13 @@ namespace webgpu_engine::sky::lut {
 
 class SkyAtmosphereLutRenderer {
 public:
-    SkyAtmosphereLutRenderer(std::unique_ptr<resources::SkyAtmosphereResources> resources, std::unique_ptr<pipelines::SkyAtmospherePipelines> pipelines,
-        bool skip_dynamic_lut_rendering, bool uses_custom_uniforms, std::unique_ptr<sky::util::ComputePass> transmittance_lut_pass,
-        std::unique_ptr<sky::util::ComputePass> multi_scattering_lut_pass, std::unique_ptr<sky::util::ComputePass> sky_view_lut_pass,
+    SkyAtmosphereLutRenderer(std::unique_ptr<resources::SkyAtmosphereResources> resources,
+        std::unique_ptr<pipelines::SkyAtmospherePipelines> pipelines,
+        bool skip_dynamic_lut_rendering,
+        bool uses_custom_uniforms,
+        std::unique_ptr<sky::util::ComputePass> transmittance_lut_pass,
+        std::unique_ptr<sky::util::ComputePass> multi_scattering_lut_pass,
+        std::unique_ptr<sky::util::ComputePass> sky_view_lut_pass,
         std::unique_ptr<sky::util::ComputePass> aerial_perspective_lut_pass);
 
 public:
@@ -36,7 +58,9 @@ public:
     void render_dynamic_luts(WGPUComputePassEncoder pass_encoder);
     void render_dynamic_luts(WGPUComputePassEncoder pass_encoder, uniforms::Uniforms uniforms);
 
-    void render_luts(WGPUComputePassEncoder pass_encoder, bool force_constant_lut_rendering = false, bool skip_dynamic_lut_rendering = false,
+    void render_luts(WGPUComputePassEncoder pass_encoder,
+        bool force_constant_lut_rendering = false,
+        bool skip_dynamic_lut_rendering = false,
         bool force_sky_view_rendering = false);
 
     resources::SkyAtmosphereResources& resources();

@@ -32,4 +32,4 @@ std::vector<TileBounds> compute_bounds(const std::vector<tile::Id>& tiles, utils
 std::vector<tile::Id> limit(std::vector<tile::Id> tiles, uint max_n_tiles);
 std::vector<TileBounds> cull(std::vector<TileBounds> list, const camera::Definition& camera, double planet_radius_m = 0.0);
 std::vector<TileBounds> sort(std::vector<TileBounds> list, const glm::dvec3& camera_position);
-}
+} // namespace nucleus::tile::drawing

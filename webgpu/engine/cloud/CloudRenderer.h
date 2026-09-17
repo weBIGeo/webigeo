@@ -75,7 +75,7 @@ public:
         float shadow_extinction_scale = 0.5f;
         float powder_scale = 0.9f;
         float fade_factor = 0.0f;
-        float horizon_softness = 0.1f; // half-width of the sunrise terminator ramp (zenith-cosine units, ~5.7°)
+        float horizon_softness = 0.1f; // half-width of the sunrise ramp for smooth color fading on steep sun angles (cos values 0.1 => ~5.7deg)
         int stable_frames_limit = 1; // originally 64, but not necessary anymore due to improvements Wendelin made
     };
 
@@ -94,7 +94,6 @@ public:
         uint32_t frame_number,
         const webgpu::raii::TextureView& transmittance_lut_view,
         const webgpu::raii::Sampler& transmittance_lut_sampler,
-        WGPUBuffer atmosphere_buffer,
         const webgpu::raii::TextureView& aerial_perspective_lut_view,
         const webgpu::raii::TextureView& sky_view_lut_view);
 
@@ -118,7 +117,7 @@ public slots:
     void update_gpu_tiles_cloud(const std::vector<nucleus::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuTexture3DTile>& new_tiles);
 
 private:
-    struct alignas(16) CameraConfig {
+    struct alignas(16) CameraConfigClouds {
         glm::mat4 view_matrix;
         glm::mat4 proj_matrix;
         glm::mat4 inv_view_matrix;
@@ -127,7 +126,7 @@ private:
     };
 
     struct alignas(16) ShaderParamsRender {
-        CameraConfig camera;
+        CameraConfigClouds camera;
         glm::vec4 bounds_min;
         glm::vec4 bounds_max;
 
@@ -152,8 +151,8 @@ private:
     };
 
     struct alignas(16) ShaderParamsUpscale {
-        CameraConfig current_camera;
-        CameraConfig previous_camera;
+        CameraConfigClouds current_camera;
+        CameraConfigClouds previous_camera;
         glm::vec2 jitter;
         glm::vec2 prev_jitter;
         glm::vec2 low_res_texel_size;
@@ -200,7 +199,7 @@ private:
     std::unique_ptr<webgpu::raii::BindGroup> m_upscale_clouds_bind_group_a;
     std::unique_ptr<webgpu::raii::BindGroup> m_upscale_clouds_bind_group_b;
     std::unique_ptr<webgpu::raii::BindGroup> m_camera_bind_group;
-    std::unique_ptr<webgpu::raii::BindGroup> m_atmosphere_bind_group;
+    std::unique_ptr<webgpu::raii::BindGroup> m_sky_luts_bind_group;
 
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_render_clouds_pipeline;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_upscale_clouds_pipeline;

@@ -94,15 +94,11 @@ fn normal_by_finite_difference_method_texture_f32(
 }
 
 // Returns the surface normal with earth-curvature deformation by adding the curvature-drop gradient
-// to the surface slope, tilting distant facets radially outward to match the bent geometry. Must
-// match apply_earth_curvature (exact sphere): the drop is the spherical sagitta, whose horizontal
-// gradient is rel_xy / sqrt(R^2 - d^2). This reduces to the old rel_xy/R (parabola gradient) as
-// d -> 0, but stays correct far out.
-//   n         : stored true terrain normal (z-up, normalized)
-//   rel_xy    : camera-relative horizontal position (pos_cws.xy)
-//   radius_m  : planet radius in meters (config.planet_radius_m)
+// to the surface slope, tilting distant facets radially outward to match the bent geometry.
+// IMPORTANT: must match the earth_curvature_drop function in position_util.wgsl
 fn curvature_corrected_normal(n: vec3f, rel_xy: vec2f, radius_m: f32) -> vec3f {
     let d_sq = dot(rel_xy, rel_xy);
+    // reverse spherical transformation, whose horizontal gradient is rel_xy / sqrt(R^2 - d^2)
     let inv_slope = 1.0 / sqrt(max(radius_m * radius_m - d_sq, 1.0));
     return normalize(n + (n.z * inv_slope) * vec3f(rel_xy, 0.0));
 }

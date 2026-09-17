@@ -69,9 +69,7 @@ namespace utils {
         };
 
         const auto srs_bounds = srs::tile_bounds(id);
-        const auto max_world_y = [&srs_bounds]() {
-            return float(std::max(srs_bounds.max.y, -srs_bounds.min.y));
-        }();
+        const auto max_world_y = [&srs_bounds]() { return float(std::max(srs_bounds.max.y, -srs_bounds.min.y)); }();
         //        const auto min_world_y = [&srs_bounds, &id]() {
         //            if (id.zoom_level == 0)
         //                return 0.;
@@ -128,9 +126,7 @@ namespace utils {
                 p.z = aabb.max.z;
             return p;
         };
-        const auto ranges_overlap = [](const Range& a, const Range& b) {
-            return a.min <= b.max && b.min <= a.max;
-        };
+        const auto ranges_overlap = [](const Range& a, const Range& b) { return a.min <= b.max && b.min <= a.max; };
 
         bool all_inside = true;
         for (const auto& p : frustum.clipping_planes) {
@@ -173,20 +169,14 @@ namespace utils {
             return ranges_overlap(aabb_range, frustum_range);
         };
 
-        const auto frustum_edges = std::array {
-            glm::normalize(frustum.corners[4] - frustum.corners[0]),
+        const auto frustum_edges = std::array { glm::normalize(frustum.corners[4] - frustum.corners[0]),
             glm::normalize(frustum.corners[5] - frustum.corners[1]),
             glm::normalize(frustum.corners[6] - frustum.corners[2]),
             glm::normalize(frustum.corners[7] - frustum.corners[3]),
             glm::normalize(frustum.corners[1] - frustum.corners[0]),
-            glm::normalize(frustum.corners[3] - frustum.corners[0])
-        };
+            glm::normalize(frustum.corners[3] - frustum.corners[0]) };
 
-        constexpr auto aabb_edges = std::array {
-            glm::dvec3 { 1., 0., 0. },
-            glm::dvec3 { 0., 1., 0. },
-            glm::dvec3 { 0., 0., 1. }
-        };
+        constexpr auto aabb_edges = std::array { glm::dvec3 { 1., 0., 0. }, glm::dvec3 { 0., 1., 0. }, glm::dvec3 { 0., 0., 1. } };
 
         for (const auto& direction : aabb_edges) {
             if (!frustum_and_aabb_ranges_overlap_along_direction(direction))
@@ -196,7 +186,8 @@ namespace utils {
         for (const auto& fe : frustum_edges) {
             for (const auto& ae : aabb_edges) {
                 const glm::dvec3 direction = glm::cross(fe, ae);
-                if (std::abs(direction.x) < radix::geometry::epsilon<double> && std::abs(direction.y) < radix::geometry::epsilon<double> && std::abs(direction.z) < radix::geometry::epsilon<double>)
+                if (std::abs(direction.x) < radix::geometry::epsilon<double> && std::abs(direction.y) < radix::geometry::epsilon<double>
+                    && std::abs(direction.z) < radix::geometry::epsilon<double>)
                     continue; // parallel
                 if (!frustum_and_aabb_ranges_overlap_along_direction(direction))
                     return false;
@@ -205,10 +196,8 @@ namespace utils {
         return true;
     }
 
-    // NOTE: The webgpu renderer bends terrain downward apply_earth_curvature() in webgpu/base/shaders/position_util.wgsl.
-    // This function  lowers an AABB's height (z) bounds by that same spherical formula such that
-    // frustum culling operates on bounds matching the curved geometry.
-    // Fallback to original behaviour on planet_radius_m == 0
+    // Mirrors apply_earth_curvature() in webgpu/base/shaders/position_util.wgsl:
+    // planet_radius_m <= 0 -> fallback to original behaviour
     inline tile::SrsAndHeightBounds apply_curvature_to_aabb(tile::SrsAndHeightBounds aabb, const glm::dvec3& camera_position, double planet_radius_m)
     {
         if (planet_radius_m <= 0.0)
@@ -218,15 +207,37 @@ namespace utils {
         const double ry_min = aabb.min.y - camera_position.y, ry_max = aabb.max.y - camera_position.y;
         const double r = planet_radius_m;
 
-        const auto far_sq  = [](double lo, double hi) { return std::max(lo * lo, hi * hi); };
+        const auto far_sq = [](double lo, double hi) { return std::max(lo * lo, hi * hi); };
         const auto near_sq = [](double lo, double hi) { return (lo <= 0.0 && hi >= 0.0) ? 0.0 : std::min(lo * lo, hi * hi); };
 
         // Exact spherical sagitta drop, matching apply_earth_curvature(): d^2 / (R + sqrt(R^2 - d^2)).
         const auto drop = [r](double d_sq) { return d_sq / (r + std::sqrt(std::max(r * r - d_sq, 0.0))); };
 
-        aabb.min.z -= drop(far_sq(rx_min, rx_max)  + far_sq(ry_min, ry_max));
+        aabb.min.z -= drop(far_sq(rx_min, rx_max) + far_sq(ry_min, ry_max));
         aabb.max.z -= drop(near_sq(rx_min, rx_max) + near_sq(ry_min, ry_max));
         return aabb;
+    }
+
+    inline auto refine_functor_float(
+        const nucleus::camera::Definition& camera, const AabbDecoratorPtr& aabb_decorator, float error_threshold_px, float tile_size = 256)
+    {
+        constexpr auto sqrt2 = 1.414213562373095f;
+        const auto camera_frustum = camera.frustum();
+        auto refine = [camera_frustum, camera, error_threshold_px, tile_size, aabb_decorator](const tile::Id& tile) {
+            if (tile.zoom_level >= 18)
+                return false;
+
+            auto aabb = aabb_decorator->aabb(tile);
+            if (!tile::utils::camera_frustum_contains_tile(camera_frustum, aabb))
+                return false;
+            const auto aabb_float = radix::geometry::Aabb<3, float> { aabb.min - camera.position(), aabb.max - camera.position() };
+
+            const auto distance = radix::geometry::distance(aabb_float, glm::vec3 { 0, 0, 0 });
+            const auto pixel_size = sqrt2 * aabb_float.size().x / tile_size;
+
+            return camera.to_screen_space(pixel_size, distance) >= error_threshold_px;
+        };
+        return refine;
     }
 
     // NOTE: planet_radius_m and error_threshold_px added for webgpu app. (for curvature correction and per overlay thresholds)
@@ -242,7 +253,7 @@ namespace utils {
                 return false;
 
             const auto aabb = aabb_decorator->aabb(tile);
-            // Curve the AABB to match the rendered geometry
+            // Curve the AABB to match the rendered geometry; pixel-error distance below stays flat.
             if (!tile::utils::camera_frustum_contains_tile(camera_frustum, tile::utils::apply_curvature_to_aabb(aabb, camera.position(), planet_radius_m)))
                 return false;
 
@@ -253,5 +264,5 @@ namespace utils {
         };
         return refine;
     }
-}
-}
+} // namespace utils
+} // namespace nucleus::tile

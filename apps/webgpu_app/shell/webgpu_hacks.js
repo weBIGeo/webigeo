@@ -1,4 +1,5 @@
 const JS_MAX_TOUCHES = 3;
+const SPINNER_FADE_OUT_DELAY_MS = 2000;
 
 class WeBIGeoHacks {
 
@@ -29,6 +30,39 @@ class WeBIGeoHacks {
     // Prevent right-click context menu
     webgpuCanvas.addEventListener('contextmenu', (event) => { event.preventDefault(); event.stopPropagation(); });
     this.hideLog();
+
+    this._logoCircle = null;
+    this._spinLoadingLogo();
+  }
+
+  _spinLoadingLogo() {
+    const obj = document.querySelector('#webigeoLogo');
+    if (!obj) return;
+
+    const onLoad = () => {
+      const svgDoc = obj.contentDocument;
+      const circle = svgDoc && svgDoc.getElementById('LoadingCircle');
+      if (!circle) {
+        console.error('_spinLoadingLogo: #LoadingCircle not found in webigeo_logo.svg');
+        return;
+      }
+      // CSS can't reach into the <object> document, so we have to inject spin animation
+      const style = svgDoc.createElementNS('http://www.w3.org/2000/svg', 'style');
+      style.textContent = `
+        #LoadingCircle { transform-box: view-box; transform-origin: center; animation: webigeo-spin 20s linear infinite; }
+        #LoadingCircle.spin-paused { animation-play-state: paused; }
+        @keyframes webigeo-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `;
+      svgDoc.documentElement.appendChild(style);
+      this._logoCircle = circle;
+    };
+
+    if (obj.contentDocument && obj.contentDocument.readyState === 'complete') onLoad();
+    else obj.addEventListener('load', onLoad, { once: true });
+  }
+
+  stopLoadingSpin() {
+    if (this._logoCircle) this._logoCircle.classList.add('spin-paused');
   }
 
   async handleKeydownEvent(event) {
@@ -154,7 +188,7 @@ class WeBIGeoHacks {
       if (text.includes('webgpu_app ready')) {
         const cb = this._readyCallback;
         this._readyCallback = null;
-        setTimeout(() => this._fadeOutSpinner(cb), 1000);
+        setTimeout(() => this._fadeOutSpinner(cb), SPINNER_FADE_OUT_DELAY_MS);
       }
     }
   }

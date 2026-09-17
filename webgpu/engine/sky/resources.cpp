@@ -1,9 +1,27 @@
+/*****************************************************************************
+ * weBIGeo
+ * Copyright (C) 2026 Gerald Kimmersdorfer
+ * Copyright (C) 2025 Patrick Komon
+ * Copyright (C) 2024 Lukas Herzberger
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *****************************************************************************/
+
 /*
  * Copyright (c) 2024 Lukas Herzberger
  * SPDX-License-Identifier: MIT
  */
-
-// TODO copyright notice?
 
 #include "resources.h"
 
@@ -94,8 +112,9 @@ SkyAtmosphereResources::SkyAtmosphereResources(WGPUDevice device, const config::
 
     WGPUTextureDescriptor aerialPerspectiveLutDescriptor {};
     aerialPerspectiveLutDescriptor.label = WGPUStringView { .data = "aerial perspective LUT", .length = WGPU_STRLEN };
-    aerialPerspectiveLutDescriptor.size = WGPUExtent3D { config.lookUpTables.aerialPerspectiveLut.size.x, config.lookUpTables.aerialPerspectiveLut.size.y,
-        config.lookUpTables.aerialPerspectiveLut.size.z };
+    aerialPerspectiveLutDescriptor.size = WGPUExtent3D {
+        config.lookUpTables.aerialPerspectiveLut.size.x, config.lookUpTables.aerialPerspectiveLut.size.y, config.lookUpTables.aerialPerspectiveLut.size.z
+    };
     aerialPerspectiveLutDescriptor.format = config.lookUpTables.aerialPerspectiveLut.format;
     aerialPerspectiveLutDescriptor.dimension = WGPUTextureDimension_3D;
     aerialPerspectiveLutDescriptor.mipLevelCount = 1;
@@ -124,7 +143,6 @@ void SkyAtmosphereResources::updateAtmosphere(const params::Atmosphere& atmosphe
 void SkyAtmosphereResources::updateUniforms(uniforms::Uniforms uniforms)
 {
     if (m_uniforms_buffer) {
-        // TODO check layout
         m_uniforms_buffer->data = uniforms;
         m_uniforms_buffer->update_gpu_data(wgpuDeviceGetQueue(m_device));
     }

@@ -1,7 +1,6 @@
 /*****************************************************************************
  * weBIGeo
- * Copyright (C) 2024 Patrick Komon
- * Copyright (C) 2023 Gerald Kimmersdorfer
+ * Copyright (C) 2026 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,21 +16,27 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
-struct shared_config {
-    sun_light: vec4f,
-    sun_light_dir: vec4f,
-    amb_light: vec4f,
-    material_color: vec4f,
-    material_light_response: vec4f,
-    sky_enabled: u32,
-    clouds_enabled: u32,
-    shading_enabled: u32,
-    normal_mode: u32,
-    overlay_mode: u32,
-    track_render_mode: u32,
-    planet_radius_m: f32,
-    atmosphere_height_m: f32,
-    atmosphere_planet_center_m: vec4f,
+#pragma once
+
+#include "ImGuiPanel.h"
+
+namespace webgpu_engine {
+class Context;
 }
 
-;
+namespace webgpu_app {
+
+class SharedConfigPanel : public ImGuiPanel {
+    Q_OBJECT
+public:
+    explicit SharedConfigPanel(webgpu_engine::Context* context);
+    void draw_panel() override;
+
+signals:
+    void sun_dir_manually_changed();
+
+private:
+    webgpu_engine::Context* m_context;
+};
+
+} // namespace webgpu_app

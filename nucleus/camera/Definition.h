@@ -1,4 +1,4 @@
- /*****************************************************************************
+/*****************************************************************************
  * Alpine Renderer
  * Copyright (C) 2022 Adam Celarek
  * Copyright (C) 2023 Jakob Lindner
@@ -26,11 +26,11 @@
 #include <glm/glm.hpp>
 #include <radix/geometry.h>
 
- namespace nucleus::camera {
+namespace nucleus::camera {
 
- struct Frustum {
-     std::array<radix::geometry::Plane<double>, 6> clipping_planes; // the order of clipping panes is front, back, top, down, left, and right
-     std::array<glm::dvec3, 8> corners; // the order of corners is ccw, starting from top left, front plane -> back plane
+struct Frustum {
+    std::array<radix::geometry::Plane<double>, 6> clipping_planes; // the order of clipping panes is front, back, top, down, left, and right
+    std::array<glm::dvec3, 8> corners; // the order of corners is ccw, starting from top left, front plane -> back plane
 };
 
 class Definition {
@@ -51,6 +51,10 @@ public:
     [[nodiscard]] glm::mat4 local_view_projection_matrix(const glm::dvec3& origin_offset) const;
     [[nodiscard]] glm::mat4 local_view_matrix() const;
     [[nodiscard]] glm::dvec3 position() const;
+    // returns true altitude [m] above the surface
+    [[nodiscard]] double altitude() const;
+    // returns latitude and longitude [deg] and true altitude [m] of the camera position
+    [[nodiscard]] glm::dvec3 lat_long_alt() const;
     [[nodiscard]] glm::dvec3 x_axis() const;
     [[nodiscard]] glm::dvec3 y_axis() const;
     [[nodiscard]] glm::dvec3 z_axis() const;
@@ -103,4 +107,4 @@ private:
     float m_pixel_error_threshold = 2.f;
 };
 
-}
+} // namespace nucleus::camera

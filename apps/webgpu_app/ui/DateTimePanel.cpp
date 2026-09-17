@@ -29,7 +29,6 @@
 #include <ctime>
 #include <imgui.h>
 #include <nucleus/camera/Controller.h>
-#include <nucleus/srs.h>
 #include <nucleus/utils/sun_calculations.h>
 #include <webgpu/engine/Context.h>
 
@@ -68,8 +67,7 @@ void DateTimePanel::draw()
     constexpr ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoTitleBar
         | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_AlwaysAutoResize;
 
-    if (ImGuiManager::BeginSnapWindow("##datetime_panel", avail,
-            ImGuiManager::SnapEdge::Far, ImGuiManager::SnapEdge::Far, nullptr, flags)) {
+    if (ImGuiManager::BeginSnapWindow("##datetime_panel", avail, ImGuiManager::SnapEdge::Far, ImGuiManager::SnapEdge::Far, nullptr, flags)) {
         const float btn_w = 30.0f;
         const float spacing = ImGui::GetStyle().ItemSpacing.x;
 
@@ -98,7 +96,7 @@ void DateTimePanel::draw()
 
         ImGui::SameLine();
 
-        // Cloud link button (color by match quality when active)
+        // Cloud link button
         ImVec4 cloud_btn_col;
         if (!m_cloud_linked) {
             cloud_btn_col = ImVec4(0.4f, 0.4f, 0.4f, 1.0f);
@@ -222,8 +220,7 @@ void DateTimePanel::draw()
                 m_context->request_redraw();
         }
 
-        auto world_pos = m_terrain_renderer->get_camera_controller()->definition().position();
-        auto lla = nucleus::srs::world_to_lat_long_alt(world_pos);
+        auto lla = m_terrain_renderer->get_camera_controller()->definition().lat_long_alt();
         ImGui::Separator();
         ImGui::TextDisabled("Location: %.4f° N  %.4f° E  %.0f m", lla.x, lla.y, lla.z);
     }
@@ -239,8 +236,7 @@ void DateTimePanel::recalculate_and_apply(bool load_cloud)
     QDateTime local_dt(QDate(year, month, day), QTime(m_hour, m_minute, m_second), Qt::LocalTime);
 
     if (m_sun_linked) {
-        auto world_pos = m_terrain_renderer->get_camera_controller()->definition().position();
-        auto lla = nucleus::srs::world_to_lat_long_alt(world_pos);
+        auto lla = m_terrain_renderer->get_camera_controller()->definition().lat_long_alt();
         glm::vec2 angles = nucleus::utils::sun_calculations::calculate_sun_angles(local_dt, lla);
         glm::vec3 dir = nucleus::utils::sun_calculations::sun_rays_direction_from_sun_angles(angles);
         auto& cfg = m_context->shared_config();

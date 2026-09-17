@@ -70,11 +70,8 @@ public:
     enum class SnapEdge { None, Near, Far }; // Near = left/top boundary, Far = right/bottom boundary
 
     // Snap-aware drop-in for ImGui::Begin.
-    static bool BeginSnapWindow(const char* id, ImVec2 avail,
-        SnapEdge default_x, SnapEdge default_y,
-        bool* p_open = nullptr,
-        ImGuiWindowFlags flags = 0,
-        float margin = 10.f);
+    static bool BeginSnapWindow(
+        const char* id, ImVec2 avail, SnapEdge default_x, SnapEdge default_y, bool* p_open = nullptr, ImGuiWindowFlags flags = 0, float margin = 10.f);
     static void EndSnapWindow();
 
     enum class FilePickerMode { Open, Save };
@@ -109,12 +106,12 @@ private:
     static std::unordered_map<std::string, FilePickerState> s_picker_states;
 
     struct SnapWindowState {
-        SnapEdge snap_x      = SnapEdge::None;
-        SnapEdge snap_y      = SnapEdge::None;
-        ImVec2   last_pos    = {};
-        ImVec2   last_size   = {};
-        bool     initialized      = false;
-        bool     was_window_moving = false;
+        SnapEdge snap_x = SnapEdge::None;
+        SnapEdge snap_y = SnapEdge::None;
+        ImVec2 last_pos = {};
+        ImVec2 last_size = {};
+        bool initialized = false;
+        bool was_window_moving = false;
     };
     static std::unordered_map<std::string, SnapWindowState> s_snap_window_states;
 
