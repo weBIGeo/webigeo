@@ -55,7 +55,7 @@ public:
     [[nodiscard]] bool contains(nucleus::tile::Id tile_id) const;
     [[nodiscard]] unsigned capacity() const;
     /// Hashed tile-id -> layer table for GPU-side lookups (used by overlays sampling this array).
-    [[nodiscard]] nucleus::tile::GpuArrayHelper::Dictionary generate_dictionary() const;
+    [[nodiscard]] nucleus::Raster<glm::u32vec4> generate_dictionary() const;
 
     [[nodiscard]] webgpu::raii::Texture& texture() { return m_texture->texture(); }
     [[nodiscard]] const webgpu::raii::Texture& texture() const { return m_texture->texture(); }

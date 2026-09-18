@@ -25,10 +25,6 @@ namespace nucleus::tile {
 
 class GpuArrayHelper {
 public:
-    struct Dictionary {
-        nucleus::Raster<glm::u32vec2> packed_ids;
-        nucleus::Raster<uint16_t> layers;
-    };
     struct LayerInfo {
         tile::Id id;
         unsigned index;
@@ -42,7 +38,8 @@ public:
     void set_tile_limit(unsigned new_limit);
     unsigned size() const;
     unsigned int n_occupied() const;
-    Dictionary generate_dictionary() const;
+    // RGBA32Uint dictionary raster: xy = packed tile-id key, z = array layer, w = unused.
+    nucleus::Raster<glm::u32vec4> generate_dictionary() const;
     LayerInfo layer(Id tile_id) const;
     bool contains(Id tile_id) const;
 

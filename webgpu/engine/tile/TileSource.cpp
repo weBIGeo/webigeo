@@ -82,21 +82,18 @@ void TileSource::init(webgpu::Context& ctx)
     m_ctx = &ctx;
     m_array.init(ctx);
 
-    m_dict_ids = make_dictionary_texture(ctx.device(), WGPUTextureFormat::WGPUTextureFormat_RG32Uint, "tile source dict ids");
-    m_dict_layers = make_dictionary_texture(ctx.device(), WGPUTextureFormat::WGPUTextureFormat_R16Uint, "tile source dict layers");
-    m_dict_ids_view = m_dict_ids->create_view();
-    m_dict_layers_view = m_dict_layers->create_view();
+    m_dict = make_dictionary_texture(ctx.device(), WGPUTextureFormat::WGPUTextureFormat_RGBA32Uint, "tile source dict");
+    m_dict_view = m_dict->create_view();
 
-    upload_dictionary(); // seed with the (currently empty) dictionary so the textures hold valid data
+    upload_dictionary(); // seed with the (currently empty) dictionary so the texture holds valid data
 }
 
 void TileSource::upload_dictionary()
 {
-    if (!m_dict_ids)
+    if (!m_dict)
         return;
     const auto dict = m_array.generate_dictionary();
-    m_dict_ids->write(m_ctx->queue(), dict.packed_ids);
-    m_dict_layers->write(m_ctx->queue(), dict.layers);
+    m_dict->write(m_ctx->queue(), dict);
 }
 
 void TileSource::update_gpu_tiles(const std::vector<nucleus::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuTextureTile>& new_tiles)

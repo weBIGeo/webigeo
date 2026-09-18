@@ -85,17 +85,11 @@ void SlippyTileOverlay::init(Context& context)
             background_entry.texture.sampleType = WGPUTextureSampleType_UnfilterableFloat;
             background_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
-            WGPUBindGroupLayoutEntry dict_ids_entry {};
-            dict_ids_entry.binding = 6;
-            dict_ids_entry.visibility = WGPUShaderStage_Compute;
-            dict_ids_entry.texture.sampleType = WGPUTextureSampleType_Uint;
-            dict_ids_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
-
-            WGPUBindGroupLayoutEntry dict_layers_entry {};
-            dict_layers_entry.binding = 7;
-            dict_layers_entry.visibility = WGPUShaderStage_Compute;
-            dict_layers_entry.texture.sampleType = WGPUTextureSampleType_Uint;
-            dict_layers_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+            WGPUBindGroupLayoutEntry dict_entry {};
+            dict_entry.binding = 6;
+            dict_entry.visibility = WGPUShaderStage_Compute;
+            dict_entry.texture.sampleType = WGPUTextureSampleType_Uint;
+            dict_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
             WGPUBindGroupLayoutEntry tile_ref_entry {};
             tile_ref_entry.binding = 8;
@@ -117,7 +111,7 @@ void SlippyTileOverlay::init(Context& context)
 
             return std::make_unique<webgpu::raii::BindGroupLayout>(device,
                 std::vector<WGPUBindGroupLayoutEntry> { depth_entry, settings_entry, tile_texture_entry, tile_sampler_entry, output_entry,
-                    background_entry, dict_ids_entry, dict_layers_entry, tile_ref_entry, frame_tile_ids_entry,
+                    background_entry, dict_entry, tile_ref_entry, frame_tile_ids_entry,
                     normal_entry },
                 "slippy tile overlay bind group layout");
         });
@@ -164,17 +158,11 @@ void SlippyTileOverlay::init(Context& context)
             tile_sampler_entry.visibility = WGPUShaderStage_Fragment;
             tile_sampler_entry.sampler.type = WGPUSamplerBindingType_Filtering;
 
-            WGPUBindGroupLayoutEntry dict_ids_entry {};
-            dict_ids_entry.binding = 6;
-            dict_ids_entry.visibility = WGPUShaderStage_Fragment;
-            dict_ids_entry.texture.sampleType = WGPUTextureSampleType_Uint;
-            dict_ids_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
-
-            WGPUBindGroupLayoutEntry dict_layers_entry {};
-            dict_layers_entry.binding = 7;
-            dict_layers_entry.visibility = WGPUShaderStage_Fragment;
-            dict_layers_entry.texture.sampleType = WGPUTextureSampleType_Uint;
-            dict_layers_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
+            WGPUBindGroupLayoutEntry dict_entry {};
+            dict_entry.binding = 6;
+            dict_entry.visibility = WGPUShaderStage_Fragment;
+            dict_entry.texture.sampleType = WGPUTextureSampleType_Uint;
+            dict_entry.texture.viewDimension = WGPUTextureViewDimension_2D;
 
             WGPUBindGroupLayoutEntry tile_ref_entry {};
             tile_ref_entry.binding = 8;
@@ -188,8 +176,8 @@ void SlippyTileOverlay::init(Context& context)
             frame_tile_ids_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
 
             return std::make_unique<webgpu::raii::BindGroupLayout>(device,
-                std::vector<WGPUBindGroupLayoutEntry> { depth_entry, settings_entry, tile_texture_entry, tile_sampler_entry, dict_ids_entry,
-                    dict_layers_entry, tile_ref_entry, frame_tile_ids_entry },
+                std::vector<WGPUBindGroupLayoutEntry> { depth_entry, settings_entry, tile_texture_entry, tile_sampler_entry, dict_entry,
+                    tile_ref_entry, frame_tile_ids_entry },
                 "slippy tile overlay gbuffer write bind group layout");
         });
 
@@ -271,8 +259,7 @@ void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
             m_source->array().sampler().create_bind_group_entry(3),
             target_output.texture_view().create_bind_group_entry(4),
             current_input.texture_view().create_bind_group_entry(5),
-            m_source->dictionary_ids_view().create_bind_group_entry(6),
-            m_source->dictionary_layers_view().create_bind_group_entry(7),
+            m_source->dictionary_view().create_bind_group_entry(6),
             octx.tile_ref_view.create_bind_group_entry(8),
             m_frame_tile_ids_buffer->create_bind_group_entry(9),
             octx.normal_view.create_bind_group_entry(11),
@@ -307,8 +294,7 @@ void SlippyTileOverlay::write_normals_to_gbuffer(const WGPUCommandEncoder& comma
             m_settings_uniform->raw_buffer().create_bind_group_entry(1),
             m_source->array().texture_view().create_bind_group_entry(2),
             m_source->array().sampler().create_bind_group_entry(3),
-            m_source->dictionary_ids_view().create_bind_group_entry(6),
-            m_source->dictionary_layers_view().create_bind_group_entry(7),
+            m_source->dictionary_view().create_bind_group_entry(6),
             octx.tile_ref_view.create_bind_group_entry(8),
             m_frame_tile_ids_buffer->create_bind_group_entry(9),
         },

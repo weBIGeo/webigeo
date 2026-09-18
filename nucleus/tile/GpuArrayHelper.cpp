@@ -70,20 +70,22 @@ bool GpuArrayHelper::contains(Id tile_id) const
     return m_id_to_layer.contains(tile_id);
 }
 
-GpuArrayHelper::Dictionary GpuArrayHelper::generate_dictionary() const
+nucleus::Raster<glm::u32vec4> GpuArrayHelper::generate_dictionary() const
 {
     const auto hash_to_pixel = [](uint16_t hash) { return glm::uvec2(hash & 255, hash >> 8); };
-    nucleus::Raster<glm::u32vec2> packed_ids({ 256, 256 }, glm::u32vec2(-1, -1));
-    nucleus::Raster<uint16_t> layers({ 256, 256 }, 0);
+    nucleus::Raster<glm::u32vec4> table({ 256, 256 }, glm::u32vec4(0xFFFFFFFFu, 0xFFFFFFFFu, 0u, 0u));
     for (const auto& [id, layer] : m_id_to_layer) {
         auto hash = nucleus::srs::hash_uint16(id);
-        while (packed_ids.pixel(hash_to_pixel(hash)) != glm::u32vec2(-1, -1))
+        auto px = hash_to_pixel(hash);
+        while (table.pixel(px).x != 0xFFFFFFFFu || table.pixel(px).y != 0xFFFFFFFFu) {
             hash++;
+            px = hash_to_pixel(hash);
+        }
 
-        packed_ids.pixel(hash_to_pixel(hash)) = nucleus::srs::pack(id);
-        layers.pixel(hash_to_pixel(hash)) = layer;
+        const auto key = nucleus::srs::pack(id);
+        table.pixel(px) = glm::u32vec4(key.x, key.y, layer, 0u);
     }
 
-    return { packed_ids, layers };
+    return table;
 }
 } // namespace nucleus::tile

@@ -34,8 +34,7 @@
 @group(2) @binding(3) var tile_sampler: sampler;
 @group(2) @binding(4) var output_texture: texture_storage_2d<rgba8unorm, write>;
 @group(2) @binding(5) var background: texture_2d<f32>;      // ping-pong: previous overlay state (premultiplied)
-@group(2) @binding(6) var dict_ids: texture_2d<u32>;         // RG32Uint: packed tile-id keys (256x256)
-@group(2) @binding(7) var dict_layers: texture_2d<u32>;      // R16Uint: array-layer values (256x256)
+@group(2) @binding(6) var dict_texture: texture_2d<u32>;     // RGBA32Uint (256x256): xy = packed tile-id key, z = array layer, w = unused
 @group(2) @binding(8) var tile_ref_texture: texture_2d<u32>; // RG32Uint: packed uv + (derivatives | frame-local id)
 @group(2) @binding(9) var<storage, read> frame_tile_ids: array<vec2u>; // frame-local id -> packed render tile id
 @group(2) @binding(11) var normal_texture: texture_2d<u32>; // gbuffer normal, used by DATA_MODE_SNOW_AVG_NORMALS's slope mask
@@ -105,18 +104,19 @@ fn tile_pack(id: TileId) -> vec2<u32> {
     return vec2<u32>(a, b);
 }
 
-// Open-addressing lookup into the 256x256 dictionary. Returns the array layer if the tile is resident.
+// Open-addressing lookup into the 256x256 dictionary (RGBA32Uint: xy = key, z = layer, one texture/one
+// textureLoad per probe). Returns the array layer if the tile is resident.
 fn dict_lookup(id: TileId, out_layer: ptr<function, u32>) -> bool {
     let key = tile_pack(id);
     var hash = tile_hash_uint16(id);
     for (var probe = 0u; probe < 256u; probe = probe + 1u) {
         let px = vec2u(hash & 0xFFu, (hash >> 8u) & 0xFFu);
-        let slot = textureLoad(dict_ids, px, 0).xy;
+        let slot = textureLoad(dict_texture, px, 0);
         if slot.x == 0xFFFFFFFFu && slot.y == 0xFFFFFFFFu {
             return false; // empty slot -> not resident
         }
         if slot.x == key.x && slot.y == key.y {
-            *out_layer = textureLoad(dict_layers, px, 0).x;
+            *out_layer = slot.z;
             return true;
         }
         hash = (hash + 1u) & 0xFFFFu;
