@@ -49,7 +49,16 @@ void TileLoadService::load(const tile::Id& tile_id) const
 #endif
 
     QNetworkReply* reply = m_network_manager->get(request);
+    m_active[tile_id] = reply;
     connect(reply, &QNetworkReply::finished, [tile_id, reply, this]() {
+        if (m_aborted.erase(reply)) {
+            // cancelled by abort(): the caller already gave up on this request, so report nothing.
+            reply->deleteLater();
+            return;
+        }
+        if (const auto it = m_active.find(tile_id); it != m_active.end() && it->second == reply)
+            m_active.erase(it);
+
         const auto error = reply->error();
         const auto timestamp = utils::time_since_epoch();
         if (error == QNetworkReply::NoError) {
@@ -65,6 +74,17 @@ void TileLoadService::load(const tile::Id& tile_id) const
         }
         reply->deleteLater();
     });
+}
+
+void TileLoadService::abort(const tile::Id& tile_id)
+{
+    const auto it = m_active.find(tile_id);
+    if (it == m_active.end())
+        return;
+    QNetworkReply* reply = it->second;
+    m_aborted.insert(reply);
+    m_active.erase(it);
+    reply->abort(); // finishes the reply, the handler in load() sees it in m_aborted
 }
 
 QString TileLoadService::build_tile_url(tile::Id tile_id) const

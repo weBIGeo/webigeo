@@ -239,4 +239,62 @@ TEST_CASE("nucleus/tile/TileLoadService")
         const auto image = QImage::fromData(*tile.data);
         REQUIRE(image.sizeInBytes() == 0);
     }
+
+    SECTION("abort cancels an in-flight request without a notification")
+    {
+        TileLoadService service("https://alpinemaps.cg.tuwien.ac.at/tiles/alpine_png/",
+                                TileLoadService::UrlPattern::ZYX,
+                                ".png");
+        QSignalSpy spy(&service, &TileLoadService::load_finished);
+        Id tile_id = { .zoom_level = 90, .coords = { 273, 177 } };
+        service.load(tile_id);
+        service.abort(tile_id); // a request can't complete synchronously, so this is always in flight
+
+        spy.wait(2000);
+        CHECK(spy.count() == 0);
+    }
+
+    SECTION("abort is a no-op for unknown and for already finished tiles")
+    {
+        TileLoadService service("https://bad_url_23a9sd25fds87jcs6k43l.at/tiles/alpine_png/",
+                                TileLoadService::UrlPattern::ZYX,
+                                ".png");
+        QSignalSpy spy(&service, &TileLoadService::load_finished);
+        Id tile_id = { .zoom_level = 90, .coords = { 273, 177 } };
+
+        service.abort(tile_id); // never requested
+        spy.wait(100);
+        CHECK(spy.count() == 0);
+
+        service.load(tile_id);
+        spy.wait(10000);
+        REQUIRE(spy.count() == 1);
+
+        service.abort(tile_id); // already finished
+        spy.wait(300);
+        CHECK(spy.count() == 1);
+    }
+
+#ifndef __EMSCRIPTEN__
+    SECTION("a tile can be requested again after it was aborted, the cancelled request stays silent")
+    {
+        TileLoadService service("https://alpinemaps.cg.tuwien.ac.at/tiles/alpine_png/",
+                                TileLoadService::UrlPattern::ZYX,
+                                ".png");
+        QSignalSpy spy(&service, &TileLoadService::load_finished);
+        Id tile_id = { .zoom_level = 90, .coords = { 273, 177 } };
+        service.load(tile_id);
+        service.abort(tile_id);
+        service.load(tile_id);
+
+        spy.wait(10000);
+        REQUIRE(spy.count() == 1);
+        const auto tile = spy.takeFirst().at(0).value<TileLayer>();
+        CHECK(tile.id == tile_id);
+        CHECK(tile.network_info.status == NetworkInfo::Status::NotFound);
+
+        spy.wait(500);
+        CHECK(spy.count() == 0); // nothing further from the cancelled request
+    }
+#endif
 }

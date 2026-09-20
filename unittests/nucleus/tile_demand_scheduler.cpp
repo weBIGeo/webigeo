@@ -476,6 +476,31 @@ TEST_CASE("nucleus/tile/DemandScheduler")
         std::filesystem::remove_all(sch->disk_cache_path());
     }
 
+    SECTION("setup: a tile that falls out of the wanted list is aborted in the real tile load service")
+    {
+        auto holder = setup::demand_scheduler(
+            std::make_unique<TileLoadService>("https://alpinemaps.cg.tuwien.ac.at/tiles/alpine_png/", TileLoadService::UrlPattern::ZYX, ".png"), nullptr, base_settings());
+        holder.scheduler->set_network_reachability(QNetworkInformation::Reachability::Online); // don't let a machine without network disable the requests
+        holder.scheduler->set_enabled(true);
+        QSignalSpy requested(holder.scheduler.get(), &DemandScheduler::tile_requested);
+        QSignalSpy aborted(holder.scheduler.get(), &DemandScheduler::tile_aborted);
+        QSignalSpy finished(holder.tile_service.get(), &TileLoadService::load_finished);
+
+        const Id missing_tile { 90, { 273, 177 } }; // doesn't exist on the server (same tile the TileLoadService tests use for 404s)
+        holder.scheduler->submit_wanted(1, wanted({ { missing_tile, 1000 } }));
+        holder.scheduler->update();
+        REQUIRE(requested.size() == 1);
+
+        holder.scheduler->submit_wanted(1, {});
+        holder.scheduler->update();
+        REQUIRE(aborted.size() == 1);
+
+        // without the abort the request would finish, and the 404 would end up in the cache
+        finished.wait(1500);
+        CHECK(finished.count() == 0);
+        CHECK(holder.scheduler->ram_cache().n_cached_objects() == 0);
+    }
+
     SECTION("setup wires up a scheduler and a tile service")
     {
         auto holder = setup::demand_scheduler(std::make_unique<TileLoadService>("http://localhost:1/", TileLoadService::UrlPattern::ZXY, ".jpeg"));

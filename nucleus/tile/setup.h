@@ -199,6 +199,7 @@ inline DemandSchedulerHolder demand_scheduler(TileLoadServicePtr tile_service, Q
 
     QObject::connect(scheduler.get(), &DemandScheduler::tile_requested, tile_service.get(), &TileLoadService::load);
     QObject::connect(tile_service.get(), &TileLoadService::load_finished, scheduler.get(), &DemandScheduler::receive_tile);
+    QObject::connect(scheduler.get(), &DemandScheduler::tile_aborted, tile_service.get(), &TileLoadService::abort);
 
     if (QNetworkInformation::loadDefaultBackend() && QNetworkInformation::instance()) {
         QNetworkInformation* n = QNetworkInformation::instance();

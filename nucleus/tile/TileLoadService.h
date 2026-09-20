@@ -20,10 +20,12 @@
 
 #include <memory>
 #include <QObject>
+#include <unordered_set>
 #include "constants.h"
 #include "types.h"
 
 class QNetworkAccessManager;
+class QNetworkReply;
 
 namespace nucleus::tile {
 
@@ -49,12 +51,18 @@ public:
 
 public slots:
     void load(const tile::Id& tile_id) const;
+    /// Cancels the in-flight request for tile_id. A cancelled request emits no load_finished. No-op for unknown or already finished ids.
+    void abort(const tile::Id& tile_id);
 
 signals:
     void load_finished(Data tile) const;
 
 private:
     unsigned m_transfer_timeout = tile::constants::default_network_timeout;
+    // Declared before m_network_manager on purpose: members are destroyed in reverse order, and destroying the manager
+    // may finish replies whose handlers touch these containers.
+    mutable tile::IdMap<QNetworkReply*> m_active; // in-flight reply per tile id
+    mutable std::unordered_set<QNetworkReply*> m_aborted; // replies cancelled by abort(); a timeout is also reported as OperationCanceledError, so the error code can't tell them apart
     std::shared_ptr<QNetworkAccessManager> m_network_manager;
     QString m_base_url;
     UrlPattern m_url_pattern;
