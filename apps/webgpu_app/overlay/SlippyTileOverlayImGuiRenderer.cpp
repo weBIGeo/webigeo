@@ -20,6 +20,7 @@
 
 #include <IconsFontAwesome5.h>
 #include <algorithm>
+#include <cstdio>
 #include <imgui.h>
 #include <nucleus/tile/TileSourcePresets.h>
 #include <webgpu/engine/Context.h>
@@ -65,7 +66,8 @@ bool SlippyTileOverlayImGuiRenderer::render_custom_settings()
         const auto& preset = presets[static_cast<size_t>(preset_idx)];
         m_slippy_overlay->set_source(m_context->get_or_create_tile_source(preset));
         s.max_zoom = preset.max_possible_zoom;
-        s.tile_size = preset.tile_resolution;
+        // s.tile_size is not set here: update_settings() takes the texels per tile from the new
+        // source's GPU array (a quad source's layer holds 2x the preset's raw tile resolution).
         m_slippy_overlay->update_settings();
         changed = true;
     }
@@ -129,6 +131,20 @@ bool SlippyTileOverlayImGuiRenderer::render_custom_settings()
     }
     if (ImGui::Button("Show Wanted Tiles"))
         m_show_wanted_tiles_window = true;
+    ImGui::SameLine();
+    if (ImGui::Button("Rebuild") && m_slippy_overlay->source()) {
+        m_slippy_overlay->source()->clear_cache();
+        start_rebuild_measurement();
+        m_context->request_redraw();
+        changed = true;
+    }
+    ImGui::SetItemTooltip("Clears everything this tile source holds (GPU tiles, RAM cache, 404 tombstones, disk cache)\n"
+                          "and fetches it again, timing how long that takes. Affects all overlays using this source.");
+    update_rebuild_measurement();
+    if (const auto status = rebuild_status_text(); !status.empty()) {
+        ImGui::SameLine();
+        ImGui::TextDisabled("%s", status.c_str());
+    }
     changed |= render_wanted_tiles_window();
 
     // Temporary: lets any source's RGBA be reinterpreted as the snow-depth or normal-map encoding for testing.
@@ -140,6 +156,80 @@ bool SlippyTileOverlayImGuiRenderer::render_custom_settings()
     }
 
     return changed;
+}
+
+void SlippyTileOverlayImGuiRenderer::start_rebuild_measurement()
+{
+    m_rebuild_running = true;
+    m_rebuild_timer.start();
+    m_rebuild_last_change_ms = 0;
+    m_rebuild_saw_missing = false;
+    m_rebuild_last_resident = 0;
+    m_rebuild_last_missing = 0;
+    m_rebuild_result_ms = -1;
+    m_rebuild_result_resident = 0;
+    m_rebuild_result_missing = 0;
+}
+
+void SlippyTileOverlayImGuiRenderer::update_rebuild_measurement()
+{
+    if (!m_rebuild_running)
+        return;
+    const auto* source = m_slippy_overlay->source();
+    // Without the wanted-tile readback there is no "everything the frame asked for" to wait for.
+    if (!source || m_slippy_overlay->settings.wanted_tiles_stride == 0) {
+        m_rebuild_running = false;
+        return;
+    }
+
+    const auto& tiles = m_slippy_overlay->wanted_tiles();
+    unsigned resident = 0;
+    for (const auto& t : tiles)
+        if (source->has_tile_data(t.id))
+            ++resident;
+    const unsigned missing = static_cast<unsigned>(tiles.size()) - resident;
+    m_rebuild_saw_missing = m_rebuild_saw_missing || missing > 0;
+
+    const qint64 elapsed = m_rebuild_timer.elapsed();
+    if (resident != m_rebuild_last_resident || missing != m_rebuild_last_missing) {
+        m_rebuild_last_resident = resident;
+        m_rebuild_last_missing = missing;
+        m_rebuild_last_change_ms = elapsed;
+    }
+
+    // Done once a drawn frame found everything it asked for. clear_cache() is applied on the
+    // scheduler thread, so a rebuild only counts as complete after we have actually seen tiles go
+    // missing -- otherwise the still-stale first readback would finish it at 0 ms.
+    const bool complete = m_rebuild_saw_missing && !tiles.empty() && missing == 0;
+    if (complete || elapsed - m_rebuild_last_change_ms > k_rebuild_settle_ms) {
+        m_rebuild_running = false;
+        // On a stall (404s, or a wanted set larger than the texture array) report when the counts
+        // last moved, not when we gave up waiting.
+        m_rebuild_result_ms = complete ? elapsed : m_rebuild_last_change_ms;
+        m_rebuild_result_resident = resident;
+        m_rebuild_result_missing = missing;
+        return;
+    }
+
+    // The wanted list is only refreshed by drawing, and once the last tile has arrived nothing else
+    // asks for another frame -- so drive the frames ourselves for the duration of the measurement.
+    m_context->request_redraw();
+}
+
+std::string SlippyTileOverlayImGuiRenderer::rebuild_status_text() const
+{
+    char buf[96];
+    if (m_rebuild_running) {
+        std::snprintf(buf, sizeof(buf), "%.1f s, %u missing...", m_rebuild_timer.elapsed() / 1000.0, m_rebuild_last_missing);
+        return buf;
+    }
+    if (m_rebuild_result_ms < 0)
+        return {};
+    if (m_rebuild_result_missing > 0)
+        std::snprintf(buf, sizeof(buf), "%.2f s, %u tiles (%u never arrived)", m_rebuild_result_ms / 1000.0, m_rebuild_result_resident, m_rebuild_result_missing);
+    else
+        std::snprintf(buf, sizeof(buf), "%.2f s, %u tiles", m_rebuild_result_ms / 1000.0, m_rebuild_result_resident);
+    return buf;
 }
 
 bool SlippyTileOverlayImGuiRenderer::render_wanted_tiles_window()

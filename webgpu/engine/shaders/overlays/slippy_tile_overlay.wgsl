@@ -60,6 +60,9 @@ const SNOW_ANGLE_BLEND: f32 = 5.0; // deg, falloff width around angle_max
 struct SlippyTileSettings {
     opacity: f32,
     max_zoom: u32,
+    // Texels per side of one *dictionary tile*, i.e. of one tile_texture array layer -- for quad
+    // sources that is twice the raw tile resolution (a layer holds a stitched 2x2 quad). Only used
+    // to turn pixel_error_threshold into a target zoom.
     tile_size: u32,
     pixel_error_threshold: f32,
     debug_view: u32, // 0 = none, 1 = zoom level (see zoom_level_color)
@@ -180,12 +183,12 @@ fn record_wanted_tile(id: TileId) {
 struct ResolvedTileSample {
     found: bool,
     color: vec4f, // valid only if found
-    target_zoom: u32, // the *ideal* (nearest, i.e. round()ed) target zoom, valid regardless of found
+    target_zoom: u32, // the *ideal* (ceil()ed, see below) target zoom, valid regardless of found
     target_tile_id: TileId, // the *ideal* target tile id (before residency fallback), valid regardless of found
     resolved_zoom: u32, // the actually-resolved (resident) tile's zoom, valid only if found
-    zoom_lo: u32, // floor(desired_zoom_f), used by the debug view's own zoom-transition blend
+    zoom_lo: u32, // round(desired_zoom_f), used by the debug view's own zoom-transition blend
     zoom_hi: u32, // min(zoom_lo + 1, max_zoom)
-    blend_t: f32, // 0 = nearest is zoom_lo, 1 = nearest is zoom_hi, fractional inside the transition band
+    blend_t: f32, // 0 = target is zoom_lo, 1 = target is zoom_hi, fractional inside the transition band
 }
 
 const SQRT2: f32 = 1.4142135623730951;
@@ -296,23 +299,31 @@ fn resolve_tile_sample(tci: vec2u, raw_depth: f32) -> ResolvedTileSample {
         desired_zoom_f = clamp(target_zoom_f, 0.0, f32(settings.max_zoom));
     }
 
-    let nearest_zoom = u32(round(desired_zoom_f));
-    let zoom_lo = u32(floor(desired_zoom_f));
+    // Round *up*: at ceil(desired) the settings.tile_size texels of the tile are at most
+    // pixel_error_threshold px apart, while round() would accept texels up to sqrt(2) too coarse.
+    // Quad sources used to get this for free -- their array layer holds one zoom level more than the
+    // id in the dictionary says, so a round()ed target missed the dictionary and the ancestor walk
+    // landed on ceil anyway. Now that settings.tile_size is the layer's real texel count, the rule
+    // has to be explicit, or single-tile (DemandScheduler) sources render half as sharp.
+    let target_zoom = u32(clamp(ceil(desired_zoom_f), 0.0, f32(settings.max_zoom)));
+    // The choice above steps at every integer, so the cross-fade band straddles the *nearest* integer
+    // boundary: zoom_lo below it, zoom_hi above it (blend_t agrees with target_zoom at both ends).
+    let boundary = round(desired_zoom_f);
+    let zoom_lo = u32(clamp(boundary, 0.0, f32(settings.max_zoom)));
     let zoom_hi = min(zoom_lo + 1u, settings.max_zoom);
-    let frac = fract(desired_zoom_f);
     let half_band = settings.zoom_blend_band * 0.5;
-    let blend_t = smoothstep(0.5 - half_band, 0.5 + half_band, frac);
+    let blend_t = smoothstep(-half_band, half_band, desired_zoom_f - boundary);
 
-    result.target_zoom = nearest_zoom;
+    result.target_zoom = target_zoom;
     result.zoom_lo = zoom_lo;
     result.zoom_hi = zoom_hi;
     result.blend_t = blend_t;
 
-    // target_tile_id always reflects the nearest zoom, independent of whether we end up blending
+    // target_tile_id always reflects the target zoom, independent of whether we end up blending
     // the actual sampled color below (debug view DEBUG_VIEW_TARGET_TILE_ID relies on this).
     var target_id: TileId;
     var target_uv: vec2f;
-    calc_tile_id_and_uv_for_zoom_level(render_tile_id, render_uv, nearest_zoom, &target_id, &target_uv);
+    calc_tile_id_and_uv_for_zoom_level(render_tile_id, render_uv, target_zoom, &target_id, &target_uv);
     result.target_tile_id = target_id;
 
     // DATA_MODE_NORMALS(_OVERWRITE) can't be cross-faded with a plain color lerp -- that would need
@@ -322,7 +333,7 @@ fn resolve_tile_sample(tci: vec2u, raw_depth: f32) -> ResolvedTileSample {
         && settings.data_mode != DATA_MODE_NORMALS && settings.data_mode != DATA_MODE_NORMALS_OVERWRITE;
 
     if !blendable || blend_t <= 0.0 || blend_t >= 1.0 {
-        let r = resolve_single_tile(render_tile_id, render_uv, nearest_zoom);
+        let r = resolve_single_tile(render_tile_id, render_uv, target_zoom);
         result.found = r.found;
         result.color = r.color;
         result.resolved_zoom = r.resolved_zoom;

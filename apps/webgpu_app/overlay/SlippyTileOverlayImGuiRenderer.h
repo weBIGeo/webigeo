@@ -19,6 +19,7 @@
 #pragma once
 
 #include "OverlayImGuiRenderer.h"
+#include <QElapsedTimer>
 #include <webgpu/engine/overlay/SlippyTileOverlay.h>
 
 namespace webgpu_engine {
@@ -39,9 +40,32 @@ private:
     // Hovering a row highlights that tile in the overlay. Returns true if a redraw is needed.
     bool render_wanted_tiles_window();
 
+    // "Rebuild" stopwatch: wall-clock time from clearing the source until every tile the shader asked
+    // for this frame is GPU-resident again. Comparable across scheduler modes because the wanted-tile
+    // ids the overlay reads back are exactly the ids the dictionary is keyed by in both modes.
+    void start_rebuild_measurement();
+    void update_rebuild_measurement(); // called once per settings frame while a measurement runs
+    [[nodiscard]] std::string rebuild_status_text() const;
+
     webgpu_engine::SlippyTileOverlay* m_slippy_overlay;
     webgpu_engine::Context* m_context;
     bool m_show_wanted_tiles_window = false;
+
+    // Requires recording to be on (Wanted Tiles Stride > 0) -- without a wanted list there is nothing
+    // to wait for. A rebuild that can't complete (404s, array too small to hold the whole wanted set)
+    // is reported as "settled" once nothing changes for k_rebuild_settle_ms.
+    static constexpr qint64 k_rebuild_settle_ms = 1500;
+    bool m_rebuild_running = false;
+    QElapsedTimer m_rebuild_timer; // since the Rebuild click
+    qint64 m_rebuild_last_change_ms = 0; // timer value when the resident/missing counts last moved
+    bool m_rebuild_saw_missing = false; // the clear is applied on the scheduler thread, so don't
+                                        // accept the pre-clear readback as an instantly finished rebuild
+    unsigned m_rebuild_last_resident = 0;
+    unsigned m_rebuild_last_missing = 0;
+    // Last finished measurement (-1 = none yet): duration, tiles resident and tiles still missing.
+    qint64 m_rebuild_result_ms = -1;
+    unsigned m_rebuild_result_resident = 0;
+    unsigned m_rebuild_result_missing = 0;
 };
 
 } // namespace webgpu_app

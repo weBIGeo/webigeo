@@ -24,6 +24,7 @@
 #include <memory>
 #include <nucleus/tile/TextureScheduler.h>
 #include <nucleus/tile/TileLoadService.h>
+#include <nucleus/tile/TileSourcePresets.h>
 #include <nucleus/tile/setup.h>
 #include <nucleus/tile/types.h>
 #include <nucleus/tile/utils.h>
@@ -34,8 +35,11 @@ class QThread;
 
 namespace webgpu_engine {
 
-/// One imagery tile source: a TextureScheduler (+ TileLoadService) streaming RGBA8 tiles into a
-/// GpuTileTextureArray. Owned by the engine Context.
+/// One imagery tile source streaming RGBA8 tiles (+ TileLoadService) into a GpuTileTextureArray.
+/// Owned by the engine Context. Which scheduler feeds it depends on Config::scheduler_mode:
+///  - Quad: the camera driven TextureScheduler (2x2 quads per array layer).
+///  - Demand: the DemandScheduler, single tiles per layer, driven by the wanted-tile list that the
+///    SlippyTileOverlay reads back from the GPU and hands over via submit_wanted().
 ///
 /// Threading: the scheduler (and its load service) are moved onto the Context's scheduler thread,
 /// while this QObject and its GPU array live on the render thread. `gpu_tiles_updated` is therefore
@@ -46,6 +50,8 @@ class TileSource : public QObject {
 public:
     struct Config {
         QString name;
+        nucleus::tile::TileSchedulerMode scheduler_mode = nucleus::tile::TileSchedulerMode::Quad;
+        nucleus::tile::DemandScheduler::Settings demand_settings; // only used in Demand mode
         QString url;
         nucleus::tile::TileLoadService::UrlPattern pattern = nucleus::tile::TileLoadService::UrlPattern::ZYX_yPointingSouth;
         QString file_ending = ".jpeg";
@@ -67,6 +73,8 @@ public:
 
     // Runtime controls (safe to call from the render thread; dispatched onto the scheduler thread).
     void set_base_url(const QString& url);
+    /// Drops everything this source holds (GPU tiles, RAM cache, 404 tombstones, disk cache) and re-fetches
+    /// what is currently needed. Works for both scheduler modes.
     void clear_cache();
     void set_enabled(bool enabled);
     // Per-source screen-space error threshold (px) for tile loading. This is the single source of
@@ -76,14 +84,18 @@ public:
     [[nodiscard]] float pixel_error_threshold() const { return m_pixel_error_threshold; }
 
     [[nodiscard]] const QString& name() const { return m_config.name; }
+    [[nodiscard]] nucleus::tile::TileSchedulerMode scheduler_mode() const { return m_config.scheduler_mode; }
+    /// The camera driven quad scheduler. Null for Demand sources.
     [[nodiscard]] std::shared_ptr<nucleus::tile::TextureScheduler> scheduler() const { return m_holder.scheduler; }
-    [[nodiscard]] nucleus::tile::TileLoadService* tile_load_service() const { return m_holder.tile_service.get(); }
+    [[nodiscard]] nucleus::tile::TileLoadService* tile_load_service() const;
     [[nodiscard]] GpuTileTextureArray& array() { return m_array; }
     [[nodiscard]] const GpuTileTextureArray& array() const { return m_array; }
 
-    // Whether this tile's own data is GPU-resident. Currently an exact match (see TileSource.cpp for
-    // why quad mode's parent-fallback case isn't included); for a future Wanted-mode source this is
-    // already correct as-is.
+    /// Demand mode: replaces the wanted-tile list of one producer (owner is an opaque key, e.g. the overlay;
+    /// an empty list withdraws its demand). pixel_count must be in real screen pixels. Ignored for Quad sources.
+    void submit_wanted(const void* owner, std::vector<nucleus::tile::WantedTile> wanted);
+
+    // Whether this tile's own data is GPU-resident (exact match, no parent fallback).
     [[nodiscard]] bool has_tile_data(nucleus::tile::Id id) const;
 
     // GPU tile-id -> array-layer dictionary (from GpuArrayHelper::generate_dictionary), for screen-space
@@ -94,11 +106,16 @@ public:
 public slots:
     void update_gpu_tiles(const std::vector<nucleus::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuTextureTile>& new_tiles);
 
+signals:
+    /// Emitted (render thread) after tiles were uploaded to the array and the dictionary was refreshed.
+    void tiles_updated();
+
 private:
     void upload_dictionary(); // regenerate + upload the tile-id -> layer dictionary texture
 
     Config m_config;
-    nucleus::tile::setup::TextureSchedulerHolder m_holder;
+    nucleus::tile::setup::TextureSchedulerHolder m_holder; // Quad mode
+    nucleus::tile::setup::DemandSchedulerHolder m_demand_holder; // Demand mode
     GpuTileTextureArray m_array;
     float m_pixel_error_threshold = 2.0f;
     webgpu::Context* m_ctx = nullptr;

@@ -25,6 +25,9 @@
 
 namespace nucleus::tile {
 
+// Quad: camera driven Scheduler, 2x2 quads per GPU layer. Demand: DemandScheduler, single tiles driven by the GPU wanted-tile list.
+enum class TileSchedulerMode { Quad, Demand };
+
 struct TileSourcePreset {
     QString display_name;
     QString source_name;
@@ -33,6 +36,7 @@ struct TileSourcePreset {
     QString file_ending;
     uint32_t tile_resolution;
     uint32_t max_possible_zoom;
+    TileSchedulerMode scheduler_mode = TileSchedulerMode::Quad;
 };
 
 namespace tile_source_presets {

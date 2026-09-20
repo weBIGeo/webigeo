@@ -55,6 +55,12 @@ public:
     [[nodiscard]] bool contains(nucleus::tile::Id tile_id) const;
     [[nodiscard]] unsigned capacity() const;
     [[nodiscard]] unsigned n_occupied() const;
+    /// Edge length in texels of one array layer, i.e. how many texels one dictionary tile id resolves
+    /// to. Not necessarily the source's raw tile resolution: the quad scheduler stitches a 2x2 quad
+    /// into one layer, so there a layer holds twice the raw edge length (one zoom level more detail
+    /// than its tile id suggests). Consumers that turn a screen-space error into a target zoom must
+    /// use this, not the raw tile size.
+    [[nodiscard]] uint32_t resolution() const { return m_resolution; }
     /// Hashed tile-id -> layer table for GPU-side lookups (used by overlays sampling this array).
     [[nodiscard]] nucleus::Raster<glm::u32vec4> generate_dictionary() const;
 

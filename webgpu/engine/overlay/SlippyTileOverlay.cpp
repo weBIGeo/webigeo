@@ -22,6 +22,7 @@
 #include "webgpu/engine/tile/TileSource.h"
 #include <algorithm>
 #include <nucleus/srs.h>
+#include <tuple>
 #include <webgpu/base/RenderResourceRegistry.h>
 #include <webgpu/base/raii/BindGroup.h>
 #include <webgpu/base/raii/BindGroupLayout.h>
@@ -40,8 +41,11 @@ SlippyTileOverlay::SlippyTileOverlay(TileSource* source)
     name = source ? source->name().toStdString() : std::string("Slippy Tiles");
 }
 
+SlippyTileOverlay::~SlippyTileOverlay() { clear_source_feed(); }
+
 void SlippyTileOverlay::init(Context& context)
 {
+    m_engine_ctx = &context;
     webgpu::Context& ctx = context.webgpu_ctx();
     m_ctx = &ctx;
 
@@ -217,6 +221,7 @@ void SlippyTileOverlay::init(Context& context)
 
 void SlippyTileOverlay::set_source(TileSource* source)
 {
+    clear_source_feed(); // withdraw our demand from the old source before we forget about it
     m_source = source;
     name = source ? source->name().toStdString() : std::string("Slippy Tiles");
 }
@@ -229,7 +234,9 @@ void SlippyTileOverlay::update_settings()
     const float pixel_error_threshold = m_source ? m_source->pixel_error_threshold() : settings.pixel_error_threshold;
     m_settings_uniform->data.opacity = settings.opacity;
     m_settings_uniform->data.max_zoom = settings.max_zoom;
-    m_settings_uniform->data.tile_size = settings.tile_size;
+    // How many texels one dictionary tile resolves to -- 2x the raw tile size for quad sources. Taken
+    // from the array itself so the shader's target zoom can't silently assume one scheduler's layout.
+    m_settings_uniform->data.tile_size = m_source ? m_source->array().resolution() : settings.tile_size;
     m_settings_uniform->data.pixel_error_threshold = pixel_error_threshold;
     m_settings_uniform->data.debug_view = static_cast<uint32_t>(settings.debug_view);
     m_settings_uniform->data.zoom_selection_mode = static_cast<uint32_t>(settings.zoom_selection_mode);
@@ -278,9 +285,12 @@ void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
     const size_t n_tiles = std::min(octx.frame_tile_ids.size(), size_t(k_max_frame_tiles));
     std::vector<glm::u32vec2> packed_ids(n_tiles);
     const float pixel_error_threshold = m_source->pixel_error_threshold(); // source is authoritative (see update_settings)
-    // Keeps the sampling uniform in sync when another overlay sharing this source changed it
-    if (m_settings_uniform->data.pixel_error_threshold != pixel_error_threshold) {
+    const uint32_t tile_size = m_source->array().resolution(); // ditto
+    // Keeps the sampling uniform in sync when another overlay sharing this source changed the
+    // threshold, or when the source was swapped without going through update_settings().
+    if (m_settings_uniform->data.pixel_error_threshold != pixel_error_threshold || m_settings_uniform->data.tile_size != tile_size) {
         m_settings_uniform->data.pixel_error_threshold = pixel_error_threshold;
+        m_settings_uniform->data.tile_size = tile_size;
         m_settings_uniform->update_gpu_data(m_ctx->queue());
     }
     for (size_t i = 0; i < n_tiles; ++i)
@@ -307,10 +317,12 @@ void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
 
     // stride == 0 fully disables recording: no atomics in the shader, no clear, no readback.
     const bool record_wanted_tiles = settings.wanted_tiles_stride > 0;
-    if (record_wanted_tiles)
+    if (record_wanted_tiles) {
         m_wanted_tiles_buffer->clear(command_encoder); // all-zero == all slots empty (keys are stored inverted)
-    else
+    } else {
         m_wanted_tiles.clear();
+        clear_source_feed();
+    }
 
     {
         WGPUComputePassDescriptor compute_pass_desc {};
@@ -330,6 +342,11 @@ void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
     if (record_wanted_tiles && !m_wanted_tiles_map_pending && m_wanted_tiles_staging->map_state() == WGPUBufferMapState_Unmapped) {
         m_wanted_tiles_buffer->copy_to_buffer(command_encoder, *m_wanted_tiles_staging);
         m_wanted_tiles_map_pending = true;
+        // The copy is only mapped at the start of the *next* draw(), but the window renders on demand: with a
+        // still camera that frame might never come and the wanted tiles would never reach the source. Ask for
+        // one more frame. It maps (so no new copy is encoded in it and nothing is requested again), hence this terminates.
+        if (m_engine_ctx)
+            m_engine_ctx->request_redraw();
     }
 
     write_normals_to_gbuffer(command_encoder, octx);
@@ -344,6 +361,46 @@ void SlippyTileOverlay::update_wanted_tiles(const std::vector<WantedTileSlot>& t
         m_wanted_tiles.push_back({ nucleus::srs::unpack(glm::u32vec2(~slot.key_lo, ~slot.key_hi)), slot.count });
     }
     std::sort(m_wanted_tiles.begin(), m_wanted_tiles.end(), [](const WantedTile& a, const WantedTile& b) { return a.pixel_count > b.pixel_count; });
+    feed_source();
+}
+
+void SlippyTileOverlay::feed_source()
+{
+    if (!m_source || m_source->scheduler_mode() != nucleus::tile::TileSchedulerMode::Demand || settings.wanted_tiles_stride == 0)
+        return;
+
+    // Only every stride-th pixel in x and y is recorded, the planner wants real screen pixels.
+    const uint32_t scale = settings.wanted_tiles_stride * settings.wanted_tiles_stride;
+    std::vector<WantedTile> scaled;
+    scaled.reserve(m_wanted_tiles.size());
+    for (const auto& t : m_wanted_tiles)
+        scaled.push_back({ t.id, t.pixel_count * scale });
+    if (scaled.empty()) {
+        clear_source_feed();
+        return;
+    }
+
+    // The set only changes with the camera. Compare order-independently (hash slot order can vary between frames).
+    std::sort(scaled.begin(), scaled.end(), [](const WantedTile& a, const WantedTile& b) {
+        return std::tie(a.id.zoom_level, a.id.coords.x, a.id.coords.y) < std::tie(b.id.zoom_level, b.id.coords.x, b.id.coords.y);
+    });
+    const auto same = [](const WantedTile& a, const WantedTile& b) { return a.id == b.id && a.pixel_count == b.pixel_count; };
+    if (m_has_fed && std::equal(scaled.begin(), scaled.end(), m_fed_tiles.begin(), m_fed_tiles.end(), same))
+        return;
+
+    m_fed_tiles = scaled;
+    m_has_fed = true;
+    m_source->submit_wanted(this, std::move(scaled));
+}
+
+void SlippyTileOverlay::clear_source_feed()
+{
+    if (!m_has_fed)
+        return;
+    m_has_fed = false;
+    m_fed_tiles.clear();
+    if (m_source)
+        m_source->submit_wanted(this, {});
 }
 
 void SlippyTileOverlay::write_normals_to_gbuffer(const WGPUCommandEncoder& command_encoder, const OverlayContext& octx)

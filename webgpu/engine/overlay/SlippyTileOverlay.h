@@ -82,7 +82,9 @@ public:
     struct Settings {
         float opacity = 1.0f;
         uint32_t max_zoom = 20; // ceiling for the resolved per-pixel target zoom
-        uint32_t tile_size = 256; // source's tile resolution, used by the per-pixel target-zoom estimate
+        // Fallback texels-per-tile for the target-zoom estimate when no source is set; otherwise the
+        // source's GPU array is authoritative (see update_settings).
+        uint32_t tile_size = 256;
         float pixel_error_threshold = 2.0f; // fallback SSE threshold when no source is set; otherwise the TileSource owns it
         DebugView debug_view = DebugView::None;
         ZoomSelectionMode zoom_selection_mode = ZoomSelectionMode::PerPixel;
@@ -105,12 +107,10 @@ public:
 
     // One tile of the last wanted-tiles readback: an *ideal* target tile some visible pixels asked
     // for (resident or not) and how many of the recorded (i.e. every stride-th) pixels wanted it.
-    struct WantedTile {
-        nucleus::tile::Id id;
-        uint32_t pixel_count;
-    };
+    using WantedTile = nucleus::tile::WantedTile;
 
     explicit SlippyTileOverlay(TileSource* source);
+    ~SlippyTileOverlay() override;
 
     void init(Context& ctx) override;
     void update_settings();
@@ -167,8 +167,17 @@ private:
     // Turns a read-back raw hash table into m_wanted_tiles (unpacked, sorted by descending count).
     void update_wanted_tiles(const std::vector<WantedTileSlot>& table); // NB: "slots" is a Qt keyword macro
 
+    // Hands the current wanted tiles to the source's scheduler (Demand sources only, Quad sources ignore it).
+    // Counts are scaled to real screen pixels (x stride^2). Does nothing if the list is unchanged.
+    void feed_source();
+    // Withdraws this overlay's demand from its source (no-op if it never fed anything).
+    void clear_source_feed();
+
     webgpu::Context* m_ctx = nullptr;
+    Context* m_engine_ctx = nullptr;
     TileSource* m_source = nullptr;
+    std::vector<WantedTile> m_fed_tiles; // last list handed to the source, to skip identical feeds
+    bool m_has_fed = false;
     std::unique_ptr<webgpu::raii::CombinedComputePipeline> m_pipeline;
     std::unique_ptr<webgpu::raii::GenericRenderPipeline> m_gbuffer_write_pipeline;
     std::unique_ptr<webgpu::Buffer<GpuSettings>> m_settings_uniform;

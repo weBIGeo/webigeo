@@ -229,12 +229,16 @@ void Context::internal_destroy()
 TileSource* Context::add_tile_source(const TileSource::Config& config)
 {
     auto source = std::make_shared<TileSource>(config, aabb_decorator(), m_scheduler_thread.get());
-    m_scheduler_director->check_in(config.name, source->scheduler());
     // Camera-driven refinement and redraw-on-tile-arrival, generically for every source (existing and
     // future), instead of one-off per-source wiring in App.cpp. Qt auto-queues across the scheduler thread.
-    if (m_camera_controller)
-        connect(m_camera_controller, &nucleus::camera::Controller::definition_changed, source->scheduler().get(), &nucleus::tile::Scheduler::update_camera);
-    connect(source->scheduler().get(), &nucleus::tile::TextureScheduler::gpu_tiles_updated, this, &Context::request_redraw);
+    // Demand sources have no quad scheduler: they are fed by the overlay's wanted-tile list instead (and are named in TileSource::enable()).
+    if (auto scheduler = source->scheduler()) {
+        m_scheduler_director->check_in(config.name, scheduler);
+        if (m_camera_controller)
+            connect(m_camera_controller, &nucleus::camera::Controller::definition_changed, scheduler.get(), &nucleus::tile::Scheduler::update_camera);
+    }
+    // Redraw once new tiles are on the GPU (this is also what keeps the wanted-tile readback loop of Demand sources going).
+    connect(source.get(), &TileSource::tiles_updated, this, &Context::request_redraw);
     if (is_alive()) {
         source->init(webgpu_ctx());
         source->enable();
@@ -254,13 +258,22 @@ TileSource* Context::get_or_create_tile_source(const nucleus::tile::TileSourcePr
     config.url = preset.url;
     config.pattern = preset.pattern;
     config.file_ending = preset.file_ending;
-    // TextureScheduler::to_raster() assembles each 2x2 quad of raw tiles into one raster before
-    // upload, so the GPU array (config.resolution) must hold the full quad -- double the raw
-    // per-tile size. settings.tile_resolution stays at the raw size (it also sizes the per-tile
-    // fallback raster used for missing tiles, which must match real tiles for concatenation to work).
-    config.resolution = preset.tile_resolution * 2;
+    config.scheduler_mode = preset.scheduler_mode;
     config.settings.tile_resolution = preset.tile_resolution;
     config.settings.max_zoom_level = preset.max_possible_zoom;
+    if (preset.scheduler_mode == nucleus::tile::TileSchedulerMode::Demand) {
+        // The DemandScheduler uploads single tiles, so one array layer is exactly one raw tile.
+        config.resolution = preset.tile_resolution;
+        config.demand_settings.tile_resolution = preset.tile_resolution;
+        config.demand_settings.gpu_tile_limit = config.tile_limit; // the array below is sized to it
+        config.demand_settings.planner.max_zoom = preset.max_possible_zoom;
+    } else {
+        // TextureScheduler::to_raster() assembles each 2x2 quad of raw tiles into one raster before
+        // upload, so the GPU array (config.resolution) must hold the full quad -- double the raw
+        // per-tile size. settings.tile_resolution stays at the raw size (it also sizes the per-tile
+        // fallback raster used for missing tiles, which must match real tiles for concatenation to work).
+        config.resolution = preset.tile_resolution * 2;
+    }
     return add_tile_source(config);
 }
 

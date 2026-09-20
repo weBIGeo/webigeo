@@ -47,15 +47,32 @@ TileSource::TileSource(const Config& config, const nucleus::tile::utils::AabbDec
     , m_array(config.resolution, WGPUTextureFormat::WGPUTextureFormat_RGBA8Unorm, imagery_sampler_descriptor(), config.name.toStdString())
 {
     auto tile_service = std::make_unique<nucleus::tile::TileLoadService>(config.url, config.pattern, config.file_ending);
-    m_holder = nucleus::tile::setup::texture_scheduler(std::move(tile_service), aabb_decorator, scheduler_thread, config.settings);
-    m_holder.scheduler->set_gpu_quad_limit(config.gpu_quad_limit);
+    if (config.scheduler_mode == nucleus::tile::TileSchedulerMode::Demand) {
+        m_demand_holder = nucleus::tile::setup::demand_scheduler(std::move(tile_service), scheduler_thread, config.demand_settings);
+        connect(m_demand_holder.scheduler.get(), &nucleus::tile::DemandScheduler::gpu_tiles_updated, this, &TileSource::update_gpu_tiles);
+    } else {
+        m_holder = nucleus::tile::setup::texture_scheduler(std::move(tile_service), aabb_decorator, scheduler_thread, config.settings);
+        m_holder.scheduler->set_gpu_quad_limit(config.gpu_quad_limit);
+        connect(m_holder.scheduler.get(), &nucleus::tile::TextureScheduler::gpu_tiles_updated, this, &TileSource::update_gpu_tiles);
+    }
 
     m_array.set_tile_limit(config.tile_limit);
 
-    connect(m_holder.scheduler.get(), &nucleus::tile::TextureScheduler::gpu_tiles_updated, this, &TileSource::update_gpu_tiles);
-
     // Seed the scheduler with the source's default threshold (keeps it off the camera fallback).
     set_pixel_error_threshold(m_pixel_error_threshold);
+}
+
+nucleus::tile::TileLoadService* TileSource::tile_load_service() const
+{
+    return m_config.scheduler_mode == nucleus::tile::TileSchedulerMode::Demand ? m_demand_holder.tile_service.get() : m_holder.tile_service.get();
+}
+
+void TileSource::submit_wanted(const void* owner, std::vector<nucleus::tile::WantedTile> wanted)
+{
+    auto* sched = m_demand_holder.scheduler.get();
+    if (m_config.scheduler_mode != nucleus::tile::TileSchedulerMode::Demand || !sched)
+        return;
+    nucleus::utils::thread::async_call(sched, [sched, key = quintptr(owner), wanted = std::move(wanted)]() { sched->submit_wanted(key, wanted); });
 }
 
 TileSource::~TileSource() = default;
@@ -115,12 +132,26 @@ void TileSource::update_gpu_tiles(const std::vector<nucleus::tile::Id>& deleted_
     }
 
     upload_dictionary(); // keep the GPU tile-id -> layer dictionary in sync with the array
+    emit tiles_updated();
 }
 
 void TileSource::enable()
 {
-    auto* sched = m_holder.scheduler.get();
     const auto compression = m_config.compression;
+    if (m_config.scheduler_mode == nucleus::tile::TileSchedulerMode::Demand) {
+        auto* demand = m_demand_holder.scheduler.get();
+        const auto name = m_config.name;
+        nucleus::utils::thread::async_call(demand, [demand, compression, name]() {
+            demand->set_texture_compression_algorithm(compression);
+            // Named here on the scheduler thread (SchedulerDirector::check_in only takes quad schedulers): persistence needs the name.
+            demand->set_name(name);
+            demand->read_disk_cache();
+            demand->set_enabled(true);
+        });
+        return;
+    }
+
+    auto* sched = m_holder.scheduler.get();
     nucleus::utils::thread::async_call(sched, [sched, compression]() {
         sched->set_texture_compression_algorithm(compression);
         sched->read_disk_cache();
@@ -132,24 +163,43 @@ void TileSource::teardown()
 {
     // The scheduler and load service live on the scheduler thread; reset them there before the
     // Context stops that thread. Mirrors RenderingContext's teardown of its schedulers.
+    if (m_config.scheduler_mode == nucleus::tile::TileSchedulerMode::Demand) {
+        nucleus::utils::thread::sync_call(m_demand_holder.scheduler.get(), [this]() { m_demand_holder.scheduler.reset(); });
+        nucleus::utils::thread::sync_call(m_demand_holder.tile_service.get(), [this]() { m_demand_holder.tile_service.reset(); });
+        return;
+    }
     nucleus::utils::thread::sync_call(m_holder.scheduler.get(), [this]() { m_holder.scheduler.reset(); });
     nucleus::utils::thread::sync_call(m_holder.tile_service.get(), [this]() { m_holder.tile_service.reset(); });
 }
 
 void TileSource::set_base_url(const QString& url)
 {
-    auto* svc = m_holder.tile_service.get();
+    auto* svc = tile_load_service();
     nucleus::utils::thread::async_call(svc, [svc, url]() { svc->set_base_url(url); });
 }
 
 void TileSource::clear_cache()
 {
+    if (m_config.scheduler_mode == nucleus::tile::TileSchedulerMode::Demand) {
+        auto* demand = m_demand_holder.scheduler.get();
+        nucleus::utils::thread::async_call(demand, [demand]() { demand->clear_full_cache(); });
+        return;
+    }
     auto* sched = m_holder.scheduler.get();
-    nucleus::utils::thread::async_call(sched, [sched]() { sched->clear_full_cache(); });
+    nucleus::utils::thread::async_call(sched, [sched]() {
+        sched->clear_full_cache();
+        // clear_full_cache doesn't schedule a new update; re-request what the current camera needs.
+        sched->set_enabled(sched->enabled());
+    });
 }
 
 void TileSource::set_enabled(bool enabled)
 {
+    if (m_config.scheduler_mode == nucleus::tile::TileSchedulerMode::Demand) {
+        auto* demand = m_demand_holder.scheduler.get();
+        nucleus::utils::thread::async_call(demand, [demand, enabled]() { demand->set_enabled(enabled); });
+        return;
+    }
     auto* sched = m_holder.scheduler.get();
     nucleus::utils::thread::async_call(sched, [sched, enabled]() { sched->set_enabled(enabled); });
 }
@@ -157,6 +207,9 @@ void TileSource::set_enabled(bool enabled)
 void TileSource::set_pixel_error_threshold(float error_threshold_px)
 {
     m_pixel_error_threshold = error_threshold_px;
+    // Demand sources have no CPU refinement, the shader reads the threshold from this source directly.
+    if (m_config.scheduler_mode == nucleus::tile::TileSchedulerMode::Demand)
+        return;
     auto* sched = m_holder.scheduler.get();
     nucleus::utils::thread::async_call(sched, [sched, error_threshold_px]() { sched->set_pixel_error_threshold(error_threshold_px); });
 }
