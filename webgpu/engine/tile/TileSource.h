@@ -81,6 +81,11 @@ public:
     [[nodiscard]] GpuTileTextureArray& array() { return m_array; }
     [[nodiscard]] const GpuTileTextureArray& array() const { return m_array; }
 
+    // Whether this tile's own data is GPU-resident. Currently an exact match (see TileSource.cpp for
+    // why quad mode's parent-fallback case isn't included); for a future Wanted-mode source this is
+    // already correct as-is.
+    [[nodiscard]] bool has_tile_data(nucleus::tile::Id id) const;
+
     // GPU tile-id -> array-layer dictionary (from GpuArrayHelper::generate_dictionary), for screen-space
     // consumers that must resolve tile->layer per pixel. RGBA32Uint, 256x256: xy = packed tile-id key,
     // z = array layer, w = unused (merged into one texture/binding; see generate_dictionary()).

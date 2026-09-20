@@ -96,6 +96,11 @@ void TileSource::upload_dictionary()
     m_dict->write(m_ctx->queue(), dict);
 }
 
+bool TileSource::has_tile_data(nucleus::tile::Id id) const
+{
+    return m_array.contains(id);
+}
+
 void TileSource::update_gpu_tiles(const std::vector<nucleus::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuTextureTile>& new_tiles)
 {
     for (const auto& id : deleted_tiles)
@@ -118,6 +123,7 @@ void TileSource::enable()
     const auto compression = m_config.compression;
     nucleus::utils::thread::async_call(sched, [sched, compression]() {
         sched->set_texture_compression_algorithm(compression);
+        sched->read_disk_cache();
         sched->set_enabled(true);
     });
 }

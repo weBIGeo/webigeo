@@ -167,7 +167,7 @@ bool SlippyTileOverlayImGuiRenderer::render_wanted_tiles_window()
         } else {
             unsigned resident_and_wanted = 0;
             for (const auto& t : tiles)
-                if (source && source->array().contains(t.id))
+                if (source && source->has_tile_data(t.id))
                     ++resident_and_wanted;
             const unsigned resident_not_wanted = resident_total - resident_and_wanted;
             const unsigned wanted_not_resident = static_cast<unsigned>(tiles.size()) - resident_and_wanted;
@@ -199,7 +199,7 @@ bool SlippyTileOverlayImGuiRenderer::render_wanted_tiles_window()
 
                 for (int i = 0; i < static_cast<int>(tiles.size()); ++i) {
                     const auto& t = tiles[static_cast<size_t>(i)];
-                    const bool resident = source && source->array().contains(t.id);
+                    const bool resident = source && source->has_tile_data(t.id);
                     ImGui::PushID(i);
                     ImGui::TableNextRow();
                     ImGui::TableSetColumnIndex(0);
