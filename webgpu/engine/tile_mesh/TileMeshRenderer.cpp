@@ -259,6 +259,9 @@ void TileMeshRenderer::update_gpu_tiles_height(const std::vector<radix::tile::Id
         const uint32_t layer_index = m_height_array.add_tile(tile.id);
         m_height_array.texture().write(m_ctx->queue(), *tile.surface, layer_index);
     }
+
+    if (!deleted_tiles.empty() || !new_tiles.empty())
+        ++m_tiles_generation;
 }
 
 } // namespace webgpu_engine

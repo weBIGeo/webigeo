@@ -40,7 +40,15 @@ void TextureScheduler::transform_and_emit(const std::vector<tile::DataQuad>& new
         GpuTextureTile gpu_tile;
         gpu_tile.id = quad.id;
         auto ortho_raster = to_raster(quad, m_default_raster);
-        gpu_tile.texture = std::make_shared<nucleus::utils::MipmappedColourTexture>(generate_mipmapped_colour_texture(ortho_raster, m_compression_algorithm));
+        if (m_generate_mipmaps) {
+            gpu_tile.texture
+                = std::make_shared<nucleus::utils::MipmappedColourTexture>(generate_mipmapped_colour_texture(ortho_raster, m_compression_algorithm));
+        } else {
+            // Same type, one level -- consumers all take front() anyway (see set_generate_mipmaps).
+            auto texture = std::make_shared<nucleus::utils::MipmappedColourTexture>();
+            texture->emplace_back(ortho_raster, m_compression_algorithm);
+            gpu_tile.texture = std::move(texture);
+        }
         new_gpu_tiles.push_back(gpu_tile);
     }
 
@@ -49,6 +57,8 @@ void TextureScheduler::transform_and_emit(const std::vector<tile::DataQuad>& new
 }
 
 void TextureScheduler::set_texture_compression_algorithm(nucleus::utils::ColourTexture::Format compression_algorithm) { m_compression_algorithm = compression_algorithm; }
+
+void TextureScheduler::set_generate_mipmaps(bool generate) { m_generate_mipmaps = generate; }
 
 Raster<glm::u8vec4> TextureScheduler::to_raster(const tile::DataQuad& quad, const Raster<glm::u8vec4>& default_raster)
 {

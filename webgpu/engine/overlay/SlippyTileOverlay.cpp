@@ -20,6 +20,7 @@
 
 #include "webgpu/engine/Context.h"
 #include "webgpu/engine/tile/TileSource.h"
+#include "webgpu/engine/tile_mesh/TileMeshRenderer.h"
 #include <algorithm>
 #include <nucleus/srs.h>
 #include <tuple>
@@ -277,8 +278,15 @@ void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
     if (m_wanted_tiles_map_pending) {
         m_wanted_tiles_map_pending = false;
         m_wanted_tiles_staging->read_back_async(m_ctx->device(), [this](WGPUMapAsyncStatus status, std::vector<WantedTileSlot> table) {
-            if (status == WGPUMapAsyncStatus_Success)
+            if (status == WGPUMapAsyncStatus_Success) {
                 update_wanted_tiles(table);
+            } else {
+                // Nothing arrived, so the key we recorded does not describe m_wanted_tiles. Forget it,
+                // or the skip logic would happily sit on a list that was never read back.
+                m_recorded_key.reset();
+                if (m_engine_ctx)
+                    m_engine_ctx->request_redraw();
+            }
         });
     }
 
@@ -286,17 +294,33 @@ void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
     std::vector<glm::u32vec2> packed_ids(n_tiles);
     const float pixel_error_threshold = m_source->pixel_error_threshold(); // source is authoritative (see update_settings)
     const uint32_t tile_size = m_source->array().resolution(); // ditto
-    // Keeps the sampling uniform in sync when another overlay sharing this source changed the
-    // threshold, or when the source was swapped without going through update_settings().
-    if (m_settings_uniform->data.pixel_error_threshold != pixel_error_threshold || m_settings_uniform->data.tile_size != tile_size) {
-        m_settings_uniform->data.pixel_error_threshold = pixel_error_threshold;
-        m_settings_uniform->data.tile_size = tile_size;
-        m_settings_uniform->update_gpu_data(m_ctx->queue());
-    }
     for (size_t i = 0; i < n_tiles; ++i)
         packed_ids[i] = nucleus::srs::pack(octx.frame_tile_ids[i].id);
     if (!packed_ids.empty())
         m_frame_tile_ids_buffer->write(m_ctx->queue(), packed_ids.data(), packed_ids.size());
+
+    // stride == 0 fully disables recording: no atomics in the shader, no clear, no readback.
+    const bool record_wanted_tiles = settings.wanted_tiles_stride > 0;
+    // Drop-if-behind: the previous copy must have been mapped and released before we encode a new one.
+    const bool can_copy = !m_wanted_tiles_map_pending && m_wanted_tiles_staging->map_state() == WGPUBufferMapState_Unmapped;
+    const auto* mesh_renderer = m_engine_ctx ? m_engine_ctx->tile_mesh_renderer() : nullptr;
+    RecordingKey key { octx.camera, packed_ids, mesh_renderer ? mesh_renderer->tiles_generation() : 0, output_size, m_source,
+        settings.wanted_tiles_stride, tile_size, settings.max_zoom, static_cast<uint32_t>(settings.zoom_selection_mode), pixel_error_threshold };
+    const bool key_differs = !m_recorded_key || !(*m_recorded_key == key);
+    const bool key_changed = key_differs || !settings.readback_on_change;
+    const bool record_this_frame = record_wanted_tiles && key_changed && can_copy;
+
+    // Keeps the sampling uniform in sync when another overlay sharing this source changed the
+    // threshold, or when the source was swapped without going through update_settings(); the stride is
+    // zeroed on frames that don't record, which is what actually keeps the atomics out of the shader.
+    const uint32_t effective_stride = record_this_frame ? settings.wanted_tiles_stride : 0u;
+    if (m_settings_uniform->data.pixel_error_threshold != pixel_error_threshold || m_settings_uniform->data.tile_size != tile_size
+        || m_settings_uniform->data.wanted_tiles_stride != effective_stride) {
+        m_settings_uniform->data.pixel_error_threshold = pixel_error_threshold;
+        m_settings_uniform->data.tile_size = tile_size;
+        m_settings_uniform->data.wanted_tiles_stride = effective_stride;
+        m_settings_uniform->update_gpu_data(m_ctx->queue());
+    }
 
     webgpu::raii::BindGroup bind_group(m_ctx->device(),
         m_ctx->resource_registry().bind_group_layout("slippy_tile_overlay"),
@@ -315,13 +339,13 @@ void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
         },
         "slippy tile overlay bind group");
 
-    // stride == 0 fully disables recording: no atomics in the shader, no clear, no readback.
-    const bool record_wanted_tiles = settings.wanted_tiles_stride > 0;
-    if (record_wanted_tiles) {
+    if (record_this_frame) {
         m_wanted_tiles_buffer->clear(command_encoder); // all-zero == all slots empty (keys are stored inverted)
-    } else {
+    } else if (!record_wanted_tiles) {
         m_wanted_tiles.clear();
+        m_last_readback.clear();
         clear_source_feed();
+        m_recorded_key.reset(); // switching recording back on must record again immediately
     }
 
     {
@@ -337,19 +361,32 @@ void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
         m_pipeline->run(compute_pass, workgroup_counts);
     }
 
-    // Readback of this frame's wanted-tiles set (drop-if-behind, see the member comment).
-    // ToDo: the set only changes when the camera does, so we only have to read back after camera changes.
-    if (record_wanted_tiles && !m_wanted_tiles_map_pending && m_wanted_tiles_staging->map_state() == WGPUBufferMapState_Unmapped) {
+    // Readback of this frame's wanted-tiles set.
+    ++m_frames_since_readback;
+    if (record_this_frame) {
         m_wanted_tiles_buffer->copy_to_buffer(command_encoder, *m_wanted_tiles_staging);
         m_wanted_tiles_map_pending = true;
-        // The copy is only mapped at the start of the *next* draw(), but the window renders on demand: with a
-        // still camera that frame might never come and the wanted tiles would never reach the source. Ask for
-        // one more frame. It maps (so no new copy is encoded in it and nothing is requested again), hence this terminates.
-        if (m_engine_ctx)
-            m_engine_ctx->request_redraw();
+        m_recorded_key = std::move(key); // only now, so a frame that couldn't copy is retried below
+        ++m_readback_count;
+        m_frames_since_readback = 0;
     }
+    // The copy is only mapped at the start of the *next* draw(), but the window renders on demand: with a
+    // still camera that frame might never come and the wanted tiles would never reach the source. Ask for
+    // one more frame. It maps (so no new copy is encoded in it and nothing is requested again), hence this
+    // terminates. Same request when the key changed but the staging buffer was still busy -- otherwise a
+    // change landing exactly on a map-in-flight frame would never be recorded once the camera stands still.
+    if (m_engine_ctx && (record_this_frame || (record_wanted_tiles && key_differs)))
+        m_engine_ctx->request_redraw();
 
     write_normals_to_gbuffer(command_encoder, octx);
+}
+
+std::vector<SlippyTileOverlay::WantedTile> SlippyTileOverlay::sorted_by_id(std::vector<WantedTile> tiles)
+{
+    std::sort(tiles.begin(), tiles.end(), [](const WantedTile& a, const WantedTile& b) {
+        return std::tie(a.id.zoom_level, a.id.coords.x, a.id.coords.y) < std::tie(b.id.zoom_level, b.id.coords.x, b.id.coords.y);
+    });
+    return tiles;
 }
 
 void SlippyTileOverlay::update_wanted_tiles(const std::vector<WantedTileSlot>& table)
@@ -361,29 +398,40 @@ void SlippyTileOverlay::update_wanted_tiles(const std::vector<WantedTileSlot>& t
         m_wanted_tiles.push_back({ nucleus::srs::unpack(glm::u32vec2(~slot.key_lo, ~slot.key_hi)), slot.count });
     }
     std::sort(m_wanted_tiles.begin(), m_wanted_tiles.end(), [](const WantedTile& a, const WantedTile& b) { return a.pixel_count > b.pixel_count; });
-    feed_source();
+
+    auto canonical = sorted_by_id(m_wanted_tiles);
+    const auto same = [](const WantedTile& a, const WantedTile& b) { return a.id == b.id && a.pixel_count == b.pixel_count; };
+    const bool converged = std::equal(canonical.begin(), canonical.end(), m_last_readback.begin(), m_last_readback.end(), same);
+    m_last_readback = canonical;
+    // A readback that differs from the one before it means the scene was still moving under us while
+    // we recorded (or the GPU hash set dropped a tile along a full probe chain, which the shader
+    // treats as "next frame retries" -- and with the gate there is no automatic next frame). Take one
+    // more. A settled scene records an identical list, so this stops on its own.
+    if (!converged) {
+        m_recorded_key.reset();
+        if (m_engine_ctx)
+            m_engine_ctx->request_redraw();
+    }
+
+    feed_source(canonical);
 }
 
-void SlippyTileOverlay::feed_source()
+void SlippyTileOverlay::feed_source(const std::vector<WantedTile>& canonical)
 {
     if (!m_source || m_source->scheduler_mode() != nucleus::tile::TileSchedulerMode::Demand || settings.wanted_tiles_stride == 0)
         return;
-
-    // Only every stride-th pixel in x and y is recorded, the planner wants real screen pixels.
-    const uint32_t scale = settings.wanted_tiles_stride * settings.wanted_tiles_stride;
-    std::vector<WantedTile> scaled;
-    scaled.reserve(m_wanted_tiles.size());
-    for (const auto& t : m_wanted_tiles)
-        scaled.push_back({ t.id, t.pixel_count * scale });
-    if (scaled.empty()) {
+    if (canonical.empty()) {
         clear_source_feed();
         return;
     }
 
-    // The set only changes with the camera. Compare order-independently (hash slot order can vary between frames).
-    std::sort(scaled.begin(), scaled.end(), [](const WantedTile& a, const WantedTile& b) {
-        return std::tie(a.id.zoom_level, a.id.coords.x, a.id.coords.y) < std::tie(b.id.zoom_level, b.id.coords.x, b.id.coords.y);
-    });
+    // Only every stride-th pixel in x and y is recorded, the planner wants real screen pixels.
+    const uint32_t scale = settings.wanted_tiles_stride * settings.wanted_tiles_stride;
+    std::vector<WantedTile> scaled;
+    scaled.reserve(canonical.size());
+    for (const auto& t : canonical)
+        scaled.push_back({ t.id, t.pixel_count * scale });
+
     const auto same = [](const WantedTile& a, const WantedTile& b) { return a.id == b.id && a.pixel_count == b.pixel_count; };
     if (m_has_fed && std::equal(scaled.begin(), scaled.end(), m_fed_tiles.begin(), m_fed_tiles.end(), same))
         return;

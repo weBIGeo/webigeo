@@ -864,6 +864,34 @@ TEST_CASE("nucleus/tile/TextureScheduler")
         const auto qimage = nucleus::tile::conversion::to_QImage(joined);
         qimage.save("merged.png");
     }
+
+    SECTION("mipmap generation can be switched off")
+    {
+        // The webgpu TileSource uploads only front() into a mipLevelCount == 1 array, so it turns the
+        // chain off; gl_engine uploads every level and keeps it on (the default).
+        const auto emitted_texture = [](bool generate_mipmaps) {
+            auto scheduler = default_scheduler();
+            scheduler->set_generate_mipmaps(generate_mipmaps);
+            QSignalSpy spy(scheduler.get(), &TextureScheduler::gpu_tiles_updated);
+            scheduler->receive_quad(example_tile_quad_for(Id { 0, { 0, 0 } }));
+            scheduler->update_camera(nucleus::camera::stored_positions::stephansdom());
+            scheduler->update_gpu_quads();
+            REQUIRE(spy.size() == 1);
+            const auto gpu_tiles = spy[0][1].value<std::vector<nucleus::tile::GpuTextureTile>>();
+            REQUIRE(gpu_tiles.size() == 1);
+            REQUIRE(gpu_tiles[0].texture);
+            return *gpu_tiles[0].texture;
+        };
+
+        const auto mipped = emitted_texture(true);
+        const auto single = emitted_texture(false);
+        CHECK(mipped.size() > 1);
+        CHECK(single.size() == 1);
+        // Level 0 -- the only one anybody uploads in webgpu -- must be untouched by the switch.
+        CHECK(single.front().width() == mipped.front().width());
+        CHECK(single.front().height() == mipped.front().height());
+        CHECK(single.front().n_bytes() == mipped.front().n_bytes());
+    }
 }
 
 TEST_CASE("nucleus/tile/SchedulerDirector")

@@ -57,6 +57,13 @@ public:
     size_t capacity() const;
     void set_tile_limit(unsigned new_limit);
 
+    /// Bumped every time the height tiles backing the terrain mesh change. The gbuffer that the
+    /// screen-space overlays read (depth + tile_ref, i.e. which tile a pixel belongs to and how big
+    /// its footprint is) is a function of the camera, the draw list *and* this -- the draw list alone
+    /// is camera-derived (drawing::generate_list) and says nothing about what has actually arrived.
+    /// SlippyTileOverlay uses it to know when its wanted-tile readback is stale.
+    [[nodiscard]] uint64_t tiles_generation() const { return m_tiles_generation; }
+
 signals:
     void tiles_changed();
 
@@ -67,6 +74,7 @@ private:
     uint32_t m_height_resolution;
     size_t m_num_layers;
     GpuTileTextureArray m_height_array;
+    uint64_t m_tiles_generation = 0; // see tiles_generation()
 
     webgpu::Context* m_ctx = nullptr;
 

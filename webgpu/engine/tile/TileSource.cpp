@@ -185,6 +185,10 @@ void TileSource::enable()
     auto* sched = m_holder.scheduler.get();
     nucleus::utils::thread::async_call(sched, [sched, compression]() {
         sched->set_texture_compression_algorithm(compression);
+        // update_gpu_tiles uploads front() into a mipLevelCount == 1 array and the overlay picks a zoom
+        // level rather than a mip, so the rest of the chain would be built and thrown away. (The GL app
+        // shares this scheduler class and does need it, hence per-instance and not a removal.)
+        sched->set_generate_mipmaps(false);
         sched->read_disk_cache();
         sched->set_enabled(true);
     });

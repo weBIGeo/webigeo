@@ -30,6 +30,11 @@ public:
     ~TextureScheduler() override;
 
     void set_texture_compression_algorithm(nucleus::utils::ColourTexture::Format compression_algorithm);
+    /// Whether transform_and_emit builds the full mip chain. On by default: gl_engine::TextureLayer uploads
+    /// every level and samples with Filter::MipMapLinear. The webgpu TileSource on the other hand uploads only
+    /// front() into an array with mipLevelCount == 1 (the slippy overlay picks a zoom level instead of a mip),
+    /// so it switches this off and saves ~9 downsample + compress passes per quad on the scheduler thread.
+    void set_generate_mipmaps(bool generate);
     static Raster<glm::u8vec4> to_raster(const tile::DataQuad& data_quad, const Raster<glm::u8vec4>& default_raster);
 
 signals:
@@ -40,6 +45,7 @@ protected:
 
 private:
     nucleus::utils::ColourTexture::Format m_compression_algorithm = nucleus::utils::ColourTexture::Format::Uncompressed_RGBA;
+    bool m_generate_mipmaps = true;
     Raster<glm::u8vec4> m_default_raster;
 };
 
