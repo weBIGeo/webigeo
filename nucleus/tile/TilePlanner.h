@@ -28,7 +28,7 @@
 namespace nucleus::tile {
 
 /// Pure policy: turns a wanted-tile list into ship/fetch/touch decisions. No Qt, no threading, no I/O --
-/// TileFetchScheduler owns the state (GPU residency, RAM cache, in-flight/backoff) and calls make() per update.
+/// DemandScheduler owns the state (GPU residency, RAM cache, in-flight/backoff) and calls make() per update.
 struct TilePlanner {
     enum class Order { ZoomDescThenCount, CountTimesGap };
 

@@ -25,6 +25,7 @@
 #include "SlotLimiter.h"
 #include "Texture3DScheduler.h"
 #include "TextureScheduler.h"
+#include "DemandScheduler.h"
 #include "TileLoadService.h"
 #include "utils.h"
 #include <QCoreApplication>
@@ -170,6 +171,39 @@ inline Texture3DSchedulerHolder texture_scheduler_3d(TileLoadServicePtr tile_ser
         QNetworkInformation* n = QNetworkInformation::instance();
         scheduler->set_network_reachability(n->reachability());
         QObject::connect(n, &QNetworkInformation::reachabilityChanged, scheduler.get(), &Scheduler::set_network_reachability);
+    }
+
+    Q_UNUSED(thread);
+#ifdef ALP_ENABLE_THREADING
+#ifdef __EMSCRIPTEN__ // make request from main thread on webassembly due to QTBUG-109396
+    tile_service->moveToThread(QCoreApplication::instance()->thread());
+#else
+    if (thread)
+        tile_service->moveToThread(thread);
+#endif
+    if (thread)
+        scheduler->moveToThread(thread);
+#endif
+
+    return { std::move(scheduler), std::move(tile_service) };
+}
+
+struct DemandSchedulerHolder {
+    std::shared_ptr<DemandScheduler> scheduler;
+    TileLoadServicePtr tile_service;
+};
+
+inline DemandSchedulerHolder demand_scheduler(TileLoadServicePtr tile_service, QThread* thread = nullptr, DemandScheduler::Settings settings = {})
+{
+    auto scheduler = std::make_unique<DemandScheduler>(settings);
+
+    QObject::connect(scheduler.get(), &DemandScheduler::tile_requested, tile_service.get(), &TileLoadService::load);
+    QObject::connect(tile_service.get(), &TileLoadService::load_finished, scheduler.get(), &DemandScheduler::receive_tile);
+
+    if (QNetworkInformation::loadDefaultBackend() && QNetworkInformation::instance()) {
+        QNetworkInformation* n = QNetworkInformation::instance();
+        scheduler->set_network_reachability(n->reachability());
+        QObject::connect(n, &QNetworkInformation::reachabilityChanged, scheduler.get(), &DemandScheduler::set_network_reachability);
     }
 
     Q_UNUSED(thread);

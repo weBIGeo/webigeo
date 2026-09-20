@@ -78,6 +78,7 @@ qt_add_library(nucleus STATIC
     tile/RateLimiter.h tile/RateLimiter.cpp
     tile/TilePlanner.h tile/TilePlanner.cpp
     tile/TileRequestQueue.h tile/TileRequestQueue.cpp
+    tile/DemandScheduler.h tile/DemandScheduler.cpp
     camera/CadInteraction.h camera/CadInteraction.cpp
     camera/Controller.h camera/Controller.cpp
     camera/Definition.h camera/Definition.cpp

@@ -38,6 +38,7 @@ alp_add_unittest(unittests_nucleus
     tile_rate_limiter.cpp
     tile_planner.cpp
     tile_request_queue.cpp
+    tile_demand_scheduler.cpp
     RateTester.h RateTester.cpp
     zppbits.cpp
     cache_queries.cpp
