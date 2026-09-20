@@ -237,4 +237,74 @@ TEST_CASE("nucleus/tile/tile planner")
         // tier-3 appearance (wanted directly) and tier-2 appearance (descendant's bounded fallback).
         CHECK(pos(shared) < pos(unrelated));
     }
+
+    SECTION("outcome is parallel to the wanted list and names the reason for each tile")
+    {
+        TilePlanner::Params params;
+        params.anchor_zoom = 100; // no anchors
+        params.min_pixels = 256;
+        params.max_gap = 2;
+
+        const Id resident { 10, { 5, 5 } };
+        const Id skipped { 12, { 100, 100 } }; // few pixels, parent resident -> gap 1
+        const Id requested { 8, { 3, 3 } };
+        const Id dead { 9, { 7, 7 } }; // tombstoned itself
+        const Id below_dead = dead.children()[0]; // below a tombstone, but not known-missing itself
+
+        const StateMap states {
+            { resident, { .on_gpu = true } },
+            { skipped.parent(), { .on_gpu = true } },
+            { dead, { .tombstone = true } },
+        };
+        const std::vector<WantedTile> wanted = { { resident, 900 }, { skipped, 10 }, { requested, 900 }, { dead, 900 }, { below_dead, 900 } };
+
+        const auto plan = TilePlanner::make(wanted, params, lookup(states));
+        REQUIRE(plan.outcome.size() == wanted.size());
+        CHECK(plan.outcome[0] == TilePlanner::Outcome::Resident);
+        CHECK(plan.outcome[1] == TilePlanner::Outcome::Skipped);
+        CHECK(plan.outcome[2] == TilePlanner::Outcome::Requested);
+        CHECK(plan.outcome[3] == TilePlanner::Outcome::NoData);
+        CHECK(plan.outcome[4] == TilePlanner::Outcome::Requested);
+        // ... and the substitute of a tombstoned tile is still planned, it is only the wanted id itself
+        // that can never be served.
+        CHECK(std::count(plan.fetch.begin(), plan.fetch.end(), dead.parent()) == 1);
+        CHECK(std::count(plan.fetch.begin(), plan.fetch.end(), dead) == 0);
+    }
+
+    SECTION("a tombstone does not suppress its subtree: tiles below a known-missing one are still requested")
+    {
+        // A 404 at a low zoom usually means the tile set has no overview at that level, not that the
+        // region is empty -- treating it as "nothing below exists" marks available tiles as missing.
+        TilePlanner::Params params;
+        params.anchor_zoom = 100;
+        params.min_pixels = 0;
+        params.max_gap = 100; // tier 3 only, so `fetch` is exactly the substituted wanted ids
+
+        const Id dead { 6, { 3, 3 } };
+        const Id deep = dead.children()[0].children()[1].children()[0]; // three levels below the hole
+        const StateMap states { { dead, { .tombstone = true } } };
+        const std::vector<WantedTile> wanted = { { deep, 1000 } };
+
+        const auto plan = TilePlanner::make(wanted, params, lookup(states));
+        REQUIRE(plan.outcome.size() == 1);
+        CHECK(plan.outcome[0] == TilePlanner::Outcome::Requested);
+        REQUIRE(plan.fetch.size() == 1);
+        CHECK(plan.fetch[0] == deep);
+    }
+
+    SECTION("NoData wins over Resident: a tombstoned tile whose ancestor is on the gpu renders, but never exactly")
+    {
+        TilePlanner::Params params;
+        params.anchor_zoom = 100;
+        const Id dead { 9, { 7, 7 } };
+        const StateMap states { { dead, { .tombstone = true } }, { dead.parent(), { .on_gpu = true } } };
+        const std::vector<WantedTile> wanted = { { dead, 900 } };
+
+        const auto plan = TilePlanner::make(wanted, params, lookup(states));
+        REQUIRE(plan.outcome.size() == 1);
+        CHECK(plan.outcome[0] == TilePlanner::Outcome::NoData);
+        CHECK(plan.fetch.empty()); // the substitute is already resident
+        REQUIRE(plan.touch.size() == 1);
+        CHECK(plan.touch[0] == dead.parent());
+    }
 }

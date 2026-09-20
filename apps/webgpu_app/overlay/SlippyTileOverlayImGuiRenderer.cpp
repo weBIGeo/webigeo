@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <imgui.h>
+#include <iterator>
 #include <nucleus/tile/TileSourcePresets.h>
 #include <webgpu/engine/Context.h>
 #include <webgpu/engine/tile/TileSource.h>
@@ -39,6 +40,37 @@ int current_preset_index(const webgpu_engine::SlippyTileOverlay& overlay)
         if (source->name() == presets[static_cast<size_t>(i)].source_name)
             return i;
     return 0;
+}
+
+struct StatusStyle {
+    const char* label;
+    ImVec4 color;
+    const char* tooltip;
+};
+
+// Short enough for the table column; the tooltip carries the actual explanation.
+StatusStyle status_style(nucleus::tile::TileStatus status)
+{
+    using S = nucleus::tile::TileStatus;
+    switch (status) {
+    case S::Resident:
+        return { "ok", ImVec4(0.4f, 0.9f, 0.4f, 1.0f), "On the GPU, exact match." };
+    case S::Uploading:
+        return { "upload", ImVec4(0.5f, 0.8f, 1.0f, 1.0f), "Downloaded and decoded, waiting for an upload slot (Max Ship / Update)." };
+    case S::InFlight:
+        return { "load", ImVec4(1.0f, 0.85f, 0.3f, 1.0f), "Requested, waiting for the network." };
+    case S::Queued:
+        return { "queue", ImVec4(0.7f, 0.7f, 0.8f, 1.0f), "Planned, waiting for a free in-flight slot (Max In Flight)." };
+    case S::BackingOff:
+        return { "retry", ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "A network error is being retried with backoff." };
+    case S::NoData:
+        return { "404", ImVec4(0.6f, 0.55f, 0.55f, 1.0f), "This tile or an ancestor returned 404 -- it will never become resident; a parent is shown instead." };
+    case S::Skipped:
+        return { "skip", ImVec4(0.55f, 0.55f, 0.55f, 1.0f), "Deliberately not requested: too few pixels (Min Pixels) and a close enough ancestor is resident (Max Gap)." };
+    case S::Unknown:
+        break;
+    }
+    return { "-", ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "Not part of the scheduler's last plan (an ancestor was requested instead)." };
 }
 } // namespace
 
@@ -183,11 +215,16 @@ void SlippyTileOverlayImGuiRenderer::update_rebuild_measurement()
     }
 
     const auto& tiles = m_slippy_overlay->wanted_tiles();
+    const bool demand = source->scheduler_mode() == nucleus::tile::TileSchedulerMode::Demand;
     unsigned resident = 0;
-    for (const auto& t : tiles)
+    unsigned no_data = 0;
+    for (const auto& t : tiles) {
         if (source->has_tile_data(t.id))
             ++resident;
-    const unsigned missing = static_cast<unsigned>(tiles.size()) - resident;
+        else if (demand && source->demand_tile_status(t.id) == nucleus::tile::TileStatus::NoData)
+            ++no_data; // 404: waiting for it would make a rebuild on a holey source never finish
+    }
+    const unsigned missing = static_cast<unsigned>(tiles.size()) - resident - no_data;
     m_rebuild_saw_missing = m_rebuild_saw_missing || missing > 0;
 
     const qint64 elapsed = m_rebuild_timer.elapsed();
@@ -232,6 +269,97 @@ std::string SlippyTileOverlayImGuiRenderer::rebuild_status_text() const
     return buf;
 }
 
+bool SlippyTileOverlayImGuiRenderer::render_demand_scheduler_section()
+{
+    auto* source = m_slippy_overlay->source();
+    if (!source || source->scheduler_mode() != nucleus::tile::TileSchedulerMode::Demand)
+        return false;
+    if (!ImGui::CollapsingHeader("Demand Scheduler"))
+        return false;
+
+    const auto& st = source->demand_stats();
+    ImGui::Text("Plan: %u wanted, %u to fetch, %u to ship", st.n_wanted, st.n_fetch_planned, st.n_ship_planned);
+    ImGui::Text("Network: %u in flight, %u queued, %u backing off", st.n_in_flight, st.n_pending, st.n_backoff);
+    ImGui::Text("Uploads: %u shipped, %u deferred", st.n_shipped, st.n_ship_deferred);
+    if (st.n_ship_dropped_no_space > 0)
+        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "%u upload(s) dropped: no free array layer", st.n_ship_dropped_no_space);
+    ImGui::Text("Evicted last tick: %u    RAM cache: %u tiles", st.n_evicted, st.n_ram);
+    ImGui::Text("Totals: %llu sent, %llu ok, %llu 404, %llu net err, %llu aborted", static_cast<unsigned long long>(st.total_requested),
+        static_cast<unsigned long long>(st.total_delivered), static_cast<unsigned long long>(st.total_not_found),
+        static_cast<unsigned long long>(st.total_network_errors), static_cast<unsigned long long>(st.total_aborted));
+    ImGui::SetItemTooltip("Since app start or the last Rebuild. After a restart '404' must stay at 0:\n"
+                          "known-missing tiles come back as tombstones from the disk cache instead of being requested again.");
+
+    ImGui::Separator();
+
+    auto t = source->demand_tuning();
+    bool changed = false;
+
+    int max_gap = static_cast<int>(t.planner.max_gap);
+    if (ImGui::SliderInt("Max Gap", &max_gap, 0, 6)) {
+        t.planner.max_gap = static_cast<unsigned>(max_gap);
+        changed = true;
+    }
+    ImGui::SetItemTooltip("How many ancestor levels the shader may fall back through before a closer\nfallback tile is requested alongside the wanted one.");
+
+    int min_pixels = static_cast<int>(t.planner.min_pixels);
+    if (ImGui::SliderInt("Min Pixels", &min_pixels, 0, 8192, "%d", ImGuiSliderFlags_Logarithmic)) {
+        t.planner.min_pixels = static_cast<uint32_t>(min_pixels);
+        changed = true;
+    }
+    ImGui::SetItemTooltip("Tiles covering fewer real screen pixels than this are not fetched as long as\na resident ancestor within Max Gap can stand in for them.");
+
+    int anchor_zoom = static_cast<int>(t.planner.anchor_zoom);
+    if (ImGui::SliderInt("Anchor Zoom", &anchor_zoom, 0, 16)) {
+        t.planner.anchor_zoom = static_cast<unsigned>(anchor_zoom);
+        changed = true;
+    }
+    ImGui::SetItemTooltip("Ancestors from this zoom down to the wanted tile are always kept resident,\nso there is coverage everywhere. Lower = more tiles held.");
+
+    int order = static_cast<int>(t.planner.order);
+    if (ImGui::Combo("Order", &order, "Zoom desc, then pixels\0Pixels x gap\0")) {
+        t.planner.order = static_cast<nucleus::tile::TilePlanner::Order>(order);
+        changed = true;
+    }
+    ImGui::SetItemTooltip("Request priority within each tier.");
+
+    int max_in_flight = static_cast<int>(t.max_in_flight);
+    if (ImGui::SliderInt("Max In Flight", &max_in_flight, 1, 64)) {
+        t.max_in_flight = static_cast<unsigned>(max_in_flight);
+        changed = true;
+    }
+    ImGui::SetItemTooltip("Concurrent HTTP requests. Higher fills the view faster but wastes more\nrequests on tiles the camera has already left (they get aborted).");
+
+    int max_ship = static_cast<int>(t.max_ship_per_update);
+    if (ImGui::SliderInt("Max Ship / Update", &max_ship, 1, 256)) {
+        t.max_ship_per_update = static_cast<unsigned>(max_ship);
+        changed = true;
+    }
+    ImGui::SetItemTooltip("Tiles decoded and uploaded per 100 ms tick. Bounds scheduler-thread CPU;\ndeferred tiles are simply re-proposed on the next tick.");
+
+    int gpu_limit = static_cast<int>(t.gpu_tile_limit);
+    const int capacity = static_cast<int>(source->array().capacity());
+    if (ImGui::SliderInt("GPU Tile Limit", &gpu_limit, 16, capacity)) {
+        t.gpu_tile_limit = static_cast<unsigned>(gpu_limit);
+        changed = true;
+    }
+    ImGui::SetItemTooltip("Array layers the scheduler may use. Can only be lowered below the array's\ncapacity (fixed at startup) -- useful to see how the view degrades under eviction pressure.");
+
+    if (ImGui::SmallButton("Reset tuning")) {
+        const auto max_zoom = t.planner.max_zoom; // comes from the preset, not a tunable
+        t = {};
+        t.planner.max_zoom = max_zoom;
+        t.gpu_tile_limit = static_cast<unsigned>(capacity);
+        changed = true;
+    }
+
+    if (changed) {
+        source->set_demand_tuning(t);
+        m_context->request_redraw();
+    }
+    return changed;
+}
+
 bool SlippyTileOverlayImGuiRenderer::render_wanted_tiles_window()
 {
     if (!m_show_wanted_tiles_window)
@@ -252,6 +380,9 @@ bool SlippyTileOverlayImGuiRenderer::render_wanted_tiles_window()
         const unsigned resident_capacity = source ? source->array().capacity() : 0;
         ImGui::Text("Resident: %u / %u", resident_total, resident_capacity);
 
+        const bool demand = source && source->scheduler_mode() == nucleus::tile::TileSchedulerMode::Demand;
+        render_demand_scheduler_section();
+
         if (s.wanted_tiles_stride == 0) {
             ImGui::TextDisabled("Requests: recording off (Wanted Tiles Stride = 0).");
         } else {
@@ -265,11 +396,34 @@ bool SlippyTileOverlayImGuiRenderer::render_wanted_tiles_window()
             ImGui::Text("Resident & requested: %u", resident_and_wanted);
             ImGui::Text("Resident, not requested: %u", resident_not_wanted);
             ImGui::Text("Requested, not resident: %u", wanted_not_resident);
+            // For Demand sources that number alone is not actionable: split it by what each tile is
+            // waiting for. "404" and "skip" are steady states, everything else should drain to 0.
+            if (demand && wanted_not_resident > 0) {
+                unsigned by_status[8] = {};
+                for (const auto& t : tiles)
+                    if (!source->has_tile_data(t.id))
+                        ++by_status[static_cast<size_t>(source->demand_tile_status(t.id))];
+                ImGui::Indent();
+                for (size_t i = 0; i < std::size(by_status); ++i) {
+                    if (by_status[i] == 0)
+                        continue;
+                    const auto style = status_style(static_cast<nucleus::tile::TileStatus>(i));
+                    ImGui::TextColored(style.color, "%s: %u", style.label, by_status[i]);
+                    ImGui::SetItemTooltip("%s", style.tooltip);
+                }
+                ImGui::Unindent();
+            }
 
             uint32_t total_pixels = 0;
             for (const auto& t : tiles)
                 total_pixels += t.pixel_count;
-            ImGui::Text("%d tiles requested, %u recorded pixels (stride %u)", static_cast<int>(tiles.size()), total_pixels, s.wanted_tiles_stride);
+            // Only every stride-th pixel in x and y is recorded; the planner is fed the counts scaled
+            // back up to real screen pixels, which is also what Min Pixels is compared against.
+            const uint32_t px_scale = s.wanted_tiles_stride * s.wanted_tiles_stride;
+            ImGui::Text("%d tiles requested, %u recorded px = %llu screen px (stride %u)", static_cast<int>(tiles.size()), total_pixels,
+                static_cast<unsigned long long>(total_pixels) * px_scale, s.wanted_tiles_stride);
+            ImGui::SetItemTooltip("The shader records every stride-th pixel in x and y. 'Screen px' is the recorded count x stride^2,\n"
+                                  "i.e. what the scheduler plans with (and what Min Pixels is compared against).");
             // The GPU-side set silently drops tiles once its hash table fills up.
             const uint32_t wanted_capacity = m_slippy_overlay->wanted_tiles_capacity();
             if (tiles.size() * 2 >= wanted_capacity)
@@ -277,12 +431,13 @@ bool SlippyTileOverlayImGuiRenderer::render_wanted_tiles_window()
                     static_cast<int>(tiles.size() * 100 / wanted_capacity));
             ImGui::Separator();
 
-            if (ImGui::BeginTable("wanted_tiles", 6, ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
+            if (ImGui::BeginTable("wanted_tiles", 7, ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
                 ImGui::TableSetupColumn("Zoom", ImGuiTableColumnFlags_WidthFixed, 38.0f);
                 ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthStretch);
                 ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthStretch);
-                ImGui::TableSetupColumn("Pixels", ImGuiTableColumnFlags_WidthFixed, 60.0f);
-                ImGui::TableSetupColumn("Resident", ImGuiTableColumnFlags_WidthFixed, 56.0f);
+                ImGui::TableSetupColumn("Rec. px", ImGuiTableColumnFlags_WidthFixed, 56.0f);
+                ImGui::TableSetupColumn("Screen px", ImGuiTableColumnFlags_WidthFixed, 66.0f);
+                ImGui::TableSetupColumn(demand ? "Status" : "Resident", ImGuiTableColumnFlags_WidthFixed, 56.0f);
                 ImGui::TableSetupColumn("##url", ImGuiTableColumnFlags_WidthFixed, 26.0f);
                 ImGui::TableSetupScrollFreeze(0, 1);
                 ImGui::TableHeadersRow();
@@ -304,14 +459,23 @@ bool SlippyTileOverlayImGuiRenderer::render_wanted_tiles_window()
                     ImGui::Text("%u", static_cast<unsigned>(t.id.coords.y));
                     ImGui::TableSetColumnIndex(3);
                     ImGui::Text("%u", t.pixel_count);
-
                     ImGui::TableSetColumnIndex(4);
-                    if (resident)
-                        ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1.0f), ICON_FA_CHECK);
-                    else
-                        ImGui::TextColored(ImVec4(0.9f, 0.4f, 0.4f, 1.0f), ICON_FA_TIMES);
+                    // What the scheduler actually planned with -- compare this against Min Pixels.
+                    ImGui::Text("%llu", static_cast<unsigned long long>(t.pixel_count) * px_scale);
 
                     ImGui::TableSetColumnIndex(5);
+                    if (demand && !resident) {
+                        // Why it isn't there yet -- or, for "404", why it never will be.
+                        const auto style = status_style(source->demand_tile_status(t.id));
+                        ImGui::TextColored(style.color, "%s", style.label);
+                        ImGui::SetItemTooltip("%s", style.tooltip);
+                    } else if (resident) {
+                        ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1.0f), ICON_FA_CHECK);
+                    } else {
+                        ImGui::TextColored(ImVec4(0.9f, 0.4f, 0.4f, 1.0f), ICON_FA_TIMES);
+                    }
+
+                    ImGui::TableSetColumnIndex(6);
                     if (load_service) {
                         // unpack() yields TMS ids, build_tile_url converts to the source's scheme
                         const std::string url = load_service->build_tile_url(t.id).toStdString();

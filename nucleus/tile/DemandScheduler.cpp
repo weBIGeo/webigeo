@@ -37,8 +37,15 @@ DemandScheduler::DemandScheduler(const Settings& settings)
 {
     m_queue = new TileRequestQueue(this);
     m_queue->set_limit(m.max_in_flight);
-    connect(m_queue, &TileRequestQueue::tile_requested, this, &DemandScheduler::tile_requested);
-    connect(m_queue, &TileRequestQueue::tile_aborted, this, &DemandScheduler::tile_aborted);
+    // Forwarded rather than connected straight through, so the cumulative stats counters see them.
+    connect(m_queue, &TileRequestQueue::tile_requested, this, [this](const tile::Id& id) {
+        ++m_totals.total_requested;
+        emit tile_requested(id);
+    });
+    connect(m_queue, &TileRequestQueue::tile_aborted, this, [this](const tile::Id& id) {
+        ++m_totals.total_aborted;
+        emit tile_aborted(id);
+    });
 
     m_update_timer = new QTimer(this);
     m_update_timer->setSingleShot(true);
@@ -62,6 +69,18 @@ const TileRequestQueue& DemandScheduler::request_queue() const { return *m_queue
 unsigned DemandScheduler::n_gpu_resident() const { return unsigned(m_gpu_resident.size()); }
 bool DemandScheduler::is_gpu_resident(const tile::Id& id) const { return m_gpu_resident.contains(id); }
 
+DemandScheduler::Tuning DemandScheduler::tuning() const { return { m.planner, m.max_in_flight, m.max_ship_per_update, m.gpu_tile_limit }; }
+
+void DemandScheduler::set_tuning(const Tuning& tuning)
+{
+    m.planner = tuning.planner;
+    m.max_in_flight = tuning.max_in_flight;
+    m.max_ship_per_update = tuning.max_ship_per_update;
+    m.gpu_tile_limit = tuning.gpu_tile_limit;
+    m_queue->set_limit(m.max_in_flight);
+    schedule_update();
+}
+
 void DemandScheduler::submit_wanted(quintptr owner, const std::vector<WantedTile>& wanted)
 {
     if (wanted.empty())
@@ -83,13 +102,16 @@ void DemandScheduler::receive_tile(const Data& tile)
     case Status::Good:
         m_ram_cache.insert(DataTile { tile.id, tile.network_info, tile.data });
         m_failed.erase(tile.id);
+        ++m_totals.total_delivered;
         break;
     case Status::NotFound:
         // tombstone: same struct, empty payload
         m_ram_cache.insert(DataTile { tile.id, tile.network_info, std::make_shared<QByteArray>() });
         m_failed.erase(tile.id);
+        ++m_totals.total_not_found;
         break;
     case Status::NetworkError: {
+        ++m_totals.total_network_errors;
         auto& backoff = m_failed[tile.id];
         backoff.attempts = std::min(backoff.attempts + 1, 16u);
         const uint64_t delay = std::min<uint64_t>(m.retry_max_ms, uint64_t(m.retry_base_ms) << backoff.attempts);
@@ -150,25 +172,39 @@ void DemandScheduler::update()
     }
 
     // 4. ship RAM-fresh tiles to the GPU
+    const tile::IdSet ship_set(plan.ship.begin(), plan.ship.end()); // incl. the ones deferred below
     std::vector<tile::Id> ship = plan.ship;
     const bool ship_deferred = ship.size() > m.max_ship_per_update;
     if (ship_deferred)
         ship.resize(m.max_ship_per_update);
 
+    // Eviction candidates in LRU order -- never what the shader is currently sampling.
+    std::vector<std::pair<uint64_t, tile::Id>> evictable;
+    evictable.reserve(m_gpu_resident.size());
+    for (const auto& [id, stamp] : m_gpu_resident)
+        if (!touch_set.contains(id))
+            evictable.emplace_back(stamp, id);
+    std::sort(evictable.begin(), evictable.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+
     std::vector<tile::Id> deleted;
-    const size_t n_free = m.gpu_tile_limit > m_gpu_resident.size() ? m.gpu_tile_limit - m_gpu_resident.size() : 0;
+    size_t n_evicted = 0;
+    // 4a. gpu_tile_limit can be lowered at runtime (set_tuning), so shrink to it before anything else.
+    while (m_gpu_resident.size() - n_evicted > m.gpu_tile_limit && n_evicted < evictable.size())
+        deleted.push_back(evictable[n_evicted++].second);
+
+    // 4b. free enough layers for what we are about to upload.
+    size_t n_ship_dropped = 0;
+    const size_t n_resident_now = m_gpu_resident.size() - n_evicted;
+    const size_t n_free = m.gpu_tile_limit > n_resident_now ? m.gpu_tile_limit - n_resident_now : 0;
     if (ship.size() > n_free) {
         const size_t n_missing = ship.size() - n_free;
-        std::vector<std::pair<uint64_t, tile::Id>> evictable; // never evict what the shader currently uses
-        for (const auto& [id, stamp] : m_gpu_resident)
-            if (!touch_set.contains(id))
-                evictable.emplace_back(stamp, id);
-        std::sort(evictable.begin(), evictable.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
-        const size_t n_evict = std::min(n_missing, evictable.size());
+        const size_t n_evict = std::min(n_missing, evictable.size() - n_evicted);
         for (size_t i = 0; i < n_evict; ++i)
-            deleted.push_back(evictable[i].second);
-        if (n_evict < n_missing)
-            ship.resize(ship.size() - (n_missing - n_evict)); // drop the lowest priority ones
+            deleted.push_back(evictable[n_evicted++].second);
+        if (n_evict < n_missing) {
+            n_ship_dropped = n_missing - n_evict; // array too small for this view; Stats reports it
+            ship.resize(ship.size() - n_ship_dropped); // drop the lowest priority ones
+        }
     }
 
     std::vector<GpuTextureTile> new_tiles;
@@ -208,6 +244,51 @@ void DemandScheduler::update()
     // 5. request what is missing. in-flight ids that are still planned keep running, the rest is aborted by the queue.
     if (m_network_requests_enabled)
         m_queue->set_requests(plan.fetch);
+
+    // 6. publish what just happened (after step 5, so in-flight/pending are current).
+    Stats stats = m_totals; // carries the cumulative counters over
+    stats.n_wanted = unsigned(wanted.size());
+    stats.n_resident = unsigned(m_gpu_resident.size());
+    stats.gpu_tile_limit = m.gpu_tile_limit;
+    stats.n_ram = m_ram_cache.n_cached_objects();
+    stats.n_ship_planned = unsigned(plan.ship.size());
+    stats.n_shipped = unsigned(new_tiles.size());
+    stats.n_ship_deferred = unsigned(plan.ship.size() - ship.size() - n_ship_dropped);
+    stats.n_ship_dropped_no_space = unsigned(n_ship_dropped);
+    stats.n_evicted = unsigned(deleted.size());
+    stats.n_fetch_planned = unsigned(plan.fetch.size());
+    stats.n_in_flight = m_queue->in_flight();
+    stats.n_pending = m_queue->pending();
+    stats.tile_status.reserve(wanted.size());
+    for (size_t i = 0; i < wanted.size(); ++i) {
+        const auto& id = wanted[i].id;
+        const auto outcome = plan.outcome[i];
+        TileStatus status = TileStatus::Unknown;
+        if (m_gpu_resident.contains(id))
+            status = TileStatus::Resident;
+        else if (outcome == TilePlanner::Outcome::NoData)
+            status = TileStatus::NoData;
+        else if (ship_set.contains(id))
+            status = TileStatus::Uploading; // decoded, waiting for a ship slot (or dropped for space)
+        else if (m_queue->is_in_flight(id))
+            status = TileStatus::InFlight;
+        else if (m_queue->is_pending(id))
+            status = TileStatus::Queued;
+        else if (const auto it = m_failed.find(id); it != m_failed.end() && it->second.next_retry_ms > now)
+            status = TileStatus::BackingOff;
+        else if (outcome == TilePlanner::Outcome::Skipped)
+            status = TileStatus::Skipped;
+        // else Unknown: the planner requested an ancestor instead of this tile itself
+        if (status == TileStatus::NoData)
+            ++stats.n_no_data;
+        else if (status == TileStatus::Skipped)
+            ++stats.n_skipped;
+        stats.tile_status.emplace_back(id, status);
+    }
+    for (const auto& [id, backoff] : m_failed)
+        if (backoff.next_retry_ms > now)
+            ++stats.n_backoff;
+    emit stats_updated(stats);
 }
 
 void DemandScheduler::purge_ram_cache()
@@ -275,6 +356,7 @@ void DemandScheduler::clear_full_cache()
 {
     m_ram_cache.purge(0);
     m_failed.clear();
+    m_totals = {}; // the cumulative counters describe the current cache, which is now empty
 
     std::vector<tile::Id> deleted;
     deleted.reserve(m_gpu_resident.size());

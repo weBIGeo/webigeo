@@ -39,6 +39,9 @@ private:
     // Separate window listing the last wanted-tiles readback, opened from the settings panel.
     // Hovering a row highlights that tile in the overlay. Returns true if a redraw is needed.
     bool render_wanted_tiles_window();
+    // Live stats + tuning knobs of the DemandScheduler behind the current source, inside that window.
+    // No-op (returns false) for Quad sources. Returns true if a knob changed.
+    bool render_demand_scheduler_section();
 
     // "Rebuild" stopwatch: wall-clock time from clearing the source until every tile the shader asked
     // for this frame is GPU-resident again. Comparable across scheduler modes because the wanted-tile

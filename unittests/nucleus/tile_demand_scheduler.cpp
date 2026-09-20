@@ -79,6 +79,27 @@ const Id x1 { 5, { 1, 1 } };
 const Id x2 { 5, { 4, 4 } };
 const Id x3 { 5, { 9, 9 } };
 
+// Stats carries a std::vector member, so grab it through a lambda rather than QSignalSpy's QVariants.
+struct StatsCapture {
+    explicit StatsCapture(DemandScheduler& scheduler)
+    {
+        QObject::connect(&scheduler, &DemandScheduler::stats_updated, &scheduler, [this](const DemandScheduler::Stats& s) {
+            last = s;
+            ++count;
+        });
+    }
+    DemandScheduler::Stats last;
+    int count = 0;
+};
+
+TileStatus status_of(const DemandScheduler::Stats& stats, const Id& id)
+{
+    for (const auto& [tile_id, status] : stats.tile_status)
+        if (tile_id == id)
+            return status;
+    return TileStatus::Unknown;
+}
+
 std::vector<Id> requested_ids(const QSignalSpy& spy)
 {
     std::vector<Id> ids;
@@ -506,5 +527,166 @@ TEST_CASE("nucleus/tile/DemandScheduler")
         auto holder = setup::demand_scheduler(std::make_unique<TileLoadService>("http://localhost:1/", TileLoadService::UrlPattern::ZXY, ".jpeg"));
         CHECK(holder.scheduler);
         CHECK(holder.tile_service);
+    }
+
+    SECTION("stats: every wanted tile is classified, queued -> in flight -> resident")
+    {
+        auto s = base_settings();
+        s.max_in_flight = 1;
+        auto sch = make_scheduler(s);
+        StatsCapture stats(*sch);
+
+        sch->submit_wanted(1, wanted({ { x1, 1000 }, { x2, 500 } })); // x1 has the higher priority
+        sch->update();
+        CHECK(stats.count == 1);
+        CHECK(stats.last.n_wanted == 2);
+        CHECK(stats.last.n_fetch_planned == 2);
+        CHECK(stats.last.n_in_flight == 1);
+        CHECK(stats.last.n_pending == 1);
+        CHECK(status_of(stats.last, x1) == TileStatus::InFlight);
+        CHECK(status_of(stats.last, x2) == TileStatus::Queued);
+
+        sch->receive_tile(delivery(x1));
+        sch->update();
+        CHECK(status_of(stats.last, x1) == TileStatus::Resident);
+        CHECK(status_of(stats.last, x2) == TileStatus::InFlight);
+        CHECK(stats.last.n_resident == 1);
+        CHECK(stats.last.total_delivered == 1);
+    }
+
+    SECTION("stats: a 404 shows up as NoData and is counted exactly once")
+    {
+        auto sch = make_scheduler();
+        StatsCapture stats(*sch);
+
+        sch->submit_wanted(1, wanted({ { x1, 1000 } }));
+        sch->update();
+        CHECK(status_of(stats.last, x1) == TileStatus::InFlight);
+        CHECK(stats.last.total_requested == 1);
+
+        sch->receive_tile(delivery(x1, NetworkInfo::Status::NotFound));
+        sch->update();
+        CHECK(status_of(stats.last, x1) == TileStatus::NoData);
+        CHECK(stats.last.n_no_data == 1);
+        CHECK(stats.last.total_not_found == 1);
+
+        // this is the "no repeat 404s" property: replanning does not ask for it again
+        sch->update();
+        CHECK(stats.last.total_not_found == 1);
+        CHECK(status_of(stats.last, x1) == TileStatus::NoData);
+
+        sch->clear_full_cache();
+        sch->update();
+        CHECK(stats.last.total_not_found == 0); // the tombstone is gone, so is the count describing it
+        CHECK(status_of(stats.last, x1) == TileStatus::InFlight);
+    }
+
+    SECTION("stats: a tile the planner deliberately skipped is reported as such")
+    {
+        auto s = base_settings();
+        s.planner.min_pixels = 256;
+        s.planner.max_gap = 2;
+        auto sch = make_scheduler(s);
+        StatsCapture stats(*sch);
+
+        const Id child = x1.children()[0];
+        sch->receive_tile(delivery(x1));
+        sch->submit_wanted(1, wanted({ { x1, 1000 } }));
+        sch->update();
+        REQUIRE(sch->is_gpu_resident(x1));
+
+        sch->submit_wanted(1, wanted({ { x1, 1000 }, { child, 10 } })); // 10 px, parent resident -> gap 1
+        sch->update();
+        CHECK(status_of(stats.last, child) == TileStatus::Skipped);
+        CHECK(stats.last.n_skipped == 1);
+    }
+
+    SECTION("set_tuning retunes the running scheduler")
+    {
+        auto s = base_settings();
+        s.max_in_flight = 1;
+        auto sch = make_scheduler(s);
+        QSignalSpy requested(sch.get(), &DemandScheduler::tile_requested);
+
+        sch->submit_wanted(1, wanted({ { x1, 1000 }, { x2, 500 }, { x3, 100 } }));
+        sch->update();
+        CHECK(requested.size() == 1);
+
+        auto tuning = sch->tuning();
+        CHECK(tuning.max_in_flight == 1);
+        tuning.max_in_flight = 3;
+        sch->set_tuning(tuning);
+        CHECK(sch->request_queue().limit() == 3);
+        sch->update();
+        CHECK(requested.size() == 3);
+
+        // and the planner params are live too: nothing below 5000 px is worth fetching any more
+        tuning.planner.min_pixels = 5000;
+        sch->set_tuning(tuning);
+        CHECK(sch->tuning().planner.min_pixels == 5000);
+    }
+
+    SECTION("lowering gpu_tile_limit evicts down to it, but never a tile the shader still uses")
+    {
+        auto s = base_settings();
+        s.gpu_tile_limit = 3;
+        auto sch = make_scheduler(s);
+        QSignalSpy gpu(sch.get(), &DemandScheduler::gpu_tiles_updated);
+        StatsCapture stats(*sch);
+
+        for (const auto& id : { x1, x2, x3 })
+            sch->receive_tile(delivery(id));
+        sch->submit_wanted(1, wanted({ { x1, 300 }, { x2, 200 }, { x3, 100 } }));
+        sch->update();
+        REQUIRE(sch->n_gpu_resident() == 3);
+
+        // x3 stays in demand (so it is touched and must survive), the limit drops to 1
+        sch->submit_wanted(1, wanted({ { x3, 100 } }));
+        auto tuning = sch->tuning();
+        tuning.gpu_tile_limit = 1;
+        sch->set_tuning(tuning);
+        sch->update();
+        CHECK(sch->n_gpu_resident() == 1);
+        CHECK(sch->is_gpu_resident(x3));
+        CHECK(stats.last.n_evicted == 2);
+        CHECK(stats.last.gpu_tile_limit == 1);
+    }
+
+    SECTION("stats: uploads that find no free layer are reported instead of silently dropped")
+    {
+        auto s = base_settings();
+        s.gpu_tile_limit = 1;
+        auto sch = make_scheduler(s);
+        StatsCapture stats(*sch);
+
+        // both are wanted, so both are touched and neither may be evicted for the other
+        for (const auto& id : { x1, x2 })
+            sch->receive_tile(delivery(id));
+        sch->submit_wanted(1, wanted({ { x1, 300 }, { x2, 200 } }));
+        sch->update();
+        CHECK(sch->n_gpu_resident() == 1);
+        CHECK(stats.last.n_ship_planned == 2);
+        CHECK(stats.last.n_shipped == 1);
+        CHECK(stats.last.n_ship_dropped_no_space == 1);
+    }
+
+    SECTION("stats: shipping more than max_ship_per_update defers the rest instead of dropping it")
+    {
+        auto s = base_settings();
+        s.max_ship_per_update = 1;
+        auto sch = make_scheduler(s);
+        StatsCapture stats(*sch);
+
+        for (const auto& id : { x1, x2 })
+            sch->receive_tile(delivery(id));
+        sch->submit_wanted(1, wanted({ { x1, 300 }, { x2, 200 } }));
+        sch->update();
+        CHECK(stats.last.n_shipped == 1);
+        CHECK(stats.last.n_ship_deferred == 1);
+        CHECK(stats.last.n_ship_dropped_no_space == 0);
+        CHECK(status_of(stats.last, x2) == TileStatus::Uploading);
+
+        sch->update();
+        CHECK(status_of(stats.last, x2) == TileStatus::Resident);
     }
 }

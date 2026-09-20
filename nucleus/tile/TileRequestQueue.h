@@ -44,6 +44,8 @@ public:
     [[nodiscard]] unsigned limit() const;
     [[nodiscard]] unsigned in_flight() const;
     [[nodiscard]] unsigned pending() const;
+    [[nodiscard]] bool is_in_flight(const tile::Id& id) const;
+    [[nodiscard]] bool is_pending(const tile::Id& id) const;
 
 public slots:
     /// Replaces the pending list. Ids no longer present that are still in flight are aborted immediately;

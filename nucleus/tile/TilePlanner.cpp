@@ -55,6 +55,23 @@ TilePlanner::Plan TilePlanner::make(std::span<const WantedTile> wanted, const Pa
 {
     tile::IdMap<PendingRequest> requests;
     tile::IdSet touched;
+    std::vector<Outcome> outcome(wanted.size(), Outcome::Requested);
+
+    // Walks up past tiles that are known to be missing, to the deepest id still worth asking for.
+    //
+    // Deliberately only skips tombstones it walks *through*, i.e. a tile is only substituted if it is
+    // itself known-missing. D4 originally said a tombstone at T means nothing below T exists either, so
+    // descendants should never be requested -- that is not true of real tile services: a 404 at a low
+    // zoom usually just means the set has a minimum zoom level (or no overview at that level), while
+    // every tile below it is served fine. Suppressing the subtree marked large, perfectly available
+    // regions as missing. Each descendant of a hole is therefore requested once and tombstoned on its
+    // own 404; the wanted list only ever contains tiles the camera is actually looking at, so the extra
+    // requests are bounded and happen once per tile, not once per frame.
+    const auto substitute = [&](tile::Id id) {
+        while (id.zoom_level > 0 && state_of(id).tombstone)
+            id = id.parent();
+        return id;
+    };
 
     const auto propose = [&](const tile::Id& id, unsigned tier, unsigned zoom, uint32_t pixel_count, unsigned gap) {
         const PendingRequest candidate { id, tier, zoom, pixel_count, gap };
@@ -67,11 +84,15 @@ TilePlanner::Plan TilePlanner::make(std::span<const WantedTile> wanted, const Pa
             it->second = candidate;
     };
 
-    for (const auto& wanted_tile : wanted) {
+    for (size_t i = 0; i < wanted.size(); ++i) {
+        const auto& wanted_tile = wanted[i];
         // 1. Tombstone substitution: a known-missing tile's descendants are never requested.
-        tile::Id e = wanted_tile.id;
-        while (e.zoom_level > 0 && state_of(e).tombstone)
-            e = e.parent();
+        const tile::Id e = substitute(wanted_tile.id);
+        // Substituted at all -> this exact tile does not exist, whatever happens to its substitute
+        // below. Takes precedence over Resident/Skipped: it is the only outcome that will never change.
+        const bool unservable = !(e == wanted_tile.id);
+        if (unservable)
+            outcome[i] = Outcome::NoData;
 
         // 2. Nearest resident ancestor-or-self; this is what the shader is actually sampling right now.
         tile::Id r = e;
@@ -84,14 +105,20 @@ TilePlanner::Plan TilePlanner::make(std::span<const WantedTile> wanted, const Pa
         }
         if (found) {
             touched.insert(r);
-            if (gap == 0)
+            if (gap == 0) {
+                if (!unservable)
+                    outcome[i] = Outcome::Resident;
                 continue; // exact match already resident, nothing to request
+            }
         }
         // else: gap == e.zoom_level (walked all the way to a non-resident root) -- treat as "far away" below.
 
         // 3. A close-enough fallback is good enough for a tile that barely covers any screen pixels.
-        if (wanted_tile.pixel_count < params.min_pixels && gap <= params.max_gap)
+        if (wanted_tile.pixel_count < params.min_pixels && gap <= params.max_gap) {
+            if (!unservable)
+                outcome[i] = Outcome::Skipped;
             continue;
+        }
 
         // 4. Anchors (Tier 1): always keep coverage from anchor_zoom up to (excluding) this tile's zoom.
         {
@@ -115,8 +142,7 @@ TilePlanner::Plan TilePlanner::make(std::span<const WantedTile> wanted, const Pa
                 b = b.parent();
                 ++steps;
             }
-            while (b.zoom_level > 0 && state_of(b).tombstone)
-                b = b.parent();
+            b = substitute(b);
             if (!state_of(b).on_gpu)
                 propose(b, 2, b.zoom_level, wanted_tile.pixel_count, params.max_gap);
         }
@@ -151,6 +177,7 @@ TilePlanner::Plan TilePlanner::make(std::span<const WantedTile> wanted, const Pa
     for (const auto& request : fetch_requests)
         plan.fetch.push_back(request.id);
     plan.touch.assign(touched.begin(), touched.end());
+    plan.outcome = std::move(outcome);
     return plan;
 }
 

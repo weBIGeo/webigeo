@@ -19,6 +19,7 @@
 #include "webgpu/engine/tile/TileSource.h"
 
 #include <QThread>
+#include <algorithm>
 #include <nucleus/utils/thread.h>
 
 namespace {
@@ -50,6 +51,10 @@ TileSource::TileSource(const Config& config, const nucleus::tile::utils::AabbDec
     if (config.scheduler_mode == nucleus::tile::TileSchedulerMode::Demand) {
         m_demand_holder = nucleus::tile::setup::demand_scheduler(std::move(tile_service), scheduler_thread, config.demand_settings);
         connect(m_demand_holder.scheduler.get(), &nucleus::tile::DemandScheduler::gpu_tiles_updated, this, &TileSource::update_gpu_tiles);
+        connect(m_demand_holder.scheduler.get(), &nucleus::tile::DemandScheduler::stats_updated, this, &TileSource::update_demand_stats);
+        // Mirror of what the scheduler was constructed with; the scheduler itself already lives on its own thread.
+        m_demand_tuning = { config.demand_settings.planner, config.demand_settings.max_in_flight, config.demand_settings.max_ship_per_update,
+            config.demand_settings.gpu_tile_limit };
     } else {
         m_holder = nucleus::tile::setup::texture_scheduler(std::move(tile_service), aabb_decorator, scheduler_thread, config.settings);
         m_holder.scheduler->set_gpu_quad_limit(config.gpu_quad_limit);
@@ -73,6 +78,32 @@ void TileSource::submit_wanted(const void* owner, std::vector<nucleus::tile::Wan
     if (m_config.scheduler_mode != nucleus::tile::TileSchedulerMode::Demand || !sched)
         return;
     nucleus::utils::thread::async_call(sched, [sched, key = quintptr(owner), wanted = std::move(wanted)]() { sched->submit_wanted(key, wanted); });
+}
+
+void TileSource::update_demand_stats(const nucleus::tile::DemandScheduler::Stats& stats)
+{
+    m_demand_stats = stats;
+    m_demand_tile_status.clear();
+    m_demand_tile_status.reserve(stats.tile_status.size());
+    for (const auto& [id, status] : stats.tile_status)
+        m_demand_tile_status.emplace(id, status);
+}
+
+nucleus::tile::TileStatus TileSource::demand_tile_status(nucleus::tile::Id id) const
+{
+    const auto it = m_demand_tile_status.find(id);
+    return it == m_demand_tile_status.end() ? nucleus::tile::TileStatus::Unknown : it->second;
+}
+
+void TileSource::set_demand_tuning(nucleus::tile::DemandScheduler::Tuning tuning)
+{
+    auto* sched = m_demand_holder.scheduler.get();
+    if (m_config.scheduler_mode != nucleus::tile::TileSchedulerMode::Demand || !sched)
+        return;
+    // The array is sized once at init(), so the scheduler must never believe it has more layers than that.
+    tuning.gpu_tile_limit = std::min(tuning.gpu_tile_limit, m_array.capacity());
+    m_demand_tuning = tuning;
+    nucleus::utils::thread::async_call(sched, [sched, tuning]() { sched->set_tuning(tuning); });
 }
 
 TileSource::~TileSource() = default;

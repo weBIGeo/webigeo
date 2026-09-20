@@ -18,6 +18,8 @@
 
 #include "TileRequestQueue.h"
 
+#include <algorithm>
+
 using namespace nucleus::tile;
 
 TileRequestQueue::TileRequestQueue(QObject* parent)
@@ -34,6 +36,8 @@ void TileRequestQueue::set_limit(unsigned new_limit)
 unsigned TileRequestQueue::limit() const { return m_limit; }
 unsigned TileRequestQueue::in_flight() const { return unsigned(m_in_flight.size()); }
 unsigned TileRequestQueue::pending() const { return unsigned(m_pending.size()); }
+bool TileRequestQueue::is_in_flight(const tile::Id& id) const { return m_in_flight.contains(id); }
+bool TileRequestQueue::is_pending(const tile::Id& id) const { return std::find(m_pending.begin(), m_pending.end(), id) != m_pending.end(); }
 
 void TileRequestQueue::set_requests(const std::vector<tile::Id>& ordered)
 {

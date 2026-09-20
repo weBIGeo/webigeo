@@ -95,6 +95,17 @@ public:
     /// an empty list withdraws its demand). pixel_count must be in real screen pixels. Ignored for Quad sources.
     void submit_wanted(const void* owner, std::vector<nucleus::tile::WantedTile> wanted);
 
+    // --- Demand mode diagnostics / tuning (render-thread mirrors; all empty or no-ops for Quad sources) ---
+    /// Last snapshot published by the scheduler. Stale by up to one update tick (100 ms), never torn.
+    [[nodiscard]] const nucleus::tile::DemandScheduler::Stats& demand_stats() const { return m_demand_stats; }
+    /// Why this tile is not resident yet. Unknown if it wasn't in the scheduler's last plan.
+    [[nodiscard]] nucleus::tile::TileStatus demand_tile_status(nucleus::tile::Id id) const;
+    /// The runtime-tunable settings as last set (seeded from Config::demand_settings).
+    [[nodiscard]] const nucleus::tile::DemandScheduler::Tuning& demand_tuning() const { return m_demand_tuning; }
+    /// Retunes the running scheduler. gpu_tile_limit is clamped to the GPU array's capacity (which is
+    /// fixed at init() -- this only lets the limit be lowered to test eviction pressure).
+    void set_demand_tuning(nucleus::tile::DemandScheduler::Tuning tuning);
+
     // Whether this tile's own data is GPU-resident (exact match, no parent fallback).
     [[nodiscard]] bool has_tile_data(nucleus::tile::Id id) const;
 
@@ -105,6 +116,7 @@ public:
 
 public slots:
     void update_gpu_tiles(const std::vector<nucleus::tile::Id>& deleted_tiles, const std::vector<nucleus::tile::GpuTextureTile>& new_tiles);
+    void update_demand_stats(const nucleus::tile::DemandScheduler::Stats& stats);
 
 signals:
     /// Emitted (render thread) after tiles were uploaded to the array and the dictionary was refreshed.
@@ -119,6 +131,10 @@ private:
     GpuTileTextureArray m_array;
     float m_pixel_error_threshold = 2.0f;
     webgpu::Context* m_ctx = nullptr;
+
+    nucleus::tile::DemandScheduler::Stats m_demand_stats;
+    nucleus::tile::IdMap<nucleus::tile::TileStatus> m_demand_tile_status; // Stats::tile_status, for lookup by id
+    nucleus::tile::DemandScheduler::Tuning m_demand_tuning;
 
     std::unique_ptr<webgpu::raii::Texture> m_dict; // RGBA32Uint: xy = packed tile ids, z = array layers
     std::unique_ptr<webgpu::raii::TextureView> m_dict_view;

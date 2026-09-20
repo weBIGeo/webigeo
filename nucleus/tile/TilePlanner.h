@@ -48,10 +48,21 @@ struct TilePlanner {
         bool blocked = false; // already in flight or backing off -> drop from the plan entirely
     };
 
+    /// Why one wanted tile was treated the way it was -- the planner's own view, for diagnostics.
+    /// An id can be `Requested` here and still not end up in `fetch` (step 7 drops blocked ids);
+    /// DemandScheduler refines this with what its queue and backoff map know.
+    enum class Outcome : uint8_t {
+        Resident, // the exact tile is already on the GPU
+        NoData, // the tile or one of its ancestors is a tombstone -- it can never be served exactly
+        Skipped, // below min_pixels, and a resident ancestor within max_gap is good enough
+        Requested, // the tile (or a tier 1/2 substitute) went into ship/fetch
+    };
+
     struct Plan {
         std::vector<tile::Id> ship; // in_ram_fresh ids to decode/upload
         std::vector<tile::Id> fetch; // ids to request over the network, in priority order
         std::vector<tile::Id> touch; // ids to keep alive (LRU) because the shader is currently using them
+        std::vector<Outcome> outcome; // parallel to the `wanted` span passed to make()
     };
 
     static Plan make(std::span<const WantedTile> wanted, const Params& params, const std::function<TileState(const tile::Id&)>& state_of);
