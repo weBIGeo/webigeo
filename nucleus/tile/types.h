@@ -73,6 +73,20 @@ struct Data {
 };
 static_assert(NamedTile<Data>);
 
+struct DataTile {
+    tile::Id id;
+    NetworkInfo network_info;
+    std::shared_ptr<QByteArray> data;
+    static constexpr std::array<char, 25> version_information = { "DataTile, version 0.1" };
+};
+static_assert(NamedTile<DataTile>);
+static_assert(SerialisableTile<DataTile>);
+
+struct WantedTile {
+    tile::Id id;
+    uint32_t pixel_count;
+};
+
 struct DataQuad {
     tile::Id id;
     unsigned n_tiles = 0;

@@ -252,6 +252,49 @@ TEST_CASE("nucleus/tile/cache")
         CHECK(cache.contains({ 1, { 0, 0 } }));
     }
 
+    SECTION("touch: refreshes the LRU stamp of a present tile")
+    {
+        Cache<TestTile> cache;
+        cache.insert(TestTile { { 1, { 0, 0 } }, "old" });
+        QThread::msleep(2);
+        cache.insert(TestTile { { 1, { 1, 0 } }, "new" });
+
+        // Without touch, the older tile is purged first (see "purge: elements coming in earlier are purged first").
+        // Sleep so the touch stamp is strictly newer than the second insert's (stamps are in ms).
+        QThread::msleep(2);
+        cache.touch({ 1, { 0, 0 } }, nucleus::utils::time_since_epoch());
+        const auto purged = cache.purge(1);
+        REQUIRE(purged.size() == 1);
+        CHECK(purged[0].id == Id { 1, { 1, 0 } });
+        CHECK(cache.contains({ 1, { 0, 0 } }));
+    }
+
+    SECTION("touch: no-op on an id that isn't cached")
+    {
+        Cache<TestTile> cache;
+        cache.insert(TestTile { { 0, { 0, 0 } }, "green" });
+        cache.touch({ 5, { 3, 3 } }, nucleus::utils::time_since_epoch());
+        CHECK(cache.n_cached_objects() == 1);
+        CHECK(!cache.contains({ 5, { 3, 3 } }));
+        CHECK(cache.contains({ 0, { 0, 0 } }));
+    }
+
+    SECTION("touch: a touched deeper tile still loses a same-stamp tie against a shallower one")
+    {
+        Cache<TestTile> cache;
+        cache.insert(TestTile { { 2, { 0, 0 } }, "deep" });
+        cache.insert(TestTile { { 0, { 0, 0 } }, "shallow" });
+
+        const auto stamp = nucleus::utils::time_since_epoch();
+        cache.touch({ 2, { 0, 0 } }, stamp);
+        cache.touch({ 0, { 0, 0 } }, stamp);
+
+        const auto purged = cache.purge(1);
+        REQUIRE(purged.size() == 1);
+        CHECK(purged[0].id == Id { 2, { 0, 0 } });
+        CHECK(cache.contains({ 0, { 0, 0 } }));
+    }
+
     SECTION("insert: insert overwrites existing objects")
     {
         Cache<TestTile> cache;

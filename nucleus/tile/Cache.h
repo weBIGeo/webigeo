@@ -70,6 +70,7 @@ class Cache
 public:
     Cache() = default;
     void insert(const T& tile);
+    void touch(const tile::Id& id, uint64_t stamp);
     [[nodiscard]] bool contains(const tile::Id& id) const;
     [[nodiscard]] unsigned n_cached_objects() const;
     /// functor should return true, if the given tile should be marked visited. stops descending if false is returned. don't do heavy lifting in the functort, as it blocks all other access!
@@ -109,6 +110,16 @@ void Cache<T>::insert(const T& tile)
     m_data[tile.id].meta.visited = time_stamp * 100 - tile.id.zoom_level;
     m_data[tile.id].meta.created = time_stamp;
     m_data[tile.id].data = tile;
+}
+
+template <NamedTile T>
+void Cache<T>::touch(const tile::Id& id, uint64_t stamp)
+{
+    auto locker = std::scoped_lock(m_data_mutex);
+    auto it = m_data.find(id);
+    if (it == m_data.end())
+        return;
+    it->second.meta.visited = stamp * 100 - id.zoom_level;
 }
 
 template <NamedTile T>
