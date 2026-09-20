@@ -37,7 +37,19 @@
 @group(2) @binding(6) var dict_texture: texture_2d<u32>;     // RGBA32Uint (256x256): xy = packed tile-id key, z = array layer, w = unused
 @group(2) @binding(8) var tile_ref_texture: texture_2d<u32>; // RG32Uint: packed uv + (derivatives | frame-local id)
 @group(2) @binding(9) var<storage, read> frame_tile_ids: array<vec2u>; // frame-local id -> packed render tile id
+// Per-frame "wanted tiles" hash set (open addressing, WANTED_TILE_SLOTS entries): which *ideal* target
+// tiles the visible pixels asked for this frame (resident or not) plus a pixel count per tile, for the
+// CPU to read back and prioritize requests/eviction by. Zeroed by the CPU before every draw, so a
+// slot's key is stored inverted (~key): 0 means empty (see record_wanted_tile). Compute path only --
+@group(2) @binding(10) var<storage, read_write> wanted_tiles: array<WantedTileSlot>;
 @group(2) @binding(11) var normal_texture: texture_2d<u32>; // gbuffer normal, used by DATA_MODE_SNOW_AVG_NORMALS's slope mask
+
+struct WantedTileSlot {
+    key_lo: atomic<u32>, // ~tile_pack(id).x, 0 = empty
+    key_hi: atomic<u32>, // ~tile_pack(id).y, 0 = empty
+    count: atomic<u32>, // number of (recorded) pixels that targeted this tile
+}
+const WANTED_TILE_SLOTS: u32 = 4096u; // must match SlippyTileOverlay's k_wanted_tile_slots (power of two)
 
 // Temporary: masks the snow-depth ramp by surface steepness, same heuristic as ScreenSpaceSnowOverlay
 // (steep slopes don't hold snow), used by DATA_MODE_SNOW_AVG_NORMALS.
@@ -55,6 +67,10 @@ struct SlippyTileSettings {
     data_mode: u32, // see DATA_MODE_* consts
     blend_zoom_transitions: u32, // 0/1 -- cross-fade across zoom transitions instead of popping
     zoom_blend_band: f32, // width (in zoom units) of the cross-fade band around each integer boundary
+    wanted_tiles_stride: u32, // record every Nth pixel (in x and y) into wanted_tiles; 0 = off, 1 = every pixel
+    highlight_x: u32, // target tile to tint (UI hover), highlight_zoom == 0xFFFFFFFF = none
+    highlight_y: u32,
+    highlight_zoom: u32,
 }
 
 const DATA_MODE_RGBA: u32 = 0u;
@@ -122,6 +138,39 @@ fn dict_lookup(id: TileId, out_layer: ptr<function, u32>) -> bool {
         hash = (hash + 1u) & 0xFFFFu;
     }
     return false;
+}
+
+// Inserts id into the per-frame wanted_tiles set (or bumps its count if already there). The packed
+// key is two words but WGSL atomics are 32-bit, so the insert is a two-word compare-exchange: each
+// word only ever transitions 0 -> value once, so whichever (lo, hi) pair ends up in a slot owns it and
+// a thread whose hi-word CAS loses to a different tile sharing its lo-word simply keeps probing. No
+// spinning, no locks. The atomicLoad fast path means all but the first pixel of a tile skip the CAS
+// and only issue one (return-value-free, i.e. reduction) atomicAdd.
+fn record_wanted_tile(id: TileId) {
+    let key = ~tile_pack(id); // inverted: 0 (the cleared buffer) means empty, and ~pack is never 0
+    var h = tile_hash_uint16(id) & (WANTED_TILE_SLOTS - 1u);
+    for (var probe = 0u; probe < 64u; probe = probe + 1u) {
+        if atomicLoad(&wanted_tiles[h].key_lo) == key.x && atomicLoad(&wanted_tiles[h].key_hi) == key.y {
+            atomicAdd(&wanted_tiles[h].count, 1u);
+            return;
+        }
+        let lo = atomicCompareExchangeWeak(&wanted_tiles[h].key_lo, 0u, key.x);
+        if lo.exchanged || lo.old_value == key.x {
+            let hi = atomicCompareExchangeWeak(&wanted_tiles[h].key_hi, 0u, key.y);
+            if hi.exchanged || hi.old_value == key.y {
+                atomicAdd(&wanted_tiles[h].count, 1u);
+                return;
+            }
+            if hi.old_value == 0u {
+                continue; // spurious CAS failure -> retry the same slot
+            }
+            // slot owned by another tile that shares our lo-word -> keep probing
+        } else if lo.old_value == 0u {
+            continue; // spurious CAS failure -> retry the same slot
+        }
+        h = (h + 1u) & (WANTED_TILE_SLOTS - 1u);
+    }
+    // table full along this probe chain -- drop (the set is best-effort, next frame retries)
 }
 
 // Result of resolving a screen pixel to a resident tile sample -- shared between computeMain (the
@@ -317,6 +366,11 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3u) {
 
     let resolved = resolve_tile_sample(tci, raw_depth);
 
+    let stride = settings.wanted_tiles_stride;
+    if stride > 0u && (tci.x % stride) == 0u && (tci.y % stride) == 0u {
+        record_wanted_tile(resolved.target_tile_id);
+    }
+
     // Debug visualization of the *ideal* target zoom itself -- color-coded, fully opaque, and
     // computed before any residency resolution, so it shows what zoom we'd *like* to sample
     // regardless of which tiles are actually loaded (unlike DEBUG_VIEW_ZOOM_LEVEL, which colors the
@@ -370,6 +424,11 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3u) {
     }
 
     // Premultiplied-alpha blend over the previous overlay state.
-    let result = src + bg * (1.0 - src.a);
+    var result = src + bg * (1.0 - src.a);
+
+    let target_id = resolved.target_tile_id;
+    if target_id.zoomlevel == settings.highlight_zoom && target_id.x == settings.highlight_x && target_id.y == settings.highlight_y {
+        result = vec4f(vec3f(1.0, 0.85, 0.0) * 0.5, 0.5) + result * 0.5;
+    }
     textureStore(output_texture, tci, result);
 }

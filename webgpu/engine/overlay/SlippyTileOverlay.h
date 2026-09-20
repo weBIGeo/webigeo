@@ -20,6 +20,8 @@
 
 #include "Overlay.h"
 #include <memory>
+#include <optional>
+#include <vector>
 #include <webgpu/base/Buffer.h>
 #include <webgpu/base/raii/CombinedComputePipeline.h>
 #include <webgpu/base/raii/Pipeline.h>
@@ -93,6 +95,19 @@ public:
         // Width (in zoom units) of the cross-fade band centered on each integer zoom boundary; see
         // resolve_tile_sample in slippy_tile_overlay.wgsl.
         float zoom_blend_band = 0.3f;
+        // Per-frame "wanted tiles" recording (see record_wanted_tile in slippy_tile_overlay.wgsl):
+        // every stride-th pixel in x and y atomically records its *ideal* target tile + a pixel count
+        // into a small GPU hash set that is read back to the CPU. 0 = off (the feature is then fully
+        // disabled: no atomics in the shader, no per-frame clear, no readback), 1 = every pixel (max
+        // atomic contention), 4 = 1/16th of the pixels (counts scale accordingly).
+        uint32_t wanted_tiles_stride = 4;
+    };
+
+    // One tile of the last wanted-tiles readback: an *ideal* target tile some visible pixels asked
+    // for (resident or not) and how many of the recorded (i.e. every stride-th) pixels wanted it.
+    struct WantedTile {
+        nucleus::tile::Id id;
+        uint32_t pixel_count;
     };
 
     explicit SlippyTileOverlay(TileSource* source);
@@ -107,6 +122,17 @@ public:
         const webgpu::raii::TextureWithSampler& current_input,
         webgpu::raii::TextureWithSampler& target_output,
         glm::uvec2 output_size) override;
+
+    // Last read-back wanted-tiles snapshot, sorted by descending pixel_count. Empty while
+    // settings.wanted_tiles_stride == 0. Only updated from the render thread (the map callback), so
+    // read it from there.
+    [[nodiscard]] const std::vector<WantedTile>& wanted_tiles() const { return m_wanted_tiles; }
+    // Slot count of the GPU hash set; once wanted_tiles().size() approaches it, tiles get dropped.
+    [[nodiscard]] uint32_t wanted_tiles_capacity() const { return k_wanted_tile_slots; }
+
+    // Tints all pixels whose ideal target is this tile (nullopt = off). Returns true if it changed,
+    // i.e. a redraw is needed.
+    bool set_highlight_tile(const std::optional<nucleus::tile::Id>& id);
 
     Settings settings;
 
@@ -123,7 +149,23 @@ private:
         uint32_t data_mode = 0; // see DataMode
         uint32_t blend_zoom_transitions = 0;
         float zoom_blend_band = 0.3f;
+        uint32_t wanted_tiles_stride = 4;
+        uint32_t highlight_x = 0;
+        uint32_t highlight_y = 0;
+        uint32_t highlight_zoom = 0xFFFFFFFFu; // none
     };
+
+    // One slot of the GPU wanted-tiles hash set; must match WantedTileSlot in slippy_tile_overlay.wgsl.
+    // Keys are stored inverted (~nucleus::srs::pack) so that a zeroed buffer reads as all-empty.
+    struct WantedTileSlot {
+        uint32_t key_lo = 0;
+        uint32_t key_hi = 0;
+        uint32_t count = 0;
+    };
+    static constexpr uint32_t k_wanted_tile_slots = 4096; // must match WANTED_TILE_SLOTS in the shader (power of two)
+
+    // Turns a read-back raw hash table into m_wanted_tiles (unpacked, sorted by descending count).
+    void update_wanted_tiles(const std::vector<WantedTileSlot>& table); // NB: "slots" is a Qt keyword macro
 
     webgpu::Context* m_ctx = nullptr;
     TileSource* m_source = nullptr;
@@ -134,6 +176,15 @@ private:
     // frame_tile_ids; lets the compute shader recover the render tile's actual id (tile_ref itself
     // only carries the 16-bit frame_local_id, not raw x/y/zoom -- see docs/masterplan.md Plan 3).
     std::unique_ptr<webgpu::raii::RawBuffer<glm::u32vec2>> m_frame_tile_ids_buffer;
+    // Wanted-tiles hash set written by the compute pass (cleared every draw) + one MapRead staging
+    // buffer it is copied into every draw(). The copy is encoded in draw();
+    // the map is issued at the start of the *next* draw() (after that command buffer was submitted --
+    // mapping a buffer with a pending copy would be a validation error). Drop-if-behind: a copy is
+    // only encoded while the staging buffer is unmapped and no map is pending.
+    std::unique_ptr<webgpu::raii::RawBuffer<WantedTileSlot>> m_wanted_tiles_buffer;
+    std::unique_ptr<webgpu::raii::RawBuffer<WantedTileSlot>> m_wanted_tiles_staging;
+    bool m_wanted_tiles_map_pending = false;
+    std::vector<WantedTile> m_wanted_tiles; // last readback, see wanted_tiles()
 };
 
 } // namespace webgpu_engine

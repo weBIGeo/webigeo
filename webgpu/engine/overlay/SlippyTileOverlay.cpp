@@ -102,6 +102,12 @@ void SlippyTileOverlay::init(Context& context)
             frame_tile_ids_entry.visibility = WGPUShaderStage_Compute;
             frame_tile_ids_entry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
 
+            // Per-frame wanted-tiles hash set (atomics), read back to the CPU -- see record_wanted_tile.
+            WGPUBindGroupLayoutEntry wanted_tiles_entry {};
+            wanted_tiles_entry.binding = 10;
+            wanted_tiles_entry.visibility = WGPUShaderStage_Compute;
+            wanted_tiles_entry.buffer.type = WGPUBufferBindingType_Storage;
+
             // Temporary: gbuffer normals, used by DataMode::SnowAvgNormals's slope-based masking.
             WGPUBindGroupLayoutEntry normal_entry {};
             normal_entry.binding = 11;
@@ -111,7 +117,7 @@ void SlippyTileOverlay::init(Context& context)
 
             return std::make_unique<webgpu::raii::BindGroupLayout>(device,
                 std::vector<WGPUBindGroupLayoutEntry> { depth_entry, settings_entry, tile_texture_entry, tile_sampler_entry, output_entry,
-                    background_entry, dict_entry, tile_ref_entry, frame_tile_ids_entry,
+                    background_entry, dict_entry, tile_ref_entry, frame_tile_ids_entry, wanted_tiles_entry,
                     normal_entry },
                 "slippy tile overlay bind group layout");
         });
@@ -202,6 +208,11 @@ void SlippyTileOverlay::init(Context& context)
 
     m_frame_tile_ids_buffer = std::make_unique<webgpu::raii::RawBuffer<glm::u32vec2>>(
         ctx.device(), WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst, k_max_frame_tiles, "slippy tile overlay frame tile ids");
+
+    m_wanted_tiles_buffer = std::make_unique<webgpu::raii::RawBuffer<WantedTileSlot>>(
+        ctx.device(), WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc, k_wanted_tile_slots, "slippy tile overlay wanted tiles");
+    m_wanted_tiles_staging = std::make_unique<webgpu::raii::RawBuffer<WantedTileSlot>>(
+        ctx.device(), WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead, k_wanted_tile_slots, "slippy tile overlay wanted tiles staging");
 }
 
 void SlippyTileOverlay::set_source(TileSource* source)
@@ -225,7 +236,25 @@ void SlippyTileOverlay::update_settings()
     m_settings_uniform->data.data_mode = static_cast<uint32_t>(settings.data_mode);
     m_settings_uniform->data.blend_zoom_transitions = settings.blend_zoom_transitions ? 1u : 0u;
     m_settings_uniform->data.zoom_blend_band = settings.zoom_blend_band;
+    m_settings_uniform->data.wanted_tiles_stride = settings.wanted_tiles_stride;
     m_settings_uniform->update_gpu_data(m_ctx->queue());
+}
+
+bool SlippyTileOverlay::set_highlight_tile(const std::optional<nucleus::tile::Id>& id)
+{
+    if (!m_settings_uniform)
+        return false;
+    auto& data = m_settings_uniform->data;
+    const uint32_t x = id ? id->coords.x : 0u;
+    const uint32_t y = id ? id->coords.y : 0u;
+    const uint32_t zoom = id ? id->zoom_level : 0xFFFFFFFFu;
+    if (data.highlight_x == x && data.highlight_y == y && data.highlight_zoom == zoom)
+        return false;
+    data.highlight_x = x;
+    data.highlight_y = y;
+    data.highlight_zoom = zoom;
+    m_settings_uniform->update_gpu_data(m_ctx->queue());
+    return true;
 }
 
 void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
@@ -236,6 +265,15 @@ void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
 {
     if (!m_pipeline || !m_source)
         return;
+
+    // The previous draw()'s copy into the staging buffer has been submitted by now -> safe to map it.
+    if (m_wanted_tiles_map_pending) {
+        m_wanted_tiles_map_pending = false;
+        m_wanted_tiles_staging->read_back_async(m_ctx->device(), [this](WGPUMapAsyncStatus status, std::vector<WantedTileSlot> table) {
+            if (status == WGPUMapAsyncStatus_Success)
+                update_wanted_tiles(table);
+        });
+    }
 
     const size_t n_tiles = std::min(octx.frame_tile_ids.size(), size_t(k_max_frame_tiles));
     std::vector<glm::u32vec2> packed_ids(n_tiles);
@@ -262,9 +300,17 @@ void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
             m_source->dictionary_view().create_bind_group_entry(6),
             octx.tile_ref_view.create_bind_group_entry(8),
             m_frame_tile_ids_buffer->create_bind_group_entry(9),
+            m_wanted_tiles_buffer->create_bind_group_entry(10),
             octx.normal_view.create_bind_group_entry(11),
         },
         "slippy tile overlay bind group");
+
+    // stride == 0 fully disables recording: no atomics in the shader, no clear, no readback.
+    const bool record_wanted_tiles = settings.wanted_tiles_stride > 0;
+    if (record_wanted_tiles)
+        m_wanted_tiles_buffer->clear(command_encoder); // all-zero == all slots empty (keys are stored inverted)
+    else
+        m_wanted_tiles.clear();
 
     {
         WGPUComputePassDescriptor compute_pass_desc {};
@@ -279,7 +325,25 @@ void SlippyTileOverlay::draw(const WGPUCommandEncoder& command_encoder,
         m_pipeline->run(compute_pass, workgroup_counts);
     }
 
+    // Readback of this frame's wanted-tiles set (drop-if-behind, see the member comment).
+    // ToDo: the set only changes when the camera does, so we only have to read back after camera changes.
+    if (record_wanted_tiles && !m_wanted_tiles_map_pending && m_wanted_tiles_staging->map_state() == WGPUBufferMapState_Unmapped) {
+        m_wanted_tiles_buffer->copy_to_buffer(command_encoder, *m_wanted_tiles_staging);
+        m_wanted_tiles_map_pending = true;
+    }
+
     write_normals_to_gbuffer(command_encoder, octx);
+}
+
+void SlippyTileOverlay::update_wanted_tiles(const std::vector<WantedTileSlot>& table)
+{
+    m_wanted_tiles.clear();
+    for (const auto& slot : table) {
+        if (slot.key_lo == 0 && slot.key_hi == 0)
+            continue; // empty
+        m_wanted_tiles.push_back({ nucleus::srs::unpack(glm::u32vec2(~slot.key_lo, ~slot.key_hi)), slot.count });
+    }
+    std::sort(m_wanted_tiles.begin(), m_wanted_tiles.end(), [](const WantedTile& a, const WantedTile& b) { return a.pixel_count > b.pixel_count; });
 }
 
 void SlippyTileOverlay::write_normals_to_gbuffer(const WGPUCommandEncoder& command_encoder, const OverlayContext& octx)

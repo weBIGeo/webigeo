@@ -59,6 +59,8 @@ bool GpuTileTextureArray::contains(nucleus::tile::Id tile_id) const { return m_h
 
 unsigned GpuTileTextureArray::capacity() const { return m_helper.size(); }
 
+unsigned GpuTileTextureArray::n_occupied() const { return m_helper.n_occupied(); }
+
 nucleus::Raster<glm::u32vec4> GpuTileTextureArray::generate_dictionary() const { return m_helper.generate_dictionary(); }
 
 } // namespace webgpu_engine

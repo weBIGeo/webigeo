@@ -54,6 +54,7 @@ public:
     [[nodiscard]] nucleus::tile::GpuArrayHelper::LayerInfo layer(nucleus::tile::Id tile_id) const;
     [[nodiscard]] bool contains(nucleus::tile::Id tile_id) const;
     [[nodiscard]] unsigned capacity() const;
+    [[nodiscard]] unsigned n_occupied() const;
     /// Hashed tile-id -> layer table for GPU-side lookups (used by overlays sampling this array).
     [[nodiscard]] nucleus::Raster<glm::u32vec4> generate_dictionary() const;
 

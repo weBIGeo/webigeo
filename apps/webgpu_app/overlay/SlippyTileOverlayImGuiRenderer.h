@@ -35,8 +35,13 @@ public:
     bool render_custom_settings() override;
 
 private:
+    // Separate window listing the last wanted-tiles readback, opened from the settings panel.
+    // Hovering a row highlights that tile in the overlay. Returns true if a redraw is needed.
+    bool render_wanted_tiles_window();
+
     webgpu_engine::SlippyTileOverlay* m_slippy_overlay;
     webgpu_engine::Context* m_context;
+    bool m_show_wanted_tiles_window = false;
 };
 
 } // namespace webgpu_app
