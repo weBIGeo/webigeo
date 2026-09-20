@@ -161,16 +161,85 @@ fn unproject(normalised_device_coordinates: vec3f) -> vec3f {
     return (params.camera.inv_view_matrix * normalised_unprojected).xyz;
 }
 
-// Box-ray intersection
-fn intersect_aabb(ray_origin: vec3f, ray_dir: vec3f, box_min: vec3f, box_max: vec3f) -> vec2f {
-    let inv_dir = 1.0 / ray_dir;
-    let t0 = (box_min - ray_origin) * inv_dir;
-    let t1 = (box_max - ray_origin) * inv_dir;
-    let tmin = min(t0, t1);
-    let tmax = max(t0, t1);
-    let t_near = max(max(tmin.x, tmin.y), tmin.z);
-    let t_far = min(min(tmax.x, tmax.y), tmax.z);
-    return vec2f(t_near, t_far);
+///if ENABLE_CURVATURE 1
+// 1 / (2R), set once per pixel in computeMain.
+var<private> curvature_inv_2r: f32 = 0.0;
+
+// Parabolic sagitta d^2 / (2R). Differs from the terrain's exact form by d^4 / (8R^3) (30 m at
+// 500 km, far below a cloud texel at that range) and, being quadratic in position, is a cheap
+// quadratic in t along any ray.
+fn curvature_drop(rel_xy: vec2f) -> f32 {
+    return dot(rel_xy, rel_xy) * curvature_inv_2r;
+}
+///endif
+
+// Rendered (curved) world position -> flat world position the cloud data and bounds live in.
+fn apply_curvature(pos: vec3f) -> vec3f {
+    ///if ENABLE_CURVATURE 1
+    return vec3f(pos.xy, pos.z + curvature_drop(pos.xy - params.camera.position.xy));
+    ///else
+    return pos;
+    ///endif
+}
+
+///if ENABLE_CURVATURE 1
+// Under the curvature hack the flat-earth height h becomes a sphere of radius R centred R below the
+// camera's tangent point (ray origin) and shifted up by h. Returns (t_min, t_max) of the camera ray
+// against that sphere; x > y when the ray misses. Uses the numerically stable quadratic form since
+// R^2 does not fit f32 precision.
+fn intersect_curvature_shell(ray_origin_z: f32, ray_dir: vec3f, h: f32, planet_radius_m: f32) -> vec2f {
+    let e = ray_origin_z - h;
+    let k = e + planet_radius_m;
+    let b = ray_dir.z * k;
+    let c = e * (e + 2.0 * planet_radius_m);
+    let disc = b * b - c;
+    if disc < 0.0 {
+        return vec2f(1.0, -1.0);
+    }
+    let q = -(b + select(-1.0, 1.0, b >= 0.0) * sqrt(disc));
+    let t1 = q;
+    let t2 = select(c / q, t1, q == 0.0);
+    return vec2f(min(t1, t2), max(t1, t2));
+}
+///endif
+
+// Ray range inside the cloud volume; x >= y when the ray misses it.
+fn intersect_cloud_volume(ray_origin: vec3f, ray_dir: vec3f) -> vec2f {
+    let inv_dir_xy = 1.0 / ray_dir.xy;
+    let t0_xy = (params.bounds_min.xy - ray_origin.xy) * inv_dir_xy;
+    let t1_xy = (params.bounds_max.xy - ray_origin.xy) * inv_dir_xy;
+    let tmin_xy = min(t0_xy, t1_xy);
+    let tmax_xy = max(t0_xy, t1_xy);
+    let t_near_xy = max(tmin_xy.x, tmin_xy.y);
+    let t_far_xy = min(tmax_xy.x, tmax_xy.y);
+
+    var t_near_z: f32;
+    var t_far_z: f32;
+    ///if ENABLE_CURVATURE 1
+    let top = intersect_curvature_shell(ray_origin.z, ray_dir, params.bounds_max.z, sconf.planet_radius_m);
+    if top.x > top.y {
+        return vec2f(1.0, -1.0);
+    }
+    let bottom = intersect_curvature_shell(ray_origin.z, ray_dir, params.bounds_min.z, sconf.planet_radius_m);
+    // The slab is (inside top sphere) minus (inside bottom sphere). That can be two pieces along
+    // the ray; take the one in front of the camera that comes first.
+    t_near_z = max(top.x, 0.0);
+    t_far_z = top.y;
+    if bottom.x <= bottom.y {
+        if t_near_z < min(top.y, bottom.x) {
+            t_far_z = min(t_far_z, bottom.x);
+        } else {
+            t_near_z = max(t_near_z, bottom.y);
+        }
+    }
+    ///else
+    let t0_z = (params.bounds_min.z - ray_origin.z) / ray_dir.z;
+    let t1_z = (params.bounds_max.z - ray_origin.z) / ray_dir.z;
+    t_near_z = min(t0_z, t1_z);
+    t_far_z = max(t0_z, t1_z);
+    ///endif
+
+    return vec2f(max(t_near_xy, t_near_z), min(t_far_xy, t_far_z));
 }
 
 fn get_tile_id_at_pos(pos_world: vec3f) -> vec2i {
@@ -190,16 +259,6 @@ fn get_tile_info(tile_id: vec2i) -> tile_info {
 
     let tile_index = tile_id.x + tile_id.y * tile_count_x;
     return tile_infos[tile_index];
-}
-
-fn apply_curvature(pos: vec3f) -> vec3f {
-    ///if ENABLE_CURVATURE 1
-    let rel_xy = pos.xy - params.camera.position.xy;
-    let curvature_drop = earth_curvature_drop(dot(rel_xy, rel_xy), sconf.planet_radius_m);
-    return vec3f(pos.xy, pos.z + curvature_drop);
-    ///else
-    return pos;
-    ///endif
 }
 
 fn sample_volume(pos_world: vec3f, lod: f32, tile_id: vec2i, tile: tile_info, atlas_sampler: sampler) -> f32 {
@@ -278,14 +337,24 @@ fn cloud_phase_function(cos_angle: f32) -> f32 {
 // Calculate how much light reaches a point from the sun (light transmittance)
 // Uses cone-based sampling with decreasing LOD as per Nubis/Guerrilla Games approach
 fn sample_light_energy(pos: vec3f, sun_dir: vec3f, extinction_coeff: f32, base_lod: f32, start_t: f32, cos_angle: f32) -> f32 {
-    if pos.z >= params.bounds_max.z {
+    // pos is in rendered (curved) space; the slab bounds and the density field are flat-earth.
+    var flat_height = pos.z;
+    ///if ENABLE_CURVATURE 1
+    // Along the sun ray d^2 = |rel0 + sun_dir.xy * t|^2, so the drop is drop_c0 + drop_c1 * t + drop_c2 * t^2.
+    let rel0 = pos.xy - params.camera.position.xy;
+    let drop_c0 = curvature_drop(rel0);
+    let drop_c1 = 2.0 * dot(rel0, sun_dir.xy) * curvature_inv_2r;
+    let drop_c2 = curvature_drop(sun_dir.xy);
+    flat_height += drop_c0;
+    ///endif
+    if flat_height >= params.bounds_max.z {
         return 1.0;
     }
 
-    // Distance to the top of the cloud slab along the sun ray. 
-    // NOTE: Gets invoked when sun is at/above the points local horizon, but for mountain tops that 
+    // Distance to the top of the cloud slab along the sun ray.
+    // NOTE: Gets invoked when sun is at/above the points local horizon, but for mountain tops that
     // can mean sun_dir.z is <0 (near-horizontal ray), so clamp the divisor to keep length positive.
-    let max_ray_length = min((params.bounds_max.z - pos.z) / max(sun_dir.z, 0.05), 10000.0);
+    let max_ray_length = min((params.bounds_max.z - flat_height) / max(sun_dir.z, 0.05), 10000.0);
     // Initial step size derived from geometric series sum to exactly span max_ray_length
     const GROWTH_FACTOR = 1.5;
     const STEP_SIZE_CONSTANT = (GROWTH_FACTOR - 1.0) / (pow(GROWTH_FACTOR, f32(MAX_LIGHT_STEPS)) - 1.0);
@@ -297,7 +366,10 @@ fn sample_light_energy(pos: vec3f, sun_dir: vec3f, extinction_coeff: f32, base_l
     // March towards sun with decreasing LOD per Nubis approach
     // The decreasing LOD smooths out artifacts from sparse sampling
     for (var i = 0; i < MAX_LIGHT_STEPS; i++) {
-        let sample_pos = pos + sun_dir * t;
+        var sample_pos = pos + sun_dir * t;
+        ///if ENABLE_CURVATURE 1
+        sample_pos.z += drop_c0 + (drop_c1 + drop_c2 * t) * t;
+        ///endif
 
         // Get tile info for this sample
         let tile_id = get_tile_id_at_pos(sample_pos);
@@ -568,6 +640,10 @@ fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
 
     let ray_jitter = get_ray_offset(pixel_coord, params.frame_index);
 
+    ///if ENABLE_CURVATURE 1
+    curvature_inv_2r = 0.5 / sconf.planet_radius_m;
+    ///endif
+
     let origin = params.camera.position.xyz;
     let stable_depth_coord = 2 * vec2i(pixel_coord) - vec2i(2.0 * params.jitter);
 
@@ -579,7 +655,7 @@ fn computeMain(@builtin(global_invocation_id) global_id: vec3u) {
     let fade_far = 50000.0 * params.fade_factor;
 
     // Intersect ray with volume
-    let intersection = intersect_aabb(origin, ray_direction, params.bounds_min.xyz, params.bounds_max.xyz);
+    let intersection = intersect_cloud_volume(origin, ray_direction);
     let t_near = max(intersection.x, fade_near);
     let t_far = min(intersection.y, length(frag_pos));
 
