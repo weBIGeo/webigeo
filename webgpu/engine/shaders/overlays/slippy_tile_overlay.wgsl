@@ -439,7 +439,7 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3u) {
 
     let target_id = resolved.target_tile_id;
     if target_id.zoomlevel == settings.highlight_zoom && target_id.x == settings.highlight_x && target_id.y == settings.highlight_y {
-        result = vec4f(vec3f(1.0, 0.85, 0.0) * 0.5, 0.5) + result * 0.5;
+        result = vec4f(vec3f(1.0, 0.0, 0.0) * 0.7, 0.7) + result * 0.3;
     }
     textureStore(output_texture, tci, result);
 }
