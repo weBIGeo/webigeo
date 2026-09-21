@@ -20,6 +20,9 @@
 
 #include "OverlayImGuiRenderer.h"
 #include <QElapsedTimer>
+#include <nucleus/tile/TileLoadService.h>
+#include <string>
+#include <vector>
 #include <webgpu/engine/overlay/SlippyTileOverlay.h>
 
 namespace webgpu_engine {
@@ -50,6 +53,12 @@ private:
     void update_rebuild_measurement(); // called once per settings frame while a measurement runs
     [[nodiscard]] std::string rebuild_status_text() const;
 
+    // "Benchmark": N rebuilds back to back, each one timed by the stopwatch above.
+    void start_benchmark();
+    void start_next_benchmark_rebuild();
+    void finish_benchmark_run(); // records the rebuild that just completed, then starts the next or stops
+    [[nodiscard]] std::string benchmark_summary_text() const; // avg / min / max / sample stddev, empty before the first result
+
     webgpu_engine::SlippyTileOverlay* m_slippy_overlay;
     webgpu_engine::Context* m_context;
     bool m_show_wanted_tiles_window = false;
@@ -69,6 +78,22 @@ private:
     qint64 m_rebuild_result_ms = -1;
     unsigned m_rebuild_result_resident = 0;
     unsigned m_rebuild_result_missing = 0;
+
+    int m_bench_runs = 10; // the "runs" input
+    bool m_bench_running = false;
+    int m_bench_total = 0; // runs of the current benchmark
+    int m_bench_remaining = 0; // rebuilds still to start
+    struct BenchTiles {
+        unsigned wanted = 0; // tiles the shader asked for
+        unsigned wanted_resident = 0; // ... of which are on the GPU
+        unsigned gpu_resident = 0; // everything on the GPU
+        bool quads = false; // legacy source: its "tiles" are quads
+    };
+    BenchTiles m_bench_tiles;
+    std::string m_bench_title; // "== <source> (LOD x.x) ==", taken at benchmark start
+    nucleus::tile::TileLoadService::Totals m_bench_start_totals; // TileLoadService counters at benchmark start
+    nucleus::tile::TileLoadService::Totals m_bench_traffic; // traffic since then, up to the last finished run
+    std::vector<double> m_bench_samples_ms; // one entry per finished run
 };
 
 } // namespace webgpu_app

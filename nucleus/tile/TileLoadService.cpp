@@ -23,10 +23,19 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QtVersionChecks>
+#include <atomic>
 #include <nucleus/srs.h>
 #include <nucleus/utils/lang.h>
 
 using namespace nucleus::tile;
+
+namespace {
+// Backing store of totals().
+std::atomic<uint64_t> g_total_requests { 0 };
+std::atomic<uint64_t> g_total_bytes { 0 };
+} // namespace
+
+TileLoadService::Totals TileLoadService::totals() { return { g_total_requests.load(std::memory_order_relaxed), g_total_bytes.load(std::memory_order_relaxed) }; }
 
 TileLoadService::TileLoadService(const QString& base_url, UrlPattern url_pattern, const QString& file_ending, const LoadBalancingTargets& load_balancing_targets)
     : m_network_manager(new QNetworkAccessManager(this))
@@ -50,7 +59,19 @@ void TileLoadService::load(const tile::Id& tile_id) const
 
     QNetworkReply* reply = m_network_manager->get(request);
     m_active[tile_id] = reply;
-    connect(reply, &QNetworkReply::finished, [tile_id, reply, this]() {
+    g_total_requests.fetch_add(1, std::memory_order_relaxed);
+
+    // Counted as they arrive, so aborted requests still count what they downloaded.
+    auto received = std::make_shared<qint64>(0);
+    const auto count_bytes = [received](qint64 total_received) {
+        if (total_received > *received) {
+            g_total_bytes.fetch_add(uint64_t(total_received - *received), std::memory_order_relaxed);
+            *received = total_received;
+        }
+    };
+    connect(reply, &QNetworkReply::downloadProgress, [count_bytes](qint64 bytes_received, qint64) { count_bytes(bytes_received); });
+
+    connect(reply, &QNetworkReply::finished, [tile_id, reply, count_bytes, this]() {
         if (m_aborted.erase(reply)) {
             // cancelled by abort(): the caller already gave up on this request, so report nothing.
             reply->deleteLater();
@@ -63,6 +84,7 @@ void TileLoadService::load(const tile::Id& tile_id) const
         const auto timestamp = utils::time_since_epoch();
         if (error == QNetworkReply::NoError) {
             auto tile = std::make_shared<QByteArray>(reply->readAll());
+            count_bytes(tile->size()); // in case no final progress signal came
             emit load_finished({tile_id, {NetworkInfo::Status::Good, timestamp}, tile});
         } else if (error == QNetworkReply::ContentNotFoundError) {
             auto tile = std::make_shared<QByteArray>();

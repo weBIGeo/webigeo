@@ -38,9 +38,9 @@ public:
     // amb, diff, spec, shininess
     glm::vec4 m_material_light_response = glm::vec4(2.0, 3.0, 0.0, 32.0);
 
-    uint32_t m_sky_enabled = true;
-    uint32_t m_clouds_enabled = true;
-    uint32_t m_shading_enabled = true;
+    uint32_t m_sky_enabled = false;
+    uint32_t m_clouds_enabled = false;
+    uint32_t m_shading_enabled = false;
     uint32_t m_normal_mode = 2; // 0...none, 1...per fragment, 2...FDM
 
     uint32_t _padding1 = 0;

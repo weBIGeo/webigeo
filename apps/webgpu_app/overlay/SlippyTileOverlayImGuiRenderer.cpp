@@ -20,9 +20,12 @@
 
 #include <IconsFontAwesome5.h>
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <imgui.h>
 #include <iterator>
+#include <numeric>
 #include <nucleus/tile/TileSourcePresets.h>
 #include <webgpu/engine/Context.h>
 #include <webgpu/engine/tile/TileSource.h>
@@ -164,19 +167,41 @@ bool SlippyTileOverlayImGuiRenderer::render_custom_settings()
     if (ImGui::Button("Show Wanted Tiles"))
         m_show_wanted_tiles_window = true;
     ImGui::SameLine();
+    ImGui::BeginDisabled(m_bench_running);
     if (ImGui::Button("Rebuild") && m_slippy_overlay->source()) {
         m_slippy_overlay->source()->clear_cache();
         start_rebuild_measurement();
         m_context->request_redraw();
         changed = true;
     }
-    ImGui::SetItemTooltip("Clears everything this tile source holds (GPU tiles, RAM cache, 404 tombstones, disk cache)\n"
-                          "and fetches it again, timing how long that takes. Affects all overlays using this source.");
+    ImGui::EndDisabled();
     update_rebuild_measurement();
     if (const auto status = rebuild_status_text(); !status.empty()) {
         ImGui::SameLine();
         ImGui::TextDisabled("%s", status.c_str());
     }
+
+    // Benchmark: n back-to-back rebuilds -> avg / min / max / standard deviation of the rebuild time.
+    const bool can_benchmark = m_slippy_overlay->source() && s.wanted_tiles_stride > 0;
+    if (m_bench_running) {
+        if (ImGui::Button("Cancel Benchmark"))
+            m_bench_running = false; // the rebuild in progress just finishes as a normal single rebuild
+    } else {
+        ImGui::BeginDisabled(!can_benchmark || m_rebuild_running);
+        if (ImGui::Button("Benchmark")) {
+            start_benchmark();
+            changed = true;
+        }
+        ImGui::EndDisabled();
+    }
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(90.0f);
+    ImGui::BeginDisabled(m_bench_running);
+    ImGui::InputInt("runs", &m_bench_runs, 1, 10);
+    ImGui::EndDisabled();
+    m_bench_runs = std::clamp(m_bench_runs, 1, 1000);
+    if (m_bench_running)
+        ImGui::TextDisabled("Benchmark: run %d / %d", static_cast<int>(m_bench_samples_ms.size()) + 1, m_bench_total);
     changed |= render_wanted_tiles_window();
 
     // Temporary: lets any source's RGBA be reinterpreted as the snow-depth or normal-map encoding for testing.
@@ -211,6 +236,7 @@ void SlippyTileOverlayImGuiRenderer::update_rebuild_measurement()
     // Without the wanted-tile readback there is no "everything the frame asked for" to wait for.
     if (!source || m_slippy_overlay->settings.wanted_tiles_stride == 0) {
         m_rebuild_running = false;
+        m_bench_running = false;
         return;
     }
 
@@ -245,12 +271,88 @@ void SlippyTileOverlayImGuiRenderer::update_rebuild_measurement()
         m_rebuild_result_ms = complete ? elapsed : m_rebuild_last_change_ms;
         m_rebuild_result_resident = resident;
         m_rebuild_result_missing = missing;
+        if (m_bench_running)
+            finish_benchmark_run();
         return;
     }
 
     // The wanted list is only refreshed by drawing, and once the last tile has arrived nothing else
     // asks for another frame -- so drive the frames ourselves for the duration of the measurement.
     m_context->request_redraw();
+}
+
+void SlippyTileOverlayImGuiRenderer::start_benchmark()
+{
+    if (!m_slippy_overlay->source())
+        return;
+    m_bench_running = true;
+    m_bench_total = m_bench_runs;
+    m_bench_remaining = m_bench_total;
+    m_bench_samples_ms.clear();
+    m_bench_start_totals = nucleus::tile::TileLoadService::totals();
+    m_bench_traffic = {};
+
+    char lod[16];
+    std::snprintf(lod, sizeof(lod), "%.1f", 1.0f / m_slippy_overlay->source()->pixel_error_threshold());
+    const auto& preset = nucleus::tile::tile_source_presets::all()[static_cast<size_t>(current_preset_index(*m_slippy_overlay))];
+    m_bench_title = "== " + preset.display_name.toStdString() + " (LOD " + lod + ") ==";
+    start_next_benchmark_rebuild();
+}
+
+void SlippyTileOverlayImGuiRenderer::start_next_benchmark_rebuild()
+{
+    --m_bench_remaining;
+    m_slippy_overlay->source()->clear_cache();
+    start_rebuild_measurement();
+    m_context->request_redraw();
+}
+
+void SlippyTileOverlayImGuiRenderer::finish_benchmark_run()
+{
+    m_bench_samples_ms.push_back(static_cast<double>(m_rebuild_result_ms));
+    const auto totals = nucleus::tile::TileLoadService::totals();
+    m_bench_traffic = { totals.requests - m_bench_start_totals.requests, totals.bytes - m_bench_start_totals.bytes };
+
+    // Tile state at the end of the latest run (the camera is static, so every run ends alike).
+    const auto* source = m_slippy_overlay->source();
+    const auto& wanted = m_slippy_overlay->wanted_tiles();
+    m_bench_tiles = {};
+    m_bench_tiles.wanted = static_cast<unsigned>(wanted.size());
+    for (const auto& t : wanted)
+        if (source->has_tile_data(t.id))
+            ++m_bench_tiles.wanted_resident;
+    m_bench_tiles.gpu_resident = source->array().n_occupied();
+    m_bench_tiles.quads = source->scheduler_mode() != nucleus::tile::TileSchedulerMode::Demand;
+    if (m_bench_remaining > 0) {
+        start_next_benchmark_rebuild();
+    } else {
+        m_bench_running = false;
+        ImGui::SetClipboardText(benchmark_summary_text().c_str());
+    }
+}
+
+std::string SlippyTileOverlayImGuiRenderer::benchmark_summary_text() const
+{
+    if (m_bench_samples_ms.empty())
+        return {};
+    const double n = static_cast<double>(m_bench_samples_ms.size());
+    const double mean = std::accumulate(m_bench_samples_ms.begin(), m_bench_samples_ms.end(), 0.0) / n;
+    const auto [min_it, max_it] = std::minmax_element(m_bench_samples_ms.begin(), m_bench_samples_ms.end());
+    double squared_deviations = 0.0;
+    for (const double ms : m_bench_samples_ms)
+        squared_deviations += (ms - mean) * (ms - mean);
+    const double stddev = n > 1.0 ? std::sqrt(squared_deviations / (n - 1.0)) : 0.0; // sample (n-1)
+
+    // Traffic and requests are per run (total / runs). "Used" = GPU-resident tiles that are also in the wanted set.
+    const char* unit = m_bench_tiles.quads ? "Quads" : "Tiles";
+    const double used_percent = m_bench_tiles.gpu_resident > 0 ? 100.0 * m_bench_tiles.wanted_resident / m_bench_tiles.gpu_resident : 0.0;
+    char buf[384];
+    std::snprintf(buf, sizeof(buf),
+        "Runs:      %zu\nTiming:    %.2fs +- %.2f (min %.2f, max %.2f)\nTraffic:   %.2fMB\nRequests:  %.0f\n%s:%*s%u / %u\nGPU %s: %u [%.0f%% used]",
+        m_bench_samples_ms.size(), mean / 1000.0, stddev / 1000.0, *min_it / 1000.0, *max_it / 1000.0, static_cast<double>(m_bench_traffic.bytes) / n / 1e6,
+        static_cast<double>(m_bench_traffic.requests) / n, unit, static_cast<int>(10 - std::strlen(unit)), "", m_bench_tiles.wanted_resident, m_bench_tiles.wanted,
+        unit, m_bench_tiles.gpu_resident, used_percent);
+    return m_bench_title + "\n" + buf;
 }
 
 std::string SlippyTileOverlayImGuiRenderer::rebuild_status_text() const

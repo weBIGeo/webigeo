@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <QObject>
 #include <unordered_set>
@@ -48,6 +49,14 @@ public:
     void set_transfer_timeout(unsigned int new_transfer_timeout);
 
     void set_base_url(const QString& base_url);
+
+    /// Totals over all TileLoadServices, for benchmarking (snapshot before/after and subtract).
+    /// Counts every load() call and the payload bytes received, aborted requests included.
+    struct Totals {
+        uint64_t requests = 0;
+        uint64_t bytes = 0;
+    };
+    [[nodiscard]] static Totals totals();
 
 public slots:
     void load(const tile::Id& tile_id) const;
