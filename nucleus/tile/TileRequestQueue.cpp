@@ -18,20 +18,46 @@
 
 #include "TileRequestQueue.h"
 
+#include <QTimer>
 #include <algorithm>
+#include <chrono>
 
 using namespace nucleus::tile;
 
+namespace {
+// Monotonic on purpose: a wall-clock jump must not stall or flood the limiter.
+uint64_t steady_now_ms() { return uint64_t(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count()); }
+} // namespace
+
 TileRequestQueue::TileRequestQueue(QObject* parent)
     : QObject { parent }
+    , m_rate_timer(std::make_unique<QTimer>(this))
 {
+    m_rate_timer->setSingleShot(true);
+    connect(m_rate_timer.get(), &QTimer::timeout, this, &TileRequestQueue::start_pending);
 }
+
+TileRequestQueue::~TileRequestQueue() = default;
 
 void TileRequestQueue::set_limit(unsigned new_limit)
 {
     assert(new_limit > 0);
     m_limit = new_limit;
 }
+
+void TileRequestQueue::set_rate_limit(unsigned rate, unsigned period_msecs)
+{
+    assert(period_msecs > 0);
+    m_rate = rate;
+    m_rate_period_msecs = period_msecs;
+    if (m_rate == 0) {
+        m_start_times.clear();
+        m_rate_timer->stop();
+    }
+    start_pending(); // a raised limit may let waiting ids go right away
+}
+
+std::pair<unsigned, unsigned> TileRequestQueue::rate_limit() const { return { m_rate, m_rate_period_msecs }; }
 
 unsigned TileRequestQueue::limit() const { return m_limit; }
 unsigned TileRequestQueue::in_flight() const { return unsigned(m_in_flight.size()); }
@@ -63,12 +89,7 @@ void TileRequestQueue::set_requests(const std::vector<tile::Id>& ordered)
             m_pending.push_back(id);
     }
 
-    while (!m_pending.empty() && m_in_flight.size() < m_limit) {
-        const auto id = m_pending.front();
-        m_pending.erase(m_pending.begin());
-        m_in_flight.insert(id);
-        emit tile_requested(id);
-    }
+    start_pending();
 }
 
 void TileRequestQueue::tile_delivered(const tile::Id& id)
@@ -76,11 +97,30 @@ void TileRequestQueue::tile_delivered(const tile::Id& id)
     if (m_in_flight.erase(id) == 0)
         return; // already dropped by a prior abort; don't double-release a slot
 
-    if (m_pending.empty())
-        return;
+    start_pending();
+}
 
-    const auto next = m_pending.front();
-    m_pending.erase(m_pending.begin());
-    m_in_flight.insert(next);
-    emit tile_requested(next);
+void TileRequestQueue::start_pending()
+{
+    const auto now = steady_now_ms();
+    if (m_rate > 0) {
+        while (!m_start_times.empty() && m_start_times.front() + m_rate_period_msecs <= now)
+            m_start_times.pop_front();
+    }
+
+    while (!m_pending.empty() && m_in_flight.size() < m_limit) {
+        if (m_rate > 0) {
+            if (m_start_times.size() >= m_rate) {
+                // Slots are free but the window is full, and no delivery or replan is guaranteed to wake us for that.
+                // (Re-arming an already running timer is harmless: the deadline it computes is the same absolute time.)
+                m_rate_timer->start(int(m_start_times.front() + m_rate_period_msecs - now) + 1);
+                return;
+            }
+            m_start_times.push_back(now);
+        }
+        const auto id = m_pending.front();
+        m_pending.erase(m_pending.begin());
+        m_in_flight.insert(id);
+        emit tile_requested(id);
+    }
 }

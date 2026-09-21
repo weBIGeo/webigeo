@@ -620,6 +620,11 @@ TEST_CASE("nucleus/tile/DemandScheduler")
         sch->update();
         CHECK(requested.size() == 3);
 
+        tuning.request_rate = 7;
+        sch->set_tuning(tuning);
+        CHECK(sch->request_queue().rate_limit().first == 7);
+        CHECK(sch->tuning().request_rate == 7);
+
         // and the planner params are live too: nothing below 5000 px is worth fetching any more
         tuning.planner.min_pixels = 5000;
         sch->set_tuning(tuning);

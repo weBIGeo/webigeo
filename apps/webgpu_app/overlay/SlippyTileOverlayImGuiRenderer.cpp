@@ -324,11 +324,19 @@ bool SlippyTileOverlayImGuiRenderer::render_demand_scheduler_section()
     ImGui::SetItemTooltip("Request priority within each tier.");
 
     int max_in_flight = static_cast<int>(t.max_in_flight);
-    if (ImGui::SliderInt("Max In Flight", &max_in_flight, 1, 64)) {
+    if (ImGui::SliderInt("Max In Flight", &max_in_flight, 1, 1024, "%d", ImGuiSliderFlags_Logarithmic)) {
         t.max_in_flight = static_cast<unsigned>(max_in_flight);
         changed = true;
     }
     ImGui::SetItemTooltip("Concurrent HTTP requests. Higher fills the view faster but wastes more\nrequests on tiles the camera has already left (they get aborted).");
+
+    int request_rate = static_cast<int>(t.request_rate);
+    if (ImGui::SliderInt("Request Rate", &request_rate, 0, 2000, "%d", ImGuiSliderFlags_Logarithmic)) {
+        t.request_rate = static_cast<unsigned>(request_rate);
+        changed = true;
+    }
+    ImGui::SetItemTooltip("Max requests started per second (0 = unlimited), independent of how fast they finish.\nMax In Flight limits how many run at once, this limits how quickly new ones may start.\n"
+                          "Tiles held back by it stay pending, so a replan can still reorder or drop them.");
 
     int max_ship = static_cast<int>(t.max_ship_per_update);
     if (ImGui::SliderInt("Max Ship / Update", &max_ship, 1, 256)) {
@@ -372,7 +380,6 @@ bool SlippyTileOverlayImGuiRenderer::render_wanted_tiles_window()
         const auto& s = m_slippy_overlay->settings;
         const auto& tiles = m_slippy_overlay->wanted_tiles();
         const auto* source = m_slippy_overlay->source();
-        const auto* load_service = source ? source->tile_load_service() : nullptr;
 
         // Residency (texture-array occupancy) is independent of wanted-tiles recording, so it's
         // shown even while recording is off.
@@ -431,14 +438,11 @@ bool SlippyTileOverlayImGuiRenderer::render_wanted_tiles_window()
                     static_cast<int>(tiles.size() * 100 / wanted_capacity));
             ImGui::Separator();
 
-            if (ImGui::BeginTable("wanted_tiles", 7, ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
-                ImGui::TableSetupColumn("Zoom", ImGuiTableColumnFlags_WidthFixed, 38.0f);
-                ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthStretch);
-                ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthStretch);
+            if (ImGui::BeginTable("wanted_tiles", 4, ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV)) {
+                ImGui::TableSetupColumn("Tile (z/x/y)", ImGuiTableColumnFlags_WidthStretch);
                 ImGui::TableSetupColumn("Rec. px", ImGuiTableColumnFlags_WidthFixed, 56.0f);
                 ImGui::TableSetupColumn("Screen px", ImGuiTableColumnFlags_WidthFixed, 66.0f);
                 ImGui::TableSetupColumn(demand ? "Status" : "Resident", ImGuiTableColumnFlags_WidthFixed, 56.0f);
-                ImGui::TableSetupColumn("##url", ImGuiTableColumnFlags_WidthFixed, 26.0f);
                 ImGui::TableSetupScrollFreeze(0, 1);
                 ImGui::TableHeadersRow();
 
@@ -448,22 +452,20 @@ bool SlippyTileOverlayImGuiRenderer::render_wanted_tiles_window()
                     ImGui::PushID(i);
                     ImGui::TableNextRow();
                     ImGui::TableSetColumnIndex(0);
-                    // Full-row selectable (the link button below may overlap it) just to detect hover
-                    const std::string zoom_label = std::to_string(t.id.zoom_level);
-                    ImGui::Selectable(zoom_label.c_str(), false, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap);
+                    // Full-row selectable, just to detect hover
+                    char tile_label[48];
+                    std::snprintf(tile_label, sizeof(tile_label), "%u/%u/%u", static_cast<unsigned>(t.id.zoom_level), static_cast<unsigned>(t.id.coords.x),
+                        static_cast<unsigned>(t.id.coords.y));
+                    ImGui::Selectable(tile_label, false, ImGuiSelectableFlags_SpanAllColumns);
                     if (ImGui::IsItemHovered())
                         hovered_tile = t.id;
                     ImGui::TableSetColumnIndex(1);
-                    ImGui::Text("%u", static_cast<unsigned>(t.id.coords.x));
-                    ImGui::TableSetColumnIndex(2);
-                    ImGui::Text("%u", static_cast<unsigned>(t.id.coords.y));
-                    ImGui::TableSetColumnIndex(3);
                     ImGui::Text("%u", t.pixel_count);
-                    ImGui::TableSetColumnIndex(4);
+                    ImGui::TableSetColumnIndex(2);
                     // What the scheduler actually planned with -- compare this against Min Pixels.
                     ImGui::Text("%llu", static_cast<unsigned long long>(t.pixel_count) * px_scale);
 
-                    ImGui::TableSetColumnIndex(5);
+                    ImGui::TableSetColumnIndex(3);
                     if (demand && !resident) {
                         // Why it isn't there yet -- or, for "404", why it never will be.
                         const auto style = status_style(source->demand_tile_status(t.id));
@@ -473,14 +475,6 @@ bool SlippyTileOverlayImGuiRenderer::render_wanted_tiles_window()
                         ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1.0f), ICON_FA_CHECK);
                     } else {
                         ImGui::TextColored(ImVec4(0.9f, 0.4f, 0.4f, 1.0f), ICON_FA_TIMES);
-                    }
-
-                    ImGui::TableSetColumnIndex(6);
-                    if (load_service) {
-                        // unpack() yields TMS ids, build_tile_url converts to the source's scheme
-                        const std::string url = load_service->build_tile_url(t.id).toStdString();
-                        ImGui::TextLinkOpenURL(ICON_FA_LINK, url.c_str());
-                        ImGui::SetItemTooltip("%s", url.c_str());
                     }
                     ImGui::PopID();
                 }

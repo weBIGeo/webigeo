@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
+#include <QElapsedTimer>
 #include <QSignalSpy>
 #include <catch2/catch_test_macros.hpp>
 
@@ -146,5 +147,75 @@ TEST_CASE("nucleus/tile/tile request queue")
         CHECK(q.in_flight() == 1);
         CHECK(q.pending() == 0);
         CHECK(requested.size() == 2);
+    }
+
+    SECTION("a rate limit holds ids back although slots are free, and releases them once the window has passed")
+    {
+        TileRequestQueue q;
+        q.set_rate_limit(2, 200);
+        QSignalSpy spy(&q, &TileRequestQueue::tile_requested);
+        QElapsedTimer clock;
+        clock.start();
+        q.set_requests({ Id { 0, { 0, 0 } }, Id { 1, { 0, 0 } }, Id { 1, { 0, 1 } } });
+        CHECK(spy.size() == 2);
+        CHECK(q.in_flight() == 2);
+        CHECK(q.pending() == 1);
+
+        REQUIRE(spy.wait(2000));
+        CHECK(clock.elapsed() >= 200);
+        REQUIRE(spy.size() == 3);
+        CHECK(spy[2][0].value<Id>() == Id { 1, { 0, 1 } });
+        CHECK(q.pending() == 0);
+    }
+
+    SECTION("a delivery frees a slot but does not skip the rate window")
+    {
+        TileRequestQueue q;
+        q.set_rate_limit(1, 200);
+        QSignalSpy spy(&q, &TileRequestQueue::tile_requested);
+        q.set_requests({ Id { 0, { 0, 0 } }, Id { 1, { 0, 0 } } });
+        REQUIRE(spy.size() == 1);
+
+        q.tile_delivered(Id { 0, { 0, 0 } });
+        CHECK(spy.size() == 1);
+        CHECK(q.in_flight() == 0);
+        CHECK(q.pending() == 1);
+
+        REQUIRE(spy.wait(2000));
+        REQUIRE(spy.size() == 2);
+        CHECK(spy[1][0].value<Id>() == Id { 1, { 0, 0 } });
+    }
+
+    SECTION("a replan can drop an id that is still waiting for the rate window, it is then never requested")
+    {
+        TileRequestQueue q;
+        q.set_rate_limit(1, 200);
+        QSignalSpy requested(&q, &TileRequestQueue::tile_requested);
+        QSignalSpy aborted(&q, &TileRequestQueue::tile_aborted);
+        q.set_requests({ Id { 0, { 0, 0 } }, Id { 1, { 0, 0 } }, Id { 1, { 0, 1 } } });
+        REQUIRE(requested.size() == 1);
+        CHECK(q.pending() == 2);
+
+        q.set_requests({ Id { 0, { 0, 0 } }, Id { 1, { 0, 1 } } }); // Id{1,{0,0}} was only waiting, not in flight
+        CHECK(aborted.size() == 0);
+        CHECK(q.pending() == 1);
+
+        REQUIRE(requested.wait(2000));
+        REQUIRE(requested.size() == 2);
+        CHECK(requested[1][0].value<Id>() == Id { 1, { 0, 1 } });
+        CHECK(q.pending() == 0);
+    }
+
+    SECTION("switching the rate limit off releases everything that was waiting for it")
+    {
+        TileRequestQueue q;
+        q.set_rate_limit(1, 60000);
+        QSignalSpy spy(&q, &TileRequestQueue::tile_requested);
+        q.set_requests({ Id { 0, { 0, 0 } }, Id { 1, { 0, 0 } }, Id { 1, { 0, 1 } } });
+        CHECK(spy.size() == 1);
+
+        q.set_rate_limit(0, 60000);
+        CHECK(spy.size() == 3);
+        CHECK(q.pending() == 0);
     }
 }

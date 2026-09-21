@@ -38,6 +38,7 @@ DemandScheduler::DemandScheduler(const Settings& settings)
 {
     m_queue = new TileRequestQueue(this);
     m_queue->set_limit(m.max_in_flight);
+    m_queue->set_rate_limit(m.request_rate, m.request_rate_period_ms);
     // Forwarded rather than connected straight through, so the cumulative stats counters see them.
     connect(m_queue, &TileRequestQueue::tile_requested, this, [this](const tile::Id& id) {
         ++m_totals.total_requested;
@@ -70,7 +71,7 @@ const TileRequestQueue& DemandScheduler::request_queue() const { return *m_queue
 unsigned DemandScheduler::n_gpu_resident() const { return unsigned(m_gpu_resident.size()); }
 bool DemandScheduler::is_gpu_resident(const tile::Id& id) const { return m_gpu_resident.contains(id); }
 
-DemandScheduler::Tuning DemandScheduler::tuning() const { return { m.planner, m.max_in_flight, m.max_ship_per_update, m.gpu_tile_limit }; }
+DemandScheduler::Tuning DemandScheduler::tuning() const { return { m.planner, m.max_in_flight, m.max_ship_per_update, m.gpu_tile_limit, m.request_rate }; }
 
 void DemandScheduler::set_tuning(const Tuning& tuning)
 {
@@ -78,7 +79,9 @@ void DemandScheduler::set_tuning(const Tuning& tuning)
     m.max_in_flight = tuning.max_in_flight;
     m.max_ship_per_update = tuning.max_ship_per_update;
     m.gpu_tile_limit = tuning.gpu_tile_limit;
+    m.request_rate = tuning.request_rate;
     m_queue->set_limit(m.max_in_flight);
+    m_queue->set_rate_limit(m.request_rate, m.request_rate_period_ms);
     schedule_update();
 }
 

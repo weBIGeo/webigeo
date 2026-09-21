@@ -54,7 +54,7 @@ TileSource::TileSource(const Config& config, const nucleus::tile::utils::AabbDec
         connect(m_demand_holder.scheduler.get(), &nucleus::tile::DemandScheduler::stats_updated, this, &TileSource::update_demand_stats);
         // Mirror of what the scheduler was constructed with; the scheduler itself already lives on its own thread.
         m_demand_tuning = { config.demand_settings.planner, config.demand_settings.max_in_flight, config.demand_settings.max_ship_per_update,
-            config.demand_settings.gpu_tile_limit };
+            config.demand_settings.gpu_tile_limit, config.demand_settings.request_rate };
     } else {
         m_holder = nucleus::tile::setup::texture_scheduler(std::move(tile_service), aabb_decorator, scheduler_thread, config.settings);
         m_holder.scheduler->set_gpu_quad_limit(config.gpu_quad_limit);

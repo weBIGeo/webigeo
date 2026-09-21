@@ -58,7 +58,11 @@ public:
         unsigned tile_resolution = 256;
         unsigned gpu_tile_limit = 1024; // must equal the GPU array's tile limit
         unsigned ram_tile_limit = 20000;
-        unsigned max_in_flight = 8;
+        unsigned max_in_flight = 64;
+        // Request starts per request_rate_period_ms (TileRequestQueue::set_rate_limit), 0 = unlimited. The default matches the
+        // quad chain's RateLimiter (100 quads/s): one quad is 4 tile requests, and this counts single tiles.
+        unsigned request_rate = 400;
+        unsigned request_rate_period_ms = 1000;
         unsigned max_ship_per_update = 32;
         uint64_t retirement_age_ms = 10ull * 24ull * 3600ull * 1000ull; // 10 days
         unsigned retry_base_ms = 500; // network-error backoff = min(retry_max_ms, retry_base_ms * 2^attempts)
@@ -73,9 +77,10 @@ public:
     /// Everything else is fixed at construction because the GPU array / cache layout depends on it.
     struct Tuning {
         TilePlanner::Params planner;
-        unsigned max_in_flight = 8;
+        unsigned max_in_flight = 64;
         unsigned max_ship_per_update = 32;
         unsigned gpu_tile_limit = 1024; // never raise above the GPU array's capacity (TileSource clamps)
+        unsigned request_rate = 400; // tile requests per Settings::request_rate_period_ms, 0 = unlimited
     };
 
     /// Snapshot of one update(), for the tuning UI. Emitted by stats_updated, i.e. at most every
