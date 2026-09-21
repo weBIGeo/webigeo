@@ -161,15 +161,6 @@ bool SlippyTileOverlayImGuiRenderer::render_custom_settings()
         m_slippy_overlay->update_settings();
         changed = true;
     }
-    ImGui::BeginDisabled(s.wanted_tiles_stride == 0);
-    if (ImGui::Checkbox("Readback on change only", &s.readback_on_change)) {
-        m_slippy_overlay->update_settings();
-        changed = true;
-    }
-    ImGui::EndDisabled();
-    ImGui::SetItemTooltip("Record and read back the wanted tiles only when something they depend on changed\n"
-                          "(camera, viewport, terrain geometry arriving or its draw list, or a setting feeding\n"
-                          "the target-zoom formula). Off = record every drawn frame, as before.");
     if (ImGui::Button("Show Wanted Tiles"))
         m_show_wanted_tiles_window = true;
     ImGui::SameLine();
@@ -433,15 +424,6 @@ bool SlippyTileOverlayImGuiRenderer::render_wanted_tiles_window()
                 static_cast<unsigned long long>(total_pixels) * px_scale, s.wanted_tiles_stride);
             ImGui::SetItemTooltip("The shader records every stride-th pixel in x and y. 'Screen px' is the recorded count x stride^2,\n"
                                   "i.e. what the scheduler plans with (and what Min Pixels is compared against).");
-            // With "Readback on change only" this must freeze on a still camera and tick again as soon as
-            // the view or the terrain geometry under it changes -- that's the whole saving, made visible.
-            ImGui::Text("Readback: %llu total, %u frames idle", static_cast<unsigned long long>(m_slippy_overlay->readback_count()),
-                m_slippy_overlay->frames_since_readback());
-            ImGui::SetItemTooltip("Frames that actually recorded + read back the set / frames drawn since the last one.\n"
-                                  "Triggers: camera, viewport size, terrain height tiles arriving, the terrain draw list,\n"
-                                  "tile source, stride, pixel error threshold, max zoom, zoom selection mode -- plus one\n"
-                                  "extra readback whenever the result differed from the one before it. Tiles of *this*\n"
-                                  "source arriving are not a trigger: the recorded set is the ideal target, pre-fallback.");
             // The GPU-side set silently drops tiles once its hash table fills up.
             const uint32_t wanted_capacity = m_slippy_overlay->wanted_tiles_capacity();
             if (tiles.size() * 2 >= wanted_capacity)

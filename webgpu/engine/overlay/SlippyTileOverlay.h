@@ -20,7 +20,6 @@
 
 #include "Overlay.h"
 #include <memory>
-#include <nucleus/camera/Definition.h>
 #include <optional>
 #include <vector>
 #include <webgpu/base/Buffer.h>
@@ -104,10 +103,6 @@ public:
         // disabled: no atomics in the shader, no per-frame clear, no readback), 1 = every pixel (max
         // atomic contention), 4 = 1/16th of the pixels (counts scale accordingly).
         uint32_t wanted_tiles_stride = 4;
-        // Record + read back a frame only when something the recorded set depends on changed (see
-        // RecordingKey). Off = record every drawn frame, i.e. the pre-phase-5 behaviour; kept as an
-        // escape hatch and so the two can be compared at runtime.
-        bool readback_on_change = true;
     };
 
     // One tile of the last wanted-tiles readback: an *ideal* target tile some visible pixels asked
@@ -134,11 +129,6 @@ public:
     [[nodiscard]] const std::vector<WantedTile>& wanted_tiles() const { return m_wanted_tiles; }
     // Slot count of the GPU hash set; once wanted_tiles().size() approaches it, tiles get dropped.
     [[nodiscard]] uint32_t wanted_tiles_capacity() const { return k_wanted_tile_slots; }
-
-    // How many frames actually recorded + read back the wanted set, and how many frames have been
-    // drawn since the last one (i.e. how much work settings.readback_on_change is saving right now).
-    [[nodiscard]] uint64_t readback_count() const { return m_readback_count; }
-    [[nodiscard]] uint32_t frames_since_readback() const { return m_frames_since_readback; }
 
     // Tints all pixels whose ideal target is this tile (nullopt = off). Returns true if it changed,
     // i.e. a redraw is needed.
@@ -174,47 +164,12 @@ private:
     };
     static constexpr uint32_t k_wanted_tile_slots = 4096; // must match WANTED_TILE_SLOTS in the shader (power of two)
 
-    /// Everything the recorded wanted-tile set depends on. Recording a frame whose key equals the last
-    /// recorded one can only reproduce the same list, so it is skipped entirely (no atomics in the
-    /// shader, no clear, no copy, no map, no CPU unpack).
-    ///
-    /// Deliberately *not* in here: which tiles of this source are resident. The shader records the
-    /// *ideal* target tile, before any residency fallback, so overlay tiles streaming in never change
-    /// the answer -- that is the whole point of skipping. Cosmetic settings (opacity, debug_view,
-    /// data_mode, blending, highlight) don't feed resolve_tile_sample's target and are left out too.
-    ///
-    /// The *terrain* geometry is a different matter, and `frame_tiles` alone does not capture it:
-    /// Window builds that draw list with drawing::generate_list from the camera and the static height
-    /// bounds, so it is identical whether the height tiles have arrived or not. A pixel's depth and
-    /// tile_ref footprint -- and hence its target zoom -- change as they do arrive, which is why
-    /// TileMeshRenderer::tiles_generation() is in here. That is the "keep reading back while tiles are
-    /// arriving" half; `frame_tiles` still earns its place because the terrain's own LOD settings
-    /// (Window's max zoom / pixel error) move it without moving the camera.
-    struct RecordingKey {
-        nucleus::camera::Definition camera {}; // its operator== covers view, projection and viewport size
-        std::vector<glm::u32vec2> frame_tiles; // the terrain draw list (camera + terrain LOD settings)
-        uint64_t geometry_generation = 0; // TileMeshRenderer::tiles_generation(), i.e. what actually arrived
-        glm::uvec2 output_size { 0, 0 };
-        const TileSource* source = nullptr;
-        uint32_t stride = 0;
-        uint32_t tile_size = 0;
-        uint32_t max_zoom = 0;
-        uint32_t zoom_selection_mode = 0;
-        float pixel_error_threshold = 0.0f;
-        bool operator==(const RecordingKey&) const = default;
-    };
-
     // Turns a read-back raw hash table into m_wanted_tiles (unpacked, sorted by descending count).
     void update_wanted_tiles(const std::vector<WantedTileSlot>& table); // NB: "slots" is a Qt keyword macro
 
-    // A wanted list in a canonical (by tile id) order. m_wanted_tiles is sorted by descending pixel
-    // count, which is *not* comparable across readbacks: equal counts break ties by the GPU hash slot
-    // order, and that follows the atomic race order of the frame.
-    [[nodiscard]] static std::vector<WantedTile> sorted_by_id(std::vector<WantedTile> tiles);
-
     // Hands the current wanted tiles to the source's scheduler (Demand sources only, Quad sources ignore it).
     // Counts are scaled to real screen pixels (x stride^2). Does nothing if the list is unchanged.
-    void feed_source(const std::vector<WantedTile>& canonical);
+    void feed_source();
     // Withdraws this overlay's demand from its source (no-op if it never fed anything).
     void clear_source_feed();
 
@@ -239,12 +194,6 @@ private:
     std::unique_ptr<webgpu::raii::RawBuffer<WantedTileSlot>> m_wanted_tiles_staging;
     bool m_wanted_tiles_map_pending = false;
     std::vector<WantedTile> m_wanted_tiles; // last readback, see wanted_tiles()
-    std::optional<RecordingKey> m_recorded_key; // key of the last frame whose copy was actually encoded
-    // Previous readback in canonical order. A readback that differs from it means the scene was still
-    // settling when we recorded, so one more is taken -- see update_wanted_tiles.
-    std::vector<WantedTile> m_last_readback;
-    uint64_t m_readback_count = 0;
-    uint32_t m_frames_since_readback = 0;
 };
 
 } // namespace webgpu_engine
