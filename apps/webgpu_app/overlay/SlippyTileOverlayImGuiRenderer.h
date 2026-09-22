@@ -19,7 +19,7 @@
 #pragma once
 
 #include "OverlayImGuiRenderer.h"
-#include <QElapsedTimer>
+#include <chrono>
 #include <nucleus/tile/TileLoadService.h>
 #include <string>
 #include <vector>
@@ -68,7 +68,7 @@ private:
     // is reported as "settled" once nothing changes for k_rebuild_settle_ms.
     static constexpr qint64 k_rebuild_settle_ms = 1500;
     bool m_rebuild_running = false;
-    QElapsedTimer m_rebuild_timer; // since the Rebuild click
+    std::chrono::steady_clock::time_point m_rebuild_timer_start; // since the Rebuild click
     qint64 m_rebuild_last_change_ms = 0; // timer value when the resident/missing counts last moved
     bool m_rebuild_saw_missing = false; // the clear is applied on the scheduler thread, so don't
                                         // accept the pre-clear readback as an instantly finished rebuild

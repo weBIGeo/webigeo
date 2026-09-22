@@ -22,11 +22,11 @@
 #include "DemandScheduler.h"
 
 #include <QDebug>
-#include <QElapsedTimer>
 #include <QStandardPaths>
 #include <QTimer>
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <limits>
 #include <nucleus/utils/image_loader.h>
 #include <optional>
@@ -136,8 +136,7 @@ void DemandScheduler::update()
 {
     if (!m_enabled)
         return;
-    QElapsedTimer timer;
-    timer.start();
+    const auto update_start = std::chrono::steady_clock::now();
     const auto now = nucleus::utils::time_since_epoch();
 
     // 1. merge the feeds of all owners (sum pixel counts per tile)
@@ -295,7 +294,7 @@ void DemandScheduler::update()
     for (const auto& [id, backoff] : m_failed)
         if (backoff.next_retry_ms > now)
             ++stats.n_backoff;
-    stats.update_ms = double(timer.nsecsElapsed()) / 1e6;
+    stats.update_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - update_start).count();
     ++m_totals.total_update_calls;
     m_totals.total_update_ms += stats.update_ms;
     stats.total_update_calls = m_totals.total_update_calls;

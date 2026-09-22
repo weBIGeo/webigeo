@@ -218,7 +218,7 @@ bool SlippyTileOverlayImGuiRenderer::render_custom_settings()
 void SlippyTileOverlayImGuiRenderer::start_rebuild_measurement()
 {
     m_rebuild_running = true;
-    m_rebuild_timer.start();
+    m_rebuild_timer_start = std::chrono::steady_clock::now();
     m_rebuild_last_change_ms = 0;
     m_rebuild_saw_missing = false;
     m_rebuild_last_resident = 0;
@@ -253,7 +253,7 @@ void SlippyTileOverlayImGuiRenderer::update_rebuild_measurement()
     const unsigned missing = static_cast<unsigned>(tiles.size()) - resident - no_data;
     m_rebuild_saw_missing = m_rebuild_saw_missing || missing > 0;
 
-    const qint64 elapsed = m_rebuild_timer.elapsed();
+    const qint64 elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - m_rebuild_timer_start).count();
     if (resident != m_rebuild_last_resident || missing != m_rebuild_last_missing) {
         m_rebuild_last_resident = resident;
         m_rebuild_last_missing = missing;
@@ -359,7 +359,8 @@ std::string SlippyTileOverlayImGuiRenderer::rebuild_status_text() const
 {
     char buf[96];
     if (m_rebuild_running) {
-        std::snprintf(buf, sizeof(buf), "%.1f s, %u missing...", m_rebuild_timer.elapsed() / 1000.0, m_rebuild_last_missing);
+        const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - m_rebuild_timer_start).count();
+        std::snprintf(buf, sizeof(buf), "%.1f s, %u missing...", elapsed_ms / 1000.0, m_rebuild_last_missing);
         return buf;
     }
     if (m_rebuild_result_ms < 0)
