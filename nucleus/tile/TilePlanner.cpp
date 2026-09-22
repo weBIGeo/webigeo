@@ -58,15 +58,6 @@ TilePlanner::Plan TilePlanner::make(std::span<const WantedTile> wanted, const Pa
     std::vector<Outcome> outcome(wanted.size(), Outcome::Requested);
 
     // Walks up past tiles that are known to be missing, to the deepest id still worth asking for.
-    //
-    // Deliberately only skips tombstones it walks *through*, i.e. a tile is only substituted if it is
-    // itself known-missing. D4 originally said a tombstone at T means nothing below T exists either, so
-    // descendants should never be requested -- that is not true of real tile services: a 404 at a low
-    // zoom usually just means the set has a minimum zoom level (or no overview at that level), while
-    // every tile below it is served fine. Suppressing the subtree marked large, perfectly available
-    // regions as missing. Each descendant of a hole is therefore requested once and tombstoned on its
-    // own 404; the wanted list only ever contains tiles the camera is actually looking at, so the extra
-    // requests are bounded and happen once per tile, not once per frame.
     const auto substitute = [&](tile::Id id) {
         while (id.zoom_level > 0 && state_of(id).tombstone)
             id = id.parent();

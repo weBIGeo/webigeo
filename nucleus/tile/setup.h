@@ -113,8 +113,8 @@ inline TextureSchedulerHolder texture_scheduler(TileLoadServicePtr tile_service,
         auto* qa = new QuadAssembler(sch);
         // TEMP (benchmark): lift both limits so the quad chain is not throttled when compared against the DemandScheduler.
         // Defaults were 16 quads in flight and 100 quads per second. Remove these two lines to restore them.
-        sl->set_limit(1'000'000);
-        rl->set_limit(1'000'000, 1000);
+        sl->set_limit(1000000);
+        rl->set_limit(1000000, 1000);
 
         QObject::connect(sch, &Scheduler::quads_requested, sl, &SlotLimiter::request_quads);
         QObject::connect(sl, &SlotLimiter::quad_requested, rl, &RateLimiter::request_quad);

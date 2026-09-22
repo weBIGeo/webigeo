@@ -380,6 +380,8 @@ bool SlippyTileOverlayImGuiRenderer::render_demand_scheduler_section()
         return false;
 
     const auto& st = source->demand_stats();
+    const double avg_update_ms = st.total_update_calls > 0 ? st.total_update_ms / double(st.total_update_calls) : 0.0;
+    ImGui::Text("Update: %.2f ms (avg %.2f ms over %llu calls)", st.update_ms, avg_update_ms, static_cast<unsigned long long>(st.total_update_calls));
     ImGui::Text("Plan: %u wanted, %u to fetch, %u to ship", st.n_wanted, st.n_fetch_planned, st.n_ship_planned);
     ImGui::Text("Network: %u in flight, %u queued, %u backing off", st.n_in_flight, st.n_pending, st.n_backoff);
     ImGui::Text("Uploads: %u shipped, %u deferred", st.n_shipped, st.n_ship_deferred);

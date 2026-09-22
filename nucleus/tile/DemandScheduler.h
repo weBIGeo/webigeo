@@ -87,6 +87,7 @@ public:
     /// Settings::update_timeout ms.
     struct Stats {
         // this update
+        double update_ms = 0.0; // wall-clock time this update() call took
         unsigned n_wanted = 0; // distinct ids in the merged wanted list
         unsigned n_resident = 0; // GPU-resident tiles (the whole array, not just wanted ones)
         unsigned gpu_tile_limit = 0;
@@ -108,6 +109,8 @@ public:
         uint64_t total_not_found = 0; // 404s that turned into tombstones -- must stay 0 after a restart
         uint64_t total_network_errors = 0;
         uint64_t total_aborted = 0;
+        uint64_t total_update_calls = 0;
+        double total_update_ms = 0.0; // sum of update_ms over total_update_calls
         /// One entry per merged wanted id (unsorted). Lets the UI explain every row of its wanted list.
         std::vector<std::pair<tile::Id, TileStatus>> tile_status;
     };
