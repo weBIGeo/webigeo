@@ -131,6 +131,20 @@ TEST_CASE("nucleus/tile/tile planner")
         CHECK(std::find(plan.fetch.begin(), plan.fetch.end(), substitute) != plan.fetch.end());
     }
 
+    SECTION("a tombstoned root (zoom 0) is never requested again -- substitute() can't walk past it")
+    {
+        const Id root { 0, { 0, 0 } };
+        const StateMap states { { root, { .tombstone = true } } };
+        const std::vector<WantedTile> wanted = { { root, 1000 } };
+
+        const auto plan = TilePlanner::make(wanted, TilePlanner::Params {}, lookup(states));
+        CHECK(plan.fetch.empty());
+        CHECK(plan.ship.empty());
+        CHECK(plan.touch.empty());
+        REQUIRE(plan.outcome.size() == 1);
+        CHECK(plan.outcome[0] == TilePlanner::Outcome::NoData);
+    }
+
     SECTION("blocked ids are dropped from both ship and fetch, but still touched if resident")
     {
         const Id leaf { 5, { 1, 1 } };

@@ -93,6 +93,12 @@ TilePlanner::Plan TilePlanner::make(std::span<const WantedTile> wanted, const Pa
         const bool unservable = !(e == wanted_tile.id);
         if (unservable)
             outcome[i] = Outcome::NoData;
+        if (state_of(e).tombstone) {
+            // e itself is a tombstone: only possible at zoom 0, substitute() can't walk past the root.
+            // Without this, a 404'd root would be proposed and requested again every single update().
+            outcome[i] = Outcome::NoData;
+            continue;
+        }
 
         // 2. Nearest resident ancestor-or-self; this is what the shader is actually sampling right now.
         tile::Id r = e;
