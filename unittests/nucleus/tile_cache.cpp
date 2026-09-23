@@ -1,6 +1,7 @@
 /*****************************************************************************
  * AlpineMaps.org
  * Copyright (C) 2023 Adam Celarek
+ * Copyright (C) 2026 Gerald Kimmersdorfer
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -476,6 +477,44 @@ TEST_CASE("nucleus/tile/cache")
                 verify_tile(cache, {0, {0, 0}});
                 verify_tile(cache, {1, {0, 0}});
             }
+        }
+        std::filesystem::remove_all(path);
+    }
+
+    SECTION("reading fails cleanly when the blob was truncated (e.g. by a crash mid-write)")
+    {
+        const auto path = std::filesystem::path(QStandardPaths::writableLocation(QStandardPaths::CacheLocation).toStdString()) / "test_tile_cache";
+        std::filesystem::remove_all(path);
+        {
+            Cache<DiskWriteTestTile> cache;
+            cache.insert(create_test_tile({ 0, { 0, 0 } }));
+            cache.insert(create_test_tile({ 1, { 0, 0 } }));
+            CHECK(cache.write_to_disk(path).has_value());
+        }
+        std::filesystem::resize_file(path / "tile_cache.alp", 1); // simulate a crash that cut the blob short
+        {
+            Cache<DiskWriteTestTile> cache;
+            CHECK(!cache.read_from_disk(path).has_value());
+            CHECK(cache.n_cached_objects() == 0);
+        }
+        std::filesystem::remove_all(path);
+    }
+
+    SECTION("reading fails cleanly when the index was truncated (e.g. by a crash mid-write)")
+    {
+        const auto path = std::filesystem::path(QStandardPaths::writableLocation(QStandardPaths::CacheLocation).toStdString()) / "test_tile_cache";
+        std::filesystem::remove_all(path);
+        {
+            Cache<DiskWriteTestTile> cache;
+            cache.insert(create_test_tile({ 0, { 0, 0 } }));
+            cache.insert(create_test_tile({ 1, { 0, 0 } }));
+            CHECK(cache.write_to_disk(path).has_value());
+        }
+        std::filesystem::resize_file(path / "meta_info.alp", 3); // simulate a crash mid-write
+        {
+            Cache<DiskWriteTestTile> cache;
+            CHECK(!cache.read_from_disk(path).has_value());
+            CHECK(cache.n_cached_objects() == 0);
         }
         std::filesystem::remove_all(path);
     }
