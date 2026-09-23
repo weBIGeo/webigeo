@@ -19,12 +19,15 @@
 #pragma once
 
 #include "types.h"
+#include <QDebug>
 #include <QFile>
 #include <algorithm>
+#include <chrono>
 #include <filesystem>
 #include <mutex>
 #include <nucleus/utils/lang.h>
 #include <shared_mutex>
+#include <span>
 #include <tl/expected.hpp>
 #include <unordered_map>
 #include <vector>
@@ -55,6 +58,8 @@ class Cache
     struct MetaData {
         uint64_t visited;
         uint64_t created;
+        uint64_t offset; // byte offset into the blob file
+        uint64_t length; // length in bytes of this tile's serialized payload in the blob
     };
 
     struct CacheObject {
@@ -88,11 +93,7 @@ private:
                const VisitorFunction& functor,
                uint64_t visited_stamp); // must stay private or protected by mutex
 
-    static std::filesystem::path tile_path(const std::filesystem::path& base_path, const tile::Id& id)
-    {
-        std::string tile_name = std::to_string(id.zoom_level) + "_" + std::to_string(id.coords.x) + "_" + std::to_string(id.coords.y) + ".alp_tile";
-        return base_path / tile_name;
-    }
+    static std::filesystem::path blob_path(const std::filesystem::path& base_path) { return base_path / "tiles.blob"; }
 
     static std::filesystem::path meta_info_path(const std::filesystem::path& base_path)
     {
@@ -145,6 +146,7 @@ const T& Cache<T>::peak_at(const tile::Id& id) const
 
 template <NamedTile T> tl::expected<void, QString> Cache<T>::write_to_disk(const std::filesystem::path& base_path)
 {
+    const auto write_start = std::chrono::steady_clock::now();
     const auto unexpected_error = [](const auto& e) { return tl::unexpected(QString::fromStdString(std::make_error_code(e).message())); };
     static_assert(SerialisableTile<T>);
     std::filesystem::create_directories(base_path);
@@ -155,9 +157,9 @@ template <NamedTile T> tl::expected<void, QString> Cache<T>::write_to_disk(const
     }
     auto locker = std::scoped_lock(m_disk_cached_mutex);
 
-    const auto write = [](const auto& bytes, const auto& path) -> tl::expected<void, QString> {
+    const auto write = [](const auto& bytes, const auto& path, QIODeviceBase::OpenMode mode) -> tl::expected<void, QString> {
         QFile file(path);
-        const auto success = file.open(QIODeviceBase::WriteOnly);
+        const auto success = file.open(mode);
         if (!success)
             return tl::unexpected<QString>(QString("Couldn't open file '%1' for writing!").arg(QString::fromStdString(path.string())));
         file.write(bytes.data(), qint64(bytes.size()));
@@ -168,65 +170,121 @@ template <NamedTile T> tl::expected<void, QString> Cache<T>::write_to_disk(const
     std::swap(m_disk_cached, disk_cached_old);
     m_disk_cached.reserve(data.size());
 
-    // removing disk cache items, that were removed or updated in ram
-    for (const auto& item : disk_cached_old) {
-        const tile::Id& id = item.first;
-        const MetaData& meta = item.second;
-        if (data.contains(id) && data.at(id).meta.created == meta.created) {
-            continue;
-        }
-        std::filesystem::remove(tile_path(base_path, id));
-    }
+    // Decide whether it's worth rewriting the whole blob to reclaim dead space left by tiles that were
+    // removed or updated since the last persist -- judged against state as of before this call.
+    const auto blob = blob_path(base_path);
+    const uint64_t old_blob_size = std::filesystem::exists(blob) ? uint64_t(std::filesystem::file_size(blob)) : 0;
+    uint64_t old_live_bytes = 0;
+    for (const auto& item : disk_cached_old)
+        old_live_bytes += item.second.length;
+    const uint64_t dead_bytes = old_blob_size > old_live_bytes ? old_blob_size - old_live_bytes : 0;
+    const bool compact = old_live_bytes > 0 && dead_bytes > old_live_bytes; // more dead than live
 
-        // write new or updated items to disk
-        for (const auto& item : data) {
-            const tile::Id& id = item.first;
-            const CacheObject& cache_object = item.second;
-            m_disk_cached[id] = cache_object.meta;
-
-            if (disk_cached_old.contains(id) && disk_cached_old.at(id).created == cache_object.meta.created)
-                continue;
-
-            std::vector<char> bytes;
-            zpp::bits::out out(bytes);
-            const std::remove_cvref_t<decltype(T::version_information)> version = T::version_information;
+    // Serializes the given tiles into one in-memory buffer and writes them to the blob with a single
+    // write() call (instead of one per tile, which dominated the cost of the naive per-tile-write version),
+    // recording each tile's resulting offset/length in m_disk_cached.
+    const auto write_tiles_to_blob
+        = [&](const std::vector<std::pair<tile::Id, const CacheObject*>>& items, uint64_t base_offset, QIODeviceBase::OpenMode mode) -> tl::expected<uint64_t, QString> {
+        if (items.empty())
+            return uint64_t(0);
+        std::vector<char> buffer;
+        // no_fit_size: without it, zpp::bits::out shrinks the buffer to fit after every single out() call,
+        // which for repeated appends into one shared buffer turns every write into a full realloc+copy of
+        // everything written so far (O(n^2) over the tile count). We only ever read out.position(), so the
+        // buffer's trailing slack from over-allocation is harmless and never touches disk.
+        zpp::bits::out out(buffer, zpp::bits::no_fit_size {});
+        const std::remove_cvref_t<decltype(T::version_information)> version = T::version_information;
+        for (const auto& [id, cache_object] : items) {
+            const uint64_t offset = base_offset + uint64_t(out.position());
             {
                 const auto r = out(version);
                 if (failure(r))
                     return unexpected_error(r);
             }
             {
-                const auto r = out(cache_object.data);
+                const auto r = out(cache_object->data);
                 if (failure(r))
                     return unexpected_error(r);
             }
-            {
-                const auto r = write(bytes, tile_path(base_path, id));
-                if (!r.has_value())
-                    return r;
-            }
+            m_disk_cached[id] = { cache_object->meta.visited, cache_object->meta.created, offset, base_offset + uint64_t(out.position()) - offset };
         }
+        const uint64_t size = uint64_t(out.position());
+        QFile blob_file(blob);
+        if (!blob_file.open(mode))
+            return tl::unexpected<QString>(QString("Couldn't open file '%1' for writing!").arg(QString::fromStdString(blob.string())));
+        blob_file.write(buffer.data(), qint64(size));
+        return size;
+    };
 
-        std::vector<char> bytes;
-        zpp::bits::out out(bytes);
-        const std::remove_cvref_t<decltype(T::version_information)> version = T::version_information;
-        {
-            const auto r = out(version);
-            if (failure(r))
-                return unexpected_error(r);
-        }
+    if (compact) {
+        const auto compact_start = std::chrono::steady_clock::now();
 
-        {
-            const auto r = out(m_disk_cached);
-            if (failure(r))
-                return unexpected_error(r);
-        }
+        std::vector<std::pair<tile::Id, const CacheObject*>> items;
+        items.reserve(data.size());
+        for (const auto& item : data)
+            items.emplace_back(item.first, &item.second);
 
-        const auto r = write(bytes, meta_info_path(base_path));
+        const auto r = write_tiles_to_blob(items, 0, QIODeviceBase::WriteOnly); // WriteOnly truncates by default
         if (!r.has_value())
-            return r;
+            return tl::unexpected(r.error());
 
-        return {};
+        const double reclaimed_percent = old_blob_size > 0 ? 100.0 * double(old_blob_size - *r) / double(old_blob_size) : 0.0;
+        qInfo() << QString("Cache::write_to_disk(%1) compacted %2 -> %3 bytes (-%4%) for %5 tiles in %6ms.")
+                       .arg(QString::fromStdString(base_path.filename().string()))
+                       .arg(old_blob_size)
+                       .arg(*r)
+                       .arg(reclaimed_percent, 0, 'f', 1)
+                       .arg(data.size())
+                       .arg(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - compact_start).count());
+    } else {
+        std::vector<std::pair<tile::Id, const CacheObject*>> items;
+        for (const auto& item : data) {
+            const tile::Id& id = item.first;
+            const CacheObject& cache_object = item.second;
+
+            if (disk_cached_old.contains(id) && disk_cached_old.at(id).created == cache_object.meta.created) {
+                // unchanged payload: keep its existing blob location, just refresh visited/created
+                auto entry = disk_cached_old.at(id);
+                entry.visited = cache_object.meta.visited;
+                entry.created = cache_object.meta.created;
+                m_disk_cached[id] = entry;
+                continue;
+            }
+
+            items.emplace_back(id, &cache_object);
+        }
+
+        const auto r = write_tiles_to_blob(items, old_blob_size, QIODeviceBase::Append);
+        if (!r.has_value())
+            return tl::unexpected(r.error());
+    }
+
+    std::vector<char> bytes;
+    zpp::bits::out out(bytes);
+    const std::remove_cvref_t<decltype(T::version_information)> version = T::version_information;
+    {
+        const auto r = out(version);
+        if (failure(r))
+            return unexpected_error(r);
+    }
+
+    {
+        const auto r = out(m_disk_cached);
+        if (failure(r))
+            return unexpected_error(r);
+    }
+
+    const auto r = write(bytes, meta_info_path(base_path), QIODeviceBase::WriteOnly);
+    if (!r.has_value())
+        return r;
+
+    qInfo() << QString("Cache::write_to_disk(%1) wrote %2 tiles (%3) in %4ms.")
+                   .arg(QString::fromStdString(base_path.filename().string()))
+                   .arg(data.size())
+                   .arg(compact ? "compacted" : "incremental")
+                   .arg(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - write_start).count());
+
+    return {};
 }
 
 template <NamedTile T> tl::expected<void, QString> Cache<T>::read_from_disk(const std::filesystem::path& base_path)
@@ -289,19 +347,27 @@ template <NamedTile T> tl::expected<void, QString> Cache<T>::read_from_disk(cons
         }
     }
 
+    const auto blob = blob_path(base_path);
+    const auto blob_bytes = read_all(blob);
+    if (!blob_bytes.has_value()) {
+        clean_up();
+        return tl::unexpected(blob_bytes.error());
+    }
+
     for (const auto& entry : m_disk_cached) {
         const tile::Id& id = entry.first;
         const MetaData& meta = entry.second;
 
-        const auto path = tile_path(base_path, id);
-        const auto bytes = read_all(path);
-        if (!bytes.has_value()) {
+        if (meta.offset + meta.length > uint64_t(blob_bytes->size())) {
+            // Index references bytes the blob doesn't actually have -- corrupt or truncated by a crash.
             clean_up();
-            return tl::unexpected(bytes.error());
+            return tl::unexpected(QString("Tile cache blob '%1' is smaller than the index expects (corrupt or truncated).")
+                                      .arg(QString::fromStdString(blob.string())));
         }
-        zpp::bits::in in(bytes.value());
+
+        zpp::bits::in in(std::span<const char>(blob_bytes->constData() + meta.offset, size_t(meta.length)));
         {
-            const auto r = check_version(&in, path);
+            const auto r = check_version(&in, blob);
             if (!r.has_value()) {
                 clean_up();
                 return r;

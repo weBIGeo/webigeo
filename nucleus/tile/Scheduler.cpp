@@ -263,7 +263,14 @@ tl::expected<void, QString> Scheduler::read_disk_cache()
         qDebug() << error;
         return tl::unexpected(error);
     }
+    const auto start = std::chrono::steady_clock::now();
     const auto r = m_ram_cache.read_from_disk(disk_cache_path());
+    const auto diff = std::chrono::steady_clock::now() - start;
+    qInfo() << QString("Scheduler::read_disk_cache(%1) took %2ms for %3 quads.")
+                   .arg(m_name)
+                   .arg(std::chrono::duration_cast<std::chrono::milliseconds>(diff).count())
+                   .arg(m_ram_cache.n_cached_objects());
+
     if (r.has_value()) {
         QVariantMap stats;
         stats["n_quads_ram"] = m_ram_cache.n_cached_objects();
