@@ -533,7 +533,7 @@ TEST_CASE("nucleus/tile/cache")
             cache.insert(create_test_tile({ 1, { 0, 0 } }));
             CHECK(cache.write_to_disk(path).has_value());
         }
-        std::filesystem::resize_file(path / "tiles.blob", 1); // simulate a crash that cut the blob short
+        std::filesystem::resize_file(path / "tile_cache.alp", 1); // simulate a crash that cut the blob short
         {
             Cache<DiskWriteTestTile> cache;
             CHECK(!cache.read_from_disk(path).has_value());
