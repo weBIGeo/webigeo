@@ -17,12 +17,14 @@
  *****************************************************************************/
 
 #include "Context.h"
+#include "AvalancheWarningLayer.h"
 #include "MapLabels.h"
 #include "ShaderRegistry.h"
 #include "TextureLayer.h"
 #include "TileGeometry.h"
 #include "TrackManager.h"
 #include <QOpenGLContext>
+#include <QtAssert>
 
 using namespace gl_engine;
 
@@ -35,19 +37,19 @@ Context::~Context() = default;
 
 TrackManager* Context::track_manager()
 {
-    assert(is_alive());
+    Q_ASSERT(is_alive());
     return m_track_manager.get();
 }
 
 ShaderRegistry* Context::shader_registry()
 {
-    assert(is_alive());
+    Q_ASSERT(is_alive());
     return m_shader_registry.get();
 }
 
 void Context::internal_initialise()
 {
-    assert(!m_shader_registry);
+    Q_ASSERT(!m_shader_registry);
     // init of shader registry and track manager should be moved out of here for more flexibility, similar to tile_geometry
     m_shader_registry = std::make_shared<ShaderRegistry>();
     m_track_manager = std::make_shared<TrackManager>(m_shader_registry.get());
@@ -59,12 +61,20 @@ void Context::internal_initialise()
 
     if (m_ortho_layer)
         m_ortho_layer->init(m_shader_registry.get());
+
+    if (m_surfaceshaded_layer)
+        m_surfaceshaded_layer->init(m_shader_registry.get());
+
+    if (m_eaws_layer && m_surfaceshaded_layer)
+        m_eaws_layer->init(m_shader_registry.get(), m_surfaceshaded_layer);
 }
 
 void Context::internal_destroy()
 {
     // this is necessary for a clean shutdown (and we want a clean shutdown for the ci integration test).
     m_ortho_layer.reset();
+    m_surfaceshaded_layer.reset();
+    m_eaws_layer.reset();
     m_tile_geometry.reset();
     m_track_manager.reset();
     m_shader_registry.reset();
@@ -73,17 +83,33 @@ void Context::internal_destroy()
 
 TextureLayer* Context::ortho_layer() const { return m_ortho_layer.get(); }
 
-void Context::set_ortho_layer(std::shared_ptr<TextureLayer> new_ortho_layer)
+AvalancheWarningLayer* Context::eaws_layer() const { return m_eaws_layer.get(); }
+
+void Context::set_ortho_layer(std::shared_ptr<TextureLayer> new_layer)
 {
-    assert(!is_alive()); // only set before init is called.
-    m_ortho_layer = std::move(new_ortho_layer);
+    Q_ASSERT(!is_alive()); // only set before init is called.
+    m_ortho_layer = std::move(new_layer);
+}
+
+TextureLayer* Context::surfaceshaded_layer() const { return m_surfaceshaded_layer.get(); }
+
+void Context::set_surfaceshaded_layer(std::shared_ptr<TextureLayer> new_layer)
+{
+    Q_ASSERT(!is_alive()); // only set before init is called.
+    m_surfaceshaded_layer = std::move(new_layer);
+}
+
+void Context::set_eaws_layer(std::shared_ptr<AvalancheWarningLayer> new_layer)
+{
+    Q_ASSERT(!is_alive()); // only set before init is called.
+    m_eaws_layer = std::move(new_layer);
 }
 
 TileGeometry* Context::tile_geometry() const { return m_tile_geometry.get(); }
 
 void Context::set_tile_geometry(std::shared_ptr<TileGeometry> new_tile_geometry)
 {
-    assert(!is_alive()); // only set before init is called.
+    Q_ASSERT(!is_alive()); // only set before init is called.
     m_tile_geometry = std::move(new_tile_geometry);
 }
 
@@ -91,6 +117,6 @@ gl_engine::MapLabels* Context::map_label_manager() const { return m_map_label_ma
 
 void Context::set_map_label_manager(std::shared_ptr<gl_engine::MapLabels> new_map_label_manager)
 {
-    assert(!is_alive()); // only set before init is called.
+    Q_ASSERT(!is_alive()); // only set before init is called.
     m_map_label_manager = std::move(new_map_label_manager);
 }

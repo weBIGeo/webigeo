@@ -23,6 +23,7 @@
 #include "Texture.h"
 #include "TileGeometry.h"
 #include <QOpenGLExtraFunctions>
+#include <QtAssert>
 
 namespace gl_engine {
 
@@ -55,8 +56,8 @@ void TextureLayer::draw(
     m_texture_array->bind(2);
     m_shader->set_uniform("texture_sampler", 2);
 
-    nucleus::Raster<uint8_t> zoom_level_raster = { glm::uvec2 { 1024, 1 } };
-    nucleus::Raster<uint16_t> array_index_raster = { glm::uvec2 { 1024, 1 } };
+    radix::Raster<uint8_t> zoom_level_raster(glm::uvec2 { 1024, 1 });
+    radix::Raster<uint16_t> array_index_raster(glm::uvec2 { 1024, 1 });
     for (unsigned i = 0; i < std::min(unsigned(draw_list.size()), 1024u); ++i) {
         const auto layer = m_gpu_array_helper.layer(draw_list[i].id);
         zoom_level_raster.pixel({ i, 0 }) = layer.id.zoom_level;
@@ -86,8 +87,8 @@ void TextureLayer::update_gpu_tiles(const std::vector<nucleus::tile::Id>& delete
     }
     for (const auto& tile : new_tiles) {
         // test for validity
-        assert(tile.id.zoom_level < 100);
-        assert(tile.texture);
+        Q_ASSERT(tile.id.zoom_level < 100);
+        Q_ASSERT(tile.texture);
 
         // find empty spot and upload texture
         const auto layer_index = m_gpu_array_helper.add_tile(tile.id);
@@ -97,8 +98,8 @@ void TextureLayer::update_gpu_tiles(const std::vector<nucleus::tile::Id>& delete
 
 void TextureLayer::set_tile_limit(unsigned int new_limit)
 {
-    assert(new_limit < 2048); // array textures with size > 2048 are not supported on all devices
-    assert(!m_texture_array);
+    Q_ASSERT(new_limit < 2048); // array textures with size > 2048 are not supported on all devices
+    Q_ASSERT(!m_texture_array);
     m_gpu_array_helper.set_tile_limit(new_limit);
 }
 

@@ -21,13 +21,10 @@
 #include <QByteArray>
 
 #include <nucleus/utils/ColourTexture.h>
+#include <nucleus/utils/ColourTexture3D.h>
 #include <nucleus/utils/lang.h>
 #include <radix/tile.h>
 
-namespace nucleus {
-template <typename T>
-class Raster;
-}
 namespace nucleus::tile {
 using namespace radix::tile;
 
@@ -43,14 +40,14 @@ struct NetworkInfo {
     template <typename... Ts>
     static NetworkInfo join(const Ts&... infos)
     {
-        const auto info_array = std::array<NetworkInfo, sizeof...(Ts)>{infos...};
+        const auto info_array = std::array<NetworkInfo, sizeof...(Ts)> { infos... };
         Status status = Status::Good;
         uint64_t timestamp = std::numeric_limits<uint64_t>::max();
         for (const auto& i : info_array) {
             status = std::max(status, i.status);
             timestamp = std::min(timestamp, i.timestamp);
         }
-        return {status, timestamp};
+        return { status, timestamp };
     }
 };
 
@@ -60,9 +57,8 @@ concept NamedTile = requires(T t) {
 };
 
 template <typename T>
-concept SerialisableTile = requires(T t) {
-    requires std::is_same<std::remove_reference_t<decltype(T::version_information)>, const std::array<char, 25>>::value;
-};
+concept SerialisableTile
+    = requires(T t) { requires std::is_same<std::remove_reference_t<decltype(T::version_information)>, const std::array<char, 25>>::value; };
 
 struct Data {
     tile::Id id;
@@ -92,16 +88,35 @@ struct GpuTextureTile {
 };
 static_assert(NamedTile<GpuTextureTile>);
 
+struct GpuEawsTile {
+    tile::Id id;
+    std::shared_ptr<const radix::Raster<glm::uint16>> texture;
+};
+static_assert(NamedTile<GpuEawsTile>);
+
+struct GpuTexture3DTile {
+    tile::Id id;
+    std::shared_ptr<const nucleus::utils::MipmappedColourTexture3D> texture;
+};
+static_assert(NamedTile<GpuTexture3DTile>);
+
 struct TileBounds {
     tile::Id id;
     tile::SrsAndHeightBounds bounds = {};
 };
 
+struct GpuEawsQuad {
+    tile::Id id;
+    std::array<GpuEawsTile, 4> tiles;
+};
+
+static_assert(NamedTile<GpuEawsQuad>);
+
 struct GpuGeometryTile {
     tile::Id id;
     tile::SrsAndHeightBounds bounds = {};
-    std::shared_ptr<const nucleus::Raster<uint16_t>> surface;
+    std::shared_ptr<const radix::Raster<uint16_t>> surface;
 };
 static_assert(NamedTile<GpuGeometryTile>);
 
-} // namespace nucleus::tile::tile_types
+} // namespace nucleus::tile

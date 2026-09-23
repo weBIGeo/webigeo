@@ -21,6 +21,11 @@
 #include "nucleus/track/Manager.h"
 #include <QObject>
 
+#ifdef __EMSCRIPTEN__
+class TrackModel;
+extern "C" void alpine_app_track_file_ready(TrackModel* track_model);
+#endif
+
 class TrackModel : public QObject {
     Q_OBJECT
 public:
@@ -40,12 +45,19 @@ public slots:
 
 signals:
     void tracks_changed(const QVector<nucleus::track::Gpx>& tracks);
+    void track_added(const QPointF& position);
 
     void display_width_changed(float display_width);
 
     void shading_style_changed(unsigned int shading_style);
 
 private:
+#ifdef __EMSCRIPTEN__
+    friend void alpine_app_track_file_ready(TrackModel* track_model);
+    void finish_wasm_upload();
+#endif
+    void add_track(const QString& file_name, const QByteArray& file_content);
+
     QVector<nucleus::track::Gpx> m_data;
 
     float m_display_width = 7.f;

@@ -20,14 +20,14 @@
 #pragma once
 
 #include <QByteArray>
-#include <nucleus/Raster.h>
-#include <tl/expected.hpp>
+#include <expected>
+#include <radix/raster.h>
 
 namespace nucleus::utils::image_loader {
 
-tl::expected<Raster<glm::u8vec4>, QString> rgba8(const QByteArray& byteArray);
+std::expected<radix::Raster<glm::u8vec4>, QString> rgba8(const QByteArray& byteArray);
 
-tl::expected<Raster<glm::u8vec4>, QString> rgba8(const QString& filename);
-tl::expected<Raster<glm::u8vec4>, QString> rgba8(const char* filename);
+std::expected<radix::Raster<glm::u8vec4>, QString> rgba8(const QString& filename);
+std::expected<radix::Raster<glm::u8vec4>, QString> rgba8(const char* filename);
 
 } // namespace nucleus::utils::image_loader

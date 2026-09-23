@@ -51,6 +51,14 @@ tile::Id world_xy_to_tile_id(const glm::dvec2& world_xy, unsigned int zoomlevel)
     return { zoomlevel, glm::uvec2(tile_coords) };
 }
 
+glm::dvec2 tile_id_to_world_xy(const glm::uvec2& coords, unsigned int zoomlevel)
+{
+    const auto width_of_a_tile = tile_width(zoomlevel);
+    const auto height_of_a_tile = tile_height(zoomlevel);
+    glm::dvec2 absolute_min = { -cOriginShift, -cOriginShift };
+    return absolute_min + glm::dvec2 { coords.x * width_of_a_tile, coords.y * height_of_a_tile };
+}
+
 glm::dvec2 world_xy_to_tile_uv(const glm::dvec2& world_xy, unsigned int zoomlevel)
 {
     const double width_of_a_tile = cEarthCircumference / number_of_horizontal_tiles_for_zoom_level(zoomlevel);
@@ -126,6 +134,10 @@ uint16_t hash_uint16(const tile::Id& id)
 
 glm::vec<2, uint32_t> pack(const tile::Id& id)
 {
+    Q_ASSERT(id.zoom_level <= 29);
+    Q_ASSERT(id.coords.x < (uint32_t { 1 } << id.zoom_level));
+    Q_ASSERT(id.coords.y < (uint32_t { 1 } << id.zoom_level));
+
     uint32_t a = id.zoom_level << (32 - 5);
     a = a | (id.coords.x >> 3);
     uint32_t b = id.coords.x << (32 - 3);

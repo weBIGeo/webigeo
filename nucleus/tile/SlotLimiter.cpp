@@ -18,6 +18,8 @@
 
 #include "SlotLimiter.h"
 
+#include <QtAssert>
+
 using namespace nucleus::tile;
 
 SlotLimiter::SlotLimiter(QObject* parent)
@@ -27,7 +29,7 @@ SlotLimiter::SlotLimiter(QObject* parent)
 
 void SlotLimiter::set_limit(unsigned new_limit)
 {
-    assert(new_limit > 0);
+    Q_ASSERT(new_limit > 0);
     m_limit = new_limit;
 }
 

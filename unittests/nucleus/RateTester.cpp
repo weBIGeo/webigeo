@@ -16,6 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *****************************************************************************/
 
+#include <QtAssert>
+
 #include <chrono>
 
 #include <catch2/catch_test_macros.hpp>
@@ -37,7 +39,7 @@ RateTester::~RateTester()
         unsigned n_events_in_time_frame = 1;
         const auto event_time = *i;
         for (auto j = std::reverse_iterator<decltype(i)>(i); j != m_events.rend(); j++) {
-            assert(*j <= event_time);
+            Q_ASSERT(*j <= event_time);
             if (event_time - *j < m_period * 1'000ll)
                 ++n_events_in_time_frame;
             else

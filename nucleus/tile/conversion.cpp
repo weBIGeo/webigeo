@@ -21,9 +21,9 @@
 
 namespace nucleus::tile::conversion {
 
-Raster<uint16_t> to_u16raster(const Raster<glm::u8vec4>& raster)
+radix::Raster<uint16_t> to_u16raster(const radix::Raster<glm::u8vec4>& raster)
 {
-    Raster<uint16_t> retval(raster.size());
+    radix::Raster<uint16_t> retval(raster.size());
     std::transform(raster.begin(), raster.end(), retval.begin(), [](const glm::u8vec4& rgba) {
         return uint16_t(rgba.x) << 8 | uint16_t(rgba.y);
     });

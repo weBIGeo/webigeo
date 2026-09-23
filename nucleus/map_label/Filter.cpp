@@ -19,6 +19,7 @@
 
 #include "Filter.h"
 #include <QVariant>
+#include <QtAssert>
 
 namespace nucleus::map_label {
 
@@ -61,10 +62,10 @@ void Filter::update_quads(const std::vector<vector_tile::PoiTile>& updated_tiles
     }
 
     for (const auto& tile : updated_tiles) {
-        assert(tile.data);
-        assert(tile.id.zoom_level < 100);
-        assert(!m_all_pois.contains(tile.id));
-        assert(std::find(removed_tiles.cbegin(), removed_tiles.cend(), tile.id) == removed_tiles.cend());
+        Q_ASSERT(tile.data);
+        Q_ASSERT(tile.id.zoom_level < 100);
+        Q_ASSERT(!m_all_pois.contains(tile.id));
+        Q_ASSERT(std::find(removed_tiles.cbegin(), removed_tiles.cend(), tile.id) == removed_tiles.cend());
 
         m_tiles_to_filter.push(tile.id);
         m_all_pois[tile.id] = tile.data;
@@ -111,7 +112,7 @@ PointOfInterestCollection Filter::apply_filter(const PointOfInterestCollection& 
                 return false;
             return true;
         }
-        assert(false);
+        Q_ASSERT(false);
         return true;
     });
     return filtered_pois;

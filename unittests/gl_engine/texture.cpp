@@ -17,6 +17,7 @@
  *****************************************************************************/
 
 #include <QPainter>
+#include <QtAssert>
 #include <catch2/catch_test_macros.hpp>
 
 #include "UnittestGLContext.h"
@@ -75,11 +76,11 @@ QString texel_component_float(const glm::vec<length, Type>& texel, int i)
     return "0.0";
 };
 
-template <typename Type>
-QString texel_component_float(const Type& texel, int)
-{
-    return QString("float(%1)").arg(texel);
-};
+// template <typename Type>
+// QString texel_component_float(const Type& texel, int)
+// {
+//     return QString("float(%1)").arg(texel);
+// };
 
 template <int length, typename Type, typename TexelType = glm::vec<length, Type>>
 void test_unsigned_texture_with(const TexelType& texel_value, gl_engine::Texture::Format format)
@@ -87,7 +88,7 @@ void test_unsigned_texture_with(const TexelType& texel_value, gl_engine::Texture
     Framebuffer b(Framebuffer::DepthFormat::None, { Framebuffer::ColourFormat::RGBA8 }, { 1, 1 });
     b.bind();
 
-    const auto tex = nucleus::Raster<TexelType>({ 1, 1 }, texel_value);
+    const auto tex = radix::Raster<TexelType>({ 1, 1 }, texel_value);
     gl_engine::Texture opengl_texture(gl_engine::Texture::Target::_2d, format);
     opengl_texture.bind(0);
     opengl_texture.setParams(gl_engine::Texture::Filter::Nearest, gl_engine::Texture::Filter::Nearest);
@@ -100,7 +101,7 @@ void test_unsigned_texture_with(const TexelType& texel_value, gl_engine::Texture
             return "mediump";
         if (sizeof(Type) == 4)
             return "highp";
-        assert(false);
+        Q_ASSERT(false);
         return "Type has unexpected size";
     };
 
@@ -139,7 +140,7 @@ void test_float_texture_with(const TexelType& texel_value, gl_engine::Texture::F
     Framebuffer b(Framebuffer::DepthFormat::None, { Framebuffer::ColourFormat::RGBA8 }, { 1, 1 });
     b.bind();
 
-    const auto tex = nucleus::Raster<TexelType>({ 1, 1 }, texel_value);
+    const auto tex = radix::Raster<TexelType>({ 1, 1 }, texel_value);
     gl_engine::Texture opengl_texture(gl_engine::Texture::Target::_2d, format);
     opengl_texture.bind(0);
     opengl_texture.setParams(gl_engine::Texture::Filter::Nearest, gl_engine::Texture::Filter::Nearest);
@@ -174,6 +175,85 @@ void test_float_texture_with(const TexelType& texel_value, gl_engine::Texture::F
     CHECK(qAlpha(render_result.pixel(0, 0)) == 126);
 }
 
+template <int length, typename Type, typename TexelType = glm::vec<length, Type>>
+void test_unsigned_texture_array_with(const std::array<TexelType, 2>& texel_value, gl_engine::Texture::Format format)
+{
+    Framebuffer b(Framebuffer::DepthFormat::None, { Framebuffer::ColourFormat::RGBA8, Framebuffer::ColourFormat::RGBA8 }, { 1, 1 });
+
+    b.bind();
+
+    gl_engine::Texture opengl_texture(gl_engine::Texture::Target::_2dArray, format);
+    opengl_texture.setParams(gl_engine::Texture::Filter::Nearest, gl_engine::Texture::Filter::Nearest);
+    opengl_texture.allocate_array(1, 1, 2);
+
+    const auto tex0 = radix::Raster<TexelType>({ 1, 1 }, texel_value[0]);
+    const auto tex1 = radix::Raster<TexelType>({ 1, 1 }, texel_value[1]);
+    opengl_texture.upload(tex0, 0);
+    opengl_texture.upload(tex1, 1);
+
+    const auto precision = []() -> QString {
+        if (sizeof(Type) == 1)
+            return "lowp";
+        if (sizeof(Type) == 2)
+            return "mediump";
+        if (sizeof(Type) == 4)
+            return "highp";
+        Q_ASSERT(false);
+        return "Type has unexpected size";
+    };
+
+    ShaderProgram shader = create_debug_shader(QString(R"(
+            uniform %1 usampler2DArray texture_sampler;
+            layout (location = 0) out lowp vec4 out_color0;
+            layout (location = 1) out lowp vec4 out_color1;
+            void main() {
+                %1 uvec4 v0 = texelFetch(texture_sampler, ivec3(0, 0, 0), 0);
+                out_color0 = vec4((v0.r == %2) ? 123.0 / 255.0 : 9.0 / 255.0,
+                                 (%10 < 2 || v0.g == %3) ? 124.0 / 255.0 : 9.0 / 255.0,
+                                 (%10 < 3 || v0.b == %4) ? 125.0 / 255.0 : 9.0 / 255.0,
+                                 (%10 < 4 || v0.a == %5) ? 126.0 / 255.0 : 9.0 / 255.0);
+
+                %1 uvec4 v1 = texelFetch(texture_sampler, ivec3(0, 0, 1), 0);
+                out_color1 = vec4((v1.r == %6) ? 127.0 / 255.0 : 9.0 / 255.0,
+                                 (%10 < 2 || v1.g == %7) ? 128.0 / 255.0 : 9.0 / 255.0,
+                                 (%10 < 3 || v1.b == %8) ? 129.0 / 255.0 : 9.0 / 255.0,
+                                 (%10 < 4 || v1.a == %9) ? 130.0 / 255.0 : 9.0 / 255.0);
+            }
+        )")
+            .arg(precision())
+            .arg(texel_component(texel_value[0], 0))
+            .arg(texel_component(texel_value[0], 1))
+            .arg(texel_component(texel_value[0], 2))
+            .arg(texel_component(texel_value[0], 3))
+            .arg(texel_component(texel_value[1], 0))
+            .arg(texel_component(texel_value[1], 1))
+            .arg(texel_component(texel_value[1], 2))
+            .arg(texel_component(texel_value[1], 3))
+            .arg(length));
+    shader.bind();
+    opengl_texture.bind(0);
+    shader.set_uniform("texture_sampler", 0);
+    gl_engine::helpers::create_screen_quad_geometry().draw();
+
+    // render_result.save("render_result.png");
+    {
+        const QImage render_result = b.read_colour_attachment(0);
+        CHECK(qRed(render_result.pixel(0, 0)) == 123);
+        CHECK(qGreen(render_result.pixel(0, 0)) == 124);
+        CHECK(qBlue(render_result.pixel(0, 0)) == 125);
+        CHECK(qAlpha(render_result.pixel(0, 0)) == 126);
+    }
+    {
+        const QImage render_result = b.read_colour_attachment(1);
+        CHECK(qRed(render_result.pixel(0, 0)) == 127);
+        CHECK(qGreen(render_result.pixel(0, 0)) == 128);
+        CHECK(qBlue(render_result.pixel(0, 0)) == 129);
+        CHECK(qAlpha(render_result.pixel(0, 0)) == 130);
+    }
+
+    Framebuffer::unbind();
+}
+
 QImage create_test_rgba_qimage(unsigned width, unsigned height)
 {
     QImage test_texture(width, height, QImage::Format_RGBA8888);
@@ -195,7 +275,7 @@ QImage create_test_rgba_qimage(unsigned width, unsigned height)
     }
     return test_texture;
 }
-nucleus::Raster<glm::u8vec4> create_test_rgba_raster(unsigned width, unsigned height) { return nucleus::tile::conversion::to_rgba8raster(create_test_rgba_qimage(width, height)); }
+radix::Raster<glm::u8vec4> create_test_rgba_raster(unsigned width, unsigned height) { return nucleus::tile::conversion::to_rgba8raster(create_test_rgba_qimage(width, height)); }
 
 } // namespace
 
@@ -338,7 +418,7 @@ TEST_CASE("gl texture")
         Framebuffer b(Framebuffer::DepthFormat::None, { Framebuffer::ColourFormat::RGBA8 }, { 1, 1 });
         b.bind();
 
-        const auto tex = nucleus::Raster<glm::u8vec2>({ 1, 1 }, glm::u8vec2(240, 120));
+        const auto tex = radix::Raster<glm::u8vec2>({ 1, 1 }, glm::u8vec2(240, 120));
         gl_engine::Texture opengl_texture(gl_engine::Texture::Target::_2d, gl_engine::Texture::Format::RG8);
         opengl_texture.bind(0);
         opengl_texture.setParams(gl_engine::Texture::Filter::Linear, gl_engine::Texture::Filter::Linear);
@@ -360,8 +440,15 @@ TEST_CASE("gl texture")
     SECTION("rgba8ui") { test_unsigned_texture_with<4, unsigned char>({ 1, 2, 255, 140 }, gl_engine::Texture::Format::RGBA8UI); }
     SECTION("rg32ui") { test_unsigned_texture_with<2, uint32_t>({ 3000111222, 4000111222 }, gl_engine::Texture::Format::RG32UI); }
     SECTION("red8ui") { test_unsigned_texture_with<1, uint8_t, uint8_t>(uint8_t(178), gl_engine::Texture::Format::R8UI); }
+    SECTION("rgb32ui") { test_unsigned_texture_with<3, uint32_t>({ 3000111222, 4000111222, 2500111222 }, gl_engine::Texture::Format::RGB32UI); }
     SECTION("red16ui") { test_unsigned_texture_with<1, uint16_t, uint16_t>(uint16_t(60123), gl_engine::Texture::Format::R16UI); }
     SECTION("red32ui") { test_unsigned_texture_with<1, uint32_t, uint32_t>(uint32_t(4000111222), gl_engine::Texture::Format::R32UI); }
+    SECTION("r32ui_array") { test_unsigned_texture_array_with<1, uint32_t, uint32_t>({ uint32_t { 3000111222 }, uint32_t { 3000114422 } }, gl_engine::Texture::Format::R32UI); }
+    SECTION("rg32ui_array") { test_unsigned_texture_array_with<2, uint32_t>({ glm::uvec2 { 3000111222, 4000111222 }, glm::uvec2 { 3000114422, 4000114422 } }, gl_engine::Texture::Format::RG32UI); }
+    SECTION("rgb32ui_array")
+    {
+        test_unsigned_texture_array_with<3, uint32_t>({ glm::uvec3 { 3000111222, 4000111222, 2500111222 }, glm::uvec3 { 3000114422, 4000114422, 2500114422 } }, gl_engine::Texture::Format::RGB32UI);
+    }
 
     SECTION("rgba32f") { test_float_texture_with<4, float, glm::vec4>(glm::vec4(2.0, 0.0, 234012.0, -239093.0), gl_engine::Texture::Format::RGBA32F); }
 
@@ -398,14 +485,14 @@ TEST_CASE("gl texture")
                     opengl_texture.upload(ColourTexture(test_raster, texture_type.first), 0);
             }
             {
-                auto test_raster = nucleus::Raster<glm::u8vec4>(glm::uvec2(256), glm::u8vec4(42,142,242,255));
+                auto test_raster = radix::Raster<glm::u8vec4>(glm::uvec2(256), glm::u8vec4(42,142,242,255));
                 if (use_mipmaps)
                     opengl_texture.upload(generate_mipmapped_colour_texture(test_raster, texture_type.first), 1);
                 else
                     opengl_texture.upload(ColourTexture(test_raster, texture_type.first), 1);
             }
             {
-                auto test_raster = nucleus::Raster<glm::u8vec4>(glm::uvec2(256), glm::u8vec4(222,111,0,255));
+                auto test_raster = radix::Raster<glm::u8vec4>(glm::uvec2(256), glm::u8vec4(222,111,0,255));
                 if (use_mipmaps)
                     opengl_texture.upload(generate_mipmapped_colour_texture(test_raster, texture_type.first), 2);
                 else
@@ -477,8 +564,8 @@ TEST_CASE("gl texture")
         gl_engine::Texture opengl_texture(gl_engine::Texture::Target::_2dArray, gl_engine::Texture::Format::R16UI);
         opengl_texture.allocate_array(1, 1, 2);
         opengl_texture.setParams(gl_engine::Texture::Filter::Nearest, gl_engine::Texture::Filter::Nearest);
-        opengl_texture.upload(nucleus::Raster<uint16_t>({ 1, 1 }, uint16_t((120 * 65535) / 255)), 0);
-        opengl_texture.upload(nucleus::Raster<uint16_t>({ 1, 1 }, uint16_t((190 * 65535) / 255)), 1);
+        opengl_texture.upload(radix::Raster<uint16_t>({ 1, 1 }, uint16_t((120 * 65535) / 255)), 0);
+        opengl_texture.upload(radix::Raster<uint16_t>({ 1, 1 }, uint16_t((190 * 65535) / 255)), 1);
 
         ShaderProgram shader = create_debug_shader(R"(
             uniform mediump usampler2DArray texture_sampler;
@@ -527,8 +614,8 @@ TEST_CASE("gl texture")
         gl_engine::Texture opengl_texture(gl_engine::Texture::Target::_2dArray, gl_engine::Texture::Format::R8UI);
         opengl_texture.allocate_array(1, 1, 2);
         opengl_texture.setParams(gl_engine::Texture::Filter::Nearest, gl_engine::Texture::Filter::Nearest);
-        opengl_texture.upload(nucleus::Raster<uint8_t>({ 1, 1 }, uint8_t(120)), 0);
-        opengl_texture.upload(nucleus::Raster<uint8_t>({ 1, 1 }, uint8_t(190)), 1);
+        opengl_texture.upload(radix::Raster<uint8_t>({ 1, 1 }, uint8_t(120)), 0);
+        opengl_texture.upload(radix::Raster<uint8_t>({ 1, 1 }, uint8_t(190)), 1);
 
         ShaderProgram shader = create_debug_shader(R"(
             uniform mediump usampler2DArray texture_sampler;

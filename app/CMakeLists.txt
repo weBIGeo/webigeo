@@ -43,6 +43,11 @@ qt_add_qml_module(alpineapp
         icons/menu.png
         icons/search.png
         icons/icon.png
+        icons/eaws/eaws_menu.png
+        icons/eaws/eaws_report.png
+        icons/eaws/risk_level.png
+        icons/eaws/slope_angle.png
+        icons/eaws/stop_or_go.png
         icons/material/monitoring.png
         icons/material/3d_rotation.png
         icons/material/map.png
@@ -65,6 +70,10 @@ qt_add_qml_module(alpineapp
         icons/logo_type_horizontal.png
         icons/logo_type_vertical.png
         icons/logo_type_horizontal_short.png
+        eaws/banner_eaws_report.png
+        eaws/banner_risk_level.png
+        eaws/banner_slope_angle.png
+        eaws/banner_stop_or_go.png
     QML_FILES
         Main.qml
         About.qml
@@ -102,7 +111,8 @@ qt_add_qml_module(alpineapp
         picker/Default.qml
         picker/PoiAlpineHut.qml
         picker/PoiSettlement.qml
-        SOURCES TileStatistics.h TileStatistics.cpp
+    SOURCES
+        TileStatistics.h TileStatistics.cpp
 )
 
 qt_add_resources(alpineapp "fonts"
@@ -129,6 +139,7 @@ set_target_properties(alpineapp PROPERTIES
     QT_ANDROID_VERSION_CODE "${ALP_VERSION_INTEGER}"
 )
 target_link_libraries(alpineapp PUBLIC gl_engine Qt::Quick Qt::QuickControls2)
+alp_configure_target(alpineapp)
 
 if (ALP_ENABLE_QML_HOT_RELOAD)
     message(WARNING "building alpine app with qml-hot-reload. It'll slow incremental building due to a fix for hotreload.")
@@ -188,19 +199,19 @@ if (ANDROID)
 endif()
 
 if (EMSCRIPTEN)
-    target_link_options(alpineapp PUBLIC -sASYNCIFY)
-
-    set(ALP_INSTALL_FILES
-        "$<TARGET_FILE_DIR:alpineapp>/alpineapp.js"
-        "$<TARGET_FILE_DIR:alpineapp>/alpineapp.wasm"
-        "$<TARGET_FILE_DIR:alpineapp>/alpineapp.html"
-        "$<TARGET_FILE_DIR:alpineapp>/qtloader.js"
+    install(
+        FILES
+            "$<TARGET_FILE_DIR:alpineapp>/alpineapp.js"
+            "$<TARGET_FILE_DIR:alpineapp>/alpineapp.wasm"
+            "$<TARGET_FILE_DIR:alpineapp>/qtloader.js"
+            "${CMAKE_CURRENT_SOURCE_DIR}/shell/alpineapp.html"
+            "${CMAKE_CURRENT_SOURCE_DIR}/icons/logo_vertical_light_bg.png"
+        DESTINATION
+            "${ALP_WWW_INSTALL_DIR}/alpineapp")
+    install(FILES "$<TARGET_FILE_DIR:alpineapp>/alpineapp.worker.js"
+        DESTINATION "${ALP_WWW_INSTALL_DIR}/alpineapp"
+        OPTIONAL
     )
-
-    if (ALP_ENABLE_THREADING)
-        list(APPEND ALP_INSTALL_FILES "$<TARGET_FILE_DIR:alpineapp>/alpineapp.worker.js")
-    endif()
-    install(FILES ${ALP_INSTALL_FILES} DESTINATION ${ALP_WWW_INSTALL_DIR})
 else()
     find_package(Qt6 REQUIRED COMPONENTS Widgets)
     target_link_libraries(alpineapp PUBLIC Qt::Widgets)

@@ -22,7 +22,8 @@
 #include <glm/glm.hpp>
 
 #include <QByteArray>
-#include <nucleus/Raster.h>
+#include <QtAssert>
+#include <radix/raster.h>
 
 #ifdef QT_GUI_LIB
 #include <QImage>
@@ -33,19 +34,19 @@ namespace nucleus::tile::conversion {
 /**
  * @brief Converts an RGBA8 raster to a uint16_t raster by packing the rg channels. ba are ignored.
  */
-Raster<uint16_t> to_u16raster(const Raster<glm::u8vec4>& raster);
+radix::Raster<uint16_t> to_u16raster(const radix::Raster<glm::u8vec4>& raster);
 
 #ifdef QT_GUI_LIB
-inline Raster<uint16_t> qimage_to_u16raster(const QImage& qimage)
+inline radix::Raster<uint16_t> qimage_to_u16raster(const QImage& qimage)
 {
     if (qimage.format() != QImage::Format_ARGB32 && qimage.format() != QImage::Format_RGB32) {
         // let's hope that the format is always ARGB32
         // if not, please implement the conversion, that'll give better performance.
         // the assert will be disabled in release, just as a backup.
-        assert(false);
+        Q_ASSERT(false);
         return qimage_to_u16raster(qimage.convertedTo(QImage::Format_ARGB32));
     }
-    Raster<uint16_t> raster({ qimage.width(), qimage.height() });
+    radix::Raster<uint16_t> raster({ qimage.width(), qimage.height() });
 
     const auto* image_pointer = reinterpret_cast<const uint32_t*>(qimage.constBits());
     for (uint16_t& r : raster) {
@@ -55,17 +56,17 @@ inline Raster<uint16_t> qimage_to_u16raster(const QImage& qimage)
     return raster;
 }
 
-inline nucleus::Raster<glm::u8vec4> to_rgba8raster(const QImage& image)
+inline radix::Raster<glm::u8vec4> to_rgba8raster(const QImage& image)
 {
     if (image.format() != QImage::Format_RGBA8888) {
         // let's hope that the format is always Format_ARGB32
         // if not, please implement the conversion, that'll give better performance.
         // the assert will be disabled in release, just as a backup.
-        assert(false);
+        Q_ASSERT(false);
         return to_rgba8raster(image.convertedTo(QImage::Format_RGBA8888));
     }
 
-    nucleus::Raster<glm::u8vec4> raster({ image.width(), image.height() });
+    radix::Raster<glm::u8vec4> raster({ image.width(), image.height() });
 
     // const auto* image_pointer = reinterpret_cast<const uint32_t*>(image.constBits());
     // for (glm::u8vec4& v : raster) {
@@ -79,9 +80,9 @@ inline nucleus::Raster<glm::u8vec4> to_rgba8raster(const QImage& image)
     return raster;
 }
 
-[[nodiscard]] inline QImage to_QImage(const nucleus::Raster<glm::u8vec4>& raster)
+[[nodiscard]] inline QImage to_QImage(const radix::Raster<glm::u8vec4>& raster)
 {
-    // assert(m_data.size() == m_width * m_height * 4); // Ensure the data is RGBA8
+    // Q_ASSERT(m_data.size() == m_width * m_height * 4); // Ensure the data is RGBA8
     QImage image(raster.width(), raster.height(), QImage::Format_RGBA8888);
     memcpy(image.bits(), raster.data(), raster.size_in_bytes());
     return image;
@@ -115,4 +116,40 @@ inline glm::u8vec4 uint162alpineRGBA(uint16_t v)
 {
     return { v >> 8, v & 255, 0, 255 };
 }
+
+#ifdef QT_GUI_LIB
+inline QImage u8raster_to_qimage(const radix::Raster<uint8_t>& raster)
+{
+    size_t width = raster.width();
+    size_t height = raster.height();
+
+    QImage image(width, height, QImage::Format_Grayscale8);
+
+    for (size_t y = 0; y < height; ++y) {
+        uchar* line = image.scanLine(y);
+        for (size_t x = 0; x < width; ++x) {
+            line[x] = raster.pixel({ x, y });
+        }
+    }
+
+    return image;
+}
+
+inline QImage u8raster_2_to_qimage(const radix::Raster<uint8_t>& raster1, const radix::Raster<uint8_t>& raster2)
+{
+    size_t width = raster1.width();
+    size_t height = raster1.height();
+
+    QImage image(width, height, QImage::Format_RGB888);
+
+    for (size_t y = 0; y < height; ++y) {
+        for (size_t x = 0; x < width; ++x) {
+            image.setPixel(QPoint(x, y), (raster1.pixel({ x, y }) << 16) + (raster2.pixel({ x, y }) << 8));
+        }
+    }
+
+    return image;
+}
+#endif
+
 } // namespace nucleus::tile::conversion

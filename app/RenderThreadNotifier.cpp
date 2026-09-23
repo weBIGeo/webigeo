@@ -22,6 +22,7 @@
 #include <QQuickWindow>
 #include <QRunnable>
 #include <QThread>
+#include <QtAssert>
 
 RenderThreadNotifier::RenderThreadNotifier(QObject *parent)
     : QObject{parent}
@@ -41,8 +42,8 @@ RenderThreadNotifier* RenderThreadNotifier::instance()
 
 void RenderThreadNotifier::set_root_window(QQuickWindow* root_window)
 {
-    assert(m_root_window == nullptr);
-    assert(root_window);
+    Q_ASSERT(m_root_window == nullptr);
+    Q_ASSERT(root_window);
     m_root_window = root_window;
 }
 
@@ -53,8 +54,8 @@ void RenderThreadNotifier::notify()
 #ifndef __EMSCRIPTEN__
     if (QThread::currentThread() != QCoreApplication::instance()->thread())
         qDebug() << "RenderThreadNotifier::notify() current thread: " << QThread::currentThread() << "  this.thread: " << this->thread();
-    assert(QThread::currentThread() == QCoreApplication::instance()->thread());
-    assert(m_root_window != nullptr);
+    Q_ASSERT(QThread::currentThread() == QCoreApplication::instance()->thread());
+    Q_ASSERT(m_root_window != nullptr);
 
     auto* runnable = QRunnable::create([]() {
         // qDebug() << "QCoreApplication::processEvents called on: " << QThread::currentThread() << "(" << QThread::currentThread()->objectName() << ")";

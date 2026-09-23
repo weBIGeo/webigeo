@@ -20,6 +20,7 @@
 #include <QFile>
 #include <QImage>
 #include <QThread>
+#include <QtAssert>
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -60,7 +61,7 @@ TEST_CASE("tile/utils/refine_functor")
 
     QFile file(":/map/height_data.atb");
     const auto open = file.open(QIODeviceBase::OpenModeFlag::ReadOnly);
-    assert(open);
+    Q_ASSERT(open);
     Q_UNUSED(open);
     const QByteArray data = file.readAll();
     const auto decorator = AabbDecorator::make(radix::TileHeights::deserialise(data));
@@ -94,7 +95,7 @@ TEST_CASE("tile/utils/camera_frustum_contains_tile")
     using nucleus::tile::utils::camera_frustum_contains_tile_old;
     QFile file(":/map/height_data.atb");
     const auto open = file.open(QIODeviceBase::OpenModeFlag::ReadOnly);
-    assert(open);
+    Q_ASSERT(open);
     Q_UNUSED(open);
     const QByteArray data = file.readAll();
     const auto decorator = AabbDecorator::make(radix::TileHeights::deserialise(data));
@@ -145,7 +146,7 @@ TEST_CASE("tile/utils/camera_frustum_contains_tile")
 
         QFile file(":/map/height_data.atb");
         const auto open = file.open(QIODeviceBase::OpenModeFlag::ReadOnly);
-        assert(open);
+        Q_ASSERT(open);
         Q_UNUSED(open);
         const QByteArray data = file.readAll();
         const auto decorator = AabbDecorator::make(TileHeights::deserialise(data));

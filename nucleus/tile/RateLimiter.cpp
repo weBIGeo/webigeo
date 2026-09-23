@@ -19,6 +19,7 @@
 #include "RateLimiter.h"
 
 #include <QTimer>
+#include <QtAssert>
 #include <nucleus/utils/lang.h>
 
 using namespace nucleus::tile;
@@ -35,8 +36,8 @@ RateLimiter::~RateLimiter() = default;
 
 void RateLimiter::set_limit(unsigned int rate, unsigned int period_msecs)
 {
-    assert(rate < unsigned(std::numeric_limits<int>::max()));
-    assert(period_msecs < unsigned(std::numeric_limits<int>::max()));
+    Q_ASSERT(rate < unsigned(std::numeric_limits<int>::max()));
+    Q_ASSERT(period_msecs < unsigned(std::numeric_limits<int>::max()));
     m_rate = rate;
     m_rate_period_msecs = period_msecs;
 }

@@ -28,6 +28,7 @@
 #include <QOpenGLShader>
 #include <QOpenGLExtraFunctions>
 #include <QDebug>
+#include <QtAssert>
 
 #if defined(__ANDROID__)
 #include <GLES3/gl3.h>  // for GL_INVALID_INDEX! DONT EXACTLY KNOW WHY I NEED THIS HERE! (on other platforms it works without)
@@ -183,7 +184,7 @@ ShaderProgram::ShaderProgram(QString vertex_shader, QString fragment_shader, Sha
     , m_defines(defines)
 {
     reload();
-    assert(m_q_shader_program);
+    Q_ASSERT(m_q_shader_program);
 }
 
 int ShaderProgram::attribute_location(const std::string& name)

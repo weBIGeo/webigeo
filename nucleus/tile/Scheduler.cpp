@@ -26,6 +26,7 @@
 #include <QStandardPaths>
 #include <QTimer>
 #include <QVariantMap>
+#include <QtAssert>
 #include <nucleus/DataQuerier.h>
 #include <nucleus/tile/utils.h>
 #include <radix/quad_tree.h>
@@ -124,7 +125,7 @@ void Scheduler::update_gpu_quads()
             return false;
         if (!is_ready_to_ship(quad))
             return false;
-        if (quad.id.zoom_level > 10 && quad.network_info().status != NetworkInfo::Status::Good)
+        if (quad.id.zoom_level > 8 && quad.network_info().status != NetworkInfo::Status::Good)
             return false;
         if (m_gpu_cached.contains(quad.id))
             return true;
@@ -140,7 +141,7 @@ void Scheduler::update_gpu_quads()
     m_gpu_cached.visit([&should_refine](const GpuCacheInfo& quad) { return should_refine(quad.id); });
 
     const auto superfluous_quads = m_gpu_cached.purge(m.gpu_quad_limit);
-    assert(m_gpu_cached.n_cached_objects() <= m.gpu_quad_limit);
+    Q_ASSERT(m_gpu_cached.n_cached_objects() <= m.gpu_quad_limit);
 
     // elimitate double entries (happens when the gpu has not enough space for all quads selected above)
     std::unordered_set<tile::Id, tile::Id::Hasher> superfluous_ids;
@@ -188,11 +189,11 @@ void Scheduler::purge_ram_cache()
     emit stats_ready(m_name, stats);
 }
 
-tl::expected<void, QString> Scheduler::persist_tiles()
+bool Scheduler::persist_tiles()
 {
     if (m_name == "unnamed" || m_name.isEmpty()) {
-        return tl::unexpected(QString("Not persisitng tiles as the scheduler is not named, and this would cause name conflicts in the file system."
-                                      "Name your scheduler, e.g., by using the scheduler director."));
+        qWarning() << "Not persisting tiles because the scheduler is not named.";
+        return false;
     }
     const auto start = std::chrono::steady_clock::now();
     const auto r = m_ram_cache.write_to_disk(disk_cache_path());
@@ -204,22 +205,23 @@ tl::expected<void, QString> Scheduler::persist_tiles()
                         .arg(m_ram_cache.n_cached_objects());
 
     if (!r.has_value()) {
-        qDebug() << QString("Writing tiles to disk into %1 failed: %2. Removing all files.").arg(QString::fromStdString(disk_cache_path().string())).arg(r.error());
+        qWarning()
+            << QString("Writing tiles to disk into %1 failed: %2. Removing all files.").arg(QString::fromStdString(disk_cache_path().string())).arg(r.error());
         std::filesystem::remove_all(disk_cache_path());
     }
-    return r;
+    return r.has_value();
 }
 
 void Scheduler::schedule_update()
 {
-    assert(m.update_timeout < unsigned(std::numeric_limits<int>::max()));
+    Q_ASSERT(m.update_timeout < unsigned(std::numeric_limits<int>::max()));
     if (m_enabled && !m_update_timer->isActive())
         m_update_timer->start(int(m.update_timeout));
 }
 
 void Scheduler::schedule_purge()
 {
-    assert(m.purge_timeout < unsigned(std::numeric_limits<int>::max()));
+    Q_ASSERT(m.purge_timeout < unsigned(std::numeric_limits<int>::max()));
     if (m_enabled && !m_purge_timer->isActive()) {
         m_purge_timer->start(int(m.purge_timeout));
     }
@@ -227,7 +229,7 @@ void Scheduler::schedule_purge()
 
 void Scheduler::schedule_persist()
 {
-    assert(m.persist_timeout < unsigned(std::numeric_limits<int>::max()));
+    Q_ASSERT(m.persist_timeout < unsigned(std::numeric_limits<int>::max()));
     if (!m_persist_timer->isActive()) {
         m_persist_timer->start(int(m.persist_timeout));
     }
@@ -254,13 +256,13 @@ void Scheduler::clear_full_cache()
     set_ram_quad_limit(old_ram_quad_limit);
 }
 
-tl::expected<void, QString> Scheduler::read_disk_cache()
+bool Scheduler::read_disk_cache()
 {
     if (m_name == "unnamed" || m_name.isEmpty()) {
         const auto error = QString("Not reading tiles as the scheduler is not named, and this would cause name conflicts in the file system."
                                    "Name your scheduler, e.g., by using the scheduler director.");
         qDebug() << error;
-        return tl::unexpected(error);
+        return false;
     }
     const auto r = m_ram_cache.read_from_disk(disk_cache_path());
     if (r.has_value()) {
@@ -269,10 +271,13 @@ tl::expected<void, QString> Scheduler::read_disk_cache()
         stats["n_quads_ram_max"] = m.ram_quad_limit;
         emit stats_ready(m_name, stats);
     } else {
-        qDebug() << QString("Reading tiles from disk cache (%1) failed: \n%2\nRemoving all files.").arg(QString::fromStdString(disk_cache_path().string())).arg(r.error());
+        qDebug() << QString("Reading tiles from disk cache (%1) failed: \n%2\nRemoving all files.")
+                        .arg(QString::fromStdString(disk_cache_path().string()))
+                        .arg(r.error());
         std::filesystem::remove_all(disk_cache_path());
+        return false;
     }
-    return r;
+    return true;
 }
 
 std::vector<Id> Scheduler::quads_for_current_camera_position() const
@@ -312,7 +317,7 @@ unsigned int Scheduler::persist_timeout() const { return m.persist_timeout; }
 
 void Scheduler::set_persist_timeout(unsigned int new_persist_timeout)
 {
-    assert(new_persist_timeout < unsigned(std::numeric_limits<int>::max()));
+    Q_ASSERT(new_persist_timeout < unsigned(std::numeric_limits<int>::max()));
     m.persist_timeout = new_persist_timeout;
 
     if (m_persist_timer->isActive()) {
@@ -333,7 +338,7 @@ std::filesystem::path Scheduler::disk_cache_path()
 
 void Scheduler::set_purge_timeout(unsigned int new_purge_timeout)
 {
-    assert(new_purge_timeout < unsigned(std::numeric_limits<int>::max()));
+    Q_ASSERT(new_purge_timeout < unsigned(std::numeric_limits<int>::max()));
     m.purge_timeout = new_purge_timeout;
 
     if (m_purge_timer->isActive()) {
@@ -345,15 +350,9 @@ void Scheduler::set_ram_quad_limit(unsigned int new_ram_quad_limit) { m.ram_quad
 
 void Scheduler::set_gpu_quad_limit(unsigned int new_gpu_quad_limit) { m.gpu_quad_limit = new_gpu_quad_limit; }
 
-void Scheduler::set_aabb_decorator(const utils::AabbDecoratorPtr& new_aabb_decorator)
-{
-    m_aabb_decorator = new_aabb_decorator;
-}
+void Scheduler::set_aabb_decorator(const utils::AabbDecoratorPtr& new_aabb_decorator) { m_aabb_decorator = new_aabb_decorator; }
 
-bool Scheduler::enabled() const
-{
-    return m_enabled;
-}
+bool Scheduler::enabled() const { return m_enabled; }
 
 void Scheduler::set_enabled(bool new_enabled)
 {
@@ -363,7 +362,7 @@ void Scheduler::set_enabled(bool new_enabled)
 
 void Scheduler::set_update_timeout(unsigned new_update_timeout)
 {
-    assert(m.update_timeout < unsigned(std::numeric_limits<int>::max()));
+    Q_ASSERT(m.update_timeout < unsigned(std::numeric_limits<int>::max()));
     m.update_timeout = new_update_timeout;
     if (m_update_timer->isActive()) {
         m_update_timer->start(m.update_timeout);

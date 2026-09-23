@@ -21,12 +21,12 @@
 
 #include <memory>
 
-#include <QNetworkInformation>
-#include <QObject>
 #include "Cache.h"
 #include "nucleus/camera/Definition.h"
 #include "radix/tile.h"
 #include "types.h"
+#include <QNetworkInformation>
+#include <QObject>
 
 class QTimer;
 
@@ -38,7 +38,7 @@ namespace nucleus::tile {
 namespace utils {
     class AabbDecorator;
     using AabbDecoratorPtr = std::shared_ptr<AabbDecorator>;
-}
+} // namespace utils
 
 class Scheduler : public QObject {
     Q_OBJECT
@@ -82,10 +82,10 @@ public:
     [[nodiscard]] unsigned int persist_timeout() const;
     void set_persist_timeout(unsigned int new_persist_timeout);
 
-    tl::expected<void, QString> read_disk_cache();
+    bool read_disk_cache();
 
     void set_retirement_age_for_tile_cache(unsigned int new_retirement_age_for_tile_cache);
-    
+
     void set_dataquerier(std::shared_ptr<DataQuerier> dataquerier);
     std::shared_ptr<DataQuerier> dataquerier() const;
 
@@ -112,7 +112,7 @@ public slots:
     void update_gpu_quads();
     void send_quad_requests();
     void purge_ram_cache();
-    tl::expected<void, QString> persist_tiles();
+    bool persist_tiles();
 
 protected:
     void schedule_update();
@@ -136,6 +136,5 @@ private:
     utils::AabbDecoratorPtr m_aabb_decorator;
     Cache<DataQuad> m_ram_cache;
     Cache<GpuCacheInfo> m_gpu_cached;
-
 };
-}
+} // namespace nucleus::tile

@@ -18,6 +18,8 @@
 
 #include "EngineContext.h"
 
+#include <QtAssert>
+
 using namespace nucleus;
 
 EngineContext::EngineContext() { }
@@ -31,11 +33,11 @@ EngineContext::EngineContext(QObject* parent)
 {
 }
 
-EngineContext::~EngineContext() { assert(m_initialised == m_destroyed); }
+EngineContext::~EngineContext() { Q_ASSERT(m_initialised == m_destroyed); }
 
 void EngineContext::initialise()
 {
-    assert(!m_initialised);
+    Q_ASSERT(!m_initialised);
     internal_initialise();
     m_initialised = true;
     emit initialised();
@@ -43,8 +45,8 @@ void EngineContext::initialise()
 
 void EngineContext::destroy()
 {
-    assert(m_initialised);
-    assert(!m_destroyed);
+    Q_ASSERT(m_initialised);
+    Q_ASSERT(!m_destroyed);
     internal_destroy();
     m_destroyed = true;
 }

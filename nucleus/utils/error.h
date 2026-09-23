@@ -18,15 +18,16 @@
 
 #pragma once
 #include <QString>
-#include <tl/expected.hpp>
+#include <expected>
 #include <utility>
 
 namespace nucleus::utils::error {
-template <typename ErrorType = QString, typename F> auto wrap_to_expected(F&& func)
+template <typename ErrorType = QString, typename F>
+auto wrap_to_expected(F&& func)
 {
     return [func = std::forward<F>(func)](auto&& value) {
         using ReturnType = decltype(func(std::forward<decltype(value)>(value)));
-        return tl::expected<ReturnType, ErrorType> { func(std::forward<decltype(value)>(value)) };
+        return std::expected<ReturnType, ErrorType> { func(std::forward<decltype(value)>(value)) };
     };
 }
 

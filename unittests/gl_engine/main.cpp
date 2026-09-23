@@ -23,6 +23,7 @@
 #include <QGuiApplication>
 #include <QOffscreenSurface>
 #include <QScreen>
+#include <QtAssert>
 #include <catch2/catch_test_macros.hpp>
 
 #include "unittests_gl/UnittestGlWindow.h"
@@ -87,7 +88,7 @@ int main( int argc, char* argv[] ) {
     surface.create();
     QOpenGLContext c;
     const auto r = c.create();
-    assert(r);
+    Q_ASSERT(r);
     c.makeCurrent(&surface);
     gl_window.initializeGL();
     return 0;

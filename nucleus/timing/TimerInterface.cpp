@@ -18,6 +18,8 @@
 
 #include "TimerInterface.h"
 
+#include <QtAssert>
+
 namespace nucleus::timing {
 
 TimerInterface::TimerInterface(const QString& name, const QString& group, int queue_size, float average_weight)
@@ -29,13 +31,13 @@ TimerInterface::TimerInterface(const QString& name, const QString& group, int qu
 }
 
 void TimerInterface::start() {
-    //assert(m_state == TimerStates::READY);
+    //Q_ASSERT(m_state == TimerStates::READY);
     _start();
     m_state = TimerStates::RUNNING;
 }
 
 void TimerInterface::stop() {
-    //assert(m_state == TimerStates::RUNNING);
+    //Q_ASSERT(m_state == TimerStates::RUNNING);
     _stop();
     m_state = TimerStates::STOPPED;
 }

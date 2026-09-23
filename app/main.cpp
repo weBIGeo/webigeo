@@ -123,7 +123,9 @@ int main(int argc, char **argv)
 
     QSurfaceFormat fmt;
     fmt.setDepthBufferSize(24);
+#ifdef ALP_ENABLE_DEV_TOOLS
     fmt.setOption(QSurfaceFormat::DebugContext);
+#endif
 
     if (QOpenGLContext::openGLModuleType() == QOpenGLContext::LibGL) {
         qDebug("Requesting 3.3 core context");

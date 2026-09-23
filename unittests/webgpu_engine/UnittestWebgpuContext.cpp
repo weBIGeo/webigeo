@@ -18,10 +18,11 @@
  *****************************************************************************/
 
 #include "UnittestWebgpuContext.h"
-#include "webgpu/webgpu_interface.hpp"
-#include <cassert>
+#include "webgpu/base/webgpu_interface.hpp"
+#include <QtAssert>
 #include <iostream>
 #include <limits>
+#include <webgpu/base/RenderResourceRegistry.h>
 
 WGPULimits UnittestWebgpuContext::default_limits()
 {
@@ -93,13 +94,13 @@ UnittestWebgpuContext::UnittestWebgpuContext(bool use_default_limits, WGPULimits
     instance_desc.requiredFeatures = &timed_wait_feature;
 
     instance = wgpuCreateInstance(&instance_desc);
-    assert(instance);
+    Q_ASSERT(instance);
 
     WGPURequestAdapterOptions adapter_opts {};
     adapter_opts.powerPreference = WGPUPowerPreference_HighPerformance;
     adapter_opts.compatibleSurface = nullptr;
     adapter = webgpu::requestAdapterSync(instance, adapter_opts);
-    assert(adapter);
+    Q_ASSERT(adapter);
 
     std::vector<WGPUFeatureName> requiredFeatures;
     requiredFeatures.push_back(WGPUFeatureName_TimestampQuery);
@@ -127,11 +128,11 @@ UnittestWebgpuContext::UnittestWebgpuContext(bool use_default_limits, WGPULimits
     };
 
     device = webgpu::requestDeviceSync(instance, adapter, device_desc);
-    assert(device);
+    Q_ASSERT(device);
 
     queue = wgpuDeviceGetQueue(device);
-    assert(queue);
+    Q_ASSERT(queue);
 
-    shader_module_manager = std::make_unique<ShaderModuleManager>(device);
-    assert(shader_module_manager);
+    ctx.init(instance, device, adapter, nullptr, queue);
+    ctx.resource_registry().recreate_all(device);
 }

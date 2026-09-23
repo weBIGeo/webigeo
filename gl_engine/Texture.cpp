@@ -21,9 +21,9 @@
 
 #include <QOpenGLExtraFunctions>
 #include <QOpenGLFunctions>
+#include <QtAssert>
 #ifdef __EMSCRIPTEN__
-#include <emscripten.h>
-#include <emscripten/val.h>
+#include <emscripten/html5_webgl.h>
 #endif
 #ifdef ANDROID
 #include <GLES3/gl3.h>
@@ -58,6 +58,8 @@ GlParams gl_tex_params(gl_engine::Texture::Format format)
         return { GL_RG8, GL_RG, GL_UNSIGNED_BYTE, 2, 1, true };
     case F::RG32UI:
         return { GL_RG32UI, GL_RG_INTEGER, GL_UNSIGNED_INT, 2, 4 };
+    case F::RGB32UI:
+        return { GL_RGB32UI, GL_RGB_INTEGER, GL_UNSIGNED_INT, 3, 4 };
     case F::R8UI:
         return { GL_R8UI, GL_RED_INTEGER, GL_UNSIGNED_BYTE, 1, 1 };
     case F::R16UI:
@@ -95,9 +97,9 @@ void gl_engine::Texture::bind(unsigned int texture_unit)
 void gl_engine::Texture::setParams(Filter min_filter, Filter mag_filter, bool anisotropic_filtering)
 {
     // doesn't make sense, does it?
-    assert(mag_filter != Filter::MipMapLinear);
+    Q_ASSERT(mag_filter != Filter::MipMapLinear);
 
-    assert(gl_tex_params(m_format).is_texture_filterable || (min_filter == Filter::Nearest && mag_filter == Filter::Nearest));
+    Q_ASSERT(gl_tex_params(m_format).is_texture_filterable || (min_filter == Filter::Nearest && mag_filter == Filter::Nearest));
 
     m_min_filter = min_filter;
     m_mag_filter = mag_filter;
@@ -114,8 +116,8 @@ void gl_engine::Texture::setParams(Filter min_filter, Filter mag_filter, bool an
 
 void gl_engine::Texture::allocate_array(unsigned int width, unsigned int height, unsigned int n_layers)
 {
-    assert(m_target == Target::_2dArray);
-    assert(m_format != Format::Invalid);
+    Q_ASSERT(m_target == Target::_2dArray);
+    Q_ASSERT(m_format != Format::Invalid);
 
     auto mip_level_count = 1;
     if (m_min_filter == Filter::MipMapLinear)
@@ -139,7 +141,7 @@ void gl_engine::Texture::upload(const nucleus::utils::ColourTexture& texture)
     const auto height = GLsizei(texture.height());
     const auto p = gl_tex_params(m_format);
     if (m_format == Format::CompressedRGBA8) {
-        assert(m_min_filter != Filter::MipMapLinear);
+        Q_ASSERT(m_min_filter != Filter::MipMapLinear);
         const auto format = gl_engine::Texture::compressed_texture_format();
         f->glCompressedTexImage2D(GLenum(m_target), 0, format, width, height, 0, GLsizei(texture.n_bytes()), texture.data());
     } else if (m_format == Format::RGBA8 || m_format == Format::SRGBA8) {
@@ -147,16 +149,16 @@ void gl_engine::Texture::upload(const nucleus::utils::ColourTexture& texture)
         if (m_min_filter == Filter::MipMapLinear)
             f->glGenerateMipmap(GLenum(m_target));
     } else {
-        assert(false);
+        Q_ASSERT(false);
     }
 }
 
 void gl_engine::Texture::upload(const nucleus::utils::ColourTexture& texture, unsigned int array_index)
 {
-    assert(texture.width() == m_width);
-    assert(texture.height() == m_height);
-    assert(array_index < m_n_layers);
-    assert(m_min_filter != Filter::MipMapLinear); // use the upload function with nucleus::utils::MipmappedColourTexture
+    Q_ASSERT(texture.width() == m_width);
+    Q_ASSERT(texture.height() == m_height);
+    Q_ASSERT(array_index < m_n_layers);
+    Q_ASSERT(m_min_filter != Filter::MipMapLinear); // use the upload function with nucleus::utils::MipmappedColourTexture
 
     auto* f = QOpenGLContext::currentContext()->extraFunctions();
     f->glBindTexture(GLenum(m_target), m_id);
@@ -169,16 +171,16 @@ void gl_engine::Texture::upload(const nucleus::utils::ColourTexture& texture, un
     } else if (m_format == Format::RGBA8 || m_format == Format::SRGBA8) {
         f->glTexSubImage3D(GLenum(m_target), 0, 0, 0, GLint(array_index), width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, texture.data());
     } else {
-        assert(false);
+        Q_ASSERT(false);
     }
 }
 
 void gl_engine::Texture::upload(const nucleus::utils::MipmappedColourTexture& mipped_texture, unsigned int array_index)
 {
-    assert(mipped_texture.size() > 0);
-    assert(mipped_texture.front().width() == m_width);
-    assert(mipped_texture.front().height() == m_height);
-    assert(array_index < m_n_layers);
+    Q_ASSERT(mipped_texture.size() > 0);
+    Q_ASSERT(mipped_texture.front().width() == m_width);
+    Q_ASSERT(mipped_texture.front().height() == m_height);
+    Q_ASSERT(array_index < m_n_layers);
 
     auto* f = QOpenGLContext::currentContext()->extraFunctions();
     f->glBindTexture(GLenum(m_target), m_id);
@@ -194,27 +196,27 @@ void gl_engine::Texture::upload(const nucleus::utils::MipmappedColourTexture& mi
         } else if (m_format == Format::RGBA8 || m_format == Format::SRGBA8) {
             f->glTexSubImage3D(GLenum(m_target), mip_level, 0, 0, GLint(array_index), width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, texture.data());
         } else {
-            assert(false);
+            Q_ASSERT(false);
         }
         ++mip_level;
     }
 }
 
-template <typename T> void gl_engine::Texture::upload(const nucleus::Raster<T>& texture, unsigned int array_index)
+template <typename T> void gl_engine::Texture::upload(const radix::Raster<T>& texture, unsigned int array_index)
 {
-    assert(m_target == Target::_2dArray);
+    Q_ASSERT(m_target == Target::_2dArray);
 
     const auto p = gl_tex_params(m_format);
-    assert(m_format != Format::CompressedRGBA8);
-    assert(m_format != Format::Invalid);
-    assert(sizeof(T) == p.n_bytes_per_element * p.n_elements);
+    Q_ASSERT(m_format != Format::CompressedRGBA8);
+    Q_ASSERT(m_format != Format::Invalid);
+    Q_ASSERT(sizeof(T) == p.n_bytes_per_element * p.n_elements);
     if (!p.is_texture_filterable) {
-        assert(m_mag_filter == Filter::Nearest);
-        assert(m_min_filter == Filter::Nearest);
+        Q_ASSERT(m_mag_filter == Filter::Nearest);
+        Q_ASSERT(m_min_filter == Filter::Nearest);
     }
-    assert(array_index < m_n_layers);
-    assert(texture.width() == m_width);
-    assert(texture.height() == m_height);
+    Q_ASSERT(array_index < m_n_layers);
+    Q_ASSERT(texture.width() == m_width);
+    Q_ASSERT(texture.height() == m_height);
 
     const auto width = GLsizei(texture.width());
     const auto height = GLsizei(texture.height());
@@ -222,47 +224,49 @@ template <typename T> void gl_engine::Texture::upload(const nucleus::Raster<T>& 
     auto* f = QOpenGLContext::currentContext()->extraFunctions();
     f->glBindTexture(GLenum(m_target), m_id);
     f->glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    f->glTexSubImage3D(GLenum(m_target), 0, 0, 0, GLint(array_index), width, height, 1, p.format, p.type, texture.bytes());
+    f->glTexSubImage3D(GLenum(m_target), 0, 0, 0, GLint(array_index), width, height, 1, p.format, p.type, texture.bytes().data());
 
     if (m_min_filter == Filter::MipMapLinear)
         f->glGenerateMipmap(GLenum(m_target));
 }
-template void gl_engine::Texture::upload<uint8_t>(const nucleus::Raster<uint8_t>&, unsigned);
-template void gl_engine::Texture::upload<uint16_t>(const nucleus::Raster<uint16_t>&, unsigned);
-template void gl_engine::Texture::upload<uint32_t>(const nucleus::Raster<uint32_t>&, unsigned);
-template void gl_engine::Texture::upload<glm::vec<2, uint32_t>>(const nucleus::Raster<glm::vec<2, uint32_t>>&, unsigned);
-template void gl_engine::Texture::upload<glm::vec<2, uint8_t>>(const nucleus::Raster<glm::vec<2, uint8_t>>&, unsigned);
-template void gl_engine::Texture::upload<glm::vec<4, uint8_t>>(const nucleus::Raster<glm::vec<4, uint8_t>>&, unsigned);
-template void gl_engine::Texture::upload<glm::vec<4, float>>(const nucleus::Raster<glm::vec<4, float>>&, unsigned);
+template void gl_engine::Texture::upload<uint8_t>(const radix::Raster<uint8_t>&, unsigned);
+template void gl_engine::Texture::upload<uint16_t>(const radix::Raster<uint16_t>&, unsigned);
+template void gl_engine::Texture::upload<uint32_t>(const radix::Raster<uint32_t>&, unsigned);
+template void gl_engine::Texture::upload<glm::vec<2, uint8_t>>(const radix::Raster<glm::vec<2, uint8_t>>&, unsigned);
+template void gl_engine::Texture::upload<glm::vec<2, uint32_t>>(const radix::Raster<glm::vec<2, uint32_t>>&, unsigned);
+template void gl_engine::Texture::upload<glm::vec<3, uint32_t>>(const radix::Raster<glm::vec<3, uint32_t>>&, unsigned);
+template void gl_engine::Texture::upload<glm::vec<4, uint8_t>>(const radix::Raster<glm::vec<4, uint8_t>>&, unsigned);
+template void gl_engine::Texture::upload<glm::vec<4, float>>(const radix::Raster<glm::vec<4, float>>&, unsigned);
 
-template <typename T> void gl_engine::Texture::upload(const nucleus::Raster<T>& texture)
+template <typename T> void gl_engine::Texture::upload(const radix::Raster<T>& texture)
 {
-    assert(m_target == Target::_2d);
+    Q_ASSERT(m_target == Target::_2d);
 
     const auto p = gl_tex_params(m_format);
-    assert(m_format != Format::CompressedRGBA8);
-    assert(m_format != Format::Invalid);
-    assert(sizeof(T) == p.n_bytes_per_element * p.n_elements);
+    Q_ASSERT(m_format != Format::CompressedRGBA8);
+    Q_ASSERT(m_format != Format::Invalid);
+    Q_ASSERT(sizeof(T) == p.n_bytes_per_element * p.n_elements);
     if (!p.is_texture_filterable) {
-        assert(m_mag_filter == Filter::Nearest);
-        assert(m_min_filter == Filter::Nearest);
+        Q_ASSERT(m_mag_filter == Filter::Nearest);
+        Q_ASSERT(m_min_filter == Filter::Nearest);
     }
 
     QOpenGLExtraFunctions* f = QOpenGLContext::currentContext()->extraFunctions();
     f->glBindTexture(GLenum(m_target), m_id);
     f->glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    f->glTexImage2D(GLenum(m_target), 0, p.internal_format, GLsizei(texture.width()), GLsizei(texture.height()), 0, p.format, p.type, texture.bytes());
+    f->glTexImage2D(GLenum(m_target), 0, p.internal_format, GLsizei(texture.width()), GLsizei(texture.height()), 0, p.format, p.type, texture.bytes().data());
 
     if (m_min_filter == Filter::MipMapLinear)
         f->glGenerateMipmap(GLenum(m_target));
 }
-template void gl_engine::Texture::upload<uint8_t>(const nucleus::Raster<uint8_t>&);
-template void gl_engine::Texture::upload<uint16_t>(const nucleus::Raster<uint16_t>&);
-template void gl_engine::Texture::upload<uint32_t>(const nucleus::Raster<uint32_t>&);
-template void gl_engine::Texture::upload<glm::vec<2, uint32_t>>(const nucleus::Raster<glm::vec<2, uint32_t>>&);
-template void gl_engine::Texture::upload<glm::vec<2, uint8_t>>(const nucleus::Raster<glm::vec<2, uint8_t>>&);
-template void gl_engine::Texture::upload<glm::vec<4, uint8_t>>(const nucleus::Raster<glm::vec<4, uint8_t>>&);
-template void gl_engine::Texture::upload<glm::vec<4, float>>(const nucleus::Raster<glm::vec<4, float>>&);
+template void gl_engine::Texture::upload<uint8_t>(const radix::Raster<uint8_t>&);
+template void gl_engine::Texture::upload<uint16_t>(const radix::Raster<uint16_t>&);
+template void gl_engine::Texture::upload<uint32_t>(const radix::Raster<uint32_t>&);
+template void gl_engine::Texture::upload<glm::vec<2, uint32_t>>(const radix::Raster<glm::vec<2, uint32_t>>&);
+template void gl_engine::Texture::upload<glm::vec<3, uint32_t>>(const radix::Raster<glm::vec<3, uint32_t>>&);
+template void gl_engine::Texture::upload<glm::vec<2, uint8_t>>(const radix::Raster<glm::vec<2, uint8_t>>&);
+template void gl_engine::Texture::upload<glm::vec<4, uint8_t>>(const radix::Raster<glm::vec<4, uint8_t>>&);
+template void gl_engine::Texture::upload<glm::vec<4, float>>(const radix::Raster<glm::vec<4, float>>&);
 
 GLenum gl_engine::Texture::compressed_texture_format()
 {
@@ -270,20 +274,19 @@ GLenum gl_engine::Texture::compressed_texture_format()
     // DXT1, also called s3tc, old desktop compression
     // ETC1, old mobile compression
 #if defined(__EMSCRIPTEN__)
-    // clang-format off
-    static int gl_texture_format = EM_ASM_INT({
-        var canvas = document.createElement('canvas');
-        var gl = canvas.getContext("webgl2");
-        const ext = gl.getExtension("WEBGL_compressed_texture_etc");
-        if (ext === null)
-            return 0;
-        return ext.COMPRESSED_SRGB8_ETC2;
-    });
-    // qDebug() << "gl_engine::Texture::compressed_texture_format: gl_texture_format from js: " << gl_texture_format;
-    // clang-format on
-    if (gl_texture_format == 0) {
-        gl_texture_format = GL_COMPRESSED_SRGB_S3TC_DXT1_EXT; // not on mobile
-    }
+    static const GLenum gl_texture_format = []() {
+        const auto context = emscripten_webgl_get_current_context();
+        if (!context)
+            qFatal("No current WebGL context while detecting texture compression");
+        if (emscripten_webgl_enable_extension(context, "WEBGL_compressed_texture_etc"))
+            return GLenum(GL_COMPRESSED_SRGB8_ETC2);
+
+        const bool s3tc = emscripten_webgl_enable_extension(context, "WEBGL_compressed_texture_s3tc");
+        const bool s3tc_srgb = emscripten_webgl_enable_extension(context, "WEBGL_compressed_texture_s3tc_srgb");
+        if (!s3tc || !s3tc_srgb)
+            qFatal("Neither ETC nor sRGB S3TC texture compression is supported");
+        return GLenum(GL_COMPRESSED_SRGB_S3TC_DXT1_EXT);
+    }();
     return gl_texture_format;
 #elif defined(__ANDROID__)
     return GL_COMPRESSED_SRGB8_ETC2;
@@ -295,21 +298,20 @@ GLenum gl_engine::Texture::compressed_texture_format()
 nucleus::utils::ColourTexture::Format gl_engine::Texture::compression_algorithm()
 {
 #if defined(__EMSCRIPTEN__)
-    // clang-format off
-    static const int gl_texture_format = EM_ASM_INT({
-        var canvas = document.createElement('canvas');
-        var gl = canvas.getContext("webgl2");
-        const ext = gl.getExtension("WEBGL_compressed_texture_etc");
-        if (ext === null)
-            return 0;
-        return ext.COMPRESSED_RGB8_ETC2;
-    });
-    // clang-format on
-    // qDebug() << "gl_engine::Texture::compression_algorithm: gl_texture_format from js: " << gl_texture_format;
-    if (gl_texture_format == 0) {
+    static const auto compression_algorithm = []() {
+        const auto context = emscripten_webgl_get_current_context();
+        if (!context)
+            qFatal("No current WebGL context while detecting texture compression");
+        if (emscripten_webgl_enable_extension(context, "WEBGL_compressed_texture_etc"))
+            return nucleus::utils::ColourTexture::Format::ETC1;
+
+        const bool s3tc = emscripten_webgl_enable_extension(context, "WEBGL_compressed_texture_s3tc");
+        const bool s3tc_srgb = emscripten_webgl_enable_extension(context, "WEBGL_compressed_texture_s3tc_srgb");
+        if (!s3tc || !s3tc_srgb)
+            qFatal("Neither ETC nor sRGB S3TC texture compression is supported");
         return nucleus::utils::ColourTexture::Format::DXT1;
-    }
-    return nucleus::utils::ColourTexture::Format::ETC1;
+    }();
+    return compression_algorithm;
 #elif defined(__ANDROID__)
     return nucleus::utils::ColourTexture::Format::ETC1;
 #else
@@ -320,19 +322,12 @@ nucleus::utils::ColourTexture::Format gl_engine::Texture::compression_algorithm(
 GLenum gl_engine::Texture::max_anisotropy_param()
 {
 #if defined(__EMSCRIPTEN__)
-    // clang-format off
-    static const int param = EM_ASM_INT({
-        var canvas = document.createElement('canvas');
-        var gl = canvas.getContext("webgl2");
-        const ext =
-          gl.getExtension("EXT_texture_filter_anisotropic") ||
-          gl.getExtension("MOZ_EXT_texture_filter_anisotropic") ||
-          gl.getExtension("WEBKIT_EXT_texture_filter_anisotropic");
-        if (ext)
-            return ext.TEXTURE_MAX_ANISOTROPY_EXT;
-        return 0;
-    });
-    // clang-format on
+    static const GLenum param = []() {
+        const auto context = emscripten_webgl_get_current_context();
+        if (!context)
+            qFatal("No current WebGL context while detecting anisotropic filtering");
+        return emscripten_webgl_enable_extension(context, "EXT_texture_filter_anisotropic") ? GLenum(GL_TEXTURE_MAX_ANISOTROPY_EXT) : GLenum(0);
+    }();
     return param;
 #elif defined(__ANDROID__)
     return GL_TEXTURE_MAX_ANISOTROPY_EXT;
@@ -344,19 +339,17 @@ GLenum gl_engine::Texture::max_anisotropy_param()
 float gl_engine::Texture::max_anisotropy()
 {
 #if defined(__EMSCRIPTEN__)
-    // clang-format off
-    static const float max_anisotropy = std::min(32.f, float(EM_ASM_DOUBLE({
-        var canvas = document.createElement('canvas');
-        var gl = canvas.getContext("webgl2");
-        const ext =
-          gl.getExtension("EXT_texture_filter_anisotropic") ||
-          gl.getExtension("MOZ_EXT_texture_filter_anisotropic") ||
-          gl.getExtension("WEBKIT_EXT_texture_filter_anisotropic");
-        if (ext)
-          return gl.getParameter(ext.MAX_TEXTURE_MAX_ANISOTROPY_EXT);
-        return 0;
-    })));
-    // clang-format on
+    static const float max_anisotropy = []() {
+        const auto context = emscripten_webgl_get_current_context();
+        if (!context)
+            qFatal("No current WebGL context while detecting anisotropic filtering");
+        if (!emscripten_webgl_enable_extension(context, "EXT_texture_filter_anisotropic"))
+            return 0.f;
+
+        GLfloat value = 0.f;
+        QOpenGLContext::currentContext()->extraFunctions()->glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &value);
+        return std::min(32.f, value);
+    }();
     return max_anisotropy;
 #elif defined(__ANDROID__)
     static const float max_anisotropy = []() {

@@ -25,6 +25,7 @@
 #include <QOffscreenSurface>
 #include <QOpenGLDebugLogger>
 #include <QTimer>
+#include <QtAssert>
 #include <catch2/catch_test_macros.hpp>
 
 UnittestGLContext::UnittestGLContext()
@@ -48,7 +49,7 @@ UnittestGLContext::UnittestGLContext()
 
     surface.create();
     const auto r = m_context.create();
-    assert(r);
+    Q_ASSERT(r);
     Q_UNUSED(r);
     m_context.makeCurrent(&surface);
 

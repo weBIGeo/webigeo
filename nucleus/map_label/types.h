@@ -22,7 +22,7 @@
 
 #include <glm/glm.hpp>
 
-#include <nucleus/Raster.h>
+#include <radix/raster.h>
 
 struct stbtt_fontinfo;
 
@@ -45,7 +45,7 @@ struct VertexData {
 
 struct AtlasData {
     bool changed;
-    std::vector<Raster<glm::u8vec2>> font_atlas;
+    std::vector<radix::Raster<glm::u8vec2>> font_atlas;
 };
 
-} // namespace nucleus::maplabel
+} // namespace nucleus::map_label

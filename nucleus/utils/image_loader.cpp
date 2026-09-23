@@ -37,11 +37,11 @@
 #include <stb_slim/stb_image.h>
 
 #include <QFile>
-#include <tl/expected.hpp>
+#include <expected>
 
 namespace nucleus::utils::image_loader {
 
-tl::expected<Raster<glm::u8vec4>, QString> rgba8(const QByteArray& byteArray)
+std::expected<radix::Raster<glm::u8vec4>, QString> rgba8(const QByteArray& byteArray)
 {
     int width, height, channels;
     const int requested_channels = 4; // Request 4 channels to always get RGBA8 images
@@ -54,24 +54,25 @@ tl::expected<Raster<glm::u8vec4>, QString> rgba8(const QByteArray& byteArray)
         );
 
     if (data == nullptr) {
-        return tl::make_unexpected(QString("nucleus image_loader: Failed to decode image bytes."));
+        return std::unexpected(QString("nucleus image_loader: Failed to decode image bytes."));
     }
 
     // NOTE: We copy the contents of the data pointer into a Raster object. Sadly
     // we can't use the allocated memory directly, because for that we would need a custom
     // allocator for the std::vector class.
-    Raster<glm::u8vec4> raster(glm::uvec2(width, height));
-    memcpy(raster.data(), data, raster.size_in_bytes());
+    radix::Raster<glm::u8vec4> raster(glm::uvec2(width, height));
+    const auto raster_bytes = raster.bytes();
+    memcpy(raster_bytes.data(), data, raster_bytes.size());
     stbi_image_free(data);
 
     return raster;
 }
 
-tl::expected<Raster<glm::u8vec4>, QString> rgba8(const QString& filename)
+std::expected<radix::Raster<glm::u8vec4>, QString> rgba8(const QString& filename)
 {
     QFile file(filename);
     if (!file.open(QIODevice::ReadOnly)) {
-        return tl::make_unexpected(QString("nucleus image_loader: Failed to open file %1").arg(filename));
+        return std::unexpected(QString("nucleus image_loader: Failed to open file %1").arg(filename));
     }
 
     QByteArray byteArray = file.readAll();
@@ -81,6 +82,6 @@ tl::expected<Raster<glm::u8vec4>, QString> rgba8(const QString& filename)
     return rgba8(byteArray);
 }
 
-tl::expected<Raster<glm::u8vec4>, QString> rgba8(const char* filename) { return rgba8(QString(filename)); }
+std::expected<radix::Raster<glm::u8vec4>, QString> rgba8(const char* filename) { return rgba8(QString(filename)); }
 
 } // namespace nucleus::utils::image_loader

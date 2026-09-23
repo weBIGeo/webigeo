@@ -21,6 +21,7 @@
 #include <QDebug>
 #include <QElapsedTimer>
 #include <QString>
+#include <QtAssert>
 #include <glm/glm.hpp>
 #include <memory>
 #include <nucleus/event_parameter.h>
@@ -55,7 +56,7 @@ public:
 
     std::optional<Result> analise(const event_parameter::Touch& t, const glm::uvec2& viewport_size)
     {
-        assert(std::is_sorted(t.points.begin(), t.points.end(), [](const auto& a, const auto& b) { return a.id < b.id; }));
+        Q_ASSERT(std::is_sorted(t.points.begin(), t.points.end(), [](const auto& a, const auto& b) { return a.id < b.id; }));
         const auto filtered_touch = filter_sloppy_touches(t, viewport_size);
 
         if (m_active_detector) {
@@ -399,8 +400,8 @@ public:
 
         float rotation_val = 0;
         for (const auto id : m_touch_ids) {
-            assert(m_last_angles.contains(id));
-            assert(current_angles.contains(id));
+            Q_ASSERT(m_last_angles.contains(id));
+            Q_ASSERT(current_angles.contains(id));
             const auto last_angle = m_last_angles.at(id);
             const auto current_angle = current_angles.at(id);
             auto diff = current_angle - last_angle;
@@ -411,7 +412,7 @@ public:
             rotation_val += diff;
         }
         rotation_val = glm::degrees(rotation_val / m_touch_ids.size());
-        assert(std::abs(rotation_val) < 180);
+        Q_ASSERT(std::abs(rotation_val) < 180);
 
         // --- Activation ---
         Result g;

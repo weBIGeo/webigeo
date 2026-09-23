@@ -19,6 +19,8 @@
 
 #include "parse.h"
 #include "util.h"
+#include <QtAssert>
+
 #include <nucleus/DataQuerier.h>
 #include <nucleus/srs.h>
 
@@ -33,7 +35,7 @@ nucleus::vector_tile::PointOfInterest::Type type_from_layer_name(const std::stri
         return nucleus::vector_tile::PointOfInterest::Type::AlpineHut;
     if (name == "webcams")
         return nucleus::vector_tile::PointOfInterest::Type::Webcam;
-    assert(false);
+    Q_ASSERT(false);
     return nucleus::vector_tile::PointOfInterest::Type::Unknown;
 }
 

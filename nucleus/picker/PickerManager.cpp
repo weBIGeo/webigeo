@@ -18,6 +18,7 @@
 
 #include "PickerManager.h"
 #include <QDebug>
+#include <QtAssert>
 
 #include <nucleus/vector_tile/types.h>
 
@@ -39,7 +40,7 @@ namespace {
         case Type::Unknown:
             return "PoiUnknwon";
         }
-        assert(false);
+        Q_ASSERT(false);
         return "Unknown";
     }
 } // namespace
@@ -89,7 +90,7 @@ void PickerManager::update_quads(const std::vector<vector_tile::PoiTile>& new_ti
         remove_tile(id);
     }
     for (const auto& tile : new_tiles) {
-        assert(tile.id.zoom_level < 100);
+        Q_ASSERT(tile.id.zoom_level < 100);
         add_tile(tile.id, tile.data);
     }
 }

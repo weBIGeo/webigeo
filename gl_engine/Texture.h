@@ -24,7 +24,7 @@
 #ifdef ANDROID
 #include <GLES3/gl3.h>
 #endif
-#include <nucleus/Raster.h>
+#include <radix/raster.h>
 #include <nucleus/utils/ColourTexture.h>
 
 namespace gl_engine {
@@ -39,6 +39,7 @@ public:
         RGBA32F,
         RG8, // normalised on gpu
         RG32UI,
+        RGB32UI,
         R8UI,
         R16UI,
         R32UI,
@@ -60,8 +61,8 @@ public:
     void upload(const nucleus::utils::ColourTexture& texture);
     void upload(const nucleus::utils::ColourTexture& texture, unsigned array_index);
     void upload(const nucleus::utils::MipmappedColourTexture& mipped_texture, unsigned array_index);
-    template <typename T> void upload(const nucleus::Raster<T>& texture, unsigned int array_index);
-    template <typename T> void upload(const nucleus::Raster<T>& texture);
+    template <typename T> void upload(const radix::Raster<T>& texture, unsigned int array_index);
+    template <typename T> void upload(const radix::Raster<T>& texture);
 
     static GLenum compressed_texture_format();
     static nucleus::utils::ColourTexture::Format compression_algorithm();
@@ -81,10 +82,15 @@ private:
     unsigned m_n_layers = unsigned(-1);
 };
 
-extern template void gl_engine::Texture::upload<uint16_t>(const nucleus::Raster<uint16_t>&);
-extern template void gl_engine::Texture::upload<uint32_t>(const nucleus::Raster<uint32_t>&);
-extern template void gl_engine::Texture::upload<glm::vec<2, uint32_t>>(const nucleus::Raster<glm::vec<2, uint32_t>>&);
-extern template void gl_engine::Texture::upload<glm::vec<2, uint8_t>>(const nucleus::Raster<glm::vec<2, uint8_t>>&);
-extern template void gl_engine::Texture::upload<glm::vec<4, uint8_t>>(const nucleus::Raster<glm::vec<4, uint8_t>>&);
+extern template void gl_engine::Texture::upload<uint16_t>(const radix::Raster<uint16_t>&);
+extern template void gl_engine::Texture::upload<uint32_t>(const radix::Raster<uint32_t>&);
+extern template void gl_engine::Texture::upload<glm::vec<2, uint32_t>>(const radix::Raster<glm::vec<2, uint32_t>>&);
+extern template void gl_engine::Texture::upload<glm::vec<3, uint32_t>>(const radix::Raster<glm::vec<3, uint32_t>>&);
+extern template void gl_engine::Texture::upload<glm::vec<2, uint8_t>>(const radix::Raster<glm::vec<2, uint8_t>>&);
+extern template void gl_engine::Texture::upload<glm::vec<4, uint8_t>>(const radix::Raster<glm::vec<4, uint8_t>>&);
+
+extern template void gl_engine::Texture::upload<uint32_t>(const radix::Raster<uint32_t>&, unsigned int);
+extern template void gl_engine::Texture::upload<glm::vec<2, uint32_t>>(const radix::Raster<glm::vec<2, uint32_t>>&, unsigned int);
+extern template void gl_engine::Texture::upload<glm::vec<3, uint32_t>>(const radix::Raster<glm::vec<3, uint32_t>>&, unsigned int);
 
 } // namespace gl_engine

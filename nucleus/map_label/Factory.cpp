@@ -19,13 +19,17 @@
 
 #include "Factory.h"
 
+#include <array>
+#include <span>
+
 #include <QDebug>
 #include <QSize>
+#include <QtAssert>
 
-#include "nucleus/Raster.h"
 #include "nucleus/picker/types.h"
 #include "nucleus/utils/image_loader.h"
 #include <nucleus/utils/bit_coding.h>
+#include <radix/raster.h>
 
 #define STBTT_STATIC
 #define STB_TRUETYPE_IMPLEMENTATION
@@ -63,33 +67,39 @@ AtlasData Factory::renew_font_atlas()
 /**
  * this function needs to be called before create_labels
  */
-Raster<glm::u8vec4> Factory::label_icons()
+radix::Raster<glm::u8vec4> Factory::label_icons()
 {
     using PoiType = vector_tile::PointOfInterest::Type;
-    auto icons = std::unordered_map<PoiType, Raster<glm::u8vec4>>();
-    icons[PoiType::Peak] = nucleus::utils::image_loader::rgba8(":/map_icons/peak.png").value();
-    icons[PoiType::Settlement] = nucleus::utils::image_loader::rgba8(":/map_icons/city.png").value();
-    icons[PoiType::AlpineHut] = nucleus::utils::image_loader::rgba8(":/map_icons/alpinehut.png").value();
-    icons[PoiType::Webcam] = nucleus::utils::image_loader::rgba8(":/map_icons/camera.png").value();
-    icons[PoiType::Unknown] = nucleus::Raster<glm::u8vec4>(icons[PoiType::Peak].size(), glm::u8vec4(255, 0, 128, 255));
+    constexpr auto icon_count = static_cast<std::size_t>(PoiType::NumberOfElements);
+    std::array<radix::Raster<glm::u8vec4>, icon_count> icons;
+    const auto icon = [&](const PoiType type) -> auto& { return icons[static_cast<std::size_t>(type)]; };
 
-    size_t combined_height(0);
+    icon(PoiType::Peak) = nucleus::utils::image_loader::rgba8(":/map_icons/peak.png").value();
+    icon(PoiType::Settlement) = nucleus::utils::image_loader::rgba8(":/map_icons/city.png").value();
+    icon(PoiType::AlpineHut) = nucleus::utils::image_loader::rgba8(":/map_icons/alpinehut.png").value();
+    icon(PoiType::Webcam) = nucleus::utils::image_loader::rgba8(":/map_icons/camera.png").value();
+    icon(PoiType::Unknown) = radix::Raster<glm::u8vec4>(icon(PoiType::Peak).size(), glm::u8vec4(255, 0, 128, 255));
 
-    for (int i = 0; i < int(PoiType::NumberOfElements); i++) {
-        PoiType type = PoiType(i);
-        combined_height += icons[type].height();
-    }
+    std::size_t combined_height = 0;
 
-    auto combined_icons = Raster<glm::u8vec4>({ icons[PoiType::Peak].width(), 0 });
+    for (const auto& raster : icons)
+        combined_height += raster.height();
 
-    for (int i = 0; i < int(PoiType::NumberOfElements); i++) {
-        PoiType type = PoiType(i);
+    std::size_t current_height = 0;
+    for (std::size_t i = 0; i < icon_count; ++i) {
+        const auto type = static_cast<PoiType>(i);
         // vec4(10.0f,...) is an uv_offset to indicate that the icon texture should be used.
-        m_icon_uvs[type] = glm::vec4(10.0f, 10.0f + float(combined_icons.height()) / float(combined_height), 1.0f, float(icons[type].height()) / float(combined_height));
-        combined_icons.append_vertically(icons[type]);
+        m_icon_uvs[type] = glm::vec4(10.0f, 10.0f + float(current_height) / float(combined_height), 1.0f, float(icons[i].height()) / float(combined_height));
+        current_height += icons[i].height();
     }
 
-    return combined_icons;
+    auto combined_icons = radix::raster::concatenate_vertically(std::span<const radix::Raster<glm::u8vec4>>(icons));
+    if (!combined_icons) {
+        Q_ASSERT(false && "Map label icons must have equal widths");
+        return {};
+    }
+
+    return std::move(*combined_icons);
 }
 
 std::tuple<std::vector<VertexData>, glm::dvec3, AtlasData> Factory::create_labels(const vector_tile::PointOfInterestCollection& pois)
@@ -184,7 +194,7 @@ std::vector<float> inline Factory::create_text_meta(std::u16string* safe_chars, 
             safe_chars->at(i) = 32;
         }
 
-        assert(m_font_data.char_data.contains(safe_chars->at(i)));
+        Q_ASSERT(m_font_data.char_data.contains(safe_chars->at(i)));
 
         int advance, lsb;
         stbtt_GetCodepointHMetrics(&m_font_data.fontinfo, int(safe_chars->at(i)), &advance, &lsb);

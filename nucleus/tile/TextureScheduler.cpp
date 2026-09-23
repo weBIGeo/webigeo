@@ -19,6 +19,7 @@
 #include "TextureScheduler.h"
 #include "conversion.h"
 #include <QDebug>
+#include <QtAssert>
 #include <nucleus/utils/image_loader.h>
 
 namespace nucleus::tile {
@@ -48,13 +49,16 @@ void TextureScheduler::transform_and_emit(const std::vector<tile::DataQuad>& new
     emit gpu_tiles_updated(deleted_quads, new_gpu_tiles);
 }
 
-void TextureScheduler::set_texture_compression_algorithm(nucleus::utils::ColourTexture::Format compression_algorithm) { m_compression_algorithm = compression_algorithm; }
-
-Raster<glm::u8vec4> TextureScheduler::to_raster(const tile::DataQuad& quad, const Raster<glm::u8vec4>& default_raster)
+void TextureScheduler::set_texture_compression_algorithm(nucleus::utils::ColourTexture::Format compression_algorithm)
 {
-    assert(quad.n_tiles == 4);
+    m_compression_algorithm = compression_algorithm;
+}
 
-    std::array<Raster<glm::u8vec4>, 4> quad_rasters;
+radix::Raster<glm::u8vec4> TextureScheduler::to_raster(const tile::DataQuad& quad, const radix::Raster<glm::u8vec4>& default_raster)
+{
+    Q_ASSERT(quad.n_tiles == 4);
+
+    std::array<radix::Raster<glm::u8vec4>, 4> quad_rasters;
     std::array<tile::Id, 4> quad_ids;
     for (const auto& tile : quad.tiles) {
         const auto quad_index = unsigned(quad_position(tile.id));
@@ -69,10 +73,22 @@ Raster<glm::u8vec4> TextureScheduler::to_raster(const tile::DataQuad& quad, cons
         }
     }
 
-    auto ortho_raster = nucleus::concatenate_horizontally(quad_rasters[unsigned(tile::QuadPosition::TopLeft)], quad_rasters[unsigned(tile::QuadPosition::TopRight)]);
-    ortho_raster.append_vertically(nucleus::concatenate_horizontally(quad_rasters[unsigned(tile::QuadPosition::BottomLeft)], quad_rasters[unsigned(tile::QuadPosition::BottomRight)]));
+    auto top
+        = radix::raster::concatenate_horizontally(quad_rasters[unsigned(tile::QuadPosition::TopLeft)], quad_rasters[unsigned(tile::QuadPosition::TopRight)]);
+    auto bottom = radix::raster::concatenate_horizontally(
+        quad_rasters[unsigned(tile::QuadPosition::BottomLeft)], quad_rasters[unsigned(tile::QuadPosition::BottomRight)]);
+    if (!top || !bottom) {
+        Q_ASSERT(false && "Texture quad rasters must have compatible dimensions");
+        return {};
+    }
 
-    return ortho_raster;
+    auto ortho_raster = radix::raster::concatenate_vertically(*top, *bottom);
+    if (!ortho_raster) {
+        Q_ASSERT(false && "Texture quad raster rows must have compatible dimensions");
+        return {};
+    }
+
+    return std::move(*ortho_raster);
 }
 
 } // namespace nucleus::tile

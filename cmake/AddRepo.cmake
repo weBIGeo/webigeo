@@ -1,6 +1,6 @@
 #############################################################################
 # AlpineMaps.org
-# Copyright (C) 2023 Adam Celarek <family name at cg tuwien ac at>
+# Copyright (C) 2023-2026 Adam Celarek <family name at cg tuwien ac at>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -9,234 +9,498 @@
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
 #############################################################################
 
-find_package(Git 2.22 REQUIRED)
+include_guard(GLOBAL)
 
-# CMake's FetchContent caches information about the downloads / clones in the build dir.
-# Therefore it walks over the clones every time we switch the build type (release, debug, webassembly, android etc),
-# which takes forever. Moreover, it messes up changes to subprojects. This function, on the other hand, checks whether
-# we are on a branch and in that case only issues a warning. Use origin/main or similar, if you want to stay up-to-date
-# with upstream.
+function(_alp_add_repo_fail name repo_dir revision operation diagnostic)
+    string(STRIP "${diagnostic}" _diagnostic)
+    if(_diagnostic STREQUAL "")
+        set(_diagnostic "no diagnostic was produced")
+    endif()
+    message(FATAL_ERROR
+        "[alp/git] ${name}: ${operation} failed in '${repo_dir}' for "
+        "revision '${revision}': ${_diagnostic}")
+endfunction()
 
-if(NOT DEFINED _alp_add_repo_check_flag)
-    set_property(GLOBAL PROPERTY _alp_add_repo_check_flag FALSE)
-endif()
-
-function(_alp_git_checkout repo repo_dir commitish)
-    message(STATUS "[alp/git] ${repo}: Checking out ${commitish}.")
+function(_alp_add_repo_resolve_commit repo_dir revision output_var)
     execute_process(
-        COMMAND ${GIT_EXECUTABLE} checkout --quiet ${commitish}
-        WORKING_DIRECTORY ${repo_dir}
-        RESULT_VARIABLE GIT_CHECKOUT_RESULT
-        ERROR_VARIABLE checkout_output
-        OUTPUT_VARIABLE checkout_output
-    )
-    if (NOT GIT_CHECKOUT_RESULT)
-        # message(STATUS "[alp/git] In ${repo}, checking out ${commitish} succeeded.")
+        COMMAND "${GIT_EXECUTABLE}" rev-parse --verify "${revision}^{commit}"
+        WORKING_DIRECTORY "${repo_dir}"
+        RESULT_VARIABLE _result
+        OUTPUT_VARIABLE _output
+        ERROR_QUIET
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if(_result EQUAL 0)
+        set("${output_var}" "${_output}" PARENT_SCOPE)
     else()
-        message(WARNING "[alp/git] ${repo}: Checking out ${commitish} was NOT successful: ${checkout_output}")
+        set("${output_var}" "" PARENT_SCOPE)
+    endif()
+endfunction()
+
+function(_alp_add_repo_assert_postconditions name repo_dir revision expected_commit)
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" rev-parse --verify HEAD
+        WORKING_DIRECTORY "${repo_dir}"
+        RESULT_VARIABLE _head_result
+        OUTPUT_VARIABLE _head
+        ERROR_VARIABLE _error
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if(NOT _head_result EQUAL 0 OR NOT _head STREQUAL expected_commit)
+        _alp_add_repo_fail("${name}" "${repo_dir}" "${revision}"
+            "verifying HEAD" "expected '${expected_commit}', got '${_head}'; ${_error}")
     endif()
 
-    if (EXISTS "${repo_dir}/.gitmodules")
-        # init/update submodules; for shallow clones this will still be shallow because the super‑project is.
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" symbolic-ref -q HEAD
+        WORKING_DIRECTORY "${repo_dir}"
+        RESULT_VARIABLE _attached_result
+        OUTPUT_VARIABLE _attached_ref
+        ERROR_VARIABLE _error
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if(_attached_result EQUAL 0)
+        _alp_add_repo_fail("${name}" "${repo_dir}" "${revision}"
+            "verifying detached HEAD" "HEAD is attached to '${_attached_ref}'")
+    elseif(NOT _attached_result EQUAL 1)
+        _alp_add_repo_fail("${name}" "${repo_dir}" "${revision}"
+            "verifying detached HEAD" "${_error}")
+    endif()
+
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" status --porcelain --untracked-files=all --ignored=no
+        WORKING_DIRECTORY "${repo_dir}"
+        RESULT_VARIABLE _status_result
+        OUTPUT_VARIABLE _status
+        ERROR_VARIABLE _error
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if(NOT _status_result EQUAL 0 OR NOT _status STREQUAL "")
+        _alp_add_repo_fail("${name}" "${repo_dir}" "${revision}"
+            "verifying the prepared working tree" "${_error}${_status}")
+    endif()
+
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" submodule status --recursive
+        WORKING_DIRECTORY "${repo_dir}"
+        RESULT_VARIABLE _submodule_result
+        OUTPUT_VARIABLE _submodule_status
+        ERROR_VARIABLE _error
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if(NOT _submodule_result EQUAL 0)
+        _alp_add_repo_fail("${name}" "${repo_dir}" "${revision}"
+            "verifying recursive submodules" "${_error}")
+    endif()
+    if(_submodule_status MATCHES "(^|\n)[-+U]")
+        _alp_add_repo_fail("${name}" "${repo_dir}" "${revision}"
+            "verifying recursive submodules" "${_submodule_status}")
+    endif()
+endfunction()
+
+function(_alp_add_repo_prepare_submodules name repo_dir revision checkout_performed)
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" submodule status --recursive
+        WORKING_DIRECTORY "${repo_dir}"
+        RESULT_VARIABLE _status_result
+        OUTPUT_VARIABLE _status
+        ERROR_VARIABLE _error
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if(NOT _status_result EQUAL 0)
+        _alp_add_repo_fail("${name}" "${repo_dir}" "${revision}"
+            "inspecting recursive submodules" "${_error}")
+    endif()
+
+    if(checkout_performed AND EXISTS "${repo_dir}/.gitmodules")
+        message(STATUS "[alp/git] ${name}: synchronizing recursive submodule URLs in '${repo_dir}'.")
         execute_process(
-            COMMAND ${GIT_EXECUTABLE} submodule update --init --recursive ${_ALP_SUBMODULE_UPDATE_ARGS}
-            WORKING_DIRECTORY ${repo_dir}
-            RESULT_VARIABLE GIT_SUBMODULE_RESULT
-            ERROR_VARIABLE checkout_output
-            OUTPUT_VARIABLE checkout_output
-        )
-        if(GIT_SUBMODULE_RESULT EQUAL 0)
-            # message(STATUS "[alp/git] ${repo}: Submodules updated to match ${commitish}.")
-        else()
-            message(WARNING "[alp/git] ${repo}: Submodule update failed after checking out ${commitish}: ${checkout_output}")
+            COMMAND "${GIT_EXECUTABLE}" submodule sync --recursive
+            WORKING_DIRECTORY "${repo_dir}"
+            RESULT_VARIABLE _sync_result
+            OUTPUT_VARIABLE _output
+            ERROR_VARIABLE _error)
+        if(NOT _sync_result EQUAL 0)
+            _alp_add_repo_fail("${name}" "${repo_dir}" "${revision}"
+                "synchronizing recursive submodule URLs" "${_error}${_output}")
+        endif()
+    endif()
+
+    if(_status STREQUAL "" OR NOT _status MATCHES "(^|\n)[-+U]")
+        message(STATUS "[alp/git] ${name}: recursive submodules are already correct in '${repo_dir}'.")
+        return()
+    endif()
+
+    if(NOT checkout_performed)
+        message(STATUS "[alp/git] ${name}: synchronizing recursive submodule URLs in '${repo_dir}'.")
+        execute_process(
+            COMMAND "${GIT_EXECUTABLE}" submodule sync --recursive
+            WORKING_DIRECTORY "${repo_dir}"
+            RESULT_VARIABLE _sync_result
+            OUTPUT_VARIABLE _output
+            ERROR_VARIABLE _error)
+        if(NOT _sync_result EQUAL 0)
+            _alp_add_repo_fail("${name}" "${repo_dir}" "${revision}"
+                "synchronizing recursive submodule URLs" "${_error}${_output}")
+        endif()
+    endif()
+
+    message(STATUS "[alp/git] ${name}: updating recursive submodules from local objects in '${repo_dir}'.")
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" -c protocol.file.allow=always submodule update
+            --init --recursive --checkout --depth 1 --no-fetch
+        WORKING_DIRECTORY "${repo_dir}"
+        RESULT_VARIABLE _local_result
+        OUTPUT_VARIABLE _output
+        ERROR_VARIABLE _error)
+
+    if(NOT _local_result EQUAL 0)
+        message(STATUS "[alp/git] ${name}: fetching missing recursive submodule revisions in '${repo_dir}'.")
+        execute_process(
+            COMMAND "${GIT_EXECUTABLE}" -c protocol.file.allow=always submodule update
+                --init --recursive --checkout --depth 1
+            WORKING_DIRECTORY "${repo_dir}"
+            RESULT_VARIABLE _update_result
+            OUTPUT_VARIABLE _output
+            ERROR_VARIABLE _error)
+        if(NOT _update_result EQUAL 0)
+            _alp_add_repo_fail("${name}" "${repo_dir}" "${revision}"
+                "updating recursive submodules" "${_error}${_output}")
         endif()
     endif()
 endfunction()
 
 function(alp_add_git_repository name)
-    set(options DO_NOT_ADD_SUBPROJECT NOT_SYSTEM DEEP_CLONE PRIVATE_DO_NOT_CHECK_FOR_SCRIPT_UPDATES)
-    set(oneValueArgs URL COMMITISH DESTINATION_PATH)
-    set(multiValueArgs )
-    cmake_parse_arguments(PARSE_ARGV 1 PARAM "${options}" "${oneValueArgs}" "${multiValueArgs}")
-
-    # Determine whether we should do a shallow or deep clone/fetch.
-    if(PARAM_DEEP_CLONE)
-        # message(STATUS "[alp/git] Cloning ${PARAM_URL} DEEPLY to ${repo_dir}.")
-        set(_ALP_GIT_CLONE_ARGS)
-        set(_ALP_SUBMODULE_UPDATE_ARGS)
-    else()
-        # message(STATUS "[alp/git] Cloning ${PARAM_URL} SHALLOWY to ${repo_dir}.")
-        set(_ALP_GIT_CLONE_ARGS --no-checkout --depth 1 --shallow-submodules)
-        set(_ALP_SUBMODULE_UPDATE_ARGS --depth 1 --recommend-shallow)
+    if(CMAKE_VERSION VERSION_LESS 3.25)
+        message(FATAL_ERROR
+            "[alp/git] ${name}: AddRepo.cmake requires CMake 3.25 or newer; "
+            "found ${CMAKE_VERSION}.")
     endif()
+
+    set(options
+        DO_NOT_ADD_SUBPROJECT
+        NOT_SYSTEM
+        PRIVATE_DO_NOT_CHECK_FOR_SCRIPT_UPDATES)
+    set(one_value_args URL COMMITISH DESTINATION_PATH)
+    cmake_parse_arguments(PARSE_ARGV 1 PARAM "${options}" "${one_value_args}" "")
+
+    if("${name}" STREQUAL "")
+        message(FATAL_ERROR "[alp/git] <empty>: dependency name must be non-empty.")
+    endif()
+    if(PARAM_UNPARSED_ARGUMENTS)
+        message(FATAL_ERROR
+            "[alp/git] ${name}: unknown arguments: ${PARAM_UNPARSED_ARGUMENTS}")
+    endif()
+    if(PARAM_KEYWORDS_MISSING_VALUES)
+        message(FATAL_ERROR
+            "[alp/git] ${name}: arguments require non-empty values: "
+            "${PARAM_KEYWORDS_MISSING_VALUES}")
+    endif()
+    if(NOT DEFINED PARAM_URL OR PARAM_URL STREQUAL "")
+        message(FATAL_ERROR "[alp/git] ${name}: URL must be non-empty.")
+    endif()
+    if(NOT DEFINED PARAM_COMMITISH OR PARAM_COMMITISH STREQUAL "")
+        message(FATAL_ERROR "[alp/git] ${name}: COMMITISH must be non-empty.")
+    endif()
+
+    find_package(Git 2.22 QUIET)
+    if(NOT Git_FOUND)
+        message(FATAL_ERROR
+            "[alp/git] ${name}: Git 2.22 or newer is required but was not found.")
+    endif()
+
+    if(DEFINED PARAM_DESTINATION_PATH)
+        set(_relative_destination "${PARAM_DESTINATION_PATH}")
+    else()
+        if(NOT DEFINED ALP_EXTERN_DIR OR ALP_EXTERN_DIR STREQUAL "")
+            set(_alp_extern_dir "extern")
+        else()
+            set(_alp_extern_dir "${ALP_EXTERN_DIR}")
+        endif()
+        set(_relative_destination "${_alp_extern_dir}/${name}")
+    endif()
+
+    cmake_path(IS_ABSOLUTE _relative_destination _destination_is_absolute)
+    if(_destination_is_absolute)
+        message(FATAL_ERROR
+            "[alp/git] ${name}: destination '${_relative_destination}' must be relative to "
+            "CMAKE_SOURCE_DIR ('${CMAKE_SOURCE_DIR}').")
+    endif()
+    cmake_path(NORMAL_PATH _relative_destination OUTPUT_VARIABLE _normalized_destination)
+    if(_normalized_destination STREQUAL ".." OR _normalized_destination MATCHES "^\.\./")
+        message(FATAL_ERROR
+            "[alp/git] ${name}: destination '${_relative_destination}' escapes "
+            "CMAKE_SOURCE_DIR ('${CMAKE_SOURCE_DIR}').")
+    endif()
+    cmake_path(ABSOLUTE_PATH _normalized_destination
+        BASE_DIRECTORY "${CMAKE_SOURCE_DIR}" NORMALIZE OUTPUT_VARIABLE repo_dir)
 
     get_property(_check_ran GLOBAL PROPERTY _alp_add_repo_check_flag)
     if(NOT PARAM_PRIVATE_DO_NOT_CHECK_FOR_SCRIPT_UPDATES AND NOT _check_ran)
-        if(NOT COMMAND alp_check_for_script_updates)
-            include(${CMAKE_CURRENT_FUNCTION_LIST_DIR}/CheckForScriptUpdates.cmake)
-        endif()
-        alp_check_for_script_updates(${CMAKE_CURRENT_FUNCTION_LIST_FILE})
+        # Set the guard before entering the checker. The private option remains the
+        # explicit recursion escape hatch used by CheckForScriptUpdates.cmake.
         set_property(GLOBAL PROPERTY _alp_add_repo_check_flag TRUE)
-    endif()
-
-    if (NOT DEFINED ALP_EXTERN_DIR OR ALP_EXTERN_DIR STREQUAL "")
-        set(ALP_EXTERN_DIR extern)
-    endif()
-
-    set(repo_dir ${CMAKE_SOURCE_DIR}/${ALP_EXTERN_DIR}/${name})
-    set(short_repo_dir ${ALP_EXTERN_DIR}/${name})
-    if (DEFINED PARAM_DESTINATION_PATH AND NOT PARAM_DESTINATION_PATH STREQUAL "")
-        set(repo_dir ${CMAKE_SOURCE_DIR}/${PARAM_DESTINATION_PATH})
-        set(short_repo_dir ${PARAM_DESTINATION_PATH})
-    endif()
-    file(MAKE_DIRECTORY ${repo_dir})
-
-    set(${name}_SOURCE_DIR "${repo_dir}" PARENT_SCOPE)
-
-    # Detect if the requested ref looks like a remote branch (e.g. origin/main)
-    string(REGEX MATCH "^[^/]+/.+" force_fetch "${PARAM_COMMITISH}")
-
-    set(force_checkout FALSE)
-    if(NOT EXISTS "${repo_dir}/.git")
-        # Do a fresh clone
-        message(STATUS "[alp/git] ${short_repo_dir}: Cloning ${PARAM_URL} to ${repo_dir}.")
-        execute_process(
-            COMMAND ${GIT_EXECUTABLE} clone ${_ALP_GIT_CLONE_ARGS} --recurse-submodules ${PARAM_URL} ${repo_dir}
-            RESULT_VARIABLE GIT_CLONE_RESULT
-            ERROR_VARIABLE clone_output
-            OUTPUT_VARIABLE clone_output
-        )
-        if (NOT GIT_CLONE_RESULT EQUAL 0)
-            message(SEND_ERROR "[alp/git] ${short_repo_dir}: Cloning was NOT successful: ${clone_output}")
+        if(NOT COMMAND alp_check_for_script_updates)
+            include("${CMAKE_CURRENT_FUNCTION_LIST_DIR}/CheckForScriptUpdates.cmake")
         endif()
-        if (NOT PARAM_DEEP_CLONE)
-            # shallow clone, fetch ref and checkout
-            set(force_fetch TRUE)
-        endif()
-        set(force_checkout TRUE)
+        alp_check_for_script_updates("${CMAKE_CURRENT_FUNCTION_LIST_FILE}")
     endif()
 
-    # Check out the correct branch:
-    # First, see if PARAM_COMMITISH is a valid local ref:
-    execute_process(
-        COMMAND ${GIT_EXECUTABLE} rev-parse --verify ${PARAM_COMMITISH}
-        WORKING_DIRECTORY ${repo_dir}
-        OUTPUT_VARIABLE GIT_COMMIT_OUTPUT
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        RESULT_VARIABLE commit_present_result
-        ERROR_QUIET
-    )
-    if (commit_present_result EQUAL 0 AND NOT force_fetch)
-        # PARAM_COMMITISH is recognized by Git => no need to fetch
-        # (could be a tag (lightweight or annotated) or a direct commit SHA).
-        # if it's an *annotated* tag, rev-parse gives us the tag object's hash, not the commit hash.
-        # => Force resolve the actual commit object with ^{commit}:
-        execute_process(
-            COMMAND ${GIT_EXECUTABLE} rev-parse --verify ${PARAM_COMMITISH}^{commit}
-            WORKING_DIRECTORY ${repo_dir}
-            OUTPUT_VARIABLE GIT_COMMIT_OBJECT
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-            RESULT_VARIABLE commit_object_result
-        )
-
-        if (commit_object_result EQUAL 0)
-            # Successfully resolved a commit object
-            set(commitish_hash "${GIT_COMMIT_OBJECT}")
-        else()
-            # Fallback if that fails (should rarely happen if it's a proper commit/tag)
-            set(commitish_hash "${GIT_COMMIT_OUTPUT}")
+    set(_new_repository FALSE)
+    if(EXISTS "${repo_dir}")
+        if(NOT IS_DIRECTORY "${repo_dir}")
+            message(FATAL_ERROR
+                "[alp/git] ${name}: destination '${repo_dir}' exists but is not a directory.")
         endif()
-
-        # Grab HEAD commit
-        execute_process(
-            COMMAND ${GIT_EXECUTABLE} rev-parse --verify HEAD
-            WORKING_DIRECTORY ${repo_dir}
-            OUTPUT_VARIABLE git_head_hash
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
-
-        if (git_head_hash STREQUAL commitish_hash AND NOT force_checkout)
-            message(STATUS "[alp/git] ${short_repo_dir}: Already at ${PARAM_COMMITISH}. Skipping checkout.")
-        else()
-            _alp_git_checkout(${short_repo_dir} ${repo_dir} ${PARAM_COMMITISH})
+        if(NOT EXISTS "${repo_dir}/.git")
+            file(GLOB _destination_entries LIST_DIRECTORIES TRUE
+                "${repo_dir}/*" "${repo_dir}/.[!.]*" "${repo_dir}/..?*")
+            if(_destination_entries)
+                message(FATAL_ERROR
+                    "[alp/git] ${name}: destination '${repo_dir}' is non-empty and is not "
+                    "a Git working tree; refusing to overwrite it.")
+            endif()
+            set(_new_repository TRUE)
         endif()
     else()
-        # either remote branch or commitish not recognised
-        message(STATUS "[alp/git] ${short_repo_dir}: Fetching updates.")
+        get_filename_component(_repo_parent "${repo_dir}" DIRECTORY)
+        file(MAKE_DIRECTORY "${_repo_parent}")
+        set(_new_repository TRUE)
+    endif()
 
-        if(PARAM_DEEP_CLONE)
-            # Original deep‑clone logic: fetch everything (incl. all tags) deeply.
-            # message(STATUS "[alp/git] Deep clone, fetching all.")
-            execute_process(
-                COMMAND ${GIT_EXECUTABLE} fetch origin --tags
-                WORKING_DIRECTORY ${repo_dir}
-                RESULT_VARIABLE fetch_result
-                OUTPUT_QUIET
-                ERROR_QUIET
-            )
-        else()
-            # ── Shallow path ─────────────────────────
-            # 1. Try to fetch COMMITISH as a tag
-            # message(STATUS "[alp/git] Shallow clone, trying to fetch tag ${PARAM_COMMITISH}.")
-            execute_process(
-                COMMAND ${GIT_EXECUTABLE} fetch origin tag ${PARAM_COMMITISH} --depth 1
-                WORKING_DIRECTORY ${repo_dir}
-                RESULT_VARIABLE fetch_result
-                OUTPUT_QUIET
-                ERROR_QUIET
-            )
-
-            # 2. If that failed, try it as branch‑name or raw hash
-            if(NOT fetch_result EQUAL 0)
-                # message(STATUS "[alp/git] Shallow clone, failed to fetch tag ${PARAM_COMMITISH}. Probably it is a branch or hash. Trying again..")
-                set(_FETCH_REF "${PARAM_COMMITISH}")
-                string(REGEX REPLACE "^origin/(.+)" "\\1" _FETCH_REF "${_FETCH_REF}")
-                execute_process(
-                    COMMAND ${GIT_EXECUTABLE} fetch origin ${_FETCH_REF} --depth 1
-                    WORKING_DIRECTORY ${repo_dir}
-                    RESULT_VARIABLE fetch_result
-                    OUTPUT_QUIET
-                    ERROR_QUIET
-                )
+    if(_new_repository)
+        message(STATUS
+            "[alp/git] ${name}: shallow-cloning '${PARAM_URL}' into '${repo_dir}'.")
+        execute_process(
+            COMMAND "${GIT_EXECUTABLE}" clone --no-checkout --depth 1
+                "${PARAM_URL}" "${repo_dir}"
+            RESULT_VARIABLE _clone_result
+            OUTPUT_VARIABLE _output
+            ERROR_VARIABLE _error)
+        if(NOT _clone_result EQUAL 0)
+            _alp_add_repo_fail("${name}" "${repo_dir}" "${PARAM_COMMITISH}"
+                "shallow clone" "${_error}${_output}")
+        endif()
+    else()
+        # This must be the first Git command for an existing working tree. An
+        # attached HEAD makes it developer managed and suppresses all other Git work.
+        execute_process(
+            COMMAND "${GIT_EXECUTABLE}" symbolic-ref -q HEAD
+            WORKING_DIRECTORY "${repo_dir}"
+            RESULT_VARIABLE _attached_result
+            OUTPUT_VARIABLE _attached_ref
+            ERROR_VARIABLE _error
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
+        if(_attached_result EQUAL 0)
+            message(WARNING
+                "[alp/git] ${name}: protected developer-managed repository at "
+                "'${_normalized_destination}' is attached to '${_attached_ref}'. "
+                "Requested revision '${PARAM_COMMITISH}' was NOT checked out; no other "
+                "Git operations were performed.")
+            set("${name}_SOURCE_DIR" "${repo_dir}" PARENT_SCOPE)
+            if(NOT PARAM_DO_NOT_ADD_SUBPROJECT)
+                if(PARAM_NOT_SYSTEM)
+                    add_subdirectory("${repo_dir}" "${CMAKE_BINARY_DIR}/alp_external/${name}")
+                else()
+                    add_subdirectory("${repo_dir}" "${CMAKE_BINARY_DIR}/alp_external/${name}" SYSTEM)
+                endif()
             endif()
+            return()
+        elseif(NOT _attached_result EQUAL 1)
+            _alp_add_repo_fail("${name}" "${repo_dir}" "${PARAM_COMMITISH}"
+                "classifying repository ownership" "${_error}")
         endif()
 
-        if (fetch_result EQUAL 0)
-            # message(STATUS "[alp/git] Fetch successful for ${short_repo_dir}.")
-            execute_process(
-                COMMAND ${GIT_EXECUTABLE} branch --show-current
-                WORKING_DIRECTORY ${repo_dir}
-                OUTPUT_STRIP_TRAILING_WHITESPACE
-                OUTPUT_VARIABLE current_branch
-                RESULT_VARIABLE branch_result
-            )
-            if (NOT branch_result EQUAL 0)
-                message(FATAL_ERROR "[alp/git] ${short_repo_dir}: git branch --show-current failed")
-            endif()
+        execute_process(
+            COMMAND "${GIT_EXECUTABLE}" remote get-url origin
+            WORKING_DIRECTORY "${repo_dir}"
+            RESULT_VARIABLE _origin_result
+            OUTPUT_VARIABLE _origin_url
+            ERROR_VARIABLE _error
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
+        if(NOT _origin_result EQUAL 0)
+            _alp_add_repo_fail("${name}" "${repo_dir}" "${PARAM_COMMITISH}"
+                "reading origin URL" "${_error}")
+        endif()
+        if(NOT _origin_url STREQUAL PARAM_URL)
+            _alp_add_repo_fail("${name}" "${repo_dir}" "${PARAM_COMMITISH}"
+                "validating origin URL"
+                "origin is '${_origin_url}', but URL is '${PARAM_URL}'. Attach HEAD to make this a developer-managed repository")
+        endif()
 
-            if (current_branch STREQUAL "" OR force_checkout)
-                # not on a branch. that's what we usually have (detached head state)
-                _alp_git_checkout(${short_repo_dir} ${repo_dir} ${PARAM_COMMITISH})
-            else()
-                message(WARNING "[alp/git] ${short_repo_dir}: On branch ${current_branch}, leaving it there. NOT checking out ${PARAM_COMMITISH}! Use origin/main or similar if you want to stay up‑to‑date with upstream.")
-            endif()
-        else()
-            message(WARNING "[alp/git] ${short_repo_dir}: Unable to fetch updates for; ${PARAM_COMMITISH} not found locally or is a remote branch.")
+        execute_process(
+            COMMAND "${GIT_EXECUTABLE}" status --porcelain --untracked-files=all --ignored=no
+            WORKING_DIRECTORY "${repo_dir}"
+            RESULT_VARIABLE _status_result
+            OUTPUT_VARIABLE _status
+            ERROR_VARIABLE _error
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
+        if(NOT _status_result EQUAL 0)
+            _alp_add_repo_fail("${name}" "${repo_dir}" "${PARAM_COMMITISH}"
+                "checking repository cleanliness" "${_error}")
+        endif()
+        if(NOT _status STREQUAL "")
+            _alp_add_repo_fail("${name}" "${repo_dir}" "${PARAM_COMMITISH}"
+                "checking repository cleanliness"
+                "the CMake-managed repository is dirty:\n${_status}\nAttach HEAD to make this a developer-managed repository")
         endif()
     endif()
 
-    if (NOT PARAM_DO_NOT_ADD_SUBPROJECT)
-        if (NOT PARAM_NOT_SYSTEM)
-            add_subdirectory(${repo_dir} ${CMAKE_BINARY_DIR}/alp_external/${name} SYSTEM)
+    string(REGEX MATCH "^origin/(.+)$" _remote_match "${PARAM_COMMITISH}")
+    if(_remote_match)
+        set(_branch "${CMAKE_MATCH_1}")
+        execute_process(
+            COMMAND "${GIT_EXECUTABLE}" check-ref-format "refs/heads/${_branch}"
+            WORKING_DIRECTORY "${repo_dir}"
+            RESULT_VARIABLE _ref_result
+            ERROR_VARIABLE _error)
+        if(NOT _ref_result EQUAL 0)
+            _alp_add_repo_fail("${name}" "${repo_dir}" "${PARAM_COMMITISH}"
+                "validating remote-tracking revision" "${_error}")
+        endif()
+
+        message(STATUS
+            "[alp/git] ${name}: fetching moving revision '${PARAM_COMMITISH}' in '${repo_dir}'.")
+        execute_process(
+            COMMAND "${GIT_EXECUTABLE}" fetch --depth 1 origin
+                "+refs/heads/${_branch}:refs/remotes/origin/${_branch}"
+            WORKING_DIRECTORY "${repo_dir}"
+            RESULT_VARIABLE _fetch_result
+            OUTPUT_VARIABLE _output
+            ERROR_VARIABLE _error)
+        if(NOT _fetch_result EQUAL 0)
+            _alp_add_repo_resolve_commit("${repo_dir}"
+                "refs/remotes/origin/${_branch}" _target_commit)
+            if(_target_commit STREQUAL "")
+                _alp_add_repo_fail("${name}" "${repo_dir}" "${PARAM_COMMITISH}"
+                    "refreshing remote-tracking revision" "${_error}${_output}")
+            endif()
+            string(STRIP "${_error}${_output}" _fetch_diagnostic)
+            message(WARNING
+                "[alp/git] ${name}: refresh of '${PARAM_COMMITISH}' failed in "
+                "'${repo_dir}'; reusing cached commit '${_target_commit}'. "
+                "Git diagnostic: ${_fetch_diagnostic}")
         else()
-            add_subdirectory(${repo_dir} ${CMAKE_BINARY_DIR}/alp_external/${name})
+            _alp_add_repo_resolve_commit("${repo_dir}"
+                "refs/remotes/origin/${_branch}" _target_commit)
+            if(_target_commit STREQUAL "")
+                _alp_add_repo_fail("${name}" "${repo_dir}" "${PARAM_COMMITISH}"
+                    "resolving fetched remote-tracking revision" "the ref does not resolve to a commit")
+            endif()
+        endif()
+    else()
+        execute_process(
+            COMMAND "${GIT_EXECUTABLE}" rev-parse --verify --quiet
+                "refs/heads/${PARAM_COMMITISH}"
+            WORKING_DIRECTORY "${repo_dir}"
+            RESULT_VARIABLE _local_branch_result
+            OUTPUT_QUIET ERROR_QUIET)
+        if(_local_branch_result EQUAL 0)
+            _alp_add_repo_fail("${name}" "${repo_dir}" "${PARAM_COMMITISH}"
+                "classifying fixed revision"
+                "local branch names are not accepted; use a tag, commit ID, or origin/<branch>")
+        endif()
+
+        _alp_add_repo_resolve_commit("${repo_dir}" "${PARAM_COMMITISH}" _target_commit)
+        if(_target_commit STREQUAL "")
+            message(STATUS
+                "[alp/git] ${name}: fixed revision '${PARAM_COMMITISH}' is not cached; "
+                "fetching it into '${repo_dir}'.")
+            string(LENGTH "${PARAM_COMMITISH}" _revision_length)
+            if(PARAM_COMMITISH MATCHES "^[0-9a-fA-F]+$"
+                    AND _revision_length GREATER_EQUAL 4
+                    AND _revision_length LESS_EQUAL 40)
+                execute_process(
+                    COMMAND "${GIT_EXECUTABLE}" fetch --depth 1 origin "${PARAM_COMMITISH}"
+                    WORKING_DIRECTORY "${repo_dir}"
+                    RESULT_VARIABLE _fetch_result
+                    OUTPUT_VARIABLE _output
+                    ERROR_VARIABLE _error)
+            else()
+                execute_process(
+                    COMMAND "${GIT_EXECUTABLE}" fetch --depth 1 origin
+                        "refs/tags/${PARAM_COMMITISH}:refs/tags/${PARAM_COMMITISH}"
+                    WORKING_DIRECTORY "${repo_dir}"
+                    RESULT_VARIABLE _fetch_result
+                    OUTPUT_VARIABLE _output
+                    ERROR_VARIABLE _error)
+            endif()
+            if(NOT _fetch_result EQUAL 0)
+                _alp_add_repo_fail("${name}" "${repo_dir}" "${PARAM_COMMITISH}"
+                    "fetching fixed revision" "${_error}${_output}")
+            endif()
+            _alp_add_repo_resolve_commit("${repo_dir}" "${PARAM_COMMITISH}" _target_commit)
+            if(_target_commit STREQUAL "")
+                # A raw commit fetch is normally available only through FETCH_HEAD.
+                _alp_add_repo_resolve_commit("${repo_dir}" FETCH_HEAD _target_commit)
+            endif()
+            if(_target_commit STREQUAL "")
+                _alp_add_repo_fail("${name}" "${repo_dir}" "${PARAM_COMMITISH}"
+                    "resolving fetched fixed revision" "the fetched object does not resolve to a commit")
+            endif()
+        else()
+            message(STATUS
+                "[alp/git] ${name}: fixed revision '${PARAM_COMMITISH}' is available locally in '${repo_dir}'.")
+        endif()
+    endif()
+
+    set(_checkout_performed FALSE)
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" rev-parse --verify HEAD
+        WORKING_DIRECTORY "${repo_dir}"
+        RESULT_VARIABLE _head_result
+        OUTPUT_VARIABLE _head_commit
+        ERROR_QUIET
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if(_new_repository OR NOT _head_result EQUAL 0 OR NOT _head_commit STREQUAL _target_commit)
+        if(_head_result EQUAL 0 AND EXISTS "${repo_dir}/.gitmodules")
+            # Deinitializing before switching prevents removed submodule worktrees
+            # from becoming untracked files after the checkout.
+            execute_process(
+                COMMAND "${GIT_EXECUTABLE}" submodule deinit --force --all
+                WORKING_DIRECTORY "${repo_dir}"
+                RESULT_VARIABLE _deinit_result
+                OUTPUT_VARIABLE _output
+                ERROR_VARIABLE _error)
+            if(NOT _deinit_result EQUAL 0)
+                _alp_add_repo_fail("${name}" "${repo_dir}" "${PARAM_COMMITISH}"
+                    "deinitializing old submodules before checkout" "${_error}${_output}")
+            endif()
+        endif()
+
+        message(STATUS
+            "[alp/git] ${name}: checking out '${PARAM_COMMITISH}' at '${_target_commit}' in '${repo_dir}'.")
+        execute_process(
+            COMMAND "${GIT_EXECUTABLE}" checkout --quiet --detach "${_target_commit}"
+            WORKING_DIRECTORY "${repo_dir}"
+            RESULT_VARIABLE _checkout_result
+            OUTPUT_VARIABLE _output
+            ERROR_VARIABLE _error)
+        if(NOT _checkout_result EQUAL 0)
+            _alp_add_repo_fail("${name}" "${repo_dir}" "${PARAM_COMMITISH}"
+                "checking out requested revision" "${_error}${_output}")
+        endif()
+        set(_checkout_performed TRUE)
+    else()
+        message(STATUS
+            "[alp/git] ${name}: HEAD is already at '${PARAM_COMMITISH}' in '${repo_dir}'; skipping checkout.")
+    endif()
+
+    _alp_add_repo_prepare_submodules(
+        "${name}" "${repo_dir}" "${PARAM_COMMITISH}" "${_checkout_performed}")
+    _alp_add_repo_assert_postconditions(
+        "${name}" "${repo_dir}" "${PARAM_COMMITISH}" "${_target_commit}")
+
+    set("${name}_SOURCE_DIR" "${repo_dir}" PARENT_SCOPE)
+
+    if(NOT PARAM_DO_NOT_ADD_SUBPROJECT)
+        message(STATUS
+            "[alp/git] ${name}: adding '${repo_dir}' as a CMake subproject.")
+        if(PARAM_NOT_SYSTEM)
+            add_subdirectory("${repo_dir}" "${CMAKE_BINARY_DIR}/alp_external/${name}")
+        else()
+            add_subdirectory("${repo_dir}" "${CMAKE_BINARY_DIR}/alp_external/${name}" SYSTEM)
         endif()
     endif()
 endfunction()

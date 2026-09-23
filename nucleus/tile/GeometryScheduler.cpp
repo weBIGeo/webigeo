@@ -47,11 +47,11 @@ void GeometryScheduler::transform_and_emit(const std::vector<tile::DataQuad>& ne
             if (tile.data->size()) {
                 // tile is available
                 using namespace nucleus::utils;
-                gpu_tile.surface = std::make_shared<const nucleus::Raster<uint16_t>>(
+                gpu_tile.surface = std::make_shared<const radix::Raster<uint16_t>>(
                     image_loader::rgba8(*tile.data).and_then(error::wrap_to_expected(conversion::to_u16raster)).value_or(m_default_raster));
             } else {
                 // tile is not available (use default tile)
-                gpu_tile.surface = std::make_shared<const nucleus::Raster<uint16_t>>(m_default_raster);
+                gpu_tile.surface = std::make_shared<const radix::Raster<uint16_t>>(m_default_raster);
             }
             new_gpu_tiles.push_back(gpu_tile);
         }

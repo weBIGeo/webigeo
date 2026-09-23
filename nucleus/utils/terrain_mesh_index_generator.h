@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include <cassert>
+#include <QtAssert>
 #include <limits>
 #include <vector>
 
@@ -46,8 +46,8 @@ namespace nucleus::utils::terrain_mesh_index_generator {
 template<typename Index>
 std::vector<Index> surface_quads(unsigned vertex_side_length)
 {
-    assert(vertex_side_length >= 2);
-    assert(vertex_side_length * vertex_side_length < std::numeric_limits<Index>::max());
+    Q_ASSERT(vertex_side_length >= 2);
+    Q_ASSERT(vertex_side_length * vertex_side_length < std::numeric_limits<Index>::max());
     std::vector<Index> indices;
     const auto height = vertex_side_length;
     const auto width = vertex_side_length;
@@ -69,8 +69,8 @@ std::vector<Index> surface_quads(unsigned vertex_side_length)
 template<typename Index>
 std::vector<Index> surface_quads_with_curtains(unsigned vertex_side_length)
 {
-    assert(vertex_side_length >= 2);
-    assert(vertex_side_length * vertex_side_length < std::numeric_limits<Index>::max());
+    Q_ASSERT(vertex_side_length >= 2);
+    Q_ASSERT(vertex_side_length * vertex_side_length < std::numeric_limits<Index>::max());
     std::vector<Index> indices = surface_quads<Index>(vertex_side_length);
     const auto height = vertex_side_length;
     const auto width = vertex_side_length;

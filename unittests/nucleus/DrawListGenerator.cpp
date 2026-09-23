@@ -21,6 +21,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <QFile>
+#include <QtAssert>
 
 #include "nucleus/camera/PositionStorage.h"
 #include "nucleus/tile/DrawListGenerator.h"
@@ -99,7 +100,7 @@ TEST_CASE("nucleus/tile/DrawListGenerator benchmark")
 
     QFile file(":/map/height_data.atb");
     const auto open = file.open(QIODeviceBase::OpenModeFlag::ReadOnly);
-    assert(open);
+    Q_ASSERT(open);
     Q_UNUSED(open);
     const QByteArray data = file.readAll();
     const auto decorator = nucleus::tile::utils::AabbDecorator::make(radix::TileHeights::deserialise(data));

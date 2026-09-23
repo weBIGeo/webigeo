@@ -23,13 +23,14 @@
 
 #include <QDebug>
 #include <QFile>
+#include <QtAssert>
 
 namespace nucleus::utils::image_writer {
 
-void rgba8_as_png(const Raster<glm::u8vec4>& data, const QString& filename)
+void rgba8_as_png(const radix::Raster<glm::u8vec4>& data, const QString& filename)
 {
-    assert(data.width() > 0);
-    assert(data.height() > 0);
+    Q_ASSERT(data.width() > 0);
+    Q_ASSERT(data.height() > 0);
 
     int result = stbi_write_png(filename.toUtf8().constData(), // File name
         data.width(), // Image width
@@ -46,9 +47,9 @@ void rgba8_as_png(const Raster<glm::u8vec4>& data, const QString& filename)
 
 void rgba8_as_png(const QByteArray& data, const glm::uvec2& resolution, const QString& filename)
 {
-    assert(resolution.x > 0);
-    assert(resolution.y > 0);
-    assert(data.size() == static_cast<int>(resolution.x * resolution.y * 4)); // Ensure data size matches resolution
+    Q_ASSERT(resolution.x > 0);
+    Q_ASSERT(resolution.y > 0);
+    Q_ASSERT(data.size() == static_cast<int>(resolution.x * resolution.y * 4)); // Ensure data size matches resolution
 
     int result = stbi_write_png(filename.toUtf8().constData(), // File name
         static_cast<int>(resolution.x), // Image width

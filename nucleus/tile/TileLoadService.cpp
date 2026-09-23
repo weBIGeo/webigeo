@@ -23,6 +23,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QtVersionChecks>
+#include <QtAssert>
 #include <nucleus/srs.h>
 #include <nucleus/utils/lang.h>
 
@@ -94,7 +95,7 @@ QString TileLoadService::build_tile_url(tile::Id tile_id) const
     if (!m_load_balancing_targets.empty()) {
         const unsigned hash = qHash(tile_address) % 1024;
         const auto index = unsigned((float(hash) / 1024.1f) * float(m_load_balancing_targets.size()));
-        assert(index < m_load_balancing_targets.size());
+        Q_ASSERT(index < m_load_balancing_targets.size());
         return m_base_url.arg(m_load_balancing_targets[index]) + tile_address + m_file_ending;
     }
     return m_base_url + tile_address + m_file_ending;
@@ -107,7 +108,7 @@ unsigned int TileLoadService::transfer_timeout() const
 
 void TileLoadService::set_transfer_timeout(unsigned int new_transfer_timeout)
 {
-    assert(new_transfer_timeout < unsigned(std::numeric_limits<int>::max()));
+    Q_ASSERT(new_transfer_timeout < unsigned(std::numeric_limits<int>::max()));
     m_transfer_timeout = new_transfer_timeout;
 }
 

@@ -26,6 +26,7 @@
 #include <QOpenGLFunctions>
 #include <QOpenGLShaderProgram>
 #include <QOpenGLVertexArrayObject>
+#include <QtAssert>
 #include <nucleus/camera/Definition.h>
 #include <nucleus/utils/terrain_mesh_index_generator.h>
 
@@ -44,7 +45,7 @@ void TileGeometry::init()
 {
 
     using nucleus::utils::terrain_mesh_index_generator::surface_quads_with_curtains;
-    assert(QOpenGLContext::currentContext());
+    Q_ASSERT(QOpenGLContext::currentContext());
     const auto indices = surface_quads_with_curtains<uint16_t>(m_texture_resolution);
     auto index_buffer = std::make_unique<QOpenGLBuffer>(QOpenGLBuffer::IndexBuffer);
     index_buffer->create();
@@ -142,9 +143,9 @@ void TileGeometry::draw(ShaderProgram* shader, const nucleus::camera::Definition
     std::vector<glm::u32vec2> packed_id;
     packed_id.reserve(draw_list.size());
 
-    nucleus::Raster<uint8_t> zoom_level_raster = { glm::uvec2 { 1024, 1 } };
-    nucleus::Raster<uint16_t> array_index_raster = { glm::uvec2 { 1024, 1 } };
-    nucleus::Raster<glm::vec4> bounds_raster = { glm::uvec2 { 1024, 1 } };
+    radix::Raster<uint8_t> zoom_level_raster(glm::uvec2 { 1024, 1 });
+    radix::Raster<uint16_t> array_index_raster(glm::uvec2 { 1024, 1 });
+    radix::Raster<glm::vec4> bounds_raster(glm::uvec2 { 1024, 1 });
     for (unsigned i = 0; i < std::min(unsigned(draw_list.size()), 1024u); ++i) {
         const auto& tile = draw_list[i];
         bounds.push_back(glm::vec4 { tile.bounds.min.x - camera.position().x,
@@ -173,10 +174,10 @@ void TileGeometry::draw(ShaderProgram* shader, const nucleus::camera::Definition
     m_instance_tile_id_buffer->write(0, packed_id.data(), GLsizei(packed_id.size() * sizeof(decltype(packed_id)::value_type)));
 
     m_dtm_array_index_buffer->bind();
-    m_dtm_array_index_buffer->write(0, array_index_raster.bytes(), GLsizei(array_index_raster.width() * sizeof(uint16_t)));
+    m_dtm_array_index_buffer->write(0, array_index_raster.bytes().data(), GLsizei(array_index_raster.width() * sizeof(uint16_t)));
 
     m_dtm_zoom_buffer->bind();
-    m_dtm_zoom_buffer->write(0, zoom_level_raster.bytes(), GLsizei(zoom_level_raster.width() * sizeof(uint8_t)));
+    m_dtm_zoom_buffer->write(0, zoom_level_raster.bytes().data(), GLsizei(zoom_level_raster.width() * sizeof(uint8_t)));
 
     f->glDrawElementsInstanced(GL_TRIANGLE_STRIP, GLsizei(m_index_buffer.second), GL_UNSIGNED_SHORT, nullptr, GLsizei(draw_list.size()));
     f->glBindVertexArray(0);
@@ -186,7 +187,7 @@ void TileGeometry::set_aabb_decorator(const nucleus::tile::utils::AabbDecoratorP
 
 void TileGeometry::set_tile_limit(unsigned int new_limit)
 {
-    assert(!m_dtm_textures);
+    Q_ASSERT(!m_dtm_textures);
     m_gpu_array_helper.set_tile_limit(new_limit);
 }
 
@@ -203,8 +204,8 @@ void TileGeometry::update_gpu_tiles(const std::vector<radix::tile::Id>& deleted_
     }
     for (const auto& tile : new_tiles) {
         // test for validity
-        assert(tile.id.zoom_level < 100);
-        assert(tile.surface);
+        Q_ASSERT(tile.id.zoom_level < 100);
+        Q_ASSERT(tile.surface);
 
         // find empty spot and upload texture
         const auto layer_index = m_gpu_array_helper.add_tile(tile.id);

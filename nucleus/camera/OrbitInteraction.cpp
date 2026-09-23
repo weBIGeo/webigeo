@@ -22,6 +22,7 @@
 #include "AbstractDepthTester.h"
 #include "gesture.h"
 #include <QDebug>
+#include <QtAssert>
 #include <glm/ext/scalar_constants.hpp>
 
 namespace nucleus::camera {
@@ -79,7 +80,7 @@ std::optional<Definition> OrbitInteraction::touch_event(const event_parameter::T
     }
 
     if (gesture->just_activated) {
-        assert(gesture->values.contains(gesture::ValueName::Pivot));
+        Q_ASSERT(gesture->values.contains(gesture::ValueName::Pivot));
         const auto& pivot = gesture->values[gesture::ValueName::Pivot];
         start(pivot, camera, depth_tester); // Set m_operation_centre
         m_operation_centre_screen = pivot;

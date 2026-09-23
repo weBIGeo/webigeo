@@ -25,10 +25,10 @@
 #include <QSize>
 #include <stb_slim/stb_truetype.h>
 
-#include <nucleus/Raster.h>
 #include <nucleus/map_label/FontRenderer.h>
 #include <nucleus/map_label/types.h>
 #include <nucleus/vector_tile/types.h>
+#include <radix/raster.h>
 
 namespace nucleus::map_label {
 
@@ -38,7 +38,7 @@ class Factory {
 public:
     AtlasData init_font_atlas();
     AtlasData renew_font_atlas();
-    Raster<glm::u8vec4> label_icons();
+    radix::Raster<glm::u8vec4> label_icons();
     std::tuple<std::vector<VertexData>, glm::dvec3, AtlasData> create_labels(const vector_tile::PointOfInterestCollection& pois);
 
     static const inline std::vector<unsigned int> m_indices = { 0, 1, 2, 0, 2, 3 };
@@ -59,4 +59,4 @@ private:
     std::set<char16_t> m_new_chars;
     FontRenderer m_font_renderer;
 };
-} // namespace nucleus::maplabel
+} // namespace nucleus::map_label

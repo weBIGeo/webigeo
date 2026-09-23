@@ -18,12 +18,12 @@
 
 #pragma once
 
-#include <nucleus/Raster.h>
 #include <QByteArray>
+#include <radix/raster.h>
 
 namespace nucleus::utils::image_writer {
 
-void rgba8_as_png(const Raster<glm::u8vec4>& data, const QString& filename);
+void rgba8_as_png(const radix::Raster<glm::u8vec4>& data, const QString& filename);
 
 void rgba8_as_png(const QByteArray& data, const glm::uvec2& resolution, const QString& filename);
 

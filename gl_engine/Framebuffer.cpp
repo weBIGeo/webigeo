@@ -23,6 +23,7 @@
 #include <QOpenGLExtraFunctions>
 #include <QOpenGLFunctions>
 #include <QOpenGLTexture>
+#include <QtAssert>
 #ifdef ANDROID
 #include <GLES3/gl3.h>
 #endif
@@ -58,7 +59,7 @@ QOpenGLTexture::TextureFormat internal_format_qt(Framebuffer::ColourFormat f)
     case Framebuffer::ColourFormat::RGBA32F:
         return QOpenGLTexture::TextureFormat::RGBA32F;
     }
-    assert(false);
+    Q_ASSERT(false);
     return QOpenGLTexture::TextureFormat::NoFormat;
 }
 
@@ -86,7 +87,7 @@ GLenum format(Framebuffer::ColourFormat f)
     case Framebuffer::ColourFormat::RGBA32F:
         return GL_RGBA;
     }
-    assert(false);
+    Q_ASSERT(false);
     return GLenum(-1);
 }
 
@@ -106,10 +107,10 @@ QOpenGLTexture::TextureFormat internal_format_qt(Framebuffer::DepthFormat f)
     case Framebuffer::DepthFormat::Float32:
         return QOpenGLTexture::TextureFormat::D32F;
     case Framebuffer::DepthFormat::None: // prevent compiler warning
-        assert(false); // extra assert, so we can from the line number which issue it is
+        Q_ASSERT(false); // extra assert, so we can from the line number which issue it is
         return QOpenGLTexture::TextureFormat::NoFormat;
     }
-    assert(false);
+    Q_ASSERT(false);
     return QOpenGLTexture::TextureFormat::NoFormat;
 }
 
@@ -132,7 +133,7 @@ GLenum type(Framebuffer::ColourFormat f)
     case Framebuffer::ColourFormat::R32UI:
         return GL_UNSIGNED_INT;
     }
-    assert(false);
+    Q_ASSERT(false);
     return GLenum(-1);
 }
 
@@ -146,10 +147,10 @@ GLenum type(Framebuffer::DepthFormat f)
     case Framebuffer::DepthFormat::Float32:
         return GL_FLOAT;
     case Framebuffer::DepthFormat::None: // prevent compiler warning
-        assert(false); // extra assert, so we can from the line number which issue it is
+        Q_ASSERT(false); // extra assert, so we can from the line number which issue it is
         return GLenum(-1);
     }
-    assert(false);
+    Q_ASSERT(false);
     return GLenum(-1);
 }
 
@@ -170,7 +171,7 @@ QImage::Format qimage_format(Framebuffer::ColourFormat f)
          throw std::logic_error("unsupported, QImage does not support the color format of the texture");
     }
 
-    assert(false);
+    Q_ASSERT(false);
     return QImage::Format_Invalid;
 }
 
@@ -255,13 +256,13 @@ void Framebuffer::bind()
 
 void Framebuffer::bind_colour_texture(unsigned index, unsigned location)
 {
-    assert(index < m_colour_textures.size());
+    Q_ASSERT(index < m_colour_textures.size());
     m_colour_textures[index]->bind(location);
 }
 
 void Framebuffer::bind_depth_texture(unsigned location)
 {
-    assert(m_depth_format != DepthFormat::None);
+    Q_ASSERT(m_depth_format != DepthFormat::None);
     m_depth_texture->bind(location);
 }
 
@@ -272,7 +273,7 @@ QOpenGLTexture* Framebuffer::depth_texture()
 
 QImage Framebuffer::read_colour_attachment(unsigned index)
 {
-    assert(index < m_colour_textures.size());
+    Q_ASSERT(index < m_colour_textures.size());
 
     auto texFormat = m_colour_definitions[index];
 
@@ -288,7 +289,7 @@ QImage Framebuffer::read_colour_attachment(unsigned index)
     f->glReadBuffer(GL_COLOR_ATTACHMENT0 + index);
 
     QImage image({ static_cast<int>(m_size.x), static_cast<int>(m_size.y) }, qimage_format(texFormat));
-    assert(!image.isNull());
+    Q_ASSERT(!image.isNull());
     f->glReadPixels(0, 0, int(m_size.x), int(m_size.y), format(texFormat), type(texFormat), image.bits());
 #if QT_VERSION > QT_VERSION_CHECK(6, 9, 0)
     image.flip(Qt::Orientation::Vertical);
@@ -302,7 +303,7 @@ QImage Framebuffer::read_colour_attachment(unsigned index)
 template <typename T>
 T Framebuffer::read_colour_attachment_pixel(unsigned int index, const glm::dvec2& normalised_device_coordinates)
 {
-    assert(index < m_colour_textures.size());
+    Q_ASSERT(index < m_colour_textures.size());
 
     auto texFormat = m_colour_definitions[index];
     switch (texFormat) {
@@ -316,16 +317,16 @@ T Framebuffer::read_colour_attachment_pixel(unsigned int index, const glm::dvec2
         // unsupported or untested.
         // you really should add a unit test if you move something down to the supported section
         // as the support accross platforms (webassembly, android, ios?) is patchy
-        assert(false);
+        Q_ASSERT(false);
         return {};
     case Framebuffer::ColourFormat::RGBA8:
         // case Framebuffer::ColourFormat::SRGBA8:
-        assert(sizeof(T) == 4);
+        Q_ASSERT(sizeof(T) == 4);
         if (sizeof(T) != 4)
             return {};
         break;
     case Framebuffer::ColourFormat::RGBA32F:
-        assert(sizeof(T) == 16);
+        Q_ASSERT(sizeof(T) == 16);
         if (sizeof(T) != 16)
             return {};
         break;
@@ -367,7 +368,7 @@ void Framebuffer::reset_fbo()
     // Tell OpenGL how many attachments to use
     f->glDrawBuffers(m_colour_textures.size(), draw_attachments.data());
 
-    // assert(f->glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+    // Q_ASSERT(f->glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 }
 
 

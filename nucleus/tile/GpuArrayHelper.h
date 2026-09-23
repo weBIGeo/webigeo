@@ -19,15 +19,15 @@
 #pragma once
 
 #include "types.h"
-#include <nucleus/Raster.h>
+#include <radix/raster.h>
 
 namespace nucleus::tile {
 
 class GpuArrayHelper {
 public:
     struct Dictionary {
-        nucleus::Raster<glm::u32vec2> packed_ids;
-        nucleus::Raster<uint16_t> layers;
+        radix::Raster<glm::u32vec2> packed_ids;
+        radix::Raster<uint16_t> layers;
     };
     struct LayerInfo {
         tile::Id id;
@@ -44,6 +44,7 @@ public:
     unsigned int n_occupied() const;
     Dictionary generate_dictionary() const;
     LayerInfo layer(Id tile_id) const;
+    bool contains(Id tile_id) const;
 
 private:
     std::vector<tile::Id> m_array;

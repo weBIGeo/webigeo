@@ -24,6 +24,7 @@
 #include <QImage>
 #include <QSignalSpy>
 #include <QThread>
+#include <QtAssert>
 #include <catch2/benchmark/catch_benchmark.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <nucleus/camera/PositionStorage.h>
@@ -56,7 +57,7 @@ std::unique_ptr<Scheduler> scheduler_with_true_heights()
 
     QFile file(":/map/height_data.atb");
     const auto open = file.open(QIODeviceBase::OpenModeFlag::ReadOnly);
-    assert(open);
+    Q_ASSERT(open);
     Q_UNUSED(open);
     const QByteArray data = file.readAll();
     const auto decorator = AabbDecorator::make(TileHeights::deserialise(data));
@@ -107,7 +108,7 @@ std::unique_ptr<Scheduler> scheduler_with_aabb()
 QByteArray example_tile_data()
 {
     auto height_file = QFile(QString("%1%2").arg(ALP_TEST_DATA_DIR, "test-tile_ortho.jpeg"));
-    height_file.open(QFile::ReadOnly);
+    REQUIRE(height_file.open(QFile::ReadOnly));
     const auto height_bytes = height_file.readAll();
     REQUIRE(!QImage::fromData(height_bytes).isNull());
     return height_bytes;

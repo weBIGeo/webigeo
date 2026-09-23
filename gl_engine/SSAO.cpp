@@ -22,6 +22,7 @@
 #include "ShaderRegistry.h"
 #include <QOpenGLExtraFunctions>
 #include <QOpenGLTexture>
+#include <QtAssert>
 #include <cmath>
 #include <random>
 
@@ -64,7 +65,7 @@ SSAO::SSAO(ShaderRegistry* shader_registry)
 }
 
 void SSAO::recreate_kernel(unsigned int size) {
-    assert(size <= MAX_SSAO_KERNEL_SIZE);
+    Q_ASSERT(size <= MAX_SSAO_KERNEL_SIZE);
     std::uniform_real_distribution<float> randomFloats(0.0, 1.0); // generates random floats between 0.0 and 1.0
     std::default_random_engine generator;
     m_ssao_kernel.clear();

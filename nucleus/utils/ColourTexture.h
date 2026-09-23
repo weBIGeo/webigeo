@@ -19,9 +19,9 @@
 
 #pragma once
 
-#include <vector>
 #include <glm/glm.hpp>
-#include "nucleus/Raster.h"
+#include <radix/raster.h>
+#include <vector>
 
 namespace nucleus::utils {
 
@@ -36,7 +36,7 @@ private:
     Format m_format = Format::Uncompressed_RGBA;
 
 public:
-    explicit ColourTexture(const nucleus::Raster<glm::u8vec4>& data, Format format);
+    explicit ColourTexture(const radix::Raster<glm::u8vec4>& data, Format format);
     [[nodiscard]] const uint8_t* data() const { return m_data.data(); }
     [[nodiscard]] size_t n_bytes() const { return m_data.size(); }
     [[nodiscard]] unsigned width() const { return m_width; }
@@ -45,6 +45,6 @@ public:
 };
 
 using MipmappedColourTexture = std::vector<ColourTexture>;
-MipmappedColourTexture generate_mipmapped_colour_texture(const nucleus::Raster<glm::u8vec4>& data, ColourTexture::Format format);
+MipmappedColourTexture generate_mipmapped_colour_texture(const radix::Raster<glm::u8vec4>& data, ColourTexture::Format format);
 
 } // namespace nucleus::utils

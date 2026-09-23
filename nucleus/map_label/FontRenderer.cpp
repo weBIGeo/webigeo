@@ -21,6 +21,7 @@
 
 #include <QFile>
 #include <QDebug>
+#include <QtAssert>
 #include <vector>
 #include <QString>
 
@@ -31,14 +32,14 @@ void FontRenderer::init()
     // load ttf file
     QFile file(":/fonts/Roboto/Roboto-Bold.ttf");
     const auto open = file.open(QIODeviceBase::OpenModeFlag::ReadOnly);
-    assert(open);
+    Q_ASSERT(open);
     Q_UNUSED(open);
     m_font_file = file.readAll();
 
            // init font and get info about the dimensions
     const auto font_init = stbtt_InitFont(&m_font_data.fontinfo, reinterpret_cast<const uint8_t*>(m_font_file.constData()),
         stbtt_GetFontOffsetForIndex(reinterpret_cast<const uint8_t*>(m_font_file.constData()), 0));
-    assert(font_init);
+    Q_ASSERT(font_init);
     Q_UNUSED(font_init);
 
     m_outline_margin = int(std::ceil(m_font_outline));
@@ -50,7 +51,7 @@ void FontRenderer::init()
 
     m_texture_index = 0;
 
-    m_font_atlas.push_back(Raster<glm::u8vec2>({ m_font_atlas_size.width(), m_font_atlas_size.height() }, glm::u8vec2(0)));
+    m_font_atlas.push_back(radix::Raster<glm::u8vec2>({ m_font_atlas_size.width(), m_font_atlas_size.height() }, glm::u8vec2(0)));
 }
 
 void FontRenderer::render(std::set<char16_t> chars, float font_size)
@@ -64,7 +65,7 @@ void FontRenderer::render(std::set<char16_t> chars, float font_size)
 //        static int counter = 1;
 //        for(size_t i = 0; i < m_font_atlas.size(); i++)
 //        {
-//            Raster<glm::u8vec4> rgba_raster = { m_font_atlas[i].size(), { 255, 255, 0, 255 } };
+//            radix::Raster<glm::u8vec4> rgba_raster = { m_font_atlas[i].size(), { 255, 255, 0, 255 } };
 //            std::transform(m_font_atlas[i].cbegin(), m_font_atlas[i].cend(), rgba_raster.begin(), [](const auto& v) { return glm::u8vec4(v.x, v.y, 0, 255); });
 //            const auto debug_out = QImage(rgba_raster.bytes(), font_atlas_size.width(), font_atlas_size.height(), QImage::Format_RGBA8888);
 //            debug_out.save(QString("font_atlas_%1_%2.png").arg(i).arg(counter));
@@ -80,9 +81,9 @@ void FontRenderer::render_text(std::set<char16_t> chars, float font_size)
 
     // stb_truetype only supports one dimensional bitmap
     // we therefore have to create a 1d temp_raster that is later merged with the actual texture
-    std::vector<Raster<uint8_t>> temp_raster = std::vector<Raster<uint8_t>>();
+    std::vector<radix::Raster<uint8_t>> temp_raster = std::vector<radix::Raster<uint8_t>>();
     int temp_texture_index = 0;
-    temp_raster.push_back(Raster<uint8_t>({ m_font_atlas_size.width(), m_font_atlas_size.height() }, uint8_t(0)));
+    temp_raster.push_back(radix::Raster<uint8_t>({ m_font_atlas_size.width(), m_font_atlas_size.height() }, uint8_t(0)));
 
     for (const char16_t& c : chars) {
         // code adapted from stbtt_BakeFontBitmap()
@@ -113,13 +114,13 @@ void FontRenderer::render_text(std::set<char16_t> chars, float font_size)
                 //      - e.g. if you created a bold version or a font with different font size create a separate draw-call with the separate texture array bound
                 //      - note this requires a bit of refactoring
                 qDebug() << "Font doesnt fit into bitmap";
-                assert(false);
+                Q_ASSERT(false);
                 break; // doesnt fit in image´
             }
 
             temp_texture_index++;
-            temp_raster.push_back(Raster<uint8_t>({ m_font_atlas_size.width(), m_font_atlas_size.height() }, uint8_t(0)));
-            m_font_atlas.push_back(Raster<glm::u8vec2>({ m_font_atlas_size.width(), m_font_atlas_size.height() }, glm::u8vec2(0)));
+            temp_raster.push_back(radix::Raster<uint8_t>({ m_font_atlas_size.width(), m_font_atlas_size.height() }, uint8_t(0)));
+            m_font_atlas.push_back(radix::Raster<glm::u8vec2>({ m_font_atlas_size.width(), m_font_atlas_size.height() }, glm::u8vec2(0)));
 
             m_y = m_outline_margin + m_font_padding.y;
             m_bottom_y = m_outline_margin + m_font_padding.y;
@@ -188,7 +189,7 @@ void FontRenderer::make_outline(std::set<char16_t> chars)
     }
 }
 
-std::vector<Raster<glm::u8vec2>> FontRenderer::font_atlas() { return m_font_atlas; }
+std::vector<radix::Raster<glm::u8vec2>> FontRenderer::font_atlas() { return m_font_atlas; }
 
 const FontData& FontRenderer::font_data() { return m_font_data; }
 } // namespace nucleus::map_label

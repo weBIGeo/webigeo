@@ -59,64 +59,70 @@ QPointF TrackModel::lat_long(unsigned int index)
 
 #ifdef __EMSCRIPTEN__
 // clang-format off
-EM_ASYNC_JS(void, alpine_app_open_file_picker_and_mount, (), {
-    const file_reader = new FileReader();
-    const fileReadPromise = new Promise((resolve, reject) => {
-        file_reader.onload = (event) => {
+EM_JS(void, alpine_app_open_file_picker_and_mount, (TrackModel* track_model), {
+    const file_selector = document.createElement('input');
+    file_selector.type = 'file';
+    file_selector.accept = '.gpx';
+    file_selector.addEventListener('change', event => {
+        const file = event.target.files[0];
+        if (!file)
+            return;
+
+        const file_reader = new FileReader();
+        file_reader.addEventListener('load', load_event => {
             try {
-                const uint8Arr = new Uint8Array(event.target.result);
-                const stream = FS.open("/tmp/track_upload/" + file_reader.filename.replace(/[^a-zA-Z0-9_\\-()]/g, '_'), "w+");
-                FS.write(stream, uint8Arr, 0, uint8Arr.length, 0);
+                const data = new Uint8Array(load_event.target.result);
+                const filename = file.name.replace(/[^a-zA-Z0-9_\\-()]/g, '_');
+                const stream = FS.open('/tmp/track_upload/' + filename, 'w+');
+                FS.write(stream, data, 0, data.length, 0);
                 FS.close(stream);
-                resolve();
+                _alpine_app_track_file_ready(track_model);
             } catch (error) {
-                reject(error);
+                console.error('Failed to load GPX file', error);
             }
-        };
-    });
-    globalThis["open_file"] = function(e)
-    {
-        file_reader.filename = e.target.files[0].name;
-        file_reader.mime_type = e.target.files[0].type;
-        file_reader.readAsArrayBuffer(e.target.files[0]);
-    };
-    
-    var file_selector = document.createElement('input');
-    file_selector.setAttribute('type', 'file');
-    file_selector.setAttribute('onchange', 'globalThis["open_file"](event)');
-    file_selector.setAttribute('accept', '.gpx');
+        }, { once: true });
+        file_reader.addEventListener('error', () => {
+            console.error('Failed to read GPX file', file_reader.error);
+        }, { once: true });
+        file_reader.readAsArrayBuffer(file);
+    }, { once: true });
     file_selector.click();
-    await fileReadPromise;
 });
 // clang-format on
+
+extern "C" EMSCRIPTEN_KEEPALIVE void alpine_app_track_file_ready(TrackModel* track_model)
+{
+    if (track_model)
+        track_model->finish_wasm_upload();
+}
 #endif
 
-void TrackModel::upload_track()
+void TrackModel::add_track(const QString& file_name, const QByteArray& file_content)
 {
-    auto fileContentReady = [this](const QString& /*fileName*/, const QByteArray& fileContent) {
-        (void)fileContent;
-        QXmlStreamReader xmlReader(fileContent);
+    Q_UNUSED(file_name);
+    QXmlStreamReader xml_reader(file_content);
 
-        std::unique_ptr<nucleus::track::Gpx> gpx = nucleus::track::parse(xmlReader);
-        if (gpx != nullptr) {
-            m_data.push_back(*gpx);
-            emit tracks_changed(m_data);
-        } else {
-            qDebug("Could not parse GPX file!");
-        }
-    };
+    std::unique_ptr<nucleus::track::Gpx> gpx = nucleus::track::parse(xml_reader);
+    if (gpx != nullptr) {
+        m_data.push_back(*gpx);
+        emit tracks_changed(m_data);
+        emit track_added(lat_long(m_data.size() - 1));
+    } else {
+        qDebug("Could not parse GPX file!");
+    }
+}
 
 #ifdef __EMSCRIPTEN__
+void TrackModel::finish_wasm_upload()
+{
     QDir dir("/tmp/track_upload/");
-    dir.mkpath("/tmp/track_upload/");
-    alpine_app_open_file_picker_and_mount();
-    QStringList fileList = dir.entryList(QDir::Files);
+    const QStringList file_list = dir.entryList(QDir::Files);
 
-    if (fileList.isEmpty()) {
+    if (file_list.isEmpty()) {
         qDebug() << "No files in /tmp/track_upload/";
         return;
     }
-    QString file_name = fileList.first();
+    const QString file_name = file_list.first();
     QFile file(dir.absoluteFilePath(file_name));
 
     if (!file.open(QIODevice::ReadOnly)) {
@@ -124,18 +130,26 @@ void TrackModel::upload_track()
         return;
     }
 
-    QByteArray file_data = file.readAll();
+    const QByteArray file_data = file.readAll();
     file.close();
 
     if (!QFile::remove(dir.absoluteFilePath(file_name))) {
         qDebug() << "Failed to delete the file:" << file_name;
     }
-    fileContentReady(file_name, file_data);
+    add_track(file_name, file_data);
+}
+#endif
+
+void TrackModel::upload_track()
+{
+#ifdef __EMSCRIPTEN__
+    QDir().mkpath("/tmp/track_upload/");
+    alpine_app_open_file_picker_and_mount(this);
 #else
     const auto path = QFileDialog::getOpenFileName(nullptr, tr("Open GPX track"), "", "GPX (*.gpx *.xml)");
     auto file = QFile(path);
     if (file.open(QFile::ReadOnly))
-        fileContentReady(file.fileName(), file.readAll());
+        add_track(file.fileName(), file.readAll());
     else
         qDebug() << "TrackModel::upload_track: failed to read file!" << path;
 #endif

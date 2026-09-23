@@ -25,7 +25,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include <nucleus/Raster.h>
+#include <radix/raster.h>
 #include <nucleus/map_label/types.h>
 
 namespace nucleus::map_label {
@@ -44,7 +44,7 @@ public:
     void init();
     void render(std::set<char16_t> chars, float font_size);
     const FontData& font_data();
-    std::vector<Raster<glm::u8vec2>> font_atlas();
+    std::vector<radix::Raster<glm::u8vec2>> font_atlas();
 
     static constexpr QSize m_font_atlas_size = QSize(1024, 1024);
     static constexpr int m_max_textures = 8;
@@ -66,7 +66,7 @@ private:
 
     FontData m_font_data;
 
-    std::vector<Raster<glm::u8vec2>> m_font_atlas;
+    std::vector<radix::Raster<glm::u8vec2>> m_font_atlas;
 
     QByteArray m_font_file;
 

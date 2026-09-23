@@ -18,6 +18,8 @@
  *****************************************************************************/
 
 #include "Scheduler.h"
+#include <QtAssert>
+
 #include <nucleus/vector_tile/parse.h>
 
 namespace nucleus::map_label {
@@ -34,7 +36,7 @@ void Scheduler::transform_and_emit(const std::vector<tile::DataQuad>& new_quads,
     std::vector<vector_tile::PoiTile> new_gpu_tiles;
     new_gpu_tiles.reserve(new_quads.size() * 4);
     for (const auto& data_quad : new_quads) {
-        assert(data_quad.n_tiles == 4);
+        Q_ASSERT(data_quad.n_tiles == 4);
         for (const auto& data_tile : data_quad.tiles) {
             vector_tile::PoiTile gpu_tile;
             gpu_tile.id = data_tile.id;
@@ -57,7 +59,7 @@ void Scheduler::transform_and_emit(const std::vector<tile::DataQuad>& new_quads,
 
 bool Scheduler::is_ready_to_ship(const nucleus::tile::DataQuad& quad) const
 {
-    assert(m_geometry_ram_cache);
+    Q_ASSERT(m_geometry_ram_cache);
     return m_geometry_ram_cache->contains(quad.id);
 }
 

@@ -35,7 +35,7 @@ TEST_CASE("nucleus/map_label/factory")
     auto i = 0u;
     for (const auto& rg_raster : a.font_atlas) {
         CAPTURE(rg_raster);
-        auto rgba_raster = nucleus::Raster<glm::u8vec4>(rg_raster.size());
+        auto rgba_raster = radix::Raster<glm::u8vec4>(rg_raster.size());
         std::transform(rg_raster.begin(), rg_raster.end(), rgba_raster.begin(), [](glm::u8vec2 rg) { return glm::u8vec4 { rg.x, rg.y, 0, 255 }; });
         const auto qimage = nucleus::tile::conversion::to_QImage(rgba_raster);
         qimage.save(QString("font_atlas_%0.png").arg(i));

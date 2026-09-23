@@ -24,14 +24,13 @@
 
 namespace nucleus {
 
-class DataQuerier
-{
+class DataQuerier {
     tile::MemoryCache* m_memory_cache = nullptr;
 
 public:
     DataQuerier(tile::MemoryCache* cache);
 
-    [[nodiscard]] tl::expected<float, QString> get_altitude(const glm::dvec2& lat_long) const;
+    [[nodiscard]] std::expected<float, QString> get_altitude(const glm::dvec2& lat_long) const;
 };
 
 } // namespace nucleus
