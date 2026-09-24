@@ -56,6 +56,8 @@ public:
     void render_gui();
     void on_window_resize(int width, int height);
     void update_camera();
+    void toggle_fullscreen();
+    [[nodiscard]] bool is_fullscreen() const;
 
     [[nodiscard]] InputMapper* get_input_mapper() { return m_input_mapper.get(); }
     [[nodiscard]] ImGuiManager* get_gui_manager() { return m_gui_manager.get(); }

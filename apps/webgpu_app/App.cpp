@@ -30,6 +30,7 @@
 #ifdef __EMSCRIPTEN__
 #include "util/WebInterop.h"
 #include <emscripten/emscripten.h>
+#include <emscripten/html5.h>
 #else
 #include "nucleus/utils/image_loader.h"
 #if defined(_WIN32) || defined(_WIN64)
@@ -130,6 +131,9 @@ void App::render_gui()
 
     if (ImGui::Button("Reload shaders [F5]", ImVec2(350, 0))) {
         m_webgpu_window->reload_shaders();
+    }
+    if (ImGui::Button(is_fullscreen() ? "Exit Fullscreen [F11]" : "Enter Fullscreen [F11]", ImVec2(350, 0))) {
+        toggle_fullscreen();
     }
 }
 
@@ -456,7 +460,38 @@ void App::handle_shortcuts(QKeyCombination key)
         m_webgpu_window->reload_shaders();
     } else if (key.key() == Qt::Key_H) {
         m_gui_manager->set_gui_visibility(!m_gui_manager->get_gui_visibility());
+    } else if (key.key() == Qt::Key_F11) {
+        toggle_fullscreen();
     }
+}
+
+void App::toggle_fullscreen()
+{
+#ifdef __EMSCRIPTEN__
+    if (is_fullscreen()) {
+        emscripten_exit_fullscreen();
+    } else {
+        EmscriptenFullscreenStrategy strategy = {};
+        strategy.scaleMode = EMSCRIPTEN_FULLSCREEN_SCALE_STRETCH;
+        strategy.canvasResolutionScaleMode = EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_STDDEF;
+        strategy.filteringMode = EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT;
+        strategy.canvasResizedCallback = nullptr;
+        emscripten_request_fullscreen_strategy("#canvas", true, &strategy);
+    }
+#else
+    SDL_SetWindowFullscreen(m_sdl_window, is_fullscreen() ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
+#endif
+}
+
+bool App::is_fullscreen() const
+{
+#ifdef __EMSCRIPTEN__
+    EmscriptenFullscreenChangeEvent fs_status;
+    emscripten_get_fullscreen_status(&fs_status);
+    return fs_status.isFullscreen;
+#else
+    return (SDL_GetWindowFlags(m_sdl_window) & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0;
+#endif
 }
 
 void App::schedule_update() { m_force_repaint_once = true; }
