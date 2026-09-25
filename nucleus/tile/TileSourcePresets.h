@@ -37,7 +37,7 @@ struct TileSourcePreset {
     uint32_t tile_resolution;
     uint32_t max_possible_zoom;
     uint32_t min_possible_zoom = 0; // floor of the zoom levels this source actually serves (most sources go down to 0)
-    TileSchedulerMode scheduler_mode = TileSchedulerMode::Quad;
+    TileSchedulerMode scheduler_mode = TileSchedulerMode::Demand;
 };
 
 namespace tile_source_presets {
