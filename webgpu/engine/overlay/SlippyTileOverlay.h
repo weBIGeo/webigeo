@@ -82,6 +82,7 @@ public:
     struct Settings {
         float opacity = 1.0f;
         uint32_t max_zoom = 20; // ceiling for the resolved per-pixel target zoom
+        uint32_t min_zoom = 0; // floor for the resolved per-pixel target zoom (e.g. ~3 for sources with no coarser tiles)
         // Fallback texels-per-tile for the target-zoom estimate when no source is set; otherwise the
         // source's GPU array is authoritative (see update_settings).
         uint32_t tile_size = 256;
@@ -142,6 +143,7 @@ private:
     struct GpuSettings {
         float opacity = 1.0f;
         uint32_t max_zoom = 20;
+        uint32_t min_zoom = 0;
         uint32_t tile_size = 256;
         float pixel_error_threshold = 2.0f;
         uint32_t debug_view = 0;

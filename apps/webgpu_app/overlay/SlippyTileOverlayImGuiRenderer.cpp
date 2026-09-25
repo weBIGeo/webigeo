@@ -101,6 +101,7 @@ bool SlippyTileOverlayImGuiRenderer::render_custom_settings()
         const auto& preset = presets[static_cast<size_t>(preset_idx)];
         m_slippy_overlay->set_source(m_context->get_or_create_tile_source(preset));
         s.max_zoom = preset.max_possible_zoom;
+        s.min_zoom = preset.min_possible_zoom;
         // s.tile_size is not set here: update_settings() takes the texels per tile from the new
         // source's GPU array (a quad source's layer holds 2x the preset's raw tile resolution).
         m_slippy_overlay->update_settings();
@@ -116,6 +117,16 @@ bool SlippyTileOverlayImGuiRenderer::render_custom_settings()
     int max_zoom = static_cast<int>(s.max_zoom);
     if (ImGui::SliderInt("Max Zoom", &max_zoom, 1, static_cast<int>(max_possible_zoom))) {
         s.max_zoom = static_cast<uint32_t>(max_zoom);
+        m_slippy_overlay->update_settings();
+        changed = true;
+    }
+
+    // Floor for the resolved per-pixel target zoom -- sources whose data doesn't go all the way
+    // down to zoom 0 (e.g. ortho imagery) should set this so the overlay stops requesting/probing
+    // zoom levels that can never exist for that source.
+    int min_zoom = static_cast<int>(s.min_zoom);
+    if (ImGui::SliderInt("Min Zoom", &min_zoom, 0, static_cast<int>(s.max_zoom))) {
+        s.min_zoom = static_cast<uint32_t>(min_zoom);
         m_slippy_overlay->update_settings();
         changed = true;
     }

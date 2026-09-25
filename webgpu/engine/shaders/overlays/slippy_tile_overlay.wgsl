@@ -60,6 +60,7 @@ const SNOW_ANGLE_BLEND: f32 = 5.0; // deg, falloff width around angle_max
 struct SlippyTileSettings {
     opacity: f32,
     max_zoom: u32,
+    min_zoom: u32, // floor for the resolved per-pixel target zoom (e.g. ~3 for sources with no coarser tiles)
     // Texels per side of one *dictionary tile*, i.e. of one tile_texture array layer -- for quad
     // sources that is twice the raw tile resolution (a layer holds a stitched 2x2 quad). Only used
     // to turn pixel_error_threshold into a target zoom.
@@ -202,7 +203,7 @@ fn closed_form_target_zoom_f(distance: f32) -> f32 {
     let desired_pixel_size_m = settings.pixel_error_threshold / max(screen_px_per_meter, 1e-9) / SQRT2;
     let desired_tile_size_m = desired_pixel_size_m * f32(settings.tile_size);
     let desired_zoom = log2(EARTH_CIRCUMFERENCE / max(desired_tile_size_m, 1e-3));
-    return clamp(desired_zoom, 0.0, f32(settings.max_zoom));
+    return clamp(desired_zoom, f32(settings.min_zoom), f32(settings.max_zoom));
 }
 
 // NOTE: we tried a second PER_TILE variant that corrected this closed-form guess by walking the
@@ -223,41 +224,97 @@ struct SingleTileResult {
     resolved_zoom: u32, // valid only if found
 }
 
-// Jumps straight to target_zoom (ascend or descend in one call), then walks up on a miss. The
-// scheduler guarantees every ancestor of a resident tile is also resident, so if target_zoom
-// itself isn't resident yet, no level between it and the render tile can be either -- walking up
-// from target_zoom always reaches the deepest actually-resident tile directly. Split out of
-// resolve_tile_sample so the zoom-transition blend below can call it once (fast path, away from a
-// transition) or twice (blend path, near one) without duplicating the walk.
+// Caps on how many dict_lookup probes resolve_single_tile may spend walking away from target_zoom
+// in each direction -- without these, a pixel whose whole ancestor chain is non-resident (e.g. far
+// outside any loaded region, or a source whose data doesn't go below some min_zoom) could cost up
+// to max_zoom probes, each itself a 256-probe open-addressing search. Tune and rebuild to profile.
+const MAX_ASCEND_JUMPS: u32 = 8u; // probes while walking target_zoom towards min_zoom (ancestors)
+const MAX_DESCEND_JUMPS: u32 = 8u; // probes while walking target_zoom towards max_zoom (descendants)
+
+// Jumps straight to target_zoom, then interleaves two independent walks away from it on a miss:
+// one step toward the root (ancestor, decrease_zoom_level_by_one), one step toward the leaves
+// (descendant, increase_zoom_level_by_one), alternating -- so the probe order is target, parent,
+// child, grandparent, grandchild, ... Each direction is bounded by its own MAX_ASCEND_JUMPS /
+// MAX_DESCEND_JUMPS budget and stops early at min_zoom / max_zoom respectively.
+//
+// The scheduler guarantees every ancestor of a resident tile is also resident, so the ascend side
+// alone is normally sufficient (and sufficient to prove a hit there is the *deepest* resident
+// ancestor). The descend side is a best-effort addition for the rare case (mostly cold start, or a
+// jump budget too small for the actual gap) where no ancestor is found either -- it trades a
+// guaranteed-correct answer for a bounded number of extra probes, on the assumption that some
+// descendant of the target tile happening to be resident is still a better result than nothing.
+// Both cursors start at the same tile and only ever move away from it, so they never probe the
+// same tile twice; down_uv's fractional bits keep tracing the exact path towards render_uv at each
+// finer level, same as increase_zoom_level_until does. Split out of resolve_tile_sample so the
+// zoom-transition blend below can call it once (fast path, away from a transition) or twice (blend
+// path, near one) without duplicating the walk.
 fn resolve_single_tile(render_tile_id: TileId, render_uv: vec2f, target_zoom: u32) -> SingleTileResult {
     var result: SingleTileResult;
     result.found = false;
     result.color = vec4f(0.0);
     result.resolved_zoom = 0u;
 
-    var cur_id: TileId;
-    var cur_uv: vec2f;
-    calc_tile_id_and_uv_for_zoom_level(render_tile_id, render_uv, target_zoom, &cur_id, &cur_uv);
+    var up_id: TileId;
+    var up_uv: vec2f;
+    calc_tile_id_and_uv_for_zoom_level(render_tile_id, render_uv, target_zoom, &up_id, &up_uv);
+    var down_id = up_id;
+    var down_uv = up_uv;
 
     var layer: u32;
-    loop {
-        if dict_lookup(cur_id, &layer) {
-            result.found = true;
-            break;
-        }
-        var parent_id: TileId;
-        var parent_uv: vec2f;
-        if !decrease_zoom_level_by_one(cur_id, cur_uv, &parent_id, &parent_uv) {
-            break;
-        }
-        cur_id = parent_id;
-        cur_uv = parent_uv;
+    if dict_lookup(up_id, &layer) {
+        result.found = true;
+        result.resolved_zoom = up_id.zoomlevel;
+        result.color = textureSampleLevel(tile_texture, tile_sampler, up_uv, i32(layer), 0.0);
+        return result;
     }
-    if result.found {
-        result.resolved_zoom = cur_id.zoomlevel;
-        // No mipmaps on the tile array (GpuTileTextureArray::init: mipLevelCount = 1) -- the
-        // discrete zoom choice above already is the "mip" selection, so always sample lod 0.
-        result.color = textureSampleLevel(tile_texture, tile_sampler, cur_uv, i32(layer), 0.0);
+
+    var up_active = up_id.zoomlevel > settings.min_zoom;
+    var down_active = down_id.zoomlevel < settings.max_zoom;
+    var up_steps = 0u;
+    var down_steps = 0u;
+
+    loop {
+        if !up_active && !down_active {
+            break;
+        }
+
+        if up_active && up_steps < MAX_ASCEND_JUMPS {
+            var parent_id: TileId;
+            var parent_uv: vec2f;
+            decrease_zoom_level_by_one(up_id, up_uv, &parent_id, &parent_uv);
+            up_id = parent_id;
+            up_uv = parent_uv;
+            up_steps = up_steps + 1u;
+            if dict_lookup(up_id, &layer) {
+                result.found = true;
+                result.resolved_zoom = up_id.zoomlevel;
+                result.color = textureSampleLevel(tile_texture, tile_sampler, up_uv, i32(layer), 0.0);
+                return result;
+            }
+            up_active = up_id.zoomlevel > settings.min_zoom;
+        } else {
+            up_active = false;
+        }
+
+        if down_active && down_steps < MAX_DESCEND_JUMPS {
+            var child_id: TileId;
+            var child_uv: vec2f;
+            increase_zoom_level_by_one(down_id, down_uv, settings.max_zoom, &child_id, &child_uv);
+            down_id = child_id;
+            down_uv = child_uv;
+            down_steps = down_steps + 1u;
+            if dict_lookup(down_id, &layer) {
+                result.found = true;
+                result.resolved_zoom = down_id.zoomlevel;
+                // No mipmaps on the tile array (GpuTileTextureArray::init: mipLevelCount = 1) -- the
+                // discrete zoom choice above already is the "mip" selection, so always sample lod 0.
+                result.color = textureSampleLevel(tile_texture, tile_sampler, down_uv, i32(layer), 0.0);
+                return result;
+            }
+            down_active = down_id.zoomlevel < settings.max_zoom;
+        } else {
+            down_active = false;
+        }
     }
     return result;
 }
@@ -296,7 +353,7 @@ fn resolve_tile_sample(tci: vec2u, raw_depth: f32) -> ResolvedTileSample {
         desired_zoom_f = closed_form_target_zoom_f(distance);
     } else {
         let target_zoom_f = -derivatives - log2(f32(settings.tile_size) * settings.pixel_error_threshold);
-        desired_zoom_f = clamp(target_zoom_f, 0.0, f32(settings.max_zoom));
+        desired_zoom_f = clamp(target_zoom_f, f32(settings.min_zoom), f32(settings.max_zoom));
     }
 
     // Round *up*: at ceil(desired) the settings.tile_size texels of the tile are at most
@@ -305,11 +362,11 @@ fn resolve_tile_sample(tci: vec2u, raw_depth: f32) -> ResolvedTileSample {
     // id in the dictionary says, so a round()ed target missed the dictionary and the ancestor walk
     // landed on ceil anyway. Now that settings.tile_size is the layer's real texel count, the rule
     // has to be explicit, or single-tile (DemandScheduler) sources render half as sharp.
-    let target_zoom = u32(clamp(ceil(desired_zoom_f), 0.0, f32(settings.max_zoom)));
+    let target_zoom = u32(clamp(ceil(desired_zoom_f), f32(settings.min_zoom), f32(settings.max_zoom)));
     // The choice above steps at every integer, so the cross-fade band straddles the *nearest* integer
     // boundary: zoom_lo below it, zoom_hi above it (blend_t agrees with target_zoom at both ends).
     let boundary = round(desired_zoom_f);
-    let zoom_lo = u32(clamp(boundary, 0.0, f32(settings.max_zoom)));
+    let zoom_lo = u32(clamp(boundary, f32(settings.min_zoom), f32(settings.max_zoom)));
     let zoom_hi = min(zoom_lo + 1u, settings.max_zoom);
     let half_band = settings.zoom_blend_band * 0.5;
     let blend_t = smoothstep(-half_band, half_band, desired_zoom_f - boundary);

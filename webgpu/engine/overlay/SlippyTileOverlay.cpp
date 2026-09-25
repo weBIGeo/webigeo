@@ -234,6 +234,7 @@ void SlippyTileOverlay::update_settings()
     const float pixel_error_threshold = m_source ? m_source->pixel_error_threshold() : settings.pixel_error_threshold;
     m_settings_uniform->data.opacity = settings.opacity;
     m_settings_uniform->data.max_zoom = settings.max_zoom;
+    m_settings_uniform->data.min_zoom = settings.min_zoom;
     // How many texels one dictionary tile resolves to -- 2x the raw tile size for quad sources. Taken
     // from the array itself so the shader's target zoom can't silently assume one scheduler's layout.
     m_settings_uniform->data.tile_size = m_source ? m_source->array().resolution() : settings.tile_size;
