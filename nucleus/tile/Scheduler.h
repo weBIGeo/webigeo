@@ -55,6 +55,11 @@ public:
         unsigned gpu_quad_limit = 512;
         unsigned ram_quad_limit = 5000;
         unsigned retirement_age_for_tile_cache = 10u * 24u * 3600u * 1000u; // 10 days
+        // Default true: walk the whole ancestor chain from the root down to each leaf, requesting a quad
+        // for every node along the way, so a coarser fallback is always available while finer tiles are
+        // still loading. Set false to instead request only the quads that directly cover the tiles the
+        // camera currently needs (the immediate parent of each leaf) -- fewer requests, no chain coverage.
+        bool fetch_full_quad_chain = true;
         unsigned update_timeout = 100;
         unsigned purge_timeout = 1000;
         unsigned persist_timeout = 10000;

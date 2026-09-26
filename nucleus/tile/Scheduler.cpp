@@ -280,6 +280,24 @@ tl::expected<void, QString> Scheduler::read_disk_cache()
 
 std::vector<Id> Scheduler::quads_for_current_camera_position() const
 {
+    if (!m.fetch_full_quad_chain) {
+        // Only request the quad that covers the grandparent of each leaf the camera currently needs
+        // (two levels above the target tile), not every ancestor on the way down from the root.
+        const auto leaves = radix::quad_tree::onTheFlyTraverse(Id { 0, { 0, 0 } },
+            tile::utils::refineFunctor(m_current_camera, m_aabb_decorator, m.tile_resolution, m.max_zoom_level, m.error_threshold_px),
+            [](const Id& v) { return v.children(); });
+
+        IdSet needed;
+        for (const auto& leaf : leaves) {
+            if (leaf.zoom_level == 0)
+                continue;
+            const auto parent = leaf.parent();
+            if (parent.zoom_level > 0)
+                needed.insert(parent.parent());
+        }
+        return { needed.cbegin(), needed.cend() };
+    }
+
     std::vector<Id> all_inner_nodes;
     const auto all_leaves = radix::quad_tree::onTheFlyTraverse(Id { 0, { 0, 0 } },
         tile::utils::refineFunctor(m_current_camera, m_aabb_decorator, m.tile_resolution, m.max_zoom_level, m.error_threshold_px),

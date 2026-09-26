@@ -27,7 +27,7 @@ namespace {
     const std::vector<TileSourcePreset> presets = {
         { "Gataki Ortho", "ortho", "https://gataki.cg.tuwien.ac.at/raw/basemap/tiles/", TileLoadService::UrlPattern::ZYX_yPointingSouth, ".jpeg", 256, 20, 3 },
         { "Gataki Ortho (CPU)", "ortho_cpu", "https://gataki.cg.tuwien.ac.at/raw/basemap/tiles/", TileLoadService::UrlPattern::ZYX_yPointingSouth, ".jpeg",
-            256, 20, 3, TileSchedulerMode::Quad },
+            256, 19, 2, TileSchedulerMode::Quad, /*fetch_full_quad_chain=*/false },
         { "Basemap Ortho",
             "basemap_ortho",
             "https://mapsneu.wien.gv.at/basemap/bmaporthofoto30cm/normal/google3857/",

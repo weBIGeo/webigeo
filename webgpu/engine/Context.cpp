@@ -273,6 +273,7 @@ TileSource* Context::get_or_create_tile_source(const nucleus::tile::TileSourcePr
         // per-tile size. settings.tile_resolution stays at the raw size (it also sizes the per-tile
         // fallback raster used for missing tiles, which must match real tiles for concatenation to work).
         config.resolution = preset.tile_resolution * 2;
+        config.settings.fetch_full_quad_chain = preset.fetch_full_quad_chain;
     }
     return add_tile_source(config);
 }
