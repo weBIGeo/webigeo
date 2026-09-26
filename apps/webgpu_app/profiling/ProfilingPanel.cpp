@@ -130,6 +130,18 @@ void ProfilingPanel::draw()
             ImGui::TreePop();
     }
 
+    const auto& thread_loads = m_app->get_profiling_store()->thread_loads();
+    if (!thread_loads.empty()) {
+        ImGui::Separator();
+        ImGui::TextUnformatted("Thread Busy %");
+        for (const auto& [label, series] : thread_loads) {
+            const float pct = average(series);
+            char overlay[48];
+            std::snprintf(overlay, sizeof(overlay), "%s: %.0f%%", label.c_str(), pct * 100.0f);
+            ImGui::ProgressBar(pct, ImVec2(-FLT_MIN, 0.0f), overlay);
+        }
+    }
+
     ImGui::Separator();
     if (ImGui::Button("Reset All Timers"))
         m_app->get_profiling_store()->reset_all();

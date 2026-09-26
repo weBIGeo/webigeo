@@ -24,7 +24,10 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <nucleus/timing/ThreadLoad.h>
+#include <string>
 #include <unordered_map>
+#include <vector>
 #include <webgpu/base/timing/StringId.h>
 
 namespace webgpu_app {
@@ -52,6 +55,22 @@ struct TimingSeries {
 
 inline float average(const TimingSeries& s) { return s.count > 0 ? s.sum / static_cast<float>(s.count) : 0.0f; }
 
+// Smoothed 0..1 busy fraction for one tracked background thread. Kept separate from
+// TimingSeries/on_measurement because those assume every value is a duration in seconds
+// (format_time() and the group-based "Share" column would render a raw fraction nonsensically).
+struct ThreadLoadSeries {
+    std::string label;
+    static constexpr size_t CAPACITY = 120;
+    std::array<float, CAPACITY> samples = {};
+    size_t head = 0;
+    size_t count = 0;
+    float sum = 0.0f;
+
+    void add(float value);
+};
+
+inline float average(const ThreadLoadSeries& s) { return s.count > 0 ? s.sum / static_cast<float>(s.count) : 0.0f; }
+
 inline float stddev(const TimingSeries& s)
 {
     if (s.count == 0)
@@ -67,13 +86,19 @@ public:
     explicit ProfilingStore(QObject* parent = nullptr);
 
     [[nodiscard]] const std::unordered_map<uint32_t, TimingSeries>& data() const { return m_data; }
+    [[nodiscard]] const std::unordered_map<std::string, ThreadLoadSeries>& thread_loads() const { return m_thread_loads; }
     void reset_all();
+
+    // Called directly from the render thread once per frame; not a Qt slot since both the
+    // caller (App::render()) and this store already live on the render thread.
+    void on_thread_load(const std::vector<nucleus::timing::ThreadLoadSample>& samples);
 
 public slots:
     void on_measurement(webgpu::timing::StringId id, uint64_t frame, float seconds);
 
 private:
     std::unordered_map<uint32_t, TimingSeries> m_data;
+    std::unordered_map<std::string, ThreadLoadSeries> m_thread_loads;
 };
 
 } // namespace webgpu_app

@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <nucleus/camera/Controller.h>
 #include <nucleus/tile/TileSourcePresets.h>
+#include <nucleus/timing/ThreadLoad.h>
 #include <nucleus/utils/thread.h>
 #include <webgpu/base/raii/BindGroupLayout.h>
 
@@ -36,6 +37,7 @@ Context::Context(QObject* parent)
 #ifdef ALP_ENABLE_THREADING
     m_scheduler_thread = std::make_unique<QThread>();
     m_scheduler_thread->setObjectName("engine_scheduler_thread");
+    nucleus::timing::ThreadLoadRegistry::register_thread(m_scheduler_thread.get(), "Engine Scheduler");
 #endif
 }
 

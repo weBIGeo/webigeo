@@ -40,6 +40,18 @@ void TimingSeries::add(uint64_t frame, float value)
         max = value;
 }
 
+void ThreadLoadSeries::add(float value)
+{
+    if (count == CAPACITY) {
+        sum -= samples[head];
+        count--;
+    }
+    samples[head] = value;
+    head = (head + 1) % CAPACITY;
+    count++;
+    sum += value;
+}
+
 ProfilingStore::ProfilingStore(QObject* parent)
     : QObject(parent)
 {
@@ -55,6 +67,16 @@ void ProfilingStore::on_measurement(webgpu::timing::StringId id, uint64_t frame,
     series.add(frame, seconds);
 }
 
+void ProfilingStore::on_thread_load(const std::vector<nucleus::timing::ThreadLoadSample>& samples)
+{
+    for (const auto& sample : samples) {
+        auto& series = m_thread_loads[sample.label];
+        if (series.label.empty())
+            series.label = sample.label;
+        series.add(sample.busy_fraction);
+    }
+}
+
 void ProfilingStore::reset_all()
 {
     for (auto& [hash, series] : m_data) {
@@ -65,6 +87,11 @@ void ProfilingStore::reset_all()
         series.min = FLT_MAX;
         series.max = 0.0f;
         series.last_frame = 0;
+    }
+    for (auto& [label, series] : m_thread_loads) {
+        series.head = 0;
+        series.count = 0;
+        series.sum = 0.0f;
     }
 }
 

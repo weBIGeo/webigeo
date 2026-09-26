@@ -104,6 +104,7 @@ qt_add_library(nucleus STATIC
     timing/TimerManager.h timing/TimerManager.cpp
     timing/TimerInterface.h timing/TimerInterface.cpp
     timing/CpuTimer.h timing/CpuTimer.cpp
+    timing/ThreadLoad.h timing/ThreadLoad.cpp
     utils/ColourTexture.h utils/ColourTexture.cpp
     utils/ColourTexture3D.h utils/ColourTexture3D.cpp
     EngineContext.h EngineContext.cpp

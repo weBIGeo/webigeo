@@ -27,6 +27,7 @@
 #include "nucleus/tile/Texture3DScheduler.h"
 #include "nucleus/tile/TileLoadService.h"
 #include "nucleus/tile/setup.h"
+#include "nucleus/timing/ThreadLoad.h"
 #include "webgpu/engine/Context.h"
 #include "webgpu/engine/cloud/CloudRenderer.h"
 #include "webgpu/engine/overlay/HeightLinesOverlay.h"
@@ -50,6 +51,7 @@ RenderingContext::RenderingContext()
 #ifdef ALP_ENABLE_THREADING
     m_scheduler_thread = std::make_unique<QThread>();
     m_scheduler_thread->setObjectName("scheduler_thread");
+    nucleus::timing::ThreadLoadRegistry::register_thread(m_scheduler_thread.get(), "App Scheduler");
 #endif
 
     m_scheduler_director = std::make_unique<nucleus::tile::SchedulerDirector>();

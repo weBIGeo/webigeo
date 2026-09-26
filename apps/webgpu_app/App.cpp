@@ -24,6 +24,7 @@
 #include <QCoreApplication>
 #include <QFile>
 #include <cassert>
+#include <nucleus/timing/ThreadLoad.h>
 #include <qthread.h> //TODO maybe only for threading enabled?
 #include <webgpu/base/webgpu_interface.hpp>
 
@@ -184,6 +185,8 @@ void App::poll_events()
 void App::render()
 {
     // Do nothing, this checks for ongoing asynchronous operations and call their callbacks
+
+    m_profiling_store->on_thread_load(nucleus::timing::ThreadLoadRegistry::sample_all());
 
     static constexpr webgpu::timing::StringId SID_CPU("CPU", "Frame");
     static constexpr webgpu::timing::StringId SID_GPU("GPU", "Frame");
