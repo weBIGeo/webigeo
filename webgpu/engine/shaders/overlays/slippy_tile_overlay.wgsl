@@ -236,18 +236,6 @@ const MAX_DESCEND_JUMPS: u32 = 8u; // probes while walking target_zoom towards m
 // (descendant, increase_zoom_level_by_one), alternating -- so the probe order is target, parent,
 // child, grandparent, grandchild, ... Each direction is bounded by its own MAX_ASCEND_JUMPS /
 // MAX_DESCEND_JUMPS budget and stops early at min_zoom / max_zoom respectively.
-//
-// The scheduler guarantees every ancestor of a resident tile is also resident, so the ascend side
-// alone is normally sufficient (and sufficient to prove a hit there is the *deepest* resident
-// ancestor). The descend side is a best-effort addition for the rare case (mostly cold start, or a
-// jump budget too small for the actual gap) where no ancestor is found either -- it trades a
-// guaranteed-correct answer for a bounded number of extra probes, on the assumption that some
-// descendant of the target tile happening to be resident is still a better result than nothing.
-// Both cursors start at the same tile and only ever move away from it, so they never probe the
-// same tile twice; down_uv's fractional bits keep tracing the exact path towards render_uv at each
-// finer level, same as increase_zoom_level_until does. Split out of resolve_tile_sample so the
-// zoom-transition blend below can call it once (fast path, away from a transition) or twice (blend
-// path, near one) without duplicating the walk.
 fn resolve_single_tile(render_tile_id: TileId, render_uv: vec2f, target_zoom: u32) -> SingleTileResult {
     var result: SingleTileResult;
     result.found = false;
