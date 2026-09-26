@@ -87,6 +87,9 @@ const DATA_MODE_NORMALS: u32 = 3u;
 // Paints nothing on screen -- slippy_tile_gbuffer_normals_pass.wgsl does the real work of
 // overwriting the gbuffer normal directly, so lighting reacts to it.
 const DATA_MODE_NORMALS_OVERWRITE: u32 = 4u;
+// Sun-exposure encoding: R = high byte, G = low byte of a 16-bit big-endian mean (Wh/m^2/day),
+// amber ramp over [0, SUN_ENERGY_MAX]. B (std) is part of the format but not visualized yet.
+const DATA_MODE_SUN_ENERGY: u32 = 5u;
 
 fn decode_hemioct_normal_127(sample_rg: vec2f) -> vec3f {
     let byte = round(sample_rg * 255.0);
@@ -100,6 +103,22 @@ fn decode_hemioct_normal_127(sample_rg: vec2f) -> vec3f {
 const SNOW_CEILING_CM: f32 = 500.0;
 fn decode_snow_cm(byte_unorm: f32) -> f32 {
     return byte_unorm * SNOW_CEILING_CM;
+}
+
+// Wh/m^2/day. Ceiling for the 16-bit mean quantization -- see nucleus_extra's sun-exposure
+// encoder for how this constant was picked (Austria clear-sky ceiling plus headroom).
+const SUN_ENERGY_MAX: f32 = 9000.0;
+const SUN_ENERGY_NODATA: u32 = 0xFFFFu;
+
+// R/G hold a 16-bit big-endian mean (R = high byte, G = low byte), linearly quantized over
+// [0, SUN_ENERGY_MAX], with 0xFFFF marking nodata. Returns a negative value for nodata.
+fn decode_sun_energy_mean(sample_rg: vec2f) -> f32 {
+    let byte = round(sample_rg * 255.0);
+    let v = (u32(byte.r) << 8u) | u32(byte.g);
+    if v == SUN_ENERGY_NODATA {
+        return -1.0;
+    }
+    return f32(v) * SUN_ENERGY_MAX / 65534.0;
 }
 
 const DEBUG_VIEW_NONE: u32 = 0u;
@@ -465,6 +484,11 @@ fn computeMain(@builtin(global_invocation_id) gid: vec3u) {
             if settings.data_mode == DATA_MODE_RGBA {
                 let a = settings.opacity * sample.a;
                 src = vec4f(sample.rgb * a, a); // premultiplied
+            } else if settings.data_mode == DATA_MODE_SUN_ENERGY {
+                let mean = decode_sun_energy_mean(sample.rg);
+                let ramp = select(clamp(mean / SUN_ENERGY_MAX, 0.0, 1.0), 0.0, mean < 0.0); // nodata -> transparent
+                let a = settings.opacity * sample.a * ramp;
+                src = vec4f(a, a * 0.7, 0.0, a); // amber, premultiplied
             } else {
                 let avg_cm = decode_snow_cm(sample.r);
                 var ramp = clamp(avg_cm / 20.0, 0.0, 1.0);

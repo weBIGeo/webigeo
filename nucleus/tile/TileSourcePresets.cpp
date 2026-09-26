@@ -90,6 +90,10 @@ namespace {
             TileLoadService::UrlPattern::ZXY_yPointingSouth, ".png", 256, 17, 0 },
         { "Sun Exposure Energy (June)", "sun_exposure_energy_june", "http://127.0.0.1:8000/v1/sun-exposure/06/energy/",
             TileLoadService::UrlPattern::ZXY_yPointingSouth, ".png", 256, 17, 0 },
+        { "Sun Exposure Hours (December)", "sun_exposure_hours_december", "http://127.0.0.1:8000/v1/sun-exposure/12/hours/",
+            TileLoadService::UrlPattern::ZXY_yPointingSouth, ".png", 256, 17, 0 },
+        { "Sun Exposure Energy (December)", "sun_exposure_energy_december", "http://127.0.0.1:8000/v1/sun-exposure/12/energy/",
+            TileLoadService::UrlPattern::ZXY_yPointingSouth, ".png", 256, 17, 0 },
     };
 } // namespace
 

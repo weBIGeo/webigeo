@@ -77,6 +77,11 @@ public:
         SnowAvgNormals = 2, // SnowAvg, additionally masked by surface steepness (gbuffer normal)
         Normals = 3,
         NormalsOverwrite = 4,
+        // Sun-exposure encoding: R = high byte, G = low byte of a 16-bit big-endian mean
+        // (Wh/m^2/day, quantized over [0, ENERGY_MAX], 0xFFFF = nodata), amber ramp. B (std) is
+        // part of the format but not visualized yet. See decode_sun_energy_mean in
+        // slippy_tile_overlay.wgsl for the format constants.
+        SunEnergy = 5,
     };
 
     struct Settings {
