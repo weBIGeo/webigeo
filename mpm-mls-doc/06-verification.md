@@ -347,6 +347,26 @@ Details in [14-avaframe-release-on-map.md](14-avaframe-release-on-map.md).
 - Not clicked: the release picker of avaGar. The map's terrain under the release (another DEM than
   AvaFrame's) is the unquantified part of the approximation.
 
+## 4n. Entrainment (2026-10-27)
+
+- **Data:** the C++ preparation's `entrainment.asc` and `dataset.json` entry are byte-identical
+  to `prepare_dataset.py`'s on all five datasets (scratch harness, as for the original port).
+- **Unit test:** `resample_depth()` keeps an entrainment raster's volume and bounds
+  (`test_ReleaseResampling.cpp`).
+- **Cover mass:** seeded cover equals the dataset's (Hintertux sandbox 258 575 m³ against
+  258 531; on the map 258 413).
+- **Off changes nothing:** batch runs without entrainment reproduce the 11 Oct AIMEC runout
+  differences exactly on all five avalanches.
+- **Against com1DFA 2.1 with entrainment** (five avalanches, erosion and plowing): erosion
+  entrains 80–83 % of com1DFA's volume (Madlein 55 %); mean runout error 119 m with erosion
+  against 149 m without. Details and tables: [15-entrainment.md](15-entrainment.md).
+- **Map:** Hintertux (AvaFrame cover) and Breite Ries (uniform cover) run and entrain; the web
+  build compiles.
+- **Bug on the way:** a first design seeded the whole cover as dormant particles. It needed
+  16 M particles for the generic map cover and seeded nothing there at first, because the map
+  preset's `seed_anywhere` made every cover sample count as "under the release". Replaced by
+  the per-column cover; `under_release()` now limits `seed_anywhere` to the disc.
+
 ## 5. On real terrain
 
 Runs end to end on the Schneeberg DEM: seeds, flows downhill, deposits, animates, and the
@@ -380,9 +400,12 @@ that it shows the flow faithfully. Method, because the app needs a window:
 | Holes over bumps: no airborne cut-off, then a 1-particle threshold, same frame | Holes stay: no particles within 12 m. A property of the flow, not of the renderer. |
 | Track + snow cover vs neither, same frame | The path stays readable where the flow thinned; avalanche pixels are not painted over by the snow. |
 | Powder vs ellipsoids, same frame | A soft haze over the flow, no hard intersections with terrain or surface. |
+| Entrainable snow on, off and in speed colours, same frame (Madlein, paused at 25 s, 27 Oct) | The cover lies on AvaFrame's entrainment area and ends where the track begins; off, the terrain shows there. |
+| Entrainable snow, bilinear vs Catmull-Rom terrain, same frame | Bilinear: the cover is lit in rectangular blocks of the height texels. Catmull-Rom: smooth. |
 
-**Not checked:** the GPU cost of the renderer, and steps 5–8 on scenarios other than
-Hintertux. The web build was tested in the browser by Manuel (25 Oct) and renders correctly. What is implemented: [12-rendering.md](12-rendering.md).
+**Not checked:** the GPU cost of the renderer, steps 5–8 on scenarios other than
+Hintertux, and the entrainable snow beyond Madlein. The interpolation rule for newly filled
+pool slots is checked by reading only: accuracy playback does not interpolate. The web build was tested in the browser by Manuel (25 Oct) and renders correctly. What is implemented: [12-rendering.md](12-rendering.md).
 
 ## Bugs found and fixed along the way
 

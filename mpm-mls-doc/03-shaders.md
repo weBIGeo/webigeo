@@ -45,8 +45,13 @@ follows the snow instead of the domain. See [09-performance-analysis.md](09-perf
 8  storage    column_floor   array<i32>            read_write (written by prepare)
 9  storage    grid_velocity  array<vec4f>          read_write (grid update → G2P)
 10 storage    tile_flags     array<atomic<u32>>    read_write (P2G → grid update)
-11 storage    column_stats   array<ColumnStats>    read_write (peaks; column_stats → grid update)
+11 storage    column_stats   array<ColumnStats>    read_write (peaks; column_stats → grid update; entrainment cover)
+12 texture    entrainment_texture      R32Float snow cover depth (entrainment areas), unfilterable;
+                                       a 1x1 placeholder without one
 ```
+
+Eight storage buffers is WebGPU's default `maxStorageBuffersPerShaderStage`, so the
+entrainment cover lives in `column_stats` rather than a buffer of its own.
 
 Unused bindings in a given kernel are fine; the reverse (using something not in the layout)
 is not.
@@ -82,6 +87,11 @@ stored layer. See "The terrain-following grid" in
 `SimState` is pre-seeded from the CPU with ±INT_MAX so the atomics converge — a
 zero-cleared buffer would make `atomicMin` stick at 0.
 
+**Entrainment (2026-10-27).** With entrainment on and a cover, it also sets each column's
+`column_stats.cover`: the cover of its dx × dx cell from 4 × 4 samples of `cover_depth_at()`,
+leaving out samples under the release (`under_release()`), summed into
+`SimState.cover_volume`. See [15-entrainment.md](15-entrainment.md).
+
 ## `mpm_seed` — 256×1×1, over particles
 
 One particle per thread. Rejection-samples inside the **release disc**:
@@ -115,6 +125,9 @@ Initialised with `F = I`, `C = 0`, `plastic_state = material_initial_state()` (J
 Stomakhin — the initial state is model-dependent, which is why it is a dispatcher call).
 
 Uses `///use random` (PCG hash from the existing `random.wgsl`).
+
+Threads from `release_particles` on are the entrainment pool: they write an inactive particle
+and return. `seed_first_hits` / `release_particles` is then still the disc's share with snow.
 
 ## `mpm_p2g` — 256×1×1, over particles
 
@@ -184,6 +197,13 @@ column's `ColumnStats`:
 - `peak_speed = max(·, speed_sum / particles)`, the mean speed of the particles that
   `mpm_column_stats` counted in this column after the previous G2P. The sums are then zeroed.
 
+**Entrainment (2026-10-27).** Then, with entrainment on and flow in the column,
+`entrain_column()`: the column's flow depth and mass-weighted node speed decide how much of
+`column_stats.cover` the flow takes (plowing: all of it once deep enough; erosion:
+τ_b |u| / e_b · dt · dx² / ρ_cover), and the eroded snow becomes particles from the pool at
+rest, written with negative mass (at most 64 per column and substep; the rest waits in
+`column_stats.eroded`). Details in [15-entrainment.md](15-entrainment.md).
+
 The speed is particle-based on purpose. In MLS-MPM a node's P2G momentum includes the stress
 impulse. At the edge of the flow, on nodes with almost no mass, momentum / mass (or the updated
 grid velocity) reached 234 m/s on avaKot, where no particle exceeded 101 m/s.
@@ -205,6 +225,10 @@ the version without peaks.
 Stages 3+4 fused. No early return: each invocation calls `update_particle()` if it has
 one, then the workgroup reduces its diagnostics and invocation 0 adds them to `SimState`
 once (max speed, yield count, path, box contacts).
+
+A particle with negative mass was entrained in this substep's grid update: G2P makes its mass
+positive and leaves it at rest, without gathering - it was not in this substep's P2G. The next
+P2G adds its mass without momentum.
 
 ```
 wall_contact    = stencil reaches the 2 outer node rows      # where the grid update blocks outflow
@@ -300,8 +324,8 @@ implemented and where: [12-rendering.md](12-rendering.md).
 | Shader | Stage | What it does |
 |---|---|---|
 | `avalanche_surface_splat` | compute, 256×1×1 over particles | Quadratic B-spline (the solver's, at its dx) splat of each particle's volume (spacing³) onto a render grid 1–4× finer than the solver's; per node Σw, Σw·speed, Σw·height above terrain as fixed-point atomics. Particles more than 2 dx up are faded out. |
-| `avalanche_surface_field` | compute, 16×16×1 over render nodes | Depth = Σw·V/dx², blanket height = 2·mean height + radius (tapered at the edge), mean speed, persistent peak depth (track, cleared on reset). |
-| `render_avalanche_surface` | render, G-buffer | One quad per render cell, rejected unless a corner reaches min_depth; discard below the contour; track albedo at the rim and where only the peak depth remains. |
+| `avalanche_surface_field` | compute, 16×16×1 over render nodes | Depth = Σw·V/dx², blanket height = 2·mean height + radius (tapered at the edge), mean speed, persistent peak depth (track, cleared on reset), entrainment cover depth from the solver's `column_stats` (binding 5, read-only; a zeroed stand-in without it). Terrain sampled Catmull-Rom. |
+| `render_avalanche_surface` | render, G-buffer | One quad per render cell, rejected unless a corner reaches min_depth or 2 cm of cover; discard below the contour; track albedo at the rim and where only the peak depth remains; cover albedo where only the entrainment cover remains. |
 | `render_avalanche` | render, G-buffer | Sphere / strain-rate-ellipsoid impostors (vertex pulling, ray–ellipsoid, `frag_depth`), optional detail particles. |
 | `render_avalanche_powder` | render, after compose | Soft transparent blobs with per-particle noise, premultiplied "over", faded by the share of the ray path in front of the G-buffer depth. |
 
