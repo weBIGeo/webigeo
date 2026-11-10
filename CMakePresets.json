@@ -94,7 +94,7 @@
       "binaryDir": "${sourceDir}/build/${presetName}",
       "installDir": "${sourceDir}/install/${presetName}",
       "cacheVariables": {
-        "CMAKE_PREFIX_PATH": "/Users/emanum/Qt/6.11.1/macos/lib/cmake"
+        "CMAKE_PREFIX_PATH": "$env{HOME}/Qt/6.11.1/macos/lib/cmake"
       },
       "condition": {
         "type": "equals",
@@ -128,9 +128,9 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "installDir": "${sourceDir}/install/${presetName}",
-      "toolchainFile": "/Users/emanum/Qt/6.11.1/wasm_multithread/lib/cmake/Qt6/qt.toolchain.cmake",
+      "toolchainFile": "$env{HOME}/Qt/6.11.1/wasm_multithread/lib/cmake/Qt6/qt.toolchain.cmake",
       "cacheVariables": {
-        "QT_HOST_PATH": "/Users/emanum/Qt/6.11.1/macos"
+        "QT_HOST_PATH": "$env{HOME}/Qt/6.11.1/macos"
       }
     },
     {
@@ -169,9 +169,9 @@
       "inherits": "webgpu_base",
       "generator": "Xcode",
       "binaryDir": "${sourceDir}/build/${presetName}",
-      "toolchainFile": "/Users/emanum/Qt/6.11.1/ios/lib/cmake/Qt6/qt.toolchain.cmake",
+      "toolchainFile": "$env{HOME}/Qt/6.11.1/ios/lib/cmake/Qt6/qt.toolchain.cmake",
       "cacheVariables": {
-        "QT_HOST_PATH": "/Users/emanum/Qt/6.11.1/macos",
+        "QT_HOST_PATH": "$env{HOME}/Qt/6.11.1/macos",
         "CMAKE_OSX_ARCHITECTURES": "arm64",
         "CMAKE_OSX_DEPLOYMENT_TARGET": "17.0",
         "ALP_ENABLE_DEV_TOOLS": "OFF",
