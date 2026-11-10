@@ -94,7 +94,7 @@
       "binaryDir": "${sourceDir}/build/${presetName}",
       "installDir": "${sourceDir}/install/${presetName}",
       "cacheVariables": {
-        "CMAKE_PREFIX_PATH": "/Users/emanum/Qt/6.11.1/macos/lib/cmake"
+        "CMAKE_PREFIX_PATH": "$env{HOME}/Qt/6.11.1/macos/lib/cmake"
       },
       "condition": {
         "type": "equals",
@@ -128,10 +128,7 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "installDir": "${sourceDir}/install/${presetName}",
-      "toolchainFile": "/Users/emanum/Qt/6.11.1/wasm_multithread/lib/cmake/Qt6/qt.toolchain.cmake",
-      "cacheVariables": {
-        "QT_HOST_PATH": "/Users/emanum/Qt/6.11.1/macos"
-      }
+      "toolchainFile": "C:/Qt/6.10.1/wasm_multithread/lib/cmake/Qt6/qt.toolchain.cmake"
     },
     {
       "name": "webgpu_app_wasm_debug",
