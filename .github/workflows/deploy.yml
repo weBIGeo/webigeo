@@ -193,7 +193,7 @@ jobs:
         find "$BUILD_DIR" -type f -iname "*.apk" ! -name "android-build-*.apk" -exec cp {} "$INSTALL_DIR" \;
 
     - name: Create artifact
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@v5
       with:
         name: files_${{ matrix.qtarch }}
         path: ${{ github.workspace }}/install/
@@ -383,18 +383,14 @@ jobs:
       if: always()
       run: ccache --show-stats --verbose
 
-    - name: Verify app artifacts
+    - name: Verify WebGPU app artifacts
       run: |
-        test -f "$INSTALL_DIR/alpineapp/alpineapp.html"
-        test -f "$INSTALL_DIR/alpineapp/alpineapp.js"
-        test -f "$INSTALL_DIR/alpineapp/alpineapp.wasm"
-        test -f "$INSTALL_DIR/alpineapp/logo_vertical_light_bg.png"
-        test -f "$INSTALL_DIR/webgpu_app/webgpu_app.html"
-        test -f "$INSTALL_DIR/webgpu_app/webgpu_app.js"
-        test -f "$INSTALL_DIR/webgpu_app/webgpu_app.wasm"
+        test -f "$INSTALL_DIR/webgpu_app.html"
+        test -f "$INSTALL_DIR/webgpu_app.js"
+        test -f "$INSTALL_DIR/webgpu_app.wasm"
 
     - name: Create artifact
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@v5
       with:
         name: files_${{ matrix.config}}
         path: ${{ github.workspace }}/install/
@@ -455,10 +451,9 @@ jobs:
       run: |
         for config in wasm_mt wasm_mt_debug wasm_mt_lto; do
           cd "$GITHUB_WORKSPACE/github_page/$config"
-          for target in alpineapp webgpu_app; do
-            html="$target/$target.html"
+          wget -q https://raw.githubusercontent.com/gzuidhof/coi-serviceworker/master/coi-serviceworker.min.js
+          for html in alpineapp.html webgpu_app.html; do
             test -f "$html"
-            wget -q -O "$target/coi-serviceworker.min.js" https://raw.githubusercontent.com/gzuidhof/coi-serviceworker/master/coi-serviceworker.min.js
             sed -i -e 's#<body onload="init()">#<body onload="init()"><script src="coi-serviceworker\.min\.js"></script>#g' "$html"
           done
         done
@@ -469,13 +464,13 @@ jobs:
         target: github_page
     
     - name: Create Pages artifact
-      uses: actions/upload-pages-artifact@v5
+      uses: actions/upload-pages-artifact@v4
       with:
         path: ${{github.workspace}}/github_page
     
     - name: Setup Pages
-      uses: actions/configure-pages@v6
+      uses: actions/configure-pages@v5
 
     - name: Deploy to GitHub Pages
       id: deployment
-      uses: actions/deploy-pages@v5
+      uses: actions/deploy-pages@v4
