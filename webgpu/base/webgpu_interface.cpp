@@ -123,11 +123,7 @@ WGPUSurface SDL_GetWGPUSurface(WGPUInstance instance, SDL_Window* window)
         CAMetalLayer* metal_layer = [CAMetalLayer new];
         metal_layer.opaque = true;
         metal_layer.frame = ui_view.frame;
-        // frame is in points; the drawable is in pixels (3x on current iPhones). Without the
-        // scale the image renders at a third of the resolution and is stretched.
-        const CGFloat scale = ui_view.window.screen.nativeScale;
-        metal_layer.contentsScale = scale;
-        metal_layer.drawableSize = CGSizeMake(ui_view.frame.size.width * scale, ui_view.frame.size.height * scale);
+        metal_layer.drawableSize = ui_view.frame.size;
 
         [ui_view.layer addSublayer:metal_layer];
 

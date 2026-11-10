@@ -162,46 +162,6 @@
         "CMAKE_CXX_FLAGS": "-DQT_NO_DEBUG_OUTPUT",
         "ALP_ENABLE_WGSL_MINIFICATION": "ON"
       }
-    },
-    {
-      "name": "webgpu_ios_base",
-      "hidden": true,
-      "inherits": "webgpu_base",
-      "generator": "Xcode",
-      "binaryDir": "${sourceDir}/build/${presetName}",
-      "toolchainFile": "/Users/emanum/Qt/6.11.1/ios/lib/cmake/Qt6/qt.toolchain.cmake",
-      "cacheVariables": {
-        "QT_HOST_PATH": "/Users/emanum/Qt/6.11.1/macos",
-        "CMAKE_OSX_ARCHITECTURES": "arm64",
-        "CMAKE_OSX_DEPLOYMENT_TARGET": "17.0",
-        "ALP_ENABLE_DEV_TOOLS": "OFF",
-        "CMAKE_XCODE_ATTRIBUTE_GCC_WARN_64_TO_32_BIT_CONVERSION": "NO"
-      },
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Darwin"
-      }
-    },
-    {
-      "name": "webgpu_app_ios_simulator",
-      "displayName": "weBIGeo (webgpu_app) iOS Simulator",
-      "description": "iOS Simulator build (arm64), Xcode generator",
-      "inherits": "webgpu_ios_base",
-      "cacheVariables": {
-        "CMAKE_OSX_SYSROOT": "iphonesimulator",
-        "ALP_IOS_PLATFORM": "ios-simulator"
-      }
-    },
-    {
-      "name": "webgpu_app_ios",
-      "displayName": "weBIGeo (webgpu_app) iOS Device",
-      "description": "iPhone build (arm64), Xcode generator; set ALP_IOS_DEVELOPMENT_TEAM for signing",
-      "inherits": "webgpu_ios_base",
-      "cacheVariables": {
-        "CMAKE_OSX_SYSROOT": "iphoneos",
-        "ALP_IOS_PLATFORM": "ios"
-      }
     }
   ],
   "buildPresets": [
@@ -240,22 +200,6 @@
     {
       "name": "webgpu_app_wasm_publish",
       "configurePreset": "webgpu_app_wasm_publish"
-    },
-    {
-      "name": "webgpu_app_ios_simulator",
-      "configurePreset": "webgpu_app_ios_simulator",
-      "configuration": "Release",
-      "targets": [
-        "webgpu_app"
-      ]
-    },
-    {
-      "name": "webgpu_app_ios",
-      "configurePreset": "webgpu_app_ios",
-      "configuration": "Release",
-      "targets": [
-        "webgpu_app"
-      ]
     }
   ]
 }
