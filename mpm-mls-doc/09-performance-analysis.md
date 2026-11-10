@@ -147,6 +147,16 @@ benchmark's: the flow on real terrain spreads over more tiles than the slab on t
 slope, and the terrain is rendered at the same time. The sorted P2G halves the benchmark's
 GPU time per substep at this configuration.
 
+### 3.5 The raw grid view
+
+Handing out the grid velocity to readers ([16-raw-grid-view.md](16-raw-grid-view.md)) needed two
+small changes in the solver's grid update, both always on: the node mass is written into
+`grid_velocity.w`, and tiles the flow has left are processed once more so their nodes are zeroed.
+Neither shows in the total: three A/B runs against the previous kernels at 131 072 particles gave
+0.96–1.05× on the GPU time per run, with an identical centre-of-mass trace; the grid update stage
+itself is 0.51–0.64 ms against 0.54–0.56 ms. The benchmark's flow moves only 34 m, so few tiles
+are left behind; a long run-out leaves more, which has not been measured.
+
 ## 4. GPU memory and device limits
 
 | Buffer | Size | Medium | High |

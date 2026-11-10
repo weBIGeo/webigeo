@@ -32,6 +32,24 @@ boundaries — the same normalized value lands on different ground. Geographic a
 converted where the region bounds are known, so tile snapping cannot move a scenario
 relative to the terrain.
 
+## Layout version
+
+Code outside the solver reads its buffers with a copy of their layout: the avalanche renderer's
+shaders (`PARTICLE_STRIDE_VEC4`, `COLUMN_STATS_STRIDE_U32`) and, through the raw view, anything that
+reads the grid velocity ([16-raw-grid-view.md](16-raw-grid-view.md)). `MPM_LAYOUT_VERSION` in
+`MpmSolverNode.h` versions what they read: `struct Particle` and `struct ColumnStats`
+(`mpm_common.wgsl`), `grid_velocity` and `column_floor`. `MpmParticleView` and `MpmRawView` carry
+it as `layout_version`.
+
+Changing one of those layouts means:
+
+1. Bump `MPM_LAYOUT_VERSION`.
+2. The build then fails in `ParticleRenderNode.cpp` (a `static_assert` against
+   `AvalancheRenderer::SOLVER_LAYOUT_VERSION`): update the renderer's shader constants and raise
+   `SOLVER_LAYOUT_VERSION`.
+3. Describe the change here and in `16-raw-grid-view.md`. Other readers see the new
+   `layout_version` at run time.
+
 ## `Particle` — 128 bytes
 
 ```wgsl
@@ -72,11 +90,15 @@ struct GridNode {
 20 bytes, stride 5 u32 (`GRID_NODE_STRIDE_U32`). Accumulators only: P2G adds into them, the
 grid update reads them, **zeroes them** (there is no separate clear pass any more) and writes
 the node velocity to a separate `grid_velocity: array<vec4f>` (16 B per node), which G2P reads
-with plain loads.
+with plain loads: `xyz` is the velocity [m/s], `w` the node's mass in units of the normalised
+particle mass (`settings.particle_mass`). Nodes without mass hold zero. Readers of the grid (visualisations) use
+the buffer this way ([16-raw-grid-view.md](16-raw-grid-view.md)).
 
-Next to it, `tile_flags: array<atomic<u32>>` holds one flag per tile of 8 × 8 columns: P2G
-sets the tiles its stencil touches, the grid update skips tiles that are not set and resets
-the ones that are. After the flags, the same buffer holds the particle sort (03-shaders.md,
+Next to it, `tile_flags: array<atomic<u32>>` holds one word per tile of 8 × 8 columns with two
+bits: `FLAGGED`, set by P2G for the tiles its stencil touches, and `WAS_ACTIVE`, set by the grid
+update on a tile it processed. The grid update skips tiles with neither bit; a tile with only
+`WAS_ACTIVE` is processed once more so its nodes are zeroed after the flow has left it
+(03-shaders.md, `mpm_grid_update`). After the flags, the same buffer holds the particle sort (03-shaders.md,
 `mpm_sort_*`): a count and a cursor per sort tile of 4 × 4 columns plus one bucket for inactive
 particles, then the sorted particle indices. Sharing the binding keeps the solver at WebGPU's
 default of eight storage buffers per stage.

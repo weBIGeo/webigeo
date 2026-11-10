@@ -336,6 +336,19 @@ export class MpmBench {
         return out;
     }
 
+    // grid_velocity: one vec4 per node (xyz velocity, w the node's mass), layer-major. For tests.
+    async readGridVelocity() {
+        const size = this.nodes * 16;
+        const staging = this.device.createBuffer({ size, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
+        const encoder = this.device.createCommandEncoder();
+        encoder.copyBufferToBuffer(this.resources.grid_velocity, 0, staging, 0, size);
+        this.device.queue.submit([encoder.finish()]);
+        await staging.mapAsync(GPUMapMode.READ);
+        const out = new Float32Array(staging.getMappedRange().slice(0));
+        staging.destroy();
+        return out;
+    }
+
     // Column floors and the altitude range, without seeding (a test places the particles itself).
     async prepareTerrain() {
         this.writeInitialState();

@@ -24,6 +24,37 @@ Notion pointers removed, since outside readers cannot open them (07, 12, 15, ava
 ("traps baked in so they aren't rediscovered", "keep in your head", "learned the hard way")
 rephrased (02, 05, 07).
 
+### 2. Raw grid view for the streamline project (branch `vector-field`)
+
+Our side of the hand-over to Elena Jochum's streamline project (proposal: the claude.ai page
+"Avalanche Vector Field Interface"; questions: Notion, Meeting Notes). First built as option C of
+the proposal, with a neutral 2D field format, a baseline builder for MPM and a test (commit
+cf09d698, PR #18). Then cut down on Manuel's decision: we hand over the raw MPM data, the rest is
+hers. Documented in `mpm-mls-doc/16-raw-grid-view.md`.
+
+- **What stays.** `MpmRawView` and `MpmSolverNode::raw_view()` (the grid velocity, column floors,
+  grid resolution, mass-to-kg factor, interpolation and generation counters, a layout version).
+  Solver changes: the node mass in `grid_velocity.w`; a second tile-flag bit (`WAS_ACTIVE`) so tiles
+  the flow has left are cleared once; a reset clears `grid_velocity`.
+- **What was removed again.** `VectorField.h` (`VectorField`, `FieldBuilder`, `VectorFieldSource`),
+  `vector_field.wgsl`, `mpm_vector_field.wgsl`, `MpmBaselineFieldBuilder`, `test_VectorField.cpp`,
+  the benchmark's `vectorField=1` stage. Reason: a baseline would be code and a contract for us to
+  own, and whether her project computes the field is still open (Notion question 1). While it
+  existed, the builder cost 0.35 ms per update at the preset size and 0.58 ms at 320^2 x 16.
+- **Verified.** Substep test: errors against the float64 reference unchanged to the digit; node
+  mass in `w` sums to 300 for 300 particles; after moving the flow 500 m it is still 300, 600 with
+  the clearing switched off (mutation); the previous shaders fail the check. Benchmark A/B against
+  `HEAD`, three runs at 131072 particles: 0.96-1.05x, centre-of-mass trace identical. The app ran the
+  avaHit map scenario for 48 s with no errors in the log (prefs and imgui.ini restored).
+- **Layout version.** `MPM_LAYOUT_VERSION` (MpmSolverNode.h) versions the layout of `struct Particle`,
+  `struct ColumnStats`, `grid_velocity` and `column_floor`; `MpmParticleView` and `MpmRawView`
+  carry it. The renderer's copy of the layout is guarded at compile time: `ParticleRenderNode.cpp`
+  `static_assert`s `AvalancheRenderer::SOLVER_LAYOUT_VERSION` against it (checked: bumping the version
+  to 2 fails the build there). Procedure in `04-data-layout.md`.
+- **Not verified.** A reader of the raw view in a running app (none exists); a solver grid resize
+  with a reader attached; the cost of the tile clearing on a long run-out (a 300-run benchmark was
+  started and stopped); other GPUs than the M5.
+
 ---
 
 ## 2026-11-08

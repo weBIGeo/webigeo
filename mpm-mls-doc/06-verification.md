@@ -485,6 +485,31 @@ The contact scenario (one substep) agrees as closely: velocity 2.3e-4 m/s, posit
   masses are far below 2³² units), and runs longer than three substeps, where the f32/f64
   differences grow and contact flicker sets in.
 
+## 4q. Raw grid view — the grid velocity buffer (2026-11-09)
+
+Handing out the grid velocity ([16-raw-grid-view.md](16-raw-grid-view.md)) means the whole buffer is
+read, which the solver's own kernels never do, so what §4p does not cover is checked here
+(`check_substep.mjs`, after the free scenario's three substeps with Stomakhin, then with the 300
+particles moved 500 m and one more substep):
+
+| | Result | Expected |
+|---|---|---|
+| Node mass in `w`, summed over all nodes, after the 3 substeps | 300.0000 | 300 (each particle's weights add up to 1) |
+| The same after the move, one substep | 300.0000 | 300 |
+| Velocity on nodes without mass, both times | 0 | 0 |
+
+The second sum is the check on the tile clearing: with the `WAS_ACTIVE` bit switched off the grid
+update never revisits the tiles the flow left and the sum is 600 (measured), the old and the new
+mass. With the shaders from before the change the test fails at once (the mass is not written, and
+the old tiles hold velocity without mass). The whole-kernel errors of §4p are unchanged to the
+digit (velocity 3.3e-4 m/s, position 4.9e-4 m, F 1.6e-6 after three substeps), so the grid update
+change does not touch the physics. The benchmark's centre-of-mass trace is identical to the
+previous kernels' (maximum difference 0 in three A/B runs).
+
+**In the app:** the app starts the avalanche scenario (AvaFrame avaHit on the map) and runs for 48 s
+with the changed grid update and the reset that clears the grid velocity, with no error in the
+log. No reader of the raw view exists yet, so the view itself has not been exercised in the app.
+
 ## 5. On real terrain
 
 Runs end to end on the Schneeberg DEM: seeds, flows downhill, deposits, animates, and the

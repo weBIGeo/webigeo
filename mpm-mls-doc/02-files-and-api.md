@@ -6,7 +6,7 @@
 
 | File | Purpose |
 |---|---|
-| `nodes/MpmSolverNode.h/.cpp` | The solver. Owns particles, grid and sim state on the GPU; runs the substep loop. |
+| `nodes/MpmSolverNode.h/.cpp` | The solver. Owns particles, grid and sim state on the GPU; runs the substep loop. `raw_view()` hands out the grid velocity for readers ([16-raw-grid-view.md](16-raw-grid-view.md)). |
 | `nodes/GeoRegionNode.h/.cpp` | Emits a region AABB from lat/lon + extent, so a scenario needs no GPX file. |
 | `TimeSteppedSimulation.h` | Interface of a simulation the driver plays back frame by frame; `MpmSolverNode` implements it. See [13-simulation-driver.md](13-simulation-driver.md). |
 | `SimulationClock.h/.cpp` | Per-simulation playback: real time (fixed-step accumulator, speed 0.1–4x) or accuracy (as fast as the GPU budget allows); play/pause/step and the speed readout. |

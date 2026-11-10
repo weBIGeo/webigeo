@@ -47,7 +47,10 @@ Google Chrome, which uses Metal. The result's `adapter` field says which device 
 from a known particle state on a planar slope and compares every field of `struct Particle`
 after the substeps of two scenarios (free, contact) with the float64 reference of `scripts/make_golden_substep.py`
 (`golden/substep_golden.json`). `--chrome` / `--gpu` / `--shaders-rev` work as for
-`run_headless.mjs`; a mismatch exits with status 1. See [../06-verification.md §4p](../06-verification.md).
+`run_headless.mjs`; a mismatch exits with status 1. It also checks the grid velocity buffer: the node mass in `w`
+sums to the number of particles, nodes without mass hold no velocity, and after the flow has
+been moved 500 m the part of the grid it left is cleared (the mass still sums to the number of
+particles, not twice that). See [../06-verification.md §4p, §4q](../06-verification.md) and [../16-raw-grid-view.md](../16-raw-grid-view.md).
 
 ## What is measured
 

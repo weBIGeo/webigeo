@@ -141,6 +141,8 @@ const COVER_UNIFORM: u32 = 2u;
 // and P2G of the next substep only reads it - one SVD per particle and substep instead of two.
 // The particle volume is not stored: it is the same for every particle (settings.particle_volume,
 // mass is normalised to 1).
+// Read by code outside the solver (the avalanche renderer copies this layout): a change here bumps
+// MPM_LAYOUT_VERSION in MpmSolverNode.h and updates mpm-mls-doc/04-data-layout.md.
 struct Particle {
     position: vec3f,
     mass: f32, // 0 marks an inactive particle
@@ -284,7 +286,7 @@ struct PlasticReturn {
 @group(0) @binding(6) var<storage, read_write> density_raster: array<atomic<u32>>;
 @group(0) @binding(7) var output_texture: texture_storage_2d<rgba8unorm, write>;
 @group(0) @binding(8) var<storage, read_write> column_floor: array<i32>; // per (x, y) column, see grid_slot()
-@group(0) @binding(9) var<storage, read_write> grid_velocity: array<vec4f>; // per node, written by the grid update, read by G2P
+@group(0) @binding(9) var<storage, read_write> grid_velocity: array<vec4f>; // per node, written by the grid update, read by G2P: xyz velocity, w node mass in units of the normalised particle mass (settings.particle_mass)
 @group(0) @binding(10) var<storage, read_write> tile_flags: array<atomic<u32>>; // per tile of columns (mark_tiles()), then the sort data (sorted_index())
 // Per (x, y) column: the peaks since the last reset, which the AvaFrame comparison exports
 // (com1DFA's peak flow thickness and velocity), and the particle sums the speed comes from.
@@ -292,6 +294,7 @@ struct PlasticReturn {
 // grid update, which owns each column in one thread, turns the sums into the column's mean
 // particle speed and zeroes them. Without that pass (on the map) the sums stay zero and only
 // the depth is tracked.
+// Read by the avalanche renderer, which copies this layout: see struct Particle.
 struct ColumnStats {
     peak_depth: f32, // [m], vertical: the column's (B-spline) mass as snow volume per area
     peak_speed: f32, // [m/s], mean speed of the particles in the column
@@ -449,6 +452,14 @@ fn grid_slot(node: vec3i) -> i32 {
 // at once for an unflagged one. The grid update is also the last reader of the P2G
 // accumulators, so it zeroes them there: nodes outside flagged tiles were never written and
 // are still zero, which is what makes a separate clear pass over the whole grid unnecessary.
+//
+// A tile's flag word has two bits. TILE_FLAGGED: P2G reached the tile in this substep.
+// TILE_WAS_ACTIVE: the grid update processed the tile in the previous substep. A tile that holds
+// only the second bit has lost its flow; the grid update still runs on it once, which writes zero
+// mass and velocity to its nodes. Without that, grid_velocity would keep the last flow's values
+// there for anything that reads the whole grid (the vector field), though G2P never does.
+const TILE_FLAGGED: u32 = 1u;
+const TILE_WAS_ACTIVE: u32 = 2u;
 const TILE_SIZE: i32 = 8; // the grid update's workgroup is TILE_SIZE x TILE_SIZE columns
 
 fn tiles_x() -> u32 { return (settings.grid_res.x + u32(TILE_SIZE) - 1u) / u32(TILE_SIZE); }
@@ -461,8 +472,8 @@ fn tile_index(node_xy: vec2i) -> u32 {
 fn mark_tile(node_xy: vec2i) {
     let tile = tile_index(node_xy);
     // Most particles find their tile flagged already; the load keeps them from all writing.
-    if atomicLoad(&tile_flags[tile]) == 0u {
-        atomicStore(&tile_flags[tile], 1u);
+    if (atomicLoad(&tile_flags[tile]) & TILE_FLAGGED) == 0u {
+        atomicOr(&tile_flags[tile], TILE_FLAGGED);
     }
 }
 
