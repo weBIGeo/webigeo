@@ -128,17 +128,6 @@ private:
     // Flag to exit the rendering loop
     bool m_window_open = true;
 
-    /* Mobile app lifecycle. iOS does not allow GPU work while the app is in the background
-     * (a screenshot or the app switcher is enough to get there), so rendering pauses between
-     * "will enter background" and "did enter foreground"; on return the surface is
-     * reconfigured and the frame redrawn. Set from an SDL event watch, because SDL requires
-     * these events to be handled before the notification returns, not in the next poll. */
-    bool m_in_background = false;
-    bool m_resume_pending = false;
-    static int app_lifecycle_watch(void* userdata, SDL_Event* event);
-    /// Resizes the viewport to SDL's current window size if it differs (or always, if forced).
-    void sync_window_size(bool force = false);
-
     void webgpu_create_context();
     void webgpu_release_context();
 };

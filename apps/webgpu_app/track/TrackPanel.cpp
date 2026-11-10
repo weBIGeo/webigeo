@@ -25,7 +25,6 @@
 #include <imgui.h>
 
 #include "App.h"
-#include "ui/UiScale.h"
 #include <nucleus/camera/Controller.h>
 #include <nucleus/camera/Definition.h>
 #include <webgpu/engine/Context.h>
@@ -62,10 +61,10 @@ void TrackPanel::load_track_and_focus(const std::string& path)
 void TrackPanel::draw_panel()
 {
     if (ImGui::CollapsingHeader(ICON_FA_ROUTE "  Track", ImGuiTreeNodeFlags_DefaultOpen)) {
-        const bool btn = ImGui::Button("Open GPX file ...", ImVec2(250 * ui::UI_SCALE, 0));
+        const bool btn = ImGui::Button("Open GPX file ...", ImVec2(250, 0));
         ImGui::SameLine();
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(106 / 255.0f, 112 / 255.0f, 115 / 255.0f, 1.00f));
-        if (ImGui::Button("Open Preset ...", ImVec2(100 * ui::UI_SCALE, 0))) {
+        if (ImGui::Button("Open Preset ...", ImVec2(100, 0))) {
             load_track_and_focus(webgpu_engine::TrackRenderer::DEFAULT_GPX_TRACK_PATH);
         }
         ImGui::PopStyleColor(1);

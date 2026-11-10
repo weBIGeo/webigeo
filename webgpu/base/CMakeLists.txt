@@ -27,17 +27,6 @@ set(ALP_DXC_URL "https://github.com/microsoft/DirectXShaderCompiler/releases/dow
     CACHE INTERNAL "DXC release archive whose dxcompiler.dll/dxil.dll match ALP_DAWN_VERSION")
 set(ALP_DAWN_DIR "${CMAKE_SOURCE_DIR}/${ALP_EXTERN_DIR}/dawn")
 set(ALP_SDL_INSTALL_DIR "${CMAKE_SOURCE_DIR}/${ALP_EXTERN_DIR}/sdl")
-if (IOS)
-    # Device and simulator need different builds of Dawn and SDL (install_dawn.py and
-    # install_sdl.py --platform). They live next to the host builds, never replacing them.
-    if (CMAKE_OSX_SYSROOT MATCHES "simulator")
-        set(ALP_IOS_PLATFORM_DEFAULT "ios-simulator")
-    else()
-        set(ALP_IOS_PLATFORM_DEFAULT "ios")
-    endif()
-    set(ALP_IOS_PLATFORM "${ALP_IOS_PLATFORM_DEFAULT}" CACHE STRING "ios or ios-simulator")
-    set(ALP_SDL_INSTALL_DIR "${CMAKE_SOURCE_DIR}/${ALP_EXTERN_DIR}/sdl-${ALP_IOS_PLATFORM}")
-endif()
 set(ALP_DAWN_PORT_DIR "${CMAKE_SOURCE_DIR}/${ALP_EXTERN_DIR}/emdawnwebgpu_pkg/emdawnwebgpu.port.py")
 
 set(SOURCES
@@ -155,10 +144,7 @@ if (EMSCRIPTEN)
 
 else()
 
-    if (IOS)
-        # No prebuilt Dawn exists for iOS; it is built from source, Release only.
-        set(ALP_DAWN_CONFIG "${ALP_IOS_PLATFORM}-Release")
-    elseif (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
         set(ALP_DAWN_CONFIG "Debug")
     else()
         set(ALP_DAWN_CONFIG "Release")
@@ -173,28 +159,6 @@ else()
     endif()
 
     alp_find_local_dawn_package(ALP_DAWN_CMAKE_PACKAGE)
-
-    if (NOT ALP_DAWN_CMAKE_PACKAGE AND IOS)
-        message(STATUS "Dawn for ${ALP_IOS_PLATFORM} missing - building it from source (takes a while)...")
-        find_program(ALP_CMAKE_EXECUTABLE cmake REQUIRED NO_CMAKE_FIND_ROOT_PATH)
-        find_program(ALP_NINJA_EXECUTABLE ninja REQUIRED NO_CMAKE_FIND_ROOT_PATH)
-        execute_process(
-            COMMAND ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/misc/scripts/install_dawn.py"
-                --dawn-version ${ALP_DAWN_VERSION}
-                --extern-dir "${ALP_EXTERN_DIR}"
-                --cmake-path "${ALP_CMAKE_EXECUTABLE}"
-                --ninja-path "${ALP_NINJA_EXECUTABLE}"
-                --platform "${ALP_IOS_PLATFORM}"
-                --build-types Release
-            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-            RESULT_VARIABLE DAWN_RESULT
-        )
-        if (NOT DAWN_RESULT EQUAL 0)
-            message(FATAL_ERROR "install_dawn.py --platform ${ALP_IOS_PLATFORM} failed.")
-        endif()
-        alp_mark_local_dawn_package()
-        alp_find_local_dawn_package(ALP_DAWN_CMAKE_PACKAGE)
-    endif()
 
     if (NOT ALP_DAWN_CMAKE_PACKAGE)
         message(STATUS "Dawn installation missing - fetching native Dawn package...")
@@ -249,16 +213,10 @@ else()
     endif()
 
     set(Dawn_DIR "${ALP_DAWN_CMAKE_PACKAGE}")
-    # NO_CMAKE_FIND_ROOT_PATH: a cross toolchain (Qt's iOS one) restricts package lookup to
-    # its sysroot, which would hide the package in extern/.
     find_package(Dawn REQUIRED CONFIG PATHS "${ALP_DAWN_CMAKE_PACKAGE}" NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
     target_link_libraries(webgpu PUBLIC dawn::webgpu_dawn)
 
     # Ensure SDL is installed
-    set(ALP_SDL_PLATFORM_ARGS "")
-    if (IOS)
-        set(ALP_SDL_PLATFORM_ARGS --platform ${ALP_IOS_PLATFORM})
-    endif()
     if (NOT EXISTS "${ALP_SDL_INSTALL_DIR}")
         message(STATUS "SDL not found - running install_sdl.py...")
 
@@ -301,11 +259,7 @@ else()
     # find and add SDL2 (you may install it to the default install folder or ALP_SDL_INSTALL_DIR)
     # Add ALP_SDL_INSTALL_DIR to CMake's search path for find_package
     list(APPEND CMAKE_PREFIX_PATH "${ALP_SDL_INSTALL_DIR}")
-    if (IOS)
-        find_package(SDL2 REQUIRED CONFIG PATHS "${ALP_SDL_INSTALL_DIR}/lib/cmake/SDL2" NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
-    else()
-        find_package(SDL2 REQUIRED)
-    endif()
+    find_package(SDL2 REQUIRED)
     target_link_libraries(webgpu PUBLIC SDL2::SDL2 SDL2::SDL2main)
 
     # TODO verify whether this is still needed and adapt accordingly

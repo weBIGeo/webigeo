@@ -22,7 +22,6 @@
 #include <imgui.h>
 
 #include "App.h"
-#include "UiScale.h"
 
 namespace webgpu_app {
 
@@ -45,7 +44,7 @@ void TimingPanel::draw_panel()
             if (tmr->get_sample_count() > 2) {
                 ImVec4 timer_color = *(ImVec4*)(void*)&selected_timer->color;
                 ImGui::PushStyleColor(ImGuiCol_PlotLines, timer_color);
-                ImGui::PlotLines("##SelTimerGraph", &tmr->get_results()[0], (int)tmr->get_sample_count(), 0, nullptr, 0.0f, tmr->get_max(), ImVec2(380 * ui::UI_SCALE, 80 * ui::UI_SCALE));
+                ImGui::PlotLines("##SelTimerGraph", &tmr->get_results()[0], (int)tmr->get_sample_count(), 0, nullptr, 0.0f, tmr->get_max(), ImVec2(380, 80));
                 ImGui::PopStyleColor();
             }
         }

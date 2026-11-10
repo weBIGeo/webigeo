@@ -22,7 +22,6 @@
 #include "compute/NodeGraphPanel.h"
 #include "compute/OverlayRenderNode.h"
 #include "compute/ParticleRenderNode.h"
-#include "ui/UiScale.h"
 #include <IconsFontAwesome5.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -112,7 +111,7 @@ constexpr const char* SANDBOX_GRAPH_PRESET = ":/graphs/mpm_avaframe_sandbox.json
 constexpr const char* TRAJECTORIES_SANDBOX_GRAPH_PRESET = ":/graphs/trajectories_avaframe_sandbox.json";
 
 // Where prepare_dataset.py writes the sandbox datasets, in native builds from a source tree.
-// Elsewhere (web, iOS, an installed app) the download in the panel writes into the app's data
+// Elsewhere (web, an installed app) the download in the panel writes into the app's data
 // folder instead; in the web build that is browser memory, gone after a reload.
 #ifdef ALP_SOURCE_DIR
 constexpr const char* DEFAULT_SANDBOX_ROOT = ALP_SOURCE_DIR "/extern/avaframe_sandbox";
@@ -1465,13 +1464,13 @@ void AvalanchePanel::draw_panel()
         }
     }
 
-    if (ImGui::Button(playing() ? ICON_FA_PAUSE "  Pause" : ICON_FA_PLAY "  Play", ImVec2(110 * ui::UI_SCALE, 0)))
+    if (ImGui::Button(playing() ? ICON_FA_PAUSE "  Pause" : ICON_FA_PLAY "  Play", ImVec2(110, 0)))
         set_playing(!playing());
     ImGui::SameLine();
-    if (ImGui::Button("Step", ImVec2(80 * ui::UI_SCALE, 0)))
+    if (ImGui::Button("Step", ImVec2(80, 0)))
         step_now = true;
     ImGui::SameLine();
-    if (ImGui::Button("Reset", ImVec2(80 * ui::UI_SCALE, 0))) {
+    if (ImGui::Button("Reset", ImVec2(80, 0))) {
         solver->request_reset();
         settings = solver->get_settings();
         step_now = true;
@@ -1492,7 +1491,7 @@ void AvalanchePanel::draw_panel()
         if (view.enabled) {
             ImGui::SameLine();
             int colour = int(view.colour_mode);
-            ImGui::SetNextItemWidth(110 * ui::UI_SCALE);
+            ImGui::SetNextItemWidth(110);
             if (ImGui::Combo("##particle_colour", &colour, "Snow\0Speed\0"))
                 view.colour_mode = webgpu_engine::AvalancheRenderer::ColourMode(colour);
             if (ImGui::IsItemHovered())

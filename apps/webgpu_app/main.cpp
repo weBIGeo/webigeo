@@ -21,9 +21,6 @@
 #include "util/SearchService.h"
 #include "util/error_logging.h"
 #include <QCoreApplication>
-#include <cstdio>
-#include <cstdlib>
-#include <string>
 
 void print_logo()
 {
@@ -42,17 +39,6 @@ void print_logo()
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
 {
-#ifdef ALP_PLATFORM_IOS
-    // TEMP-IOS-DIAG: an iOS app has no terminal; keep stdout/stderr in the app's Documents
-    // folder so the log can be copied off the device (xcrun devicectl device copy from).
-    if (const char* home = std::getenv("HOME")) {
-        const std::string log_path = std::string(home) + "/Documents/webigeo.log";
-        std::freopen(log_path.c_str(), "w", stdout);
-        std::freopen(log_path.c_str(), "a", stderr);
-        std::setvbuf(stdout, nullptr, _IOLBF, 0);
-        std::setvbuf(stderr, nullptr, _IONBF, 0);
-    }
-#endif
 #ifndef __EMSCRIPTEN__
     print_logo();
 #endif

@@ -32,9 +32,6 @@
 #include <webgpu/base/raii/CombinedComputePipeline.h>
 #include <webgpu/base/raii/TextureWithSampler.h>
 #include <webgpu/webgpu.h>
-#ifdef __APPLE__
-#include <TargetConditionals.h>
-#endif
 
 namespace nucleus::camera {
 class Definition;
@@ -52,14 +49,7 @@ static constexpr float MAX_ALTITUDE = 14000.0;
 static constexpr uint32_t ATLAS_BITS_XY = 2;
 static constexpr uint32_t ATLAS_SCALE_XY = 1 << ATLAS_BITS_XY;
 static constexpr uint32_t ATLAS_MASK_XY = ATLAS_SCALE_XY - 1;
-#if defined(TARGET_OS_IOS) && TARGET_OS_IOS
-// The atlas is allocated in full at startup: at 5 bits it is 1024 x 1024 x 2048 texels, 1 GiB of
-// BC4 plus mips, and iOS kills the app for it (low-memory warning, then SIGKILL). 2 bits keeps
-// ~146 MiB, i.e. 64 cloud tiles instead of 512.
-static constexpr uint32_t ATLAS_BITS_Z = 2;
-#else
 static constexpr uint32_t ATLAS_BITS_Z = 5;
-#endif
 static constexpr uint32_t ATLAS_SCALE_Z = 1 << ATLAS_BITS_Z;
 static constexpr uint32_t ATLAS_MASK_Z = ATLAS_SCALE_Z - 1;
 static constexpr uint32_t LOADED_TILE_LIMIT = ATLAS_SCALE_XY * ATLAS_SCALE_XY * ATLAS_SCALE_Z;

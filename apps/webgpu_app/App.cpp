@@ -19,14 +19,10 @@
  *****************************************************************************/
 
 #include "App.h"
-#include "ui/UiScale.h"
 
 #include "webgpu/engine/Window.h"
 #include <QCoreApplication>
 #include <QFile>
-#ifdef ALP_PLATFORM_IOS
-#include "ios/IosScene.h"
-#endif
 #include <cassert>
 #include <qthread.h> //TODO maybe only for threading enabled?
 #include <webgpu/base/webgpu_interface.hpp>
@@ -78,19 +74,13 @@ void App::init_window()
     // Fetch size of the webpage
     m_viewport_size = WebInterop::instance().get_body_size();
 #endif
-#ifdef ALP_PLATFORM_IOS
-    // Edge swipes (notification center, home) need a second swipe, so taps near the edges reach the app.
-    SDL_SetHint(SDL_HINT_IOS_HIDE_HOME_INDICATOR, "2");
-#endif
     m_sdl_window = SDL_CreateWindow("weBIGeo - Geospatial Visualization Tool", // Window title
         SDL_WINDOWPOS_CENTERED, // Window position x
         SDL_WINDOWPOS_CENTERED, // Window position y
         m_viewport_size.x, // Window width
         m_viewport_size.y, // Window height
-#if defined(__EMSCRIPTEN__)
+#ifdef __EMSCRIPTEN__
         SDL_WINDOW_RESIZABLE);
-#elif defined(ALP_PLATFORM_IOS)
-        SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS | SDL_WINDOW_RESIZABLE | SDL_WINDOW_METAL);
 #else
         SDL_WINDOW_RESIZABLE | SDL_WINDOW_MAXIMIZED);
 #endif
@@ -101,16 +91,6 @@ void App::init_window()
     }
 
     util::enable_darkmode_on_windows(m_sdl_window);
-    SDL_AddEventWatch(&App::app_lifecycle_watch, this);
-#ifdef ALP_PLATFORM_IOS
-    ios::attach_window_to_scene(m_sdl_window);
-    // The window fills the screen; size the viewport from it rather than the desktop default.
-    // In points for now, which keeps render and touch coordinates in the same units.
-    int window_width = 0, window_height = 0;
-    SDL_GetWindowSize(m_sdl_window, &window_width, &window_height);
-    if (window_width > 0 && window_height > 0)
-        m_viewport_size = glm::uvec2(window_width, window_height);
-#endif
 
 #ifndef __EMSCRIPTEN__
     // Load icon using the existing image loader
@@ -148,7 +128,7 @@ void App::render_gui()
     ImGui::Checkbox("Repaint each frame", &m_force_repaint);
     ImGui::Text("Repaint-Counter: %d", m_repaint_count);
 
-    if (ImGui::Button("Reload shaders [F5]", ImVec2(350 * ui::UI_SCALE, 0))) {
+    if (ImGui::Button("Reload shaders [F5]", ImVec2(350, 0))) {
         m_webgpu_window->reload_shaders();
     }
 }
@@ -170,21 +150,12 @@ void App::poll_events()
     int event_count = 0;
     static SDL_Event event;
     while (SDL_PollEvent(&event)) {
-#ifdef ALP_PLATFORM_IOS
-        { // TEMP-IOS-DIAG: which SDL events arrive, especially what ends the loop
-            static int logged = 0;
-            if (logged++ < 300 && event.type != SDL_FINGERMOTION && event.type != SDL_MOUSEMOTION)
-                qInfo() << "SDL event" << Qt::hex << event.type << Qt::dec << "window event" << (event.type == SDL_WINDOWEVENT ? int(event.window.event) : -1);
-        }
-#endif
         m_gui_manager->on_sdl_event(event);
         if (event.type == SDL_QUIT) {
             m_window_open = false;
         } else if (event.type == SDL_WINDOWEVENT) {
-            // iOS reports a rotation sometimes only as SIZE_CHANGED (e.g. around a background
-            // round trip), so react to both; the size is read back from SDL either way.
-            if (event.window.event == SDL_WINDOWEVENT_RESIZED || event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
-                sync_window_size();
+            if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
+                on_window_resize(event.window.data1, event.window.data2);
             }
         } else {
             events[event_count++] = event;
@@ -206,35 +177,8 @@ void App::poll_events()
     wgpuInstanceProcessEvents(m_instance);
 }
 
-int App::app_lifecycle_watch(void* userdata, SDL_Event* event)
-{
-    auto* app = static_cast<App*>(userdata);
-    if (event->type == SDL_APP_WILLENTERBACKGROUND) {
-        app->m_in_background = true;
-    } else if (event->type == SDL_APP_DIDENTERFOREGROUND) {
-        app->m_in_background = false;
-        app->m_resume_pending = true;
-    }
-    return 0; // the event still goes to the queue
-}
-
 void App::render()
 {
-    if (m_in_background) {
-        SDL_Delay(50); // nothing to draw; don't spin the main loop
-        return;
-    }
-    if (m_resume_pending) {
-        m_resume_pending = false;
-        sync_window_size(true); // the window may have been rotated while in the background
-        m_force_repaint_once = true;
-    }
-#ifdef ALP_PLATFORM_IOS
-    // Catch layout changes SDL does not report or apply correctly (see ios/IosScene.h).
-    ios::fit_views_to_window(m_sdl_window);
-    sync_window_size();
-#endif
-
     // Do nothing, this checks for ongoing asynchronous operations and call their callbacks
 
     WGPUSurfaceTexture surface_texture;
@@ -478,7 +422,6 @@ void App::start()
         poll_events();
         render();
     }
-    qInfo() << "main loop ended"; // TEMP-IOS-DIAG
 #endif
 
     // NOTE: Ressources are freed by the browser when the page is closed. Also keep in mind
@@ -570,19 +513,6 @@ void App::configure_surface(uint32_t width, uint32_t height)
 
 void App::update_camera() { emit update_camera_requested(); }
 
-void App::sync_window_size(bool force)
-{
-    int width = 0, height = 0;
-#ifdef ALP_PLATFORM_IOS
-    if (!ios::current_window_size(m_sdl_window, width, height))
-#endif
-        SDL_GetWindowSize(m_sdl_window, &width, &height);
-    if (width <= 0 || height <= 0)
-        return; // minimised
-    if (force || glm::uvec2(width, height) != m_viewport_size)
-        on_window_resize(width, height);
-}
-
 void App::on_window_resize(int width, int height)
 {
     m_viewport_size = { width, height };
@@ -592,10 +522,6 @@ void App::on_window_resize(int width, int height)
 
     m_webgpu_window->resize_framebuffer(m_viewport_size.x, m_viewport_size.y);
     m_camera_controller->set_viewport(m_viewport_size);
-    // The framebuffer was just recreated, empty. A changed viewport makes the camera request a
-    // redraw, but a size that ends up where it was (iOS: portrait for a screenshot, then back to
-    // landscape) does not - and the map would stay black under a live UI.
-    m_force_repaint_once = true;
 }
 
 void App::webgpu_create_context()
