@@ -7,9 +7,6 @@
 ## [Developer Guide](webgpu_app_dev.md)
 For an overview of the internal architecture, see the [Developer Guide](webgpu_app_dev.md).
 
-## [iOS Build](webgpu_app_ios.md)
-Building for iPhone (Dawn and SDL built from source, signing, deploying to a device): see [iOS Build](webgpu_app_ios.md).
-
 ## Setup
 
 weBIGeo can be deployed to the web via emscripten and additionally we support native builds on Windows, using [Dawn](https://dawn.googlesource.com/) and [SDL2](https://github.com/libsdl-org/SDL/tree/SDL2).

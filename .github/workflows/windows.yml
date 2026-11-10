@@ -15,7 +15,7 @@ permissions:
   
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2022
     defaults:
         run:
             shell: 'powershell'
@@ -49,7 +49,10 @@ jobs:
     # showed no useful speedup from restoring/saving the cache.
 
     - name: Make sure MSVC is found when Ninja generator is in use
-      uses: ilammy/msvc-dev-cmd@v1
+      uses: TheMrMilchmann/setup-msvc-dev@v4
+      with:
+        arch: x64
+        sdk: 10.0.26100.0
         
     - name: Install tools
       run: choco install 7zip.install ninja
@@ -89,6 +92,7 @@ jobs:
     - name: Configure
       env:
         CMAKE_PREFIX_PATH: ${{env.QT_ROOT_DIR}}/lib/cmake
+        GITHUB_TOKEN: ${{ github.token }}
       run: >
         cmake -G Ninja
         -DCMAKE_BUILD_TYPE=Debug

@@ -1,0 +1,302 @@
+name: "Release Web"
+
+on:
+  push:
+    tags: [ "*" ]
+
+concurrency:
+  group: release-web-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-wasm:
+    if: github.repository == 'AlpineMapsOrg/renderer'
+    runs-on: ubuntu-24.04
+
+    steps:
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential ccache ninja-build
+
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+
+    - name: Load CI versions
+      run: cat .github/ci-versions.env >> "$GITHUB_ENV"
+
+    - uses: mymindstorm/setup-emsdk@v15
+      with:
+        version: ${{ env.WEBASSEMBLY_VERSION }}
+        actions-cache-folder: emsdk-cache
+        cache-key: emsdk-${{ runner.os }}-${{ env.WEBASSEMBLY_VERSION }}
+
+    - name: Use stable Emscripten path
+      shell: bash
+      run: |
+        STABLE_EMSDK_ROOT="${{ github.workspace }}/emsdk-cache/emsdk-main"
+        if [ ! -x "$STABLE_EMSDK_ROOT/emsdk" ]; then
+          echo "Expected emsdk at $STABLE_EMSDK_ROOT/emsdk"
+          exit 1
+        fi
+
+        "$STABLE_EMSDK_ROOT/emsdk" activate "$WEBASSEMBLY_VERSION"
+        "$STABLE_EMSDK_ROOT/emsdk" construct_env | while IFS= read -r line; do
+          case "$line" in
+            "PATH += "*)
+              echo "${line#PATH += }" >> "$GITHUB_PATH"
+              ;;
+            *" = "*)
+              name="${line%% = *}"
+              value="${line#* = }"
+              echo "$name=$value" >> "$GITHUB_ENV"
+              ;;
+          esac
+        done
+
+    - name: Install Qt native version
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: ${{ env.QT_VERSION }}
+        host: linux
+        target: desktop
+        arch: linux_gcc_64
+        dir: '${{ github.workspace }}/qt_host'
+        install-deps: 'true'
+        modules: qtshadertools
+        cache: true
+        tools: tools_cmake
+
+    - name: Set reusable strings
+      shell: bash
+      run: |
+        echo "BUILD_DIR=${{ github.workspace }}/build" >> "$GITHUB_ENV"
+        echo "INSTALL_DIR=${{ github.workspace }}/install/wasm_mt_lto" >> "$GITHUB_ENV"
+        echo "QT_WASM_ROOT_DIR=${{ github.workspace }}/qt_wasm_lite" >> "$GITHUB_ENV"
+        echo "QT_SRC_CONFIGURE=${{ github.workspace }}/qt_src/configure" >> "$GITHUB_ENV"
+        echo "QT_LITE_CONFIG=${{ github.workspace }}/misc/qt_lite.txt" >> "$GITHUB_ENV"
+
+    - name: Cache Qt WebAssembly build
+      id: qt-cache
+      uses: actions/cache@v6
+      with:
+        path: qt_wasm_lite
+        key: wasm_mt_lto_qt-${{ env.QT_VERSION }}_emcc-${{ env.WEBASSEMBLY_VERSION }}_qtpositioning_${{ hashFiles('misc/qt_lite.txt', 'misc/qt_68_qtbase_remove_dejavu_fonts.patch') }}
+
+    - name: Download and patch Qt
+      if: steps.qt-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        git clone --branch "$QT_VERSION" git://code.qt.io/qt/qt5.git qt_src
+        mkdir qt_wasm_build
+        cd qt_wasm_build
+        "$QT_SRC_CONFIGURE" -qt-host-path "$QT_ROOT_DIR" -platform wasm-emscripten -init-submodules -submodules qtdeclarative,qtbase,qtpositioning -skip qtlanguageserver,qtquicktimeline,qtimageformats
+        cd "${{ github.workspace }}/qt_src/qtbase"
+        git apply "${{ github.workspace }}/misc/qt_68_qtbase_remove_dejavu_fonts.patch"
+        cd "${{ github.workspace }}"
+        rm -rf qt_wasm_build
+        mkdir qt_wasm_build
+
+    - name: Build Qt for WebAssembly
+      if: steps.qt-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        cd qt_wasm_build
+        "$QT_SRC_CONFIGURE" \
+          -qt-host-path "$QT_ROOT_DIR" \
+          -platform wasm-emscripten \
+          -release \
+          -optimize-size \
+          -submodules qtdeclarative,qtbase,qtpositioning \
+          -skip qtlanguageserver,qtquicktimeline,qtimageformats \
+          -gui \
+          -ltcg \
+          $(cat "$QT_LITE_CONFIG") \
+          -feature-thread \
+          -prefix "$QT_WASM_ROOT_DIR/"
+        # Work around https://bugreports.qt.io/browse/QTBUG-129522.
+        sed -i 's/-flto=thin/-flto/g' ./build.ninja
+        cmake --build . --parallel
+        cmake --install .
+        test -d "$QT_WASM_ROOT_DIR"
+        test -n "$(ls -A "$QT_WASM_ROOT_DIR")"
+
+    - name: Remove StatsWindow
+      run: rm ./app/StatsWindow.qml
+
+    - name: Set ccache config
+      shell: bash
+      run: |
+        echo "CCACHE_DIR=${{ github.workspace }}/.ccache" >> "$GITHUB_ENV"
+        echo "CCACHE_BASEDIR=${{ github.workspace }}" >> "$GITHUB_ENV"
+        echo "CCACHE_COMPRESS=true" >> "$GITHUB_ENV"
+        echo "CCACHE_COMPILERCHECK=content" >> "$GITHUB_ENV"
+        echo "CCACHE_MAXSIZE=500M" >> "$GITHUB_ENV"
+
+    - name: Cache ccache
+      uses: actions/cache@v6
+      with:
+        path: ${{ github.workspace }}/.ccache
+        key: ccache-${{ runner.os }}-wasm_mt_lto-emscripten-${{ env.WEBASSEMBLY_VERSION }}-qt-${{ env.QT_VERSION }}-v3-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: |
+          ccache-${{ runner.os }}-wasm_mt_lto-emscripten-${{ env.WEBASSEMBLY_VERSION }}-qt-${{ env.QT_VERSION }}-v3-
+
+    - name: Configure AlpineApp
+      run: |
+        "$QT_WASM_ROOT_DIR/bin/qt-cmake" \
+          -G Ninja \
+          -B "$BUILD_DIR" \
+          -DCMAKE_BUILD_TYPE=MinSizeRel \
+          -DALP_WWW_INSTALL_DIR="$INSTALL_DIR" \
+          -DALP_ENABLE_THREADING=ON \
+          -DALP_ENABLE_ASSERTS=OFF \
+          -DALP_ENABLE_LTO=ON \
+          -DALP_BUILD_UNITTESTS=OFF \
+          -DALP_BUILD_PLAIN_RENDERER=OFF \
+          -DALP_BUILD_ALPINEAPP=ON \
+          -DALP_BUILD_WEBGPU_BASE=OFF \
+          -DALP_BUILD_WEBGPU_ENGINE=OFF \
+          -DALP_BUILD_WEBGPU_COMPUTE=OFF \
+          -DALP_BUILD_WEBGPU_APP=OFF \
+          -DFMT_INSTALL=OFF \
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+          -S "${{ github.workspace }}"
+
+    - name: Reset ccache stats
+      run: ccache --zero-stats
+
+    - name: Build AlpineApp
+      run: cmake --build "$BUILD_DIR" --target install
+
+    - name: Show ccache stats
+      if: always()
+      run: ccache --show-stats --verbose
+
+    - name: Stage release
+      shell: bash
+      run: |
+        APP_DIR="$INSTALL_DIR/alpineapp"
+        test -f "$APP_DIR/alpineapp.html"
+        test -f "$APP_DIR/alpineapp.js"
+        test -f "$APP_DIR/alpineapp.wasm"
+        test -f "$APP_DIR/qtloader.js"
+        test -f "$APP_DIR/logo_vertical_light_bg.png"
+
+        mkdir "${{ github.workspace }}/release"
+        cp -a "$APP_DIR/." "${{ github.workspace }}/release/"
+        mv "${{ github.workspace }}/release/alpineapp.html" "${{ github.workspace }}/release/index.html"
+
+    - name: Create release artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: release_web
+        path: ${{ github.workspace }}/release/
+        if-no-files-found: error
+
+  deploy:
+    if: github.repository == 'AlpineMapsOrg/renderer'
+    needs: build-wasm
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Install lftp
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y lftp
+
+    - name: Download release artifact
+      uses: actions/download-artifact@v8
+      with:
+        name: release_web
+        path: ${{ github.workspace }}/release
+
+    - name: Deploy to alpinemaps.org
+      shell: bash
+      env:
+        FTP_RELEASE_HOST: ${{ secrets.FTP_RELEASE_HOST }}
+        FTP_RELEASE_USER: ${{ secrets.FTP_RELEASE_USER }}
+        FTP_RELEASE_PASS: ${{ secrets.FTP_RELEASE_PASS }}
+      run: |
+        set -euo pipefail
+
+        for name in FTP_RELEASE_HOST FTP_RELEASE_USER FTP_RELEASE_PASS; do
+          if [ -z "${!name}" ]; then
+            echo "$name is required for the release deployment."
+            exit 1
+          fi
+        done
+
+        RELEASE_DIR="${{ github.workspace }}/release"
+        test -f "$RELEASE_DIR/index.html"
+        test ! -e "$RELEASE_DIR/alpineapp.html"
+        test ! -e "$RELEASE_DIR/coi-serviceworker.min.js"
+
+        lftp <<LFTP
+        set cmd:fail-exit true
+        set ftp:ssl-force true
+        set ftp:ssl-protect-data true
+        set ssl:verify-certificate true
+        open -u "$FTP_RELEASE_USER","$FTP_RELEASE_PASS" "$FTP_RELEASE_HOST"
+        mirror --reverse --delete --verbose "$RELEASE_DIR" .release-new
+        bye
+        LFTP
+
+        lftp > "${{ runner.temp }}/release-root-entries" <<LFTP
+        set cmd:fail-exit true
+        set ftp:ssl-force true
+        set ftp:ssl-protect-data true
+        set ssl:verify-certificate true
+        open -u "$FTP_RELEASE_USER","$FTP_RELEASE_PASS" "$FTP_RELEASE_HOST"
+        find -d 2 .
+        bye
+        LFTP
+
+        ROTATE_SCRIPT="${{ runner.temp }}/rotate-release.lftp"
+        {
+          echo "rm -rf old"
+          echo "mkdir old"
+
+          while IFS= read -r entry; do
+            entry="${entry#./}"
+            entry="${entry%/}"
+            case "$entry" in
+              ""|"."|".."|"old"|".release-new")
+                continue
+                ;;
+            esac
+
+            escaped="${entry//\\/\\\\}"
+            escaped="${escaped//\"/\\\"}"
+            escaped="${escaped//\$/\\\$}"
+            escaped="${escaped//\`/\\\`}"
+            printf 'mv "%s" old/\n' "$escaped"
+          done < "${{ runner.temp }}/release-root-entries"
+
+          shopt -s dotglob nullglob
+          for path in "$RELEASE_DIR"/*; do
+            entry="${path##*/}"
+            escaped="${entry//\\/\\\\}"
+            escaped="${escaped//\"/\\\"}"
+            escaped="${escaped//\$/\\\$}"
+            escaped="${escaped//\`/\\\`}"
+            printf 'mv ".release-new/%s" ./\n' "$escaped"
+          done
+
+          echo "rmdir .release-new"
+          echo "bye"
+        } > "$ROTATE_SCRIPT"
+
+        {
+          echo "set cmd:fail-exit true"
+          echo "set ftp:ssl-force true"
+          echo "set ftp:ssl-protect-data true"
+          echo "set ssl:verify-certificate true"
+          echo "open -u \"$FTP_RELEASE_USER\",\"$FTP_RELEASE_PASS\" \"$FTP_RELEASE_HOST\""
+          cat "$ROTATE_SCRIPT"
+        } | lftp
