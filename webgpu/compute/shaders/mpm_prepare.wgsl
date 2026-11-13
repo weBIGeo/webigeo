@@ -26,7 +26,7 @@
 // With entrainment, also the snow cover of each column's cell (the dx x dx square around the
 // node), 4 x 4 samples of cover_depth_at(): what the flow can pick up there (column_stats.cover).
 //
-// References: none for the band (project design, mpm-mls-doc/04-data-layout.md). The cover is
+// References: none for the band (project design, docs/avalanche/04-data-layout.md). The cover is
 // com1DFA's entrainable snow:
 //   Tonnel 2023     M. Tonnel et al., "AvaFrame com1DFA (v1.3): a thickness-integrated
 //                   computational avalanche module - theory, numerics, and testing",

@@ -472,7 +472,7 @@ void AvalanchePanel::scan_sandbox_datasets()
     m_sandbox_scan_error.clear();
     QFile index(QDir(QString::fromStdString(m_sandbox_root)).filePath("index.json"));
     if (m_sandbox_root.empty() || !index.open(QIODevice::ReadOnly)) {
-        m_sandbox_scan_error = "No AvaFrame datasets yet - download them below (or run mpm-mls-doc/avaframe/prepare_dataset.py).";
+        m_sandbox_scan_error = "No AvaFrame datasets yet - download them below (or run https://github.com/Emanum/webigeo/blob/main/mpm-mls-doc/avaframe/prepare_dataset.py).";
         return;
     }
     for (const auto& value : QJsonDocument::fromJson(index.readAll()).object()["datasets"].toArray()) {

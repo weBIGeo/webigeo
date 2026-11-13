@@ -191,7 +191,7 @@ private:
     void draw_performance(webgpu_compute::nodes::MpmSolverNode& solver);
 
     /// AvaFrame sandbox (see AvaFrameSandboxNode): datasets prepared by the download in the
-    /// panel (AvaFrameData) or by mpm-mls-doc/avaframe/prepare_dataset.py, listed from
+    /// panel (AvaFrameData) or by https://github.com/Emanum/webigeo/blob/main/mpm-mls-doc/avaframe/prepare_dataset.py, listed from
     /// <root>/index.json.
     struct SandboxDataset {
         std::string name;
@@ -224,7 +224,7 @@ private:
     /// (write_sandbox_result). Asynchronous; the outcome lands in m_sandbox_status.
     void export_sandbox_result(const std::string& stopped_by);
 
-    /// Batch mode (WEBIGEO_SANDBOX_BATCH=<jobs.json>, see mpm-mls-doc/avaframe/README.md): runs a
+    /// Batch mode (WEBIGEO_SANDBOX_BATCH=<jobs.json>, see https://github.com/Emanum/webigeo/blob/main/mpm-mls-doc/avaframe/README.md): runs a
     /// list of sandbox runs one after the other, each to rest or to its time limit, exports each
     /// with its label, writes <jobs>.results.json and optionally quits. Never touches the stored
     /// user preferences.

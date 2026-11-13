@@ -20,7 +20,7 @@
 // Every MPM kernel includes this file, so all of them declare the identical binding set
 // and can therefore share a single bind group layout / bind group.
 //
-// References (sections, equations and pages as in the PDFs; full list in mpm-mls-doc/refs.md):
+// References (sections, equations and pages as in the PDFs; full list in docs/avalanche/refs.md):
 //   Hu 2018         Y. Hu et al., "A moving least squares material point method with displacement
 //                   discontinuity and two-way rigid body coupling", ACM TOG 37(4), Art. 146, 2018.
 //   Jiang 2015      C. Jiang et al., "The affine particle-in-cell method", ACM TOG 34(4), Art. 51,
@@ -142,7 +142,7 @@ const COVER_UNIFORM: u32 = 2u;
 // The particle volume is not stored: it is the same for every particle (settings.particle_volume,
 // mass is normalised to 1).
 // Read by code outside the solver (the avalanche renderer copies this layout): a change here bumps
-// MPM_LAYOUT_VERSION in MpmSolverNode.h and updates mpm-mls-doc/04-data-layout.md.
+// MPM_LAYOUT_VERSION in MpmSolverNode.h and updates docs/avalanche/04-data-layout.md.
 struct Particle {
     position: vec3f,
     mass: f32, // 0 marks an inactive particle

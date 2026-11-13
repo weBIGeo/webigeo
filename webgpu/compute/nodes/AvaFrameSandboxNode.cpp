@@ -449,7 +449,7 @@ std::unique_ptr<SandboxTerrain> load_sandbox_terrain(const std::string& dataset_
     const QDir dir(QString::fromStdString(dataset_path));
     QFile meta_file(dir.filePath("dataset.json"));
     if (!meta_file.open(QIODevice::ReadOnly)) {
-        error = "no dataset.json in " + dataset_path + " - download the AvaFrame data in the Avalanche panel, or run mpm-mls-doc/avaframe/prepare_dataset.py.";
+        error = "no dataset.json in " + dataset_path + " - download the AvaFrame data in the Avalanche panel, or run https://github.com/Emanum/webigeo/blob/main/mpm-mls-doc/avaframe/prepare_dataset.py.";
         return nullptr;
     }
     const QJsonObject meta = QJsonDocument::fromJson(meta_file.readAll()).object();

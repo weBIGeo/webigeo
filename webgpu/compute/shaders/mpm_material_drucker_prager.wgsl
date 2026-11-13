@@ -38,7 +38,7 @@
 // Parameters: settings.mu_0, lambda_0 (shared Lame parameters), dp_alpha (precomputed
 // from the friction angle, see MpmSolverNode::update_gpu_settings; Klar sec. 7.3, eq. 31, p. 9).
 //
-// References (sections, equations and pages as in the PDFs; full list in mpm-mls-doc/refs.md):
+// References (sections, equations and pages as in the PDFs; full list in docs/avalanche/refs.md):
 //   Klar 2016       G. Klar et al., "Drucker-Prager elastoplasticity for sand animation",
 //                   ACM TOG 35(4), Art. 103, 2016.
 

@@ -32,7 +32,7 @@
 // the workgroup) and nodes above the window write to the grid directly, as before. The grid
 // accumulates in fixed point, so the order of the additions does not change the result.
 //
-// References (sections, equations and pages as in the PDFs; full list in mpm-mls-doc/refs.md):
+// References (sections, equations and pages as in the PDFs; full list in docs/avalanche/refs.md):
 //   Hu 2018         Y. Hu et al., "A moving least squares material point method with displacement
 //                   discontinuity and two-way rigid body coupling", ACM TOG 37(4), Art. 146, 2018.
 //   Jiang 2015      C. Jiang et al., "The affine particle-in-cell method", ACM TOG 34(4), Art. 51,

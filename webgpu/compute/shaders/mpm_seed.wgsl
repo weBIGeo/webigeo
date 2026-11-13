@@ -27,7 +27,7 @@
 // by every later stage. So do the slots after the release particles, the pool entrainment
 // draws from (see entrain_column() in mpm_grid_update).
 //
-// References (sections, equations and pages as in the PDFs; full list in mpm-mls-doc/refs.md):
+// References (sections, equations and pages as in the PDFs; full list in docs/avalanche/refs.md):
 //   Stomakhin 2013  A. Stomakhin et al., "A material point method for snow simulation",
 //                   ACM TOG 32(4), Art. 102, 2013.
 //   Klar 2016       G. Klar et al., "Drucker-Prager elastoplasticity for sand animation",

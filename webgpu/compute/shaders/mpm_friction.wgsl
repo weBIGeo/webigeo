@@ -34,7 +34,7 @@
 //     on vn, so applying it at both levels would double-count it per substep. It is applied
 //     at the grid level only, gated by the `apply_basal_drag` flag.
 //
-// References (sections, equations and pages as in the PDFs; full list in mpm-mls-doc/refs.md):
+// References (sections, equations and pages as in the PDFs; full list in docs/avalanche/refs.md):
 //   Stomakhin 2013  A. Stomakhin et al., "A material point method for snow simulation",
 //                   ACM TOG 32(4), Art. 102, 2013.
 //   Li 2021         X. Li et al., "Three-dimensional and real-scale modeling of flow regimes in

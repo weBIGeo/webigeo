@@ -34,7 +34,7 @@
 // substep: it runs once more, finds no mass and zeroes its nodes' velocity and mass, so the grid
 // never holds the values of a flow that has moved on (TILE_WAS_ACTIVE in mpm_common).
 //
-// References (sections, equations and pages as in the PDFs; full list in mpm-mls-doc/refs.md):
+// References (sections, equations and pages as in the PDFs; full list in docs/avalanche/refs.md):
 //   Hu 2018         Y. Hu et al., "A moving least squares material point method with displacement
 //                   discontinuity and two-way rigid body coupling", ACM TOG 37(4), Art. 146, 2018.
 //   Stomakhin 2013  A. Stomakhin et al., "A material point method for snow simulation",

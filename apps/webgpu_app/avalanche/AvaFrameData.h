@@ -31,7 +31,7 @@ class QNetworkReply;
 namespace webgpu_app {
 
 /* The AvaFrame sandbox datasets, prepared in the app: a C++ port of
- * mpm-mls-doc/avaframe/prepare_dataset.py for the five real test avalanches. The inputs are
+ * https://github.com/Emanum/webigeo/blob/main/mpm-mls-doc/avaframe/prepare_dataset.py for the five real test avalanches. The inputs are
  * downloaded at run time from AvaFrame's public repository, pinned to the commit of release 2.1,
  * so weBIGeo does not redistribute them (see 11-avaframe-comparison.md, "Native build only").
  *

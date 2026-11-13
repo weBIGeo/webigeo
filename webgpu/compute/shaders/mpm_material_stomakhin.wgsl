@@ -29,7 +29,7 @@
 // Parameters: settings.mu_0, lambda_0, hardening (xi), critical_compression (theta_c),
 // critical_stretch (theta_s). Defaults are Stomakhin's Table 2 (p. 5).
 //
-// References (sections, equations and pages as in the PDFs; full list in mpm-mls-doc/refs.md):
+// References (sections, equations and pages as in the PDFs; full list in docs/avalanche/refs.md):
 //   Stomakhin 2013  A. Stomakhin et al., "A material point method for snow simulation",
 //                   ACM TOG 32(4), Art. 102, 2013.
 //   Hu 2018         Y. Hu et al., "A moving least squares material point method with displacement

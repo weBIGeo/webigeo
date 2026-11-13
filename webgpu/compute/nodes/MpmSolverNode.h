@@ -107,7 +107,7 @@ struct MpmParticleView {
 
 /// The solver's raw data for code that builds something from the flow field, such as a
 /// visualisation (MpmSolverNode::raw_view()). Documented and versioned: a change to the grid or
-/// particle layout bumps MPM_LAYOUT_VERSION. See mpm-mls-doc/16-raw-grid-view.md.
+/// particle layout bumps MPM_LAYOUT_VERSION. See docs/avalanche/16-raw-grid-view.md.
 struct MpmRawView {
     uint32_t layout_version = MPM_LAYOUT_VERSION;
 
@@ -171,7 +171,7 @@ public:
 
     /* Entrainment: how the flow picks up the snow cover along its path (com1DFA's two modes,
      * Tonnel et al. 2023). Values must match the constants in mpm_common.wgsl. See
-     * mpm-mls-doc/15-entrainment.md. */
+     * docs/avalanche/15-entrainment.md. */
     enum EntrainmentMode : uint32_t {
         ENTRAINMENT_OFF = 0,
         PLOWING = 1, // the front takes the whole cover
@@ -298,7 +298,8 @@ public:
     };
 
     /* Mirrors struct MpmSettings in mpm_common.wgsl - keep the two in sync. Public so the GPU
-     * golden tests (unittests/webgpu_compute/test_MpmGolden.cpp) fill the real struct. */
+     * golden tests (unittests/webgpu_compute/test_MpmGolden.cpp in github.com/Emanum/webigeo) fill
+     * the real struct. */
     struct MpmSolverSettingsUniform {
         glm::uvec3 grid_res;
         uint32_t num_particles;

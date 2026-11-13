@@ -33,7 +33,7 @@
 namespace webgpu_compute::nodes {
 
 /// A test case the solver runs on directly, instead of on the map: AvaFrame's DEM and release
-/// area, prepared by mpm-mls-doc/avaframe/prepare_dataset.py. Everything is in metres on the
+/// area, prepared by https://github.com/Emanum/webigeo/blob/main/mpm-mls-doc/avaframe/prepare_dataset.py. Everything is in metres on the
 /// DEM grid, relative to its lower-left corner ("sandbox coordinates"). Row 0 of every raster
 /// is the northern edge, as in the ESRI ASCII files and the height texture.
 struct SandboxTerrain {
@@ -158,7 +158,7 @@ void write_run_files(const SandboxTerrain& terrain, const std::vector<float>& pf
 
 /// Loads one prepared AvaFrame dataset and hands it to the MPM solver as a sandbox: the DEM
 /// as height texture, the release as a depth texture and the region in metres. See
-/// SandboxTerrain and mpm-mls-doc/avaframe/README.md.
+/// SandboxTerrain and https://github.com/Emanum/webigeo/blob/main/mpm-mls-doc/avaframe/README.md.
 class AvaFrameSandboxNode : public Node {
     Q_OBJECT
 

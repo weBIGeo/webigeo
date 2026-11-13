@@ -57,7 +57,7 @@
 // Per-particle plastic state: alpha, initialised so that p0(alpha) = ccc_p0_initial.
 // Parameters: settings.mu_0, lambda_0 (shared), ccc_m, ccc_beta, ccc_xi, ccc_p0_initial.
 //
-// References (sections, equations and pages as in the PDFs; full list in mpm-mls-doc/refs.md):
+// References (sections, equations and pages as in the PDFs; full list in docs/avalanche/refs.md):
 //   Gaume 2018      J. Gaume et al., "Dynamic anticrack propagation in snow", Nat. Commun. 9,
 //                   3047, 2018.
 //   Wolper 2019     J. Wolper et al., "CD-MPM: Continuum damage material point methods for
@@ -71,7 +71,7 @@ fn ccc_bulk_modulus() -> f32 { return settings.lambda_0 + 2.0 * settings.mu_0 / 
 
 // sinh and asinh near zero. Written with exp / log they cancel in f32 for a small argument,
 // relative error ~eps / x: Li 2021 case V at E = 3 MPa has p0 / K = 1.2e-3, and p0 came out
-// 8e-5 off (GPU golden tests, test_MpmGolden.cpp). Below 0.1 the Taylor series, cut where the
+// 8e-5 off (GPU golden tests, test_MpmGolden.cpp in github.com/Emanum/webigeo). Below 0.1 the Taylor series, cut where the
 // next term is below f32 precision (sinh: x^7 / 5040, asinh: 5 x^7 / 112).
 fn ccc_sinh(x: f32) -> f32 {
     if abs(x) < 0.1 {

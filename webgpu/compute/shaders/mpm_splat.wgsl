@@ -22,7 +22,7 @@
 // domain. This is the 2D projection used for the map overlay and for export; the raster
 // is also what a future 3D particle renderer would replace.
 //
-// References (sections, equations and pages as in the PDFs; full list in mpm-mls-doc/refs.md):
+// References (sections, equations and pages as in the PDFs; full list in docs/avalanche/refs.md):
 //   Tonnel 2023     M. Tonnel et al., "AvaFrame com1DFA (v1.3): a thickness-integrated
 //                   computational avalanche module - theory, numerics, and testing",
 //                   Geosci. Model Dev. 16, 7013-7035, 2023.

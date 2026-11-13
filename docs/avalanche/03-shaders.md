@@ -1,0 +1,389 @@
+# The twelve kernels
+
+All in `webgpu/compute/shaders/`. Every one starts with `///use mpm_common` (weBIGeo's
+shader preprocessor include directive), so they all declare the **identical binding set** —
+which is why one bind group layout and one bind group serve all of them.
+
+## Dispatch order
+
+One node execution, all inside a **single compute pass**:
+
+```
+[buffer clear] density_raster; on reset also grid, grid_velocity, tile_flags (flags and sort data), column_stats   (outside the pass)
+begin compute pass                                                  (one per chunk)
+  if reset:  mpm_prepare  →  mpm_seed
+  else if a stress parameter changed since the last run:  mpm_refresh_stress
+  if the chunk has substeps:  mpm_sort_count → mpm_sort_scan (1 workgroup) → mpm_sort_scatter
+  repeat substeps_per_submit times:
+      mpm_p2g → mpm_grid_update → mpm_g2p  [→ mpm_column_stats, sandbox only]
+  last chunk: mpm_splat → mpm_rasterize
+end pass
+last chunk: copy state → readback buffer
+submit → wgpuQueueOnSubmittedWorkDone → next chunk, or map readback + complete_run()
+```
+
+**Why one pass matters:** dispatches within a single WebGPU compute pass are ordered and see
+each other's storage writes. That is exactly the MPM dependency chain, so no pass churn is
+needed between stages.
+
+**No clear pass.** The grid update is the last reader of the P2G accumulators, so it zeroes
+the nodes it consumed itself instead of a separate kernel zeroing every node every substep; together with the active-tile flags (below) the grid work
+follows the snow instead of the domain. See [09-performance-analysis.md](https://github.com/Emanum/webigeo/blob/main/mpm-mls-doc/09-performance-analysis.md) §2.1.
+
+## Bindings (shared by all)
+
+```
+0  uniform    MpmSettings
+1  texture    height_texture           R32Float, unfilterable
+2  texture    release_point_texture    RGBA8Unorm, alpha > 0 marks a release cell (map);
+                                       R32Float release depth (sandbox) - layout unfilterable-float
+3  storage    particles      array<Particle>       read_write
+4  storage    grid           array<GridNode>       read_write, mass atomic<u32> lo/hi, momentum atomic<i32>
+5  storage    state          SimState              read_write, atomics
+6  storage    density_raster array<atomic<u32>>    read_write
+7  storage    output_texture rgba8unorm            write
+8  storage    column_floor   array<i32>            read_write (written by prepare)
+9  storage    grid_velocity  array<vec4f>          read_write (grid update → G2P)
+10 storage    tile_flags     array<atomic<u32>>    read_write: tile flags (P2G → grid update), then the particle
+                                                  sort (bucket counts, cursors, sorted indices; sort → P2G)
+11 storage    column_stats   array<ColumnStats>    read_write (peaks; column_stats → grid update; entrainment cover)
+12 texture    entrainment_texture      R32Float snow cover depth (entrainment areas), unfilterable;
+                                       a 1x1 placeholder without one
+```
+
+Eight storage buffers is WebGPU's default `maxStorageBuffersPerShaderStage`, so the
+entrainment cover lives in `column_stats` and the particle sort in `tile_flags` rather than
+buffers of their own.
+
+Unused bindings in a given kernel are fine; the reverse (using something not in the layout)
+is not.
+
+---
+
+## Modules (not kernels)
+
+Six files carry no entry point; kernels `///use` them: the three below, and the three model
+files behind `mpm_material` (`mpm_material_stomakhin`, `mpm_material_drucker_prager`,
+`mpm_material_ccc`).
+
+| Module | Provides | Used by |
+|---|---|---|
+| `mpm_common` | bindings, structs, terrain sampling, B-spline kernel, SVD, matrix helpers | all |
+| `mpm_material` | `material_initial_state()`, `material_plasticity()` (which also returns τ = P·Fᵀ of the returned state) — a `switch` on `settings.constitutive_model` over `mpm_material_stomakhin` / `mpm_material_drucker_prager` / `mpm_material_ccc` | seed, g2p, refresh_stress |
+| `mpm_friction` | `resolve_terrain_collision(v, n, apply_basal_drag, flow_depth)` — a `switch` on `settings.basal_friction_model`; Coulomb, Voellmy | grid_update (`true`, column depth), g2p (`false`, 0) |
+
+`mpm_material` and `mpm_friction` are separate on purpose: internal friction (M, inside the
+material law) and basal friction (μ, a boundary condition) are different things and are
+selected independently. The include mechanism is pragma-once, so a module can `///use
+mpm_common` for itself without double-declaring the bindings.
+
+## `mpm_prepare` — 16×16×1, over grid XY
+
+Runs once per reset, before seeding. Samples the terrain at each grid column's node and
+does two things: `atomicMin`/`atomicMax` the altitude (in cm, as i32) into `SimState` for
+the readout, and writes the column's **band floor**
+`column_floor[column] = floor(altitude / dx) − 2` — the absolute z index of the first
+stored layer. See "The terrain-following grid" in
+[04-data-layout.md](04-data-layout.md#the-terrain-following-grid-2026-09-13).
+
+`SimState` is pre-seeded from the CPU with ±INT_MAX so the atomics converge — a
+zero-cleared buffer would make `atomicMin` stick at 0.
+
+**Entrainment (2026-10-27).** With entrainment on and a cover, it also sets each column's
+`column_stats.cover`: the cover of its dx × dx cell from 4 × 4 samples of `cover_depth_at()`,
+leaving out samples under the release (`under_release()`), summed into
+`SimState.cover_volume`. See [15-entrainment.md](15-entrainment.md).
+
+## `mpm_seed` — 256×1×1, over particles
+
+One particle per thread. Rejection-samples inside the **release disc**:
+
+```
+angle    = rand · 2π
+distance = √rand · release_radius        # √ keeps samples uniform over area
+candidate = release_centre + (cos, sin)·distance
+```
+
+Rejects candidates outside the domain (with a 2·dx margin — a particle outside the box gets
+clamped onto its wall immediately). Then requires a release-point-texture hit unless
+`seed_anywhere` is set. Up to 32 attempts; failures leave the particle **inactive**
+(`mass = 0`), which every later stage skips. A thread whose *first* sample hits counts into
+`SimState.seed_first_hits`: the first sample is uniform over the disc, so hits / threads is
+the share of the disc that holds snow — the seeded area, from which
+`seeded_particle_volume()` gets the real volume per particle (Voellmy depth).
+
+**Sandbox (`release_mode = RELEASE_GRID`).** The release texture holds the vertical release
+depth per DEM cell (AvaFrame's slope-normal thickness / cos slope). Samples are uniform over
+the bounds of the release cells (centre `release_centre`, half extents `release_radius`,
+`release_half_y`). A sample is kept with probability depth / `release_max_depth`, so particles
+per area follow the depth and all stand for the same volume:
+`seeded_particle_volume()` = `release_volume` / active particles. There are up to 256 attempts,
+because the cells can fill a small share of their bounds (avaMal's three areas). `seed_anywhere`
+does not apply.
+
+Particle z = terrain height + `rand · slab_thickness` (the cell's depth in the sandbox), so
+the slab has real depth.
+Initialised with `F = I`, `C = 0`, `plastic_state = material_initial_state()` (Jp = 1 for
+Stomakhin — the initial state is model-dependent, which is why it is a dispatcher call).
+
+Uses `///use random` (PCG hash from the existing `random.wgsl`).
+
+Threads from `release_particles` on are the entrainment pool: they write an inactive particle
+and return. `seed_first_hits` / `release_particles` is then still the disc's share with snow.
+
+## `mpm_sort_count`, `mpm_sort_scan`, `mpm_sort_scatter` — particle sort, once per chunk
+
+A counting sort of the particle **indices** by sort tile (4 × 4 columns, the tile of the
+particle's stencil base), so that P2G's workgroups get the particles of one tile together.
+The particle buffer keeps its order: the renderer pairs `particles[i]` with `previous[i]` and
+derives the detail particles from `i`.
+
+```
+count    (256×1×1, over particles)  counts[bucket(p)] += 1            # inactive (mass 0): the last bucket
+scan     (256×1×1, one workgroup)   cursors = exclusive prefix sum of counts; counts = 0
+scatter  (256×1×1, over particles)  sorted[cursors[bucket(p)]++] = index
+```
+
+Inactive and pool particles stay in the list (last bucket), so a pool particle entrainment
+activates during the chunk is still transferred. In a chunk's substeps a particle moves well
+under a tile (0.04 cells per substep at 50 m/s, Δx = 12.5 m, Δt = 0.01 s); a stale order only
+costs speed, never correctness. Cost: 0.2 ms per 24-substep run at 131 k particles on the M5.
+
+The bucket counts must be zero when `mpm_sort_count` starts: the buffer is cleared at a reset
+(the whole `tile_flags` binding), and `mpm_sort_scan` zeroes them again after reading them.
+Only P2G uses the order. G2P stays in buffer order: it reads and writes the whole 128-byte
+particle, and the scattered access of the sorted order cost more than the better grid locality
+saved (measured: 6.1 vs 5.8 ms per run at 131 k particles, 66 vs 62 ms at 1 M).
+
+## `mpm_p2g` — 256×1×1, over the sorted particles
+
+Stage 1. Skips `mass <= 0`. Invocation 0 first zeroes `SimState.plastic_particles`: the
+yield count is per substep, and dispatches in one pass are ordered, so the store lands
+before this substep's G2P counts.
+
+Each workgroup takes 256 consecutive sorted indices. The sort tile of its first particle is
+its **home tile**: the stencils of that tile's particles reach a window of 6 × 6 columns ×
+16 band layers (576 nodes, 9 KiB for mass and momentum). Contributions to window nodes are
+summed in workgroup memory (`wg_mass`, `wg_momentum`, the same fixed-point units); all others
+(particles of the neighbouring buckets in the workgroup, layers above 16) go to the grid
+directly. After a barrier each window node that received anything is added to the grid once.
+Integer addition is associative, so the grid holds exactly the sums it held with one global
+atomic per particle and node: the benchmark's centre-of-mass trace is bit-identical to the
+unsorted kernel.
+
+```
+gp     = to_grid_space(position)
+kernel = compute_kernel(gp)
+mark_tiles(kernel.base.xy)                      # flag the ≤ 4 tiles of 8×8 columns the stencil reaches
+tau    = particle_kirchhoff(p)                  # P·Fᵀ, stored by the previous G2P — no SVD here
+
+stress_term = −dt · particle_volume · (4/dx²) · tau
+affine      = stress_term + mass · C
+
+for offset in 3×3×3:
+    slot = grid_slot(base + offset)                     # −1 outside the box or the column's band → skip
+    dpos = (offset − fx) · dx
+    w    = kernel_weight(...)
+    units = round(w · mass · 2^20)                      # mass in MASS_SCALE units
+    fixed = to_fixed(w · (mass·velocity + affine·dpos)) # i32 at 1e4, rounded
+    if the node lies in the home tile's window (6×6 columns, band layers < 16):
+        wg_mass[node] += units; wg_momentum[node] += fixed       # workgroup memory
+    else:
+        add_node_mass_units(cell, units)                # u32 lo/hi at 2^20, carry from atomicAdd's return
+        atomicAdd(v*, fixed)                            # the grid directly
+
+barrier
+for each window node of the workgroup that received anything:
+    add_node_mass_units(cell, wg_mass[node]); atomicAdd(v*, wg_momentum[node])   # once per node
+```
+
+Both quantise with `round`, never truncation — see the fixed-point section of
+[04-data-layout.md](04-data-layout.md#round-dont-truncate--and-give-the-mass-its-own-scale-2026-09-13)
+for the blow-up that truncation caused.
+
+The single `affine · dpos` product is the MLS-MPM payoff — no separate weight-gradient force
+term (Hu et al. [3]).
+
+27 nodes × 4 atomics (+1 on a mass carry, rare) = 108 atomic adds per particle per substep, now to
+workgroup memory for the home tile's particles; the grid receives at most 4 per window node and
+workgroup. P2G went from ~70 % to ~45 % of the GPU time, about 3× faster
+([09-performance-analysis.md](https://github.com/Emanum/webigeo/blob/main/mpm-mls-doc/09-performance-analysis.md) §2.2).
+
+## `mpm_grid_update` — 8×8×1, one workgroup per tile of columns
+
+Stage 2. Each thread owns one column and walks its layers (the band, not altitudes).
+
+```
+thread 0: flags = tile_flags[tile];  workgroupUniformLoad → all threads
+if flags == 0: return                                  # no particle touched this tile, and it was not processed last substep
+thread 0: tile_flags[tile] = (flags & FLAGGED) ? WAS_ACTIVE : 0   # P2G of the next substep flags it again
+if Voellmy:                                            # uniform branch
+    flow_depth = Σ_layers node_mass · seeded_particle_volume() / dx²   # local depth of the column
+for layer in 0 .. res.z:
+    cell = layer · res.x · res.y + column(x, y)
+    read mass (lo/hi) and momentum; zero them unless already zero   # replaces the clear pass
+    if mass <= 0:  grid_velocity[cell] = 0 (xyz and mass); continue
+    v = momentum / mass
+v.z −= gravity · dt
+
+world = column_node_world(node_xy, layer)             # altitude = (column_floor + layer) · dx
+if world.z < terrain_height(world.xy):
+    v = resolve_terrain_collision(v, terrain_normal(world.xy), true, flow_depth)   # basal drag applied here
+
+    clamp at domain walls (2-node margin, only blocks outflow)
+    grid_velocity[cell] = (v, mass)                    # plain floats for G2P (xyz); the mass is for readers of the grid
+```
+
+A tile's flag word has two bits: `FLAGGED` (P2G reached the tile in this substep) and `WAS_ACTIVE`
+(the grid update processed it in the previous substep). A tile with only the second bit has lost
+its flow: the grid update runs on it once more, finds no mass and zeroes the velocity and mass of
+its nodes, then drops the flag. So `grid_velocity` never holds the values of a flow that has moved
+on, which matters to anything that reads the whole grid, such as a visualisation
+([16-raw-grid-view.md](16-raw-grid-view.md)). G2P never reads those nodes, so the physics does not
+depend on it.
+
+Nodes in tiles with neither bit are never visited: their accumulators are still zero from the
+last time they were consumed, and no particle's stencil reads their velocity this substep.
+
+**Peaks (2026-10-10, AvaFrame comparison).** After the layer loop the thread updates its
+column's `ColumnStats`:
+- `peak_depth = max(·, column mass / particle mass · seeded_particle_volume() / dx²)`, the same
+  depth Voellmy uses;
+- `peak_speed = max(·, speed_sum / particles)`, the mean speed of the particles that
+  `mpm_column_stats` counted in this column after the previous G2P. The sums are then zeroed.
+
+**Entrainment (2026-10-27).** Then, with entrainment on and flow in the column,
+`entrain_column()`: the column's flow depth and mass-weighted node speed decide how much of
+`column_stats.cover` the flow takes (plowing: all of it once deep enough; erosion:
+τ_b |u| / e_b · dt · dx² / ρ_cover), and the eroded snow becomes particles from the pool at
+rest, written with negative mass (at most 64 per column and substep; the rest waits in
+`column_stats.eroded`). Details in [15-entrainment.md](15-entrainment.md).
+
+The speed is particle-based on purpose. In MLS-MPM a node's P2G momentum includes the stress
+impulse. At the edge of the flow, on nodes with almost no mass, momentum / mass (or the updated
+grid velocity) reached 234 m/s on avaKot, where no particle exceeded 101 m/s.
+
+## `mpm_column_stats` — 256×1×1, over particles (sandbox only)
+
+Each particle adds 1 and its speed (cm/s) to the `ColumnStats` of its nearest node's column.
+That column lies inside its stencil, so the next P2G marks the tile and the grid update visits it.
+It runs after G2P, and only while the `sandbox` input is connected.
+
+It is a separate pass because the same two atomics placed in P2G changed nothing the physics
+reads, yet they changed how the compiler arranged P2G's float arithmetic. The benchmark trace
+then drifted by 2 mm in 10 s, deterministically, and returned when the atomics came out.
+Separate, the diagnostics cannot touch the solver: the benchmark trace is bit-identical to
+the version without peaks.
+
+## `mpm_g2p` — 256×1×1, over particles
+
+Stages 3+4 fused, in buffer order (not the sorted order of P2G; see `mpm_sort_*` above). No
+early return: each invocation calls `update_particle()` if it has one, then the workgroup reduces its diagnostics and invocation 0 adds them to `SimState`
+once (max speed, yield count, path, box contacts).
+
+A particle with negative mass was entrained in this substep's grid update: G2P makes its mass
+positive and leaves it at rest, without gathering - it was not in this substep's P2G. The next
+P2G adds its mass without momentum.
+
+```
+wall_contact    = stencil reaches the 2 outer node rows      # where the grid update blocks outflow
+ceiling_contact = stencil reaches the top 3 band layers
+for offset in 3×3×3:
+    dpos = offset − fx                       # GRID units here, not world
+    v_new += w · node_velocity
+    C_new += 4·(1/dx) · w · outer(node_velocity, dpos)
+
+F_trial = (I + dt·C_new) · F
+F, plastic_state, tau, yielded = material_plasticity(F_trial, plastic_state)   # tau from the same SVD, stored for P2G
+wg_yielded += yielded
+position += dt · v_new
+
+if position.z < terrain_height:              # particle-level collision
+    position.z = terrain_height
+    velocity = resolve_terrain_collision(velocity, normal, false, 0)  # contact impulse only
+
+clamp into the domain box, zeroing the velocity component that hit   # counts as a wall contact
+clamp under the band ceiling                                         # counts as a ceiling contact
+wg_max_speed = max(…);  wg_path += round(|Δxy| · 1e5)
+barrier; invocation 0: one global atomic per counter
+```
+
+Watch the `dpos` asymmetry against P2G — world units there, grid units here with a `4/dx`
+factor. Both match the reference formulation; mixing them up gives plausible-looking but
+wrong results.
+
+## `mpm_refresh_stress` — 256×1×1, over particles
+
+Only in the first chunk of a run whose stress parameters (Lamé parameters, the model's
+plasticity parameters) changed without a reseed (a material edit while the avalanche runs).
+
+```
+F, plastic_state, tau = material_plasticity(F, plastic_state)   # under the new settings
+```
+
+G2P caches τ for the next P2G, and that τ belongs to the parameters G2P ran with. Without
+this pass the first P2G after an edit pushes with the old stress. The stored F is already
+admissible, so for unchanged settings the return mapping is a no-op; after a change it is the
+projection the next G2P would apply anyway. Halving E halves the stored τ (checked on
+SwiftShader for all three models); the node compares the uniform fields each run and never
+dispatches it otherwise.
+
+## `mpm_splat` — 256×1×1, over particles
+
+Also, once per run: sums position and `|v|²` over active particles for the energy-line
+test. (The plastic count moved to G2P on 2026-10-03: it is now per substep, see below.) The sums are **64-bit** as lo/hi `u32` pairs — WGSL has no 64-bit atomics,
+and `atomicAdd` returns the old value, so a wrap is detectable:
+
+```
+let old = atomicAdd(&lo, x);   if old > 0xFFFFFFFF − x { atomicAdd(&hi, 1u); }
+```
+
+All summands are non-negative, so unsigned suffices. Then projects
+particles top-down into the density raster. Each particle is drawn as a **disc** of
+`splat_radius_texels` (capped at 8), not a single texel:
+
+```
+for dy, dx in the bounding square:
+    if dx² + dy² > r²:  continue
+    atomicAdd(density_raster[...], 1)
+```
+
+> Why: with a 1024 m domain on a 1024-texel raster, single-texel splatting put 65 k
+> particles into ~6% of a million texels at count 1 — isolated 1-metre pixels, invisible
+> from map viewing distance. A particle represents a *parcel* of snow, not a point.
+
+## `mpm_rasterize` — 16×16×1, over raster texels
+
+Density → RGBA.
+
+```
+density = clamp(count / density_reference, 0, 1)
+color   = mix(pale blue, white, √density)
+alpha   = clamp(0.25 + 0.70·density, 0, 0.95)
+```
+
+`density_reference` is computed CPU-side from particle count, splat area and the **release
+disc** area (with a spread tolerance), not from the domain. Basing it on the domain would
+mean a small avalanche inside a large box saturates everywhere. Deriving it rather than
+hard-coding a constant means the display rescales itself when particle count or resolution
+change.
+
+Empty texels are written fully transparent.
+
+## Rendering shaders (engine, not solver kernels)
+
+The 3D view on the map lives in `webgpu/engine/shaders/` and only *reads* the particle buffer;
+nothing here feeds back into the simulation. Run by `AvalancheRenderer` each frame. What is
+implemented and where: [12-rendering.md](12-rendering.md).
+
+| Shader | Stage | What it does |
+|---|---|---|
+| `avalanche_surface_splat` | compute, 256×1×1 over particles | Quadratic B-spline (the solver's, at its dx) splat of each particle's volume (spacing³) onto a render grid 1–4× finer than the solver's; per node Σw, Σw·speed, Σw·height above terrain as fixed-point atomics. Particles more than 2 dx up are faded out. |
+| `avalanche_surface_field` | compute, 16×16×1 over render nodes | Depth = Σw·V/dx², blanket height = 2·mean height + radius (tapered at the edge), mean speed, persistent peak depth (track, cleared on reset), entrainment cover depth from the solver's `column_stats` (binding 5, read-only; a zeroed stand-in without it). Terrain sampled Catmull-Rom. |
+| `render_avalanche_surface` | render, G-buffer | One quad per render cell, rejected unless a corner reaches min_depth or 2 cm of cover; discard below the contour; track albedo at the rim and where only the peak depth remains; cover albedo where only the entrainment cover remains. |
+| `render_avalanche` | render, G-buffer | Sphere / strain-rate-ellipsoid impostors (vertex pulling, ray–ellipsoid, `frag_depth`), optional detail particles. |
+| `render_avalanche_powder` | render, after compose | Soft transparent blobs with per-particle noise, premultiplied "over", faded by the share of the ray path in front of the G-buffer depth. |
+
+All avalanche fragments write `AVALANCHE_MARKER` (`0x00FFFFFF`) into the G-buffer overlay slot,
+so `overlays/screen_space_snow.wgsl` leaves them alone. [`scripts/validate_wgsl.py`](https://github.com/Emanum/webigeo/blob/main/mpm-mls-doc/scripts/validate_wgsl.py) checks these
+shaders together with the kernels.

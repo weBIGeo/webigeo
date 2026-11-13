@@ -307,7 +307,7 @@ shows the same picture as the last one, so the motion stutters.
 
 ## Further reading
 
-- `mpm-mls-doc/13-simulation-driver.md`: the design decisions, the clock's real-time maths,
+- `docs/avalanche/13-simulation-driver.md`: the design decisions, the clock's real-time maths,
   and measurements with the MPM solver.
 - Glenn Fiedler, "Fix Your Timestep!": the fixed-step loop with interpolation the real-time
   mode follows.

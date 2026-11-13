@@ -49,7 +49,7 @@ namespace webgpu_engine {
 /// than the solver's with the solver's B-spline and turns that into a flow depth (compute
 /// passes, before the G-buffer pass), and draw() lays a blanket over the dense part, so the core
 /// reads as a continuous snow mass while particles above it show the front and the spray. See
-/// mpm-mls-doc/12-rendering.md.
+/// docs/avalanche/12-rendering.md.
 class AvalancheRenderer {
 public:
     /// The solver layout these shaders were written for: struct Particle and struct ColumnStats
