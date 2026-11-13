@@ -37,12 +37,18 @@ public:
 
     std::string name;
 
+    // Hidden overlays are skipped entirely (the ping-pong chain is built from the enabled ones).
+    bool enabled = true;
+
     virtual ~Overlay() = default;
     // Initialization code for GPU Ressources goes here. Needs to be called after creation.
     virtual void init(Context& ctx) = 0;
     // Called once all shared GPU resources (compiled shaders, pipelines, bind group layouts)
     // have been created. From here on it is safe to use them and to upload GPU data.
     virtual void ready(webgpu::Context& /*ctx*/) { }
+    // Whether the overlay has something to draw this frame. Overlays that cannot are left out of
+    // the ping-pong chain, like hidden ones, so they never break it.
+    virtual bool can_draw() const { return true; }
     // IMPORTANT: Ping-pong contract (OverlayRenderer owns both textures, RGBA8Unorm, distinct):
     //   read the previous overlay state from current_input, write the composited result to target_output,
     //   and write EVERY pixel. Skipping a pixel leaves color in undefined state!

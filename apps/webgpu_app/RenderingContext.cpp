@@ -35,6 +35,7 @@
 
 #ifdef ALP_WEBGPU_APP_ENABLE_COMPUTE
 #include "compute/OverlayRenderNode.h"
+#include "compute/ParticleRenderNode.h"
 #include "webgpu/compute/NodeRegistry.h"
 #endif
 
@@ -135,6 +136,7 @@ void RenderingContext::initialize(webgpu::Context& ctx)
     m_engine_context->set_overlay_renderer(overlay_renderer);
     auto track_renderer = std::make_shared<webgpu_engine::TrackRenderer>();
     m_engine_context->set_track_renderer(track_renderer);
+    m_engine_context->set_avalanche_renderer(std::make_shared<webgpu_engine::AvalancheRenderer>());
     auto atmosphere_renderer = std::make_shared<webgpu_engine::AtmosphereRenderer>();
     m_engine_context->set_atmosphere_renderer(atmosphere_renderer);
 
@@ -176,6 +178,9 @@ void RenderingContext::initialize(webgpu::Context& ctx)
     // The terminal node that forwards compute-graph results onto the overlay renderer needs to be registered
     webgpu_compute::NodeRegistry::instance().register_node(
         "OverlayRenderNode", [ctx = m_engine_context.get()](webgpu::Context&) { return std::make_unique<webgpu_compute::nodes::OverlayRenderNode>(*ctx); });
+    // ... and so does the one that hands the MPM particles to the 3D avalanche renderer.
+    webgpu_compute::NodeRegistry::instance().register_node(
+        "ParticleRenderNode", [ctx = m_engine_context.get()](webgpu::Context&) { return std::make_unique<webgpu_compute::nodes::ParticleRenderNode>(*ctx); });
 #endif
 
     nucleus::utils::thread::async_call(this, [this]() { emit this->initialised(); });

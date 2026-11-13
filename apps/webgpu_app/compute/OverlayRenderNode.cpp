@@ -47,6 +47,15 @@ OverlayRenderNode::~OverlayRenderNode()
         overlay->link_texture(nullptr);
 }
 
+void OverlayRenderNode::set_overlay_enabled(bool enabled)
+{
+    auto overlay = m_result_overlay.lock();
+    if (!overlay || overlay->enabled == enabled)
+        return;
+    overlay->enabled = enabled;
+    m_context->request_redraw();
+}
+
 void OverlayRenderNode::run_impl()
 {
     if (input_socket("texture").is_socket_connected() && input_socket("region aabb").is_socket_connected()) {
@@ -70,13 +79,22 @@ void OverlayRenderNode::run_impl()
         // TODO: the stitch node ignores the last col/row; trim the aabb to match. This
         // correction should eventually move into the stitch node's "region aabb" output.
         radix::geometry::Aabb<2, double> trimmed = *aabb;
-        trimmed.max -= glm::dvec2(nucleus::srs::tile_width(18) / 65, nucleus::srs::tile_height(18) / 65);
+        if (m_settings.trim_stitch_edge)
+            trimmed.max -= glm::dvec2(nucleus::srs::tile_width(18) / 65, nucleus::srs::tile_height(18) / 65);
         overlay->settings.aabb = trimmed;
         if (texture) {
             if (copy) {
                 overlay->load_texture(*texture);
             } else {
-                overlay->link_texture(texture);
+                // Linked through the socket, asked every frame: the producer may replace its texture
+                // before this node runs again (the graph runs its nodes in one chain, and a solver
+                // in between takes frames), and a pointer kept from this run would then dangle.
+                overlay->link_texture_source([this]() -> const webgpu::raii::TextureWithSampler* {
+                    auto& socket = input_socket("texture");
+                    if (!socket.is_socket_connected())
+                        return nullptr;
+                    return std::get<data_type<const webgpu::raii::TextureWithSampler*>()>(socket.get_connected_data());
+                });
             }
         }
         overlay->update_gpu_settings();

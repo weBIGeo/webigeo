@@ -167,6 +167,10 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
     // render atmosphere to color buffer
     m_context->atmosphere_renderer()->draw(command_encoder, m_camera_bind_group->handle());
 
+    // The avalanche renderer's compute work (binning for the flow surface) runs before the pass.
+    if (auto* avalanche = m_context->avalanche_renderer())
+        avalanche->prepare(command_encoder, m_camera);
+
     // render tiles to geometry buffers
     {
         std::unique_ptr<webgpu::raii::RenderPassEncoder> render_pass = m_gbuffer->begin_render_pass(command_encoder);
@@ -179,6 +183,10 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         const auto culled_draw_list = drawing::sort(drawing::cull(draw_list, m_camera), m_camera.position());
 
         m_context->tile_mesh_renderer()->draw(render_pass->handle(), m_camera, culled_draw_list);
+
+        // The MPM avalanche particles, into the same G-buffer (lit and hazed like the terrain).
+        if (auto* avalanche = m_context->avalanche_renderer())
+            avalanche->draw(render_pass->handle());
     }
 
     // render clouds
@@ -205,6 +213,11 @@ void Window::paint(webgpu::Framebuffer* framebuffer, WGPUCommandEncoder command_
         wgpuRenderPassEncoderSetBindGroup(render_pass->handle(), 2, m_compose_bind_groups[m_paint_number % 2]->handle(), 0, nullptr);
         wgpuRenderPassEncoderDraw(render_pass->handle(), 3, 1, 0, 0);
     }
+
+    // The avalanche as powder: transparent, over the lit frame, faded against the G-buffer depth.
+    if (auto* avalanche = m_context->avalanche_renderer())
+        avalanche->draw_transparent(
+            command_encoder, *m_shared_config_bind_group, *m_camera_bind_group, *m_depth_texture_bind_group, framebuffer->color_texture_view(0));
 
     // render lines to color buffer
     if (m_context->shared_config().m_track_render_mode > 0) {

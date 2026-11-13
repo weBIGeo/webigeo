@@ -1,0 +1,407 @@
+{
+    "connections": [
+        {
+            "from": {
+                "node": "Select Tiles",
+                "socket": "tile ids"
+            },
+            "to": {
+                "node": "Request Height",
+                "socket": "tile ids"
+            }
+        },
+        {
+            "from": {
+                "node": "Select Tiles",
+                "socket": "tile ids"
+            },
+            "to": {
+                "node": "Stitch Tiles",
+                "socket": "tile ids"
+            }
+        },
+        {
+            "from": {
+                "node": "Request Height",
+                "socket": "tile data"
+            },
+            "to": {
+                "node": "Stitch Tiles",
+                "socket": "texture data"
+            }
+        },
+        {
+            "from": {
+                "node": "Stitch Tiles",
+                "socket": "texture"
+            },
+            "to": {
+                "node": "Height Decode",
+                "socket": "encoded texture"
+            }
+        },
+        {
+            "from": {
+                "node": "Select Tiles",
+                "socket": "region aabb"
+            },
+            "to": {
+                "node": "Height Decode",
+                "socket": "region aabb"
+            }
+        },
+        {
+            "from": {
+                "node": "Height Decode",
+                "socket": "decoded texture"
+            },
+            "to": {
+                "node": "Normals",
+                "socket": "height texture"
+            }
+        },
+        {
+            "from": {
+                "node": "Select Tiles",
+                "socket": "region aabb"
+            },
+            "to": {
+                "node": "Normals",
+                "socket": "bounds"
+            }
+        },
+        {
+            "from": {
+                "node": "Normals",
+                "socket": "normal texture"
+            },
+            "to": {
+                "node": "Release Points",
+                "socket": "normal texture"
+            }
+        },
+        {
+            "from": {
+                "node": "Select Tiles",
+                "socket": "region aabb"
+            },
+            "to": {
+                "node": "MPM Solver",
+                "socket": "region aabb"
+            }
+        },
+        {
+            "from": {
+                "node": "Height Decode",
+                "socket": "decoded texture"
+            },
+            "to": {
+                "node": "MPM Solver",
+                "socket": "height texture"
+            }
+        },
+        {
+            "from": {
+                "node": "Release Points",
+                "socket": "release point texture"
+            },
+            "to": {
+                "node": "MPM Solver",
+                "socket": "release point texture"
+            }
+        },
+        {
+            "from": {
+                "node": "MPM Solver",
+                "socket": "texture"
+            },
+            "to": {
+                "node": "Overlay",
+                "socket": "texture"
+            }
+        },
+        {
+            "from": {
+                "node": "MPM Solver",
+                "socket": "domain aabb"
+            },
+            "to": {
+                "node": "Overlay",
+                "socket": "region aabb"
+            }
+        },
+        {
+            "from": {
+                "node": "Region",
+                "socket": "region"
+            },
+            "to": {
+                "node": "Select Tiles",
+                "socket": "region"
+            }
+        },
+        {
+            "from": {
+                "node": "MPM Solver",
+                "socket": "particle view"
+            },
+            "to": {
+                "node": "Particles 3D",
+                "socket": "particle view"
+            }
+        },
+        {
+            "from": {
+                "node": "Select Tiles",
+                "socket": "region aabb"
+            },
+            "to": {
+                "node": "AvaFrame Release",
+                "socket": "region aabb"
+            }
+        },
+        {
+            "from": {
+                "node": "AvaFrame Release",
+                "socket": "release area"
+            },
+            "to": {
+                "node": "MPM Solver",
+                "socket": "release area"
+            }
+        }
+    ],
+    "first_run_notice": "WARNING: RESEARCH PREVIEW\n\nThis MLS-MPM snow simulation is for educational and illustrative purposes only.\nIt is not calibrated against real snowpack or terrain conditions and must NOT be\nused for route planning or any avalanche safety decision.\n\nUse the Avalanche section of the sidebar to run it: pick a location, press Play.",
+    "format": "webigeo/node-graph",
+    "name": "mpm_avalanche_simulation_graph",
+    "nodes": [
+        {
+            "enabled": true,
+            "name": "Height Decode",
+            "settings": {
+                "texture_usage": [
+                    "CopySrc",
+                    "CopyDst",
+                    "TextureBinding",
+                    "StorageBinding"
+                ]
+            },
+            "type": "HeightDecodeNode"
+        },
+        {
+            "enabled": true,
+            "name": "MPM Solver",
+            "type": "MpmSolverNode",
+            "settings": {
+                "domain_size_xy": 4000.0,
+                "grid_resolution_xy": 320,
+                "grid_layers": 12,
+                "num_particles": 65536,
+                "slab_thickness": 1.5,
+                "snow_density": 400.0,
+                "dt": 0.02,
+                "substeps_per_run": 24,
+                "substeps_per_submit": 2,
+                "youngs_modulus": 140000.0,
+                "poissons_ratio": 0.2,
+                "hardening": 10.0,
+                "critical_compression": 0.025,
+                "critical_stretch": 0.0075,
+                "gravity": 9.81,
+                "terrain_friction": 0.47,
+                "raster_resolution": 1024,
+                "random_seed": 1,
+                "splat_radius": 8.0,
+                "release_radius": 100.0,
+                "seed_anywhere": true,
+                "domain_center_lat": 47.77663,
+                "domain_center_lon": 15.816,
+                "release_center_lat": 47.7748,
+                "release_center_lon": 15.8105,
+                "basal_friction_model": 0,
+                "voellmy_xi": 4000.0
+            }
+        },
+        {
+            "enabled": true,
+            "name": "Normals",
+            "settings": {
+                "format": "RGBA8Unorm",
+                "usage": [
+                    "CopyDst",
+                    "TextureBinding",
+                    "StorageBinding"
+                ]
+            },
+            "type": "ComputeNormalsNode"
+        },
+        {
+            "enabled": true,
+            "name": "Overlay",
+            "settings": {
+                "copy": false
+            },
+            "type": "OverlayRenderNode"
+        },
+        {
+            "enabled": true,
+            "name": "Region",
+            "type": "GeoRegionNode",
+            "settings": {
+                "center_latitude": 47.77663,
+                "center_longitude": 15.816,
+                "extent": 8000.0,
+                "min_altitude": 0.0,
+                "max_altitude": 4000.0
+            }
+        },
+        {
+            "enabled": true,
+            "name": "Release Points",
+            "settings": {
+                "max_slope_angle": 0.7853981852531433,
+                "min_slope_angle": 0.5235987901687622,
+                "sampling_interval": [
+                    8,
+                    8
+                ],
+                "texture_format": "RGBA8Unorm",
+                "texture_usage": [
+                    "CopySrc",
+                    "CopyDst",
+                    "TextureBinding",
+                    "StorageBinding"
+                ]
+            },
+            "type": "ComputeReleasePointsNode"
+        },
+        {
+            "enabled": true,
+            "name": "Request Height",
+            "settings": {
+                "file_extension": ".png",
+                "tile_path": "https://alpinemaps.cg.tuwien.ac.at/tiles/at_dtm_alpinemaps/",
+                "url_pattern": "ZXY"
+            },
+            "type": "RequestTilesNode"
+        },
+        {
+            "enabled": true,
+            "name": "Select Tiles",
+            "settings": {
+                "zoomlevel": 15
+            },
+            "type": "SelectTilesNode"
+        },
+        {
+            "enabled": true,
+            "name": "Stitch Tiles",
+            "settings": {
+                "stitch_inverted_y": true,
+                "texture_format": "RGBA8Uint",
+                "texture_usage": [
+                    "CopySrc",
+                    "CopyDst",
+                    "TextureBinding",
+                    "StorageBinding"
+                ],
+                "tile_has_border": true,
+                "tile_size": [
+                    65,
+                    65
+                ]
+            },
+            "type": "TileStitchNode"
+        },
+        {
+            "enabled": true,
+            "name": "Particles 3D",
+            "type": "ParticleRenderNode",
+            "settings": {
+                "enabled": true,
+                "colour_mode": 0,
+                "radius_scale": 0.6
+            }
+        },
+        {
+            "enabled": true,
+            "name": "AvaFrame Release",
+            "settings": {
+                "dataset_path": "",
+                "release_scenario": ""
+            },
+            "type": "AvaFrameReleaseNode"
+        }
+    ],
+    "ui": {
+        "nodes": {
+            "Select Tiles": {
+                "position": [
+                    237.54681396484375,
+                    652.6171875
+                ]
+            },
+            "Request Height": {
+                "position": [
+                    242.99664306640625,
+                    276.6171875
+                ]
+            },
+            "Stitch Tiles": {
+                "position": [
+                    386.99664306640625,
+                    281.6171875
+                ]
+            },
+            "Height Decode": {
+                "position": [
+                    500.24664306640625,
+                    320.4296875
+                ]
+            },
+            "Normals": {
+                "position": [
+                    626.2467041015625,
+                    424.6171875
+                ]
+            },
+            "Release Points": {
+                "position": [
+                    769.19677734375,
+                    526.6171875
+                ]
+            },
+            "Overlay": {
+                "position": [
+                    1300.0,
+                    560.0
+                ]
+            },
+            "MPM Solver": {
+                "position": [
+                    980.0,
+                    400.0
+                ]
+            },
+            "Region": {
+                "position": [
+                    112.0,
+                    668.0
+                ]
+            },
+            "Particles 3D": {
+                "position": [
+                    980.0,
+                    650.0
+                ]
+            },
+            "AvaFrame Release": {
+                "position": [
+                    769.0,
+                    760.0
+                ]
+            }
+        }
+    },
+    "version": 1
+}

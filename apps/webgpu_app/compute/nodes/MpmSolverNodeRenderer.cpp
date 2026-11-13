@@ -1,0 +1,224 @@
+/*****************************************************************************
+ * weBIGeo
+ * Copyright (C) 2026 Manuel Eiweck
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *****************************************************************************/
+
+#include "MpmSolverNodeRenderer.h"
+
+#include <cmath>
+#include <imgui.h>
+#include <nucleus/srs.h>
+#include <webgpu/compute/nodes/MpmSolverNode.h>
+
+namespace webgpu_app {
+namespace nodes = webgpu_compute::nodes;
+
+using Node = nodes::MpmSolverNode;
+
+MpmSolverNodeRenderer::MpmSolverNodeRenderer(const std::string& name, nodes::MpmSolverNode& node)
+    : NodeRenderer(name, node)
+    , m_node(&node)
+{
+}
+
+void MpmSolverNodeRenderer::render_settings_content()
+{
+    auto settings = m_node->get_settings();
+    bool settings_changed = false;
+    bool rerun = false;
+
+    // Upstream nodes hand out null resources until the graph has run end to end, so the
+    // transport controls stay inert until the solver actually has terrain to work with.
+    const bool ready = m_node->has_valid_inputs();
+    if (!ready) {
+        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "Inputs not ready.");
+        ImGui::TextDisabled("Run the full graph once (Shift+R), then step the solver.");
+        ImGui::Separator();
+    }
+
+    // --- Transport ---
+    ImGui::Text("Simulated time: %.2f s", double(m_node->simulated_time()));
+
+    // Where the simulated box actually sits, so the domain is not an anonymous square.
+    const auto& aabb = m_node->domain_aabb();
+    if (aabb.size().x > 0.0) {
+        const glm::dvec2 centre = nucleus::srs::world_to_lat_long((aabb.min + aabb.max) * 0.5);
+        ImGui::Text("Domain centre: %.5f, %.5f", centre.x, centre.y);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Latitude, longitude of the simulated box.\nPaste into a map to see which slope this is.");
+    } else {
+        ImGui::TextDisabled("Domain centre: run the graph once");
+    }
+
+    // Play/Pause deliberately lives in the sidebar's Avalanche panel, not here: this
+    // settings panel only renders while the node is selected, so driving the animation
+    // from it would stop the moment the editor is closed. Step and Reset are one-shot and
+    // safe to keep alongside the parameters.
+    ImGui::BeginDisabled(!ready);
+    if (ImGui::Button("Step")) {
+        rerun = true;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Reset")) {
+        m_node->request_reset();
+        settings = m_node->get_settings();
+        rerun = true;
+    }
+    ImGui::EndDisabled();
+    ImGui::TextDisabled("Play/Pause: sidebar > Avalanche.");
+
+    ImGui::Separator();
+
+    // --- Time stepping ---
+    const float dx = settings.domain_size_xy / float(std::max(settings.grid_resolution_xy, 1u));
+    const float cfl_dt = nodes::MpmSolverNode::max_stable_dt(settings, dx);
+    ImGui::Text("Grid spacing: %.2f m", double(dx));
+    ImGui::Text("CFL bound: dt <= %.4f s", double(cfl_dt));
+    if (settings.dt > cfl_dt) {
+        ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.2f, 1.0f), "dt above the CFL bound - the next run lowers it to %.4f s.", double(0.8f * cfl_dt));
+    }
+
+    settings_changed |= ImGui::DragFloat("Time step (dt)", &settings.dt, 0.0005f, 0.0001f, 0.5f, "%.4f s");
+
+    const uint32_t min_substeps = 1, max_substeps = 512;
+    settings_changed |= ImGui::DragScalar("Substeps per run", ImGuiDataType_U32, &settings.substeps_per_run, 1.0f, &min_substeps, &max_substeps, "%u");
+    settings_changed |= ImGui::DragScalar("Substeps per frame", ImGuiDataType_U32, &settings.substeps_per_submit, 1.0f, &min_substeps, &max_substeps, "%u");
+    ImGui::TextDisabled("Run submitted in chunks so rendered frames interleave with it");
+
+    ImGui::Separator();
+
+    // --- Domain ---
+    // Changing any of these reallocates GPU buffers, which forces a reseed.
+    ImGui::TextDisabled("Domain (changes trigger a reset)");
+    settings_changed |= ImGui::DragScalarN("Domain lat/lon", ImGuiDataType_Double, &settings.domain_center.x, 2, 0.0001f, nullptr, nullptr, "%.5f");
+    rerun |= ImGui::IsItemDeactivatedAfterEdit();
+
+    settings_changed |= ImGui::DragScalarN("Release lat/lon", ImGuiDataType_Double, &settings.release_center.x, 2, 0.0001f, nullptr, nullptr, "%.5f");
+    rerun |= ImGui::IsItemDeactivatedAfterEdit();
+
+    settings_changed |= ImGui::DragFloat("Release radius", &settings.release_radius, 2.0f, 1.0f, 2000.0f, "%.0f m");
+    rerun |= ImGui::IsItemDeactivatedAfterEdit();
+
+    settings_changed |= ImGui::DragFloat("Domain size", &settings.domain_size_xy, 8.0f, 64.0f, 8192.0f, "%.0f m");
+    rerun |= ImGui::IsItemDeactivatedAfterEdit();
+
+    const uint32_t min_res = 8, max_res = Node::MAX_GRID_RESOLUTION_XY, max_layers = Node::MAX_GRID_LAYERS;
+    settings_changed |= ImGui::DragScalar("Grid resolution XY", ImGuiDataType_U32, &settings.grid_resolution_xy, 1.0f, &min_res, &max_res, "%u");
+    rerun |= ImGui::IsItemDeactivatedAfterEdit();
+
+    settings_changed |= ImGui::DragScalar("Grid layers", ImGuiDataType_U32, &settings.grid_layers, 1.0f, &min_res, &max_layers, "%u");
+    rerun |= ImGui::IsItemDeactivatedAfterEdit();
+
+    ImGui::TextDisabled("Band above terrain: %.0f m (the grid follows the surface)", double(dx * float(settings.grid_layers)));
+
+    ImGui::Separator();
+
+    // --- Released snow ---
+    const uint32_t min_particles = 1024, max_particles = 1u << 21;
+    settings_changed |= ImGui::DragScalar("Particles", ImGuiDataType_U32, &settings.num_particles, 256.0f, &min_particles, &max_particles, "%u");
+    rerun |= ImGui::IsItemDeactivatedAfterEdit();
+
+    settings_changed |= ImGui::DragFloat("Slab thickness", &settings.slab_thickness, 0.05f, 0.0f, 20.0f, "%.2f m");
+    settings_changed |= ImGui::DragFloat("Snow density", &settings.snow_density, 1.0f, 50.0f, 917.0f, "%.0f kg/m3");
+
+    const uint32_t min_seed = 1, max_seed = 1000000;
+    settings_changed |= ImGui::DragScalar("Random seed", ImGuiDataType_U32, &settings.random_seed, 1.0f, &min_seed, &max_seed);
+
+    if (ImGui::Checkbox("Seed anywhere (ignore release areas)", &settings.seed_anywhere)) {
+        settings_changed = true;
+        // Set the flag on the local copy - set_settings() below would otherwise overwrite
+        // whatever request_reset() had written straight onto the node.
+        settings.reset_on_next_run = true;
+        rerun = true;
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Debug aid: fills the whole domain with snow.\n"
+                          "Use it to confirm the solver runs and to see where the domain\n"
+                          "sits before positioning it over a real release area.");
+    }
+
+    ImGui::Separator();
+
+    // --- Constitutive model ---
+    // Model-specific parameters are shown only for the active model; the combo strings
+    // must stay in enum order.
+    ImGui::TextDisabled("Constitutive model (internal snow behaviour)");
+    const auto previous_model = settings.constitutive_model;
+    settings_changed |= ImGui::Combo("Material model", reinterpret_cast<int*>(&settings.constitutive_model), "Stomakhin 2013\0Drucker-Prager (Klar 2016)\0Cohesive Cam Clay (Gaume 2018)\0");
+    if (settings.constitutive_model != previous_model) {
+        // plastic_state is model-specific (Jp / plastic strain / alpha): reseed on switch
+        settings.reset_on_next_run = true;
+        rerun = true;
+    }
+
+    // Stiffness is shared by every model; only the plasticity parameters are model-specific.
+    settings_changed |= ImGui::DragFloat("Young's modulus", &settings.youngs_modulus, 1000.0f, 1.0e3f, 1.0e7f, "%.0f Pa");
+    settings_changed |= ImGui::DragFloat("Poisson's ratio", &settings.poissons_ratio, 0.005f, 0.0f, 0.45f, "%.3f");
+
+    if (settings.constitutive_model == Node::DRUCKER_PRAGER) {
+        settings_changed |= ImGui::DragFloat("Friction angle", &settings.dp_friction_angle, 0.25f, 0.0f, 89.0f, "%.1f deg");
+        ImGui::TextDisabled("Cohesionless: cold-dense regime only. Klar sand default 30 deg.");
+    }
+    if (settings.constitutive_model == Node::COHESIVE_CAM_CLAY) {
+        settings_changed |= ImGui::DragFloat("Friction M", &settings.ccc_m, 0.01f, 0.05f, 3.0f, "%.2f");
+        settings_changed |= ImGui::DragFloat("Cohesion beta", &settings.ccc_beta, 0.01f, 0.0f, 2.0f, "%.2f");
+        settings_changed |= ImGui::DragFloat("Hardening xi", &settings.ccc_xi, 0.01f, 0.0f, 20.0f, "%.3f");
+        settings_changed |= ImGui::DragFloat("Consolidation p0", &settings.ccc_p0_initial, 100.0f, 0.0f, 200000.0f, "%.0f Pa");
+        ImGui::TextDisabled("Tensile strength: %.0f Pa (beta p0). Li 2021: Table 1.", double(settings.ccc_beta * settings.ccc_p0_initial));
+    }
+    if (settings.constitutive_model == Node::STOMAKHIN_2013) {
+        settings_changed |= ImGui::DragFloat("Hardening", &settings.hardening, 0.1f, 0.0f, 30.0f, "%.2f");
+        settings_changed |= ImGui::DragFloat("Critical compression", &settings.critical_compression, 0.001f, 0.0f, 0.5f, "%.4f");
+        settings_changed |= ImGui::DragFloat("Critical stretch", &settings.critical_stretch, 0.0005f, 0.0f, 0.5f, "%.4f");
+    }
+
+    ImGui::Separator();
+
+    // --- Basal friction ---
+    ImGui::TextDisabled("Basal friction (snow against terrain)");
+    settings_changed |= ImGui::Combo("Friction model", reinterpret_cast<int*>(&settings.basal_friction_model), "Coulomb\0Voellmy\0");
+    settings_changed |= ImGui::DragFloat("Friction coefficient", &settings.terrain_friction, 0.01f, 0.0f, 2.0f, "%.2f");
+    if (settings.basal_friction_model == Node::VOELLMY) {
+        settings_changed |= ImGui::DragFloat("Turbulent friction", &settings.voellmy_xi, 10.0f, 100.0f, 20000.0f, "%.0f m/s2");
+        ImGui::TextDisabled("com1DFA's Voellmy option: mu 0.155, xi 4000");
+    }
+
+    ImGui::Separator();
+
+    settings_changed |= ImGui::DragFloat("Gravity", &settings.gravity, 0.05f, 0.0f, 30.0f, "%.2f m/s2");
+
+    const uint32_t min_raster = 64, max_raster = 4096;
+    settings_changed |= ImGui::DragScalar("Output resolution", ImGuiDataType_U32, &settings.raster_resolution, 8.0f, &min_raster, &max_raster, "%u");
+    rerun |= ImGui::IsItemDeactivatedAfterEdit();
+
+    settings_changed |= ImGui::DragFloat("Splat radius", &settings.splat_radius, 0.25f, 0.0f, 64.0f, "%.1f m");
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Radius each particle is drawn with on the map.\n"
+                          "Too small and the result is an invisible scatter of single pixels.");
+    }
+    ImGui::TextDisabled("Output texel: %.1f m", double(settings.domain_size_xy / float(std::max(settings.raster_resolution, 1u))));
+
+    if (settings_changed)
+        m_node->set_settings(settings);
+
+    // One-shot steps only, with the substeps of the settings; continuous playback is the
+    // solver's clock, ticked by SimulationDriver. `ready` keeps us from stepping a solver whose
+    // inputs are still null.
+    if (rerun && ready && !m_node->is_running())
+        m_node->rerun();
+}
+
+} // namespace webgpu_app

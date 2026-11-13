@@ -25,6 +25,9 @@ set(SOURCES
     NodeGraph.h NodeGraph.cpp
     NodeGraphSerialization.h NodeGraphSerialization.cpp
     NodeRegistry.h NodeRegistry.cpp
+    TimeSteppedSimulation.h
+    SimulationClock.h SimulationClock.cpp
+    SimulationDriver.h SimulationDriver.cpp
 
     nodes/Node.h nodes/Node.cpp
     nodes/SelectTilesNode.h nodes/SelectTilesNode.cpp
@@ -39,7 +42,11 @@ set(SOURCES
     nodes/TileStitchNode.h nodes/TileStitchNode.cpp
     nodes/HeightDecodeNode.h nodes/HeightDecodeNode.cpp
     nodes/IterativeSimulationNode.h nodes/IterativeSimulationNode.cpp
+    nodes/MpmSolverNode.h nodes/MpmSolverNode.cpp
+    nodes/GeoRegionNode.h nodes/GeoRegionNode.cpp
     nodes/LoadTextureNode.h nodes/LoadTextureNode.cpp
+    nodes/AvaFrameSandboxNode.h nodes/AvaFrameSandboxNode.cpp
+    nodes/AvaFrameReleaseNode.h nodes/AvaFrameReleaseNode.cpp
     nodes/util.h nodes/util.cpp
 )
 
@@ -86,6 +93,25 @@ qt_add_resources(webgpu_compute "webgpu_compute_shaders"
         "${SHADER_BASE_DIR}/compute_release_points.wgsl"
         "${SHADER_BASE_DIR}/height_decode_compute.wgsl"
         "${SHADER_BASE_DIR}/iterative_simulation_compute.wgsl"
+
+        "${SHADER_BASE_DIR}/mpm_common.wgsl"
+        "${SHADER_BASE_DIR}/mpm_prepare.wgsl"
+        "${SHADER_BASE_DIR}/mpm_seed.wgsl"
+        "${SHADER_BASE_DIR}/mpm_sort_count.wgsl"
+        "${SHADER_BASE_DIR}/mpm_sort_scan.wgsl"
+        "${SHADER_BASE_DIR}/mpm_sort_scatter.wgsl"
+        "${SHADER_BASE_DIR}/mpm_p2g.wgsl"
+        "${SHADER_BASE_DIR}/mpm_grid_update.wgsl"
+        "${SHADER_BASE_DIR}/mpm_g2p.wgsl"
+        "${SHADER_BASE_DIR}/mpm_column_stats.wgsl"
+        "${SHADER_BASE_DIR}/mpm_refresh_stress.wgsl"
+        "${SHADER_BASE_DIR}/mpm_splat.wgsl"
+        "${SHADER_BASE_DIR}/mpm_rasterize.wgsl"
+        "${SHADER_BASE_DIR}/mpm_material.wgsl"
+        "${SHADER_BASE_DIR}/mpm_material_stomakhin.wgsl"
+        "${SHADER_BASE_DIR}/mpm_material_drucker_prager.wgsl"
+        "${SHADER_BASE_DIR}/mpm_material_ccc.wgsl"
+        "${SHADER_BASE_DIR}/mpm_friction.wgsl"
 
         "${SHADER_BASE_DIR}/tile_hashmap.wgsl"
         "${SHADER_BASE_DIR}/color_mapping.wgsl"

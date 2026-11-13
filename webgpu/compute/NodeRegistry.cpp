@@ -18,6 +18,8 @@
 
 #include "NodeRegistry.h"
 
+#include "nodes/AvaFrameReleaseNode.h"
+#include "nodes/AvaFrameSandboxNode.h"
 #include "nodes/BufferToTextureNode.h"
 #include "nodes/ComputeAvalancheTrajectoriesNode.h"
 #include "nodes/ComputeNormalsNode.h"
@@ -28,6 +30,8 @@
 #include "nodes/HeightDecodeNode.h"
 #include "nodes/IterativeSimulationNode.h"
 #include "nodes/LoadTextureNode.h"
+#include "nodes/GeoRegionNode.h"
+#include "nodes/MpmSolverNode.h"
 #include "nodes/RequestTilesNode.h"
 #include "nodes/SelectTilesNode.h"
 #include "nodes/TileStitchNode.h"
@@ -51,8 +55,12 @@ NodeRegistry::NodeRegistry()
     register_node("BufferToTextureNode", [](webgpu::Context& c) { return std::make_unique<nodes::BufferToTextureNode>(c); });
     register_node("ComputeSnowNode", [](webgpu::Context& c) { return std::make_unique<nodes::ComputeSnowNode>(c); });
     register_node("IterativeSimulationNode", [](webgpu::Context& c) { return std::make_unique<nodes::IterativeSimulationNode>(c); });
+    register_node("MpmSolverNode", [](webgpu::Context& c) { return std::make_unique<nodes::MpmSolverNode>(c); });
+    register_node("GeoRegionNode", [](webgpu::Context&) { return std::make_unique<nodes::GeoRegionNode>(); });
     register_node("ExportNode", [](webgpu::Context& c) { return std::make_unique<nodes::ExportNode>(c); });
     register_node("LoadTextureNode", [](webgpu::Context& c) { return std::make_unique<nodes::LoadTextureNode>(c); });
+    register_node("AvaFrameSandboxNode", [](webgpu::Context& c) { return std::make_unique<nodes::AvaFrameSandboxNode>(c); });
+    register_node("AvaFrameReleaseNode", [](webgpu::Context& c) { return std::make_unique<nodes::AvaFrameReleaseNode>(c); });
 }
 
 NodeRegistry& NodeRegistry::instance()

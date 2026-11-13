@@ -1,0 +1,183 @@
+/*****************************************************************************
+ * weBIGeo
+ * Copyright (C) 2026 Manuel Eiweck
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *****************************************************************************/
+
+///use mpm_common
+
+// Constitutive model: Cohesive Cam Clay - Gaume et al. 2018, "Dynamic anticrack propagation
+// in snow" (yield surface, hardening law, parameters), with the non-associated return
+// mapping of Wolper 2019, section 6.2 (NACC: three cases plus its shear hardening).
+// Parameter values per flow regime come from Li 2021, Table 1 (p. 5).
+//
+// Critical-state soil mechanics for a porous cohesive material. Hencky elasticity as in the
+// Drucker-Prager model, but the yield surface is an ellipse in (p, q) space:
+//
+//   p  = -K tr(eps)                       mean pressure, positive in compression
+//   q  = sqrt(3/2) * 2 mu |dev(eps)|      von Mises equivalent stress
+//   y  = (1 + 2 beta) q^2 + M^2 (p + beta p0)(p - p0)  <= 0
+//
+// so the admissible pressure range is [-beta p0, p0]: beta p0 is the tensile strength,
+// p0 the consolidation (compressive) strength, M the slope of the critical state line.
+// This is what gives snow its mixed-mode failure - tensile, shear and compressive - in one
+// surface.
+//
+// Hardening / softening in one law:  p0 = K sinh(xi * max(-alpha, 0)),  alpha the plastic
+// volumetric strain. Compaction (alpha < 0) grows p0; dilation shrinks it towards zero,
+// where the ellipse collapses to a point and the material carries no stress at all - that
+// is fracture / granulation in this model.
+//
+// Return mapping, explicit (old p0 used for the projection, then hardening updated):
+//   Case 1  p > p0            compressive cap:  -> (p0, 0), alpha decreases (harden)
+//   Case 2  p < -beta p0      tensile tip:      -> (-beta p0, 0), alpha increases (soften)
+//   Case 3  y > 0 otherwise   shear failure:    q projected onto the ellipse at fixed p;
+//                             alpha from Wolper's "fracture-friendly hardening" (6.2.3)
+//   else                      elastic
+// In every case alpha changes by log(J_E,tr / J_E,target) = tr(eps_tr) - tr(eps_target).
+// The flow rule keeps p, so in Case 3 the target is not the returned state but the point
+// where the line from the trial state to the ellipse centre (p0 (1 - beta) / 2, 0) meets
+// the ellipse: shear on the tensile side of the centre softens, on the compressive side
+// hardens. Without it shear would never change p0 and a slab could not weaken in shear.
+// Gaume (and Li) use an associative flow rule instead, where the projection itself changes
+// the volume; swapping one in only touches ccc_plasticity().
+//
+// Per-particle plastic state: alpha, initialised so that p0(alpha) = ccc_p0_initial.
+// Parameters: settings.mu_0, lambda_0 (shared), ccc_m, ccc_beta, ccc_xi, ccc_p0_initial.
+//
+// References (sections, equations and pages as in the PDFs; full list in docs/avalanche/refs.md):
+//   Gaume 2018      J. Gaume et al., "Dynamic anticrack propagation in snow", Nat. Commun. 9,
+//                   3047, 2018.
+//   Wolper 2019     J. Wolper et al., "CD-MPM: Continuum damage material point methods for
+//                   dynamic fracture animation", ACM TOG 38(4), Art. 119, 2019.
+//   Li 2021         X. Li et al., "Three-dimensional and real-scale modeling of flow regimes in
+//                   dense snow avalanches", Landslides 18, 2021.
+//   Klar 2016       G. Klar et al., "Drucker-Prager elastoplasticity for sand animation",
+//                   ACM TOG 35(4), Art. 103, 2016.
+
+fn ccc_bulk_modulus() -> f32 { return settings.lambda_0 + 2.0 * settings.mu_0 / 3.0; }
+
+// sinh and asinh near zero. Written with exp / log they cancel in f32 for a small argument,
+// relative error ~eps / x: Li 2021 case V at E = 3 MPa has p0 / K = 1.2e-3, and p0 came out
+// 8e-5 off (GPU golden tests, test_MpmGolden.cpp in github.com/Emanum/webigeo). Below 0.1 the Taylor series, cut where the
+// next term is below f32 precision (sinh: x^7 / 5040, asinh: 5 x^7 / 112).
+fn ccc_sinh(x: f32) -> f32 {
+    if abs(x) < 0.1 {
+        let x2 = x * x;
+        return x * (1.0 + x2 / 6.0 * (1.0 + x2 / 20.0));
+    }
+    return sinh(x);
+}
+
+fn ccc_asinh(x: f32) -> f32 {
+    if abs(x) < 0.1 {
+        let x2 = x * x;
+        return x * (1.0 - x2 / 6.0 * (1.0 - 0.45 * x2));
+    }
+    return log(x + sqrt(x * x + 1.0));
+}
+
+// Consolidation pressure from the plastic volumetric strain: Gaume 2018 eq. 4 (p. 2), the same
+// in Wolper sec. 6.2.1 (p. 11). The sinh argument is clamped
+// so a runaway compaction cannot overflow the stress.
+fn ccc_p0(alpha: f32) -> f32 {
+    let arg = clamp(settings.ccc_xi * max(-alpha, 0.0), 0.0, 20.0);
+    return ccc_bulk_modulus() * ccc_sinh(arg);
+}
+
+// alpha such that p0(alpha) equals the configured initial consolidation pressure (Gaume eq. 4
+// inverted; Li 2021 Table 1 gives p0 per case).
+fn ccc_initial_state() -> f32 {
+    let k = ccc_bulk_modulus();
+    return -ccc_asinh(settings.ccc_p0_initial / k) / max(settings.ccc_xi, 1e-6);
+}
+
+fn ccc_hencky_strain(sigma: vec3f) -> vec3f { return log(clamp(sigma, vec3f(1e-3), vec3f(1e3))); }
+
+// P F^T for Hencky elasticity (Gaume Methods eq. 6-7, p. 7, "as in Klar": Klar 2016 sec. 6.3,
+// eq. 25-26) - identical to the Drucker-Prager stress; only the yield
+// surface differs between the two models. Takes the principal Hencky strain.
+fn ccc_kirchhoff(u: mat3x3f, eps: vec3f) -> mat3x3f {
+    let trace = eps.x + eps.y + eps.z;
+    return from_principal(u, 2.0 * settings.mu_0 * eps + vec3f(settings.lambda_0 * trace));
+}
+
+fn ccc_plasticity(f_trial: mat3x3f, alpha: f32) -> PlasticReturn {
+    let svd = svd3(f_trial);
+    let eps = ccc_hencky_strain(svd.sigma);
+    let trace = eps.x + eps.y + eps.z;
+    let dev = eps - vec3f(trace / 3.0);
+    let dev_norm = length(dev);
+
+    let k = ccc_bulk_modulus();
+    let mu = settings.mu_0;
+    let m = settings.ccc_m;
+    let beta = settings.ccc_beta;
+    let p0 = ccc_p0(alpha);
+
+    // Gaume eq. 1-2 and q = (3/2 s:s)^(1/2) right after them (p. 2). Wolper sec. 6.1 (p. 10)
+    // writes q = sqrt((6 - d) / 2) |s|, the same in 3D.
+    let p = -k * trace;
+    let q = sqrt(1.5) * 2.0 * mu * dev_norm;
+
+    var new_eps = eps;
+    var new_alpha = alpha;
+    var yielded = true;
+
+    // Cases 1-3: Wolper sec. 6.2.2 (p. 11); alpha at the tips as in sec. 6.2.3, first paragraph.
+    if p > p0 {
+        // Case 1: beyond the compressive cap. Return to (p0, 0): a purely volumetric strain
+        // with tr = -p0/k, deviatoric part dropped. The removed volume is plastic compaction.
+        new_eps = vec3f(-p0 / (3.0 * k));
+        new_alpha = alpha + (trace + p0 / k);
+    } else if p < -beta * p0 {
+        // Case 2: beyond the tensile strength. Return to (-beta p0, 0); the removed
+        // dilation softens the material.
+        new_eps = vec3f(beta * p0 / (3.0 * k));
+        new_alpha = alpha + (trace - beta * p0 / k);
+    } else {
+        // CCC yield surface: Gaume eq. 3 (p. 2), Wolper sec. 6.2.1 (p. 11).
+        let y = (1.0 + 2.0 * beta) * q * q + m * m * (p + beta * p0) * (p - p0);
+        if y > 0.0 {
+            // Case 3: shear failure. With p inside [-beta p0, p0] the ellipse term is <= 0,
+            // so y > 0 implies q > 0 - the division is safe. Project q onto the ellipse at
+            // fixed p; the flow rule produces no volumetric plastic strain. Wolper eq. 14 (p. 11)
+            // solved for q. Gaume and Li use the associative return instead (Gaume Methods,
+            // eq. 10-17, p. 7).
+            let q_new = m * sqrt(max((p + beta * p0) * (p0 - p) / (1.0 + 2.0 * beta), 0.0));
+            new_eps = vec3f(trace / 3.0) + dev * (q_new / max(q, 1e-12));
+
+            // Hardening (Wolper sec. 6.2.3, p. 11). With the centre at p_c = p0 (1 - beta) / 2 the
+            // ellipse is (1 + 2 beta) q^2 + M^2 ((p - p_c)^2 - r^2) = 0, r = p0 (1 + beta) / 2,
+            // so the point (p_c, 0) + t (p - p_c, q) lies on it for
+            // t = M r / sqrt((1 + 2 beta) q^2 + M^2 (p - p_c)^2), 0 < t < 1 outside. Hencky:
+            // tr(eps) = -p / K, so the alpha change is (p_x - p) / K.
+            let p_c = 0.5 * p0 * (1.0 - beta);
+            let r = 0.5 * p0 * (1.0 + beta);
+            let t = m * r / sqrt((1.0 + 2.0 * beta) * q * q + m * m * (p - p_c) * (p - p_c));
+            let p_x = p_c + t * (p - p_c);
+            new_alpha = alpha + (p_x - p) / k;
+        } else {
+            yielded = false; // inside the yield surface, elastic
+        }
+    }
+
+    var result: PlasticReturn;
+    result.yielded = yielded;
+    result.f_elastic = svd.u * diag3(exp(new_eps)) * transpose(svd.v);
+    result.plastic_state = new_alpha;
+    result.kirchhoff = ccc_kirchhoff(svd.u, new_eps);
+    return result;
+}

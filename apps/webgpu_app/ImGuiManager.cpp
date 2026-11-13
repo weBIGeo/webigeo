@@ -31,6 +31,7 @@
 #endif
 
 #include "atmosphere/AtmospherePanel.h"
+#include "avalanche/AvalanchePanel.h"
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_wgpu.h"
 #include "cloud/CloudPanel.h"
@@ -39,6 +40,8 @@
 #include "ui/AboutPanel.h"
 #include "ui/AppPanel.h"
 #include "ui/CameraPanel.h"
+#include <nucleus/camera/Controller.h>
+#include <nucleus/camera/Definition.h>
 #include "ui/CompassPanel.h"
 #include "ui/LogoPanel.h"
 #include "ui/SearchPanel.h"
@@ -105,6 +108,14 @@ void ImGuiManager::init(
     m_panels.push_back(std::make_unique<TrackPanel>(engine_ctx, m_terrain_renderer));
 #ifdef ALP_WEBGPU_APP_ENABLE_COMPUTE
     m_panels.push_back(std::make_unique<NodeGraphPanel>(engine_ctx));
+    // Keeps a pointer to the graph panel so it can find the solver node in the active graph.
+    auto* node_graph_panel = static_cast<NodeGraphPanel*>((m_panels.end() - 1)->get());
+    m_node_graph_panel = node_graph_panel;
+    m_panels.push_back(std::make_unique<AvalanchePanel>(node_graph_panel));
+    connect(static_cast<AvalanchePanel*>((m_panels.end() - 1)->get()), &AvalanchePanel::camera_requested, this,
+        [controller = m_terrain_renderer->get_camera_controller()](glm::dvec3 position, glm::dvec3 look_at) {
+            controller->set_model_matrix(nucleus::camera::Definition(position, look_at));
+        });
 #endif
     m_panels.push_back(std::make_unique<OverlaysPanel>(engine_ctx));
 
@@ -184,6 +195,15 @@ void ImGuiManager::install_fonts()
         icons_config.FontDataOwnedByAtlas = false;
         io.Fonts->AddFontFromMemoryTTF(faData.data(), faData.size(), smallIconFontSize, &icons_config, icons_ranges);
     }
+}
+
+bool ImGuiManager::tick_simulations()
+{
+#ifdef ALP_WEBGPU_APP_ENABLE_COMPUTE
+    if (m_node_graph_panel != nullptr)
+        return m_simulation_driver.tick(m_node_graph_panel->node_graph());
+#endif
+    return false;
 }
 
 void ImGuiManager::render([[maybe_unused]] WGPURenderPassEncoder renderPass)

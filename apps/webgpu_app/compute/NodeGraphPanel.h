@@ -54,12 +54,16 @@ public:
 
     enum class GraphRenderingMode { Default, Transparent, White };
 
-private:
-    // (Re)builds the node renderers for the currently loaded graph.
-    void init(nodes::NodeGraph& node_graph);
+    /// Currently loaded graph, or nullptr before one is attached. Lets other panels drive
+    /// nodes without going through the editor - note it changes when a preset is loaded.
+    [[nodiscard]] nodes::NodeGraph* node_graph() const { return m_node_graph; }
 
     // Loads a preset graph from a Qt resource path, wires signals, and inits.
     void load_preset(const std::string& resource_path);
+
+private:
+    // (Re)builds the node renderers for the currently loaded graph.
+    void init(nodes::NodeGraph& node_graph);
 
     // Replaces the current graph with a new empty graph.
     void new_graph();

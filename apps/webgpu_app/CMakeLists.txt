@@ -60,6 +60,7 @@ set(SOURCES
 if (ALP_WEBGPU_APP_ENABLE_COMPUTE)
     list(APPEND SOURCES
         compute/OverlayRenderNode.h compute/OverlayRenderNode.cpp
+        compute/ParticleRenderNode.h compute/ParticleRenderNode.cpp
         compute/NodeGraphPanel.h compute/NodeGraphPanel.cpp
         compute/nodes/NodeRenderer.h compute/nodes/NodeRenderer.cpp
         compute/nodes/NodeRendererFactory.h compute/nodes/NodeRendererFactory.cpp
@@ -72,6 +73,10 @@ if (ALP_WEBGPU_APP_ENABLE_COMPUTE)
         compute/nodes/RequestTilesNodeRenderer.h compute/nodes/RequestTilesNodeRenderer.cpp
         compute/nodes/SelectTilesNodeRenderer.h compute/nodes/SelectTilesNodeRenderer.cpp
         compute/nodes/GPXTrackNodeRenderer.h compute/nodes/GPXTrackNodeRenderer.cpp
+        compute/nodes/MpmSolverNodeRenderer.h compute/nodes/MpmSolverNodeRenderer.cpp
+        avalanche/AvalanchePanel.h avalanche/AvalanchePanel.cpp
+        avalanche/SandboxView.h avalanche/SandboxView.cpp
+        avalanche/AvaFrameData.h avalanche/AvaFrameData.cpp
     )
 endif()
 
@@ -90,12 +95,17 @@ set_target_properties(webgpu_app PROPERTIES
     MACOSX_BUNDLE TRUE
 )
 
+
 target_link_libraries(webgpu_app PUBLIC webgpu webgpu_engine Qt::Core Qt::Network)
 target_include_directories(webgpu_app PRIVATE .)
 
 if (ALP_WEBGPU_APP_ENABLE_COMPUTE)
     target_link_libraries(webgpu_app PUBLIC webgpu_compute)
     target_compile_definitions(webgpu_app PRIVATE ALP_WEBGPU_APP_ENABLE_COMPUTE)
+    if (NOT EMSCRIPTEN)
+        # The AvaFrame sandbox finds its datasets in <source>/extern/avaframe_sandbox by default.
+        target_compile_definitions(webgpu_app PRIVATE ALP_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+    endif()
 endif()
 
 # For Font Awesome Icon Headers:
@@ -170,6 +180,34 @@ if (WIN32 AND NOT EMSCRIPTEN)
         ")
     endif()
     # ================================================
+elseif(APPLE AND NOT EMSCRIPTEN)
+    # Use Qt's macdeployqt to bundle Qt's own frameworks/plugins and fix up
+    # their install names/rpaths.
+    get_target_property(QMAKE_EXECUTABLE Qt6::qmake IMPORTED_LOCATION)
+    get_filename_component(QT_BIN_DIR "${QMAKE_EXECUTABLE}" DIRECTORY)
+    find_program(MACDEPLOYQT_EXECUTABLE macdeployqt HINTS "${QT_BIN_DIR}")
+
+    if(MACDEPLOYQT_EXECUTABLE)
+        add_custom_command(TARGET webgpu_app POST_BUILD
+            COMMAND "${MACDEPLOYQT_EXECUTABLE}" "$<TARGET_BUNDLE_DIR:webgpu_app>"
+            COMMENT "Running macdeployqt for webgpu_app"
+        )
+    endif()
+
+    # macdeployqt only knows about Qt; bundle the remaining non-Qt shared
+    # libraries (SDL2, radix, glm, stb_slim, ktx) separately - see
+    # cmake/alp_macos_deploy.cmake for why this is needed.
+    include("${CMAKE_SOURCE_DIR}/cmake/alp_macos_deploy.cmake")
+    alp_macos_deploy_bundle(webgpu_app)
+
+    # === INSTALL CONFIGURATION FOR NATIVE MACOS BUILD ===
+    # install(TARGETS ... BUNDLE DESTINATION .) copies the whole .app tree,
+    # so the Frameworks folder macdeployqt/alp_macos_deploy_bundle already
+    # populated above comes along for free - no separate install-time
+    # deploy pass needed here (unlike Windows, where install() only copies
+    # the loose .exe and windeployqt has to be rerun against it).
+    install(TARGETS webgpu_app BUNDLE DESTINATION .)
+    # ================================================
 endif()
 
 if (EMSCRIPTEN)
@@ -180,6 +218,7 @@ if (EMSCRIPTEN)
             #--shell-file "${CMAKE_CURRENT_SOURCE_DIR}/shell/${SHELL_FILE}" # DOESNT WORK AS QT WILL OVERWRITE IT
             -msimd128   #enables auto-vectorization and simd support
             -lembind #enable embind
+            -lidbfs.js #IDBFS: keeps the AvaFrame sandbox folder in the browser (IndexedDB)
             #-gsource-map #generate source maps
 
             # FOLLOWING IS SET BY Qt6.10
