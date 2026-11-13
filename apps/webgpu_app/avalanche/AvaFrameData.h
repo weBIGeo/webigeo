@@ -36,9 +36,10 @@ namespace webgpu_app {
  * so weBIGeo does not redistribute them (see 11-avaframe-comparison.md, "Native build only").
  *
  * The output is the same as the script's: dataset.json, dem.asc, release_<scenario>.asc,
- * reference/<benchmark>/{pft,pfv,ppr}.asc and params.json, path.json, and the dataset's entry
- * in index.json. Not ported: the preview and map overlay PNGs, which only served as check images
- * (the app draws both itself), and the synthetic datasets. Existing run results in <dataset>/mpm
+ * reference/<benchmark>/{pft,pfv,ppr}.asc and params.json, and the dataset's entry in
+ * index.json. Not ported: the preview and map overlay PNGs, which only served as check images
+ * (the app draws both itself), path.json (AIMEC path and split point, used only by the offline
+ * comparison, so the app does not download them), and the synthetic datasets. Existing run results in <dataset>/mpm
  * stay; unlike the script, nothing is deleted. */
 namespace avaframe_data {
 

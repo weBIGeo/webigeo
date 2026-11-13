@@ -64,14 +64,15 @@ script for those five datasets. It does the following:
 - **Projection.** Instead of pyproj, it uses the same pipeline written out: inverse Lambert
   conformal conic on Bessel 1841, then "MGI to WGS 84 (8)".
 - **Existing runs.** Unlike the script, it deletes nothing, so the runs in `<dataset>/mpm/` stay.
-- **Not ported:** the preview and overlay PNGs, which the app draws itself, and the synthetic
-  datasets. Those still need the script.
+- **Not ported:** the preview and overlay PNGs, which the app draws itself, `path.json` (AIMEC
+  path and split point, used only by the offline comparison, so the app does not download them),
+  and the synthetic datasets. Those still need the script.
 
 Checked against this script's output on all five datasets:
 - **Rasters.** Every `.asc` is byte-identical: DEM, release and the reference rasters. Exact
   ties such as 1053.5625 are rounded to even, as Python's `%.3f` does.
-- **JSON.** `dataset.json`, `path.json`, `params.json` and the index entries have the same
-  content.
+- **JSON.** `dataset.json` (without its `path` entry), `params.json` and the index entries have
+  the same content.
 - **Projection.** It agrees with pyproj to within 0.05 mm.
 
 To view an overlay, load the `.png` in the Overlays panel → Texture overlay. The panel finds

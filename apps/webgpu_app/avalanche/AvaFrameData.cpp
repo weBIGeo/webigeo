@@ -419,8 +419,7 @@ namespace avaframe_data {
     std::vector<QString> files_of(const Source& s)
     {
         const QString inputs = data_path(s);
-        std::vector<QString> files { inputs + "/" + s.name + ".asc", inputs + "/LINES/path_aimec.shp", inputs + "/POINTS/splitPoint.shp",
-            inputs + "/REL/" + s.scenarios.front() + ".prj" };
+        std::vector<QString> files { inputs + "/" + s.name + ".asc", inputs + "/REL/" + s.scenarios.front() + ".prj" };
         for (const char* scenario : s.scenarios) {
             files.push_back(inputs + "/REL/" + scenario + ".shp");
             files.push_back(inputs + "/REL/" + scenario + ".dbf");
@@ -714,35 +713,6 @@ namespace avaframe_data {
             reference_names.append(b.name);
         }
         meta["references"] = references;
-
-        // AIMEC path and split point.
-        QJsonObject path_meta;
-        for (const auto& [key, rel] : { std::pair { "path", "/LINES/path_aimec.shp" }, std::pair { "split_point", "/POINTS/splitPoint.shp" } }) {
-            const QByteArray* bytes = file(inputs + rel);
-            if (bytes == nullptr)
-                return {};
-            const auto shapes = read_shp(*bytes, rel, error);
-            if (!shapes)
-                return {};
-            if (shapes->empty() || shapes->front().empty())
-                continue;
-            QJsonArray xy, lat_lon;
-            for (const Point& p : shapes->front().front()) {
-                double lat = 0.0, lon = 0.0;
-                austria_lambert_to_wgs84(p.x, p.y, lat, lon);
-                xy.append(QJsonArray { round_to(p.x, 3), round_to(p.y, 3) });
-                lat_lon.append(QJsonArray { round_to(lat, 7), round_to(lon, 7) });
-            }
-            path_meta[key] = QJsonObject { { "xy", xy }, { "lat_lon", lat_lon } };
-        }
-        if (!path_meta.isEmpty()) {
-            QFile path_file(out.filePath("path.json"));
-            if (!path_file.open(QIODevice::WriteOnly) || path_file.write(QJsonDocument(path_meta).toJson()) < 0) {
-                error = "cannot write " + path_file.fileName();
-                return {};
-            }
-            meta["path"] = "path.json";
-        }
 
         QFile meta_file(out.filePath("dataset.json"));
         if (!meta_file.open(QIODevice::WriteOnly) || meta_file.write(QJsonDocument(meta).toJson()) < 0) {
