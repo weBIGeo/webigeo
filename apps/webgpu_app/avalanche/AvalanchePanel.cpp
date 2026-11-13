@@ -35,6 +35,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QStandardPaths>
+#include <QTimer>
 #include <imgui.h>
 #include <algorithm>
 #include <cmath>
@@ -113,7 +114,7 @@ constexpr const char* TRAJECTORIES_SANDBOX_GRAPH_PRESET = ":/graphs/trajectories
 
 // Where prepare_dataset.py writes the sandbox datasets, in native builds from a source tree.
 // Elsewhere (web, iOS, an installed app) the download in the panel writes into the app's data
-// folder instead; in the web build that is browser memory, gone after a reload.
+// folder instead; in the web build that folder is kept in the browser's IndexedDB (IDBFS).
 #ifdef ALP_SOURCE_DIR
 constexpr const char* DEFAULT_SANDBOX_ROOT = ALP_SOURCE_DIR "/extern/avaframe_sandbox";
 #else
@@ -198,7 +199,12 @@ void AvalanchePanel::load_startup_settings()
         m_sandbox_root = DEFAULT_SANDBOX_ROOT;
     if (m_sandbox_root.empty())
         m_sandbox_root = QDir(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)).filePath("avaframe_sandbox").toStdString();
+#ifdef __EMSCRIPTEN__
+    // The stored data loads asynchronously; the scan waits for it (see ready()).
+    avaframe_data::persistent_storage_begin(QString::fromStdString(m_sandbox_root));
+#else
     scan_sandbox_datasets();
+#endif
 #ifndef __EMSCRIPTEN__
     // Restore the dataset by name: the list may have changed since.
     const std::string dataset = settings.value("sandbox/dataset").toString().toStdString();
@@ -250,6 +256,30 @@ void AvalanchePanel::save_startup_settings() const
 void AvalanchePanel::ready()
 {
     load_startup_settings();
+#ifdef __EMSCRIPTEN__
+    wait_for_stored_data();
+#else
+    start_up();
+#endif
+}
+
+#ifdef __EMSCRIPTEN__
+void AvalanchePanel::wait_for_stored_data()
+{
+    // Web: the sandbox folder is stored in the browser (IndexedDB). Datasets from an earlier visit
+    // must be found before the first scan, and before the autostart picks AvaFrame's release areas.
+    if (!avaframe_data::persistent_storage_ready()) {
+        QTimer::singleShot(50, this, &AvalanchePanel::wait_for_stored_data);
+        return;
+    }
+    avaframe_data::discard_outdated_data(QString::fromStdString(m_sandbox_root));
+    scan_sandbox_datasets();
+    start_up();
+}
+#endif
+
+void AvalanchePanel::start_up()
+{
 #ifndef __EMSCRIPTEN__
     if (const char* batch = std::getenv("WEBIGEO_SANDBOX_BATCH"); batch != nullptr && *batch != '\0') {
         if (load_batch(QString::fromUtf8(batch)))
@@ -658,6 +688,7 @@ void AvalanchePanel::export_sandbox_result(const std::string& stopped_by)
         }
         m_sandbox_status = "Exported to " + summary.directory;
         m_last_export = summary.directory;
+        avaframe_data::persistent_storage_flush();
         qInfo().nospace() << "AvaFrame sandbox: exported " << QString::fromStdString(summary.directory) << " - t " << peaks.simulated_time
                           << " s, max pft " << summary.max_thickness << " m, max pfv " << summary.max_speed << " m/s, footprint "
                           << summary.footprint_area / 1e4 << " ha (" << summary.footprint_area_10cm / 1e4 << " ha with pft > 0.1 m)";
@@ -728,6 +759,8 @@ void AvalanchePanel::avaframe_download_finished(bool ok)
 {
     if (!ok)
         return;
+    avaframe_data::write_version_marker(QString::fromStdString(m_sandbox_root));
+    avaframe_data::persistent_storage_flush(); // web: keep the data in the browser
     // Keep the selected dataset if it is still listed; the scan sorts the list anew.
     const std::string selected = m_sandbox_dataset < int(m_sandbox_datasets.size()) ? m_sandbox_datasets[size_t(m_sandbox_dataset)].name : std::string {};
     scan_sandbox_datasets();

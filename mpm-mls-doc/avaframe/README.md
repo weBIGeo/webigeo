@@ -60,7 +60,11 @@ script for those five datasets. It does the following:
 - **Root folder.**
   - Native builds from a source tree: `extern/avaframe_sandbox`.
   - Elsewhere: the app's data folder.
-  - The web build: browser memory, so a page reload needs the download again.
+  - The web build: the browser's IndexedDB (Emscripten's IDBFS is mounted on that folder). The
+    download is kept across reloads and written back after each download and each saved run. Data
+    from an older AvaFrame commit is dropped and downloaded again (marker file
+    `.avaframe_commit`). If the browser refuses IndexedDB (private window), the folder stays in
+    memory, as before. Clearing the site data removes it.
 - **Projection.** Instead of pyproj, it uses the same pipeline written out: inverse Lambert
   conformal conic on Bessel 1841, then "MGI to WGS 84 (8)".
 - **Existing runs.** Unlike the script, it deletes nothing, so the runs in `<dataset>/mpm/` stay.

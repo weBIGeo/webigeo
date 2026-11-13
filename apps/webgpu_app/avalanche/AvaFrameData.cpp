@@ -28,6 +28,9 @@
 #include <QPointer>
 #include <QThreadPool>
 #include <QCoreApplication>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -400,6 +403,92 @@ namespace avaframe_data {
     // ---------------------------------------------------------------------------------------------
 
     QString source_url() { return QString("https://raw.githubusercontent.com/OpenNHM/AvaFrame/%1/").arg(AVAFRAME_COMMIT); }
+
+    // ---------------------------------------------------------------------------------------------
+    // Persistent storage
+    // ---------------------------------------------------------------------------------------------
+
+    namespace {
+        constexpr const char* VERSION_MARKER = ".avaframe_commit";
+    }
+
+#ifdef __EMSCRIPTEN__
+    void persistent_storage_begin(const QString& root)
+    {
+        const QByteArray path = root.toUtf8();
+        // Module.alpSandboxStorage: 0 loading, 1 loaded, 2 failed (the folder then stays in memory).
+        EM_ASM_({
+            const path = UTF8ToString($0);
+            Module.alpSandboxStorage = 0;
+            try {
+                FS.mkdirTree(path);
+                FS.mount(IDBFS, {}, path);
+                FS.syncfs(true, function(error) {
+                    if (error) console.warn('AvaFrame sandbox: could not load the stored data', error);
+                    Module.alpSandboxStorage = error ? 2 : 1;
+                });
+            } catch (error) {
+                console.warn('AvaFrame sandbox: no persistent storage', error);
+                Module.alpSandboxStorage = 2;
+            }
+        }, path.constData());
+    }
+
+    bool persistent_storage_ready()
+    {
+        return EM_ASM_INT({ return Module.alpSandboxStorage === undefined || Module.alpSandboxStorage !== 0 ? 1 : 0; }) != 0;
+    }
+
+    void persistent_storage_flush()
+    {
+        EM_ASM({
+            if (Module.alpSandboxStorage !== 1)
+                return; // not mounted
+            // One write-back at a time; a request that arrives meanwhile runs right after it.
+            const run = function() {
+                if (Module.alpSandboxSyncing) {
+                    Module.alpSandboxSyncAgain = true;
+                    return;
+                }
+                Module.alpSandboxSyncing = true;
+                FS.syncfs(false, function(error) {
+                    if (error) console.warn('AvaFrame sandbox: could not store the data', error);
+                    Module.alpSandboxSyncing = false;
+                    if (Module.alpSandboxSyncAgain) {
+                        Module.alpSandboxSyncAgain = false;
+                        run();
+                    }
+                });
+            };
+            run();
+        });
+    }
+#else
+    void persistent_storage_begin(const QString&) { }
+    bool persistent_storage_ready() { return true; }
+    void persistent_storage_flush() { }
+#endif
+
+    void discard_outdated_data(const QString& root)
+    {
+        QFile marker(QDir(root).filePath(VERSION_MARKER));
+        const bool opened = marker.open(QIODevice::ReadOnly);
+        const QString text = opened ? QString::fromUtf8(marker.readAll()).trimmed() : QString();
+        if (!opened)
+            return;
+        if (text == AVAFRAME_COMMIT)
+            return;
+        qInfo() << "AvaFrame sandbox: the stored data is from another AvaFrame commit, it will be downloaded again";
+        QFile::remove(QDir(root).filePath("index.json"));
+        persistent_storage_flush(); // web: the removal must reach the browser's storage too
+    }
+
+    void write_version_marker(const QString& root)
+    {
+        QFile marker(QDir(root).filePath(VERSION_MARKER));
+        if (marker.open(QIODevice::WriteOnly))
+            marker.write(QByteArray(AVAFRAME_COMMIT) + "\n");
+    }
 
     const std::vector<Source>& real_datasets()
     {

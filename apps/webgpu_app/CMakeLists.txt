@@ -245,6 +245,7 @@ if (EMSCRIPTEN)
             #--shell-file "${CMAKE_CURRENT_SOURCE_DIR}/shell/${SHELL_FILE}" # DOESNT WORK AS QT WILL OVERWRITE IT
             -msimd128   #enables auto-vectorization and simd support
             -lembind #enable embind
+            -lidbfs.js #IDBFS: keeps the AvaFrame sandbox folder in the browser (IndexedDB)
             #-gsource-map #generate source maps
 
             # FOLLOWING IS SET BY Qt6.10

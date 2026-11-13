@@ -13,6 +13,27 @@ capture of the terminal.
 
 ---
 
+## 2026-11-13 — AvaFrame data: runtime-only downloads, kept in the browser (IDBFS)
+
+**Downloads.** The app downloaded `LINES/path_aimec.shp` and `POINTS/splitPoint.shp` per dataset
+only to write `path.json`, which nothing in the app reads (AIMEC, the offline comparison, takes
+them from the AvaFrame clone). Removed from `files_of()` and from `prepare()`: 72 → 62 files.
+The script `prepare_dataset.py` still writes `path.json`. (An earlier count of 60 was wrong.)
+
+**Web storage.** The web build's sandbox folder lived in Emscripten's in-memory file system and was
+gone after every reload. Now `AvaFrameData.{h,cpp}` has `persistent_storage_begin/ready/flush`
+(web: IDBFS mounted on the sandbox root, `-lidbfs.js` in `apps/webgpu_app/CMakeLists.txt`; native:
+no-ops). `AvalanchePanel::ready()` waits for the load (`wait_for_stored_data`, a 50 ms QTimer poll)
+before the first scan and the autostart, so AvaFrame's release areas are found. Flushes: after a
+finished download and after each exported sandbox run. A marker file `.avaframe_commit` records the
+AvaFrame commit; data of another commit is dropped by removing `index.json` (runs stay).
+
+**Checked.** Native and web builds compile and link; in the browser the IDBFS mount works
+(`alpSandboxStorage` = 1), files written to the sandbox folder survive a reload, and the old-commit
+marker removed `index.json` with debug builds. **Not verified:** the full download in the browser,
+and the flush after the discard (the last runs happened while the Browser pane was hidden: the page's
+animation loop is paused then, so the QTimer-driven startup never ran).
+
 ## 2026-11-09
 
 ### 1. Notes to self and private links removed from the docs
