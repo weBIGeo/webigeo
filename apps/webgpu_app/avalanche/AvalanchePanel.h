@@ -136,8 +136,8 @@ public:
 
     explicit AvalanchePanel(NodeGraphPanel* graph_panel);
 
-    // Loads the MLS-MPM graph and applies the remembered scenario when autostart is on.
-    // Runs after NodeGraphPanel::ready() has loaded the default graph, so it replaces it.
+    // Reads the stored settings; on the web it waits for the stored sandbox data first (IDBFS).
+    // Runs after NodeGraphPanel::ready() has loaded the default graph. Loads nothing itself.
     void ready() override;
     // Advances the simulation. Runs every frame, independent of any panel visibility.
     void draw() override;
@@ -165,17 +165,16 @@ private:
     /// is model-specific) and pulls dt under the CFL bound of the new stiffness.
     void apply_material_preset(const MaterialPreset& preset);
 
-    /// Startup preferences live outside the graph (QSettings, per user): whether to load
-    /// the MLS-MPM graph at launch, which scenario and material to apply, and whether to
-    /// start playing. The graph presets themselves stay untouched.
+    /// Preferences live outside the graph (QSettings, per user): the selected scenario and
+    /// material, playback, entrainment, the sandbox folder. The graph presets themselves
+    /// stay untouched.
     void load_startup_settings();
 #ifdef __EMSCRIPTEN__
     void wait_for_stored_data();
 #endif
-    /// The rest of ready(): the batch run or the autostart. Needs the sandbox datasets scanned.
+    /// The rest of ready(): the batch run (native). Needs the sandbox datasets scanned.
     void start_up();
     void save_startup_settings() const;
-    void draw_startup_settings();
 
     /// The playback of the loaded context: the sandbox's when the graph has a sandbox node.
     Playback& playback();
@@ -263,9 +262,6 @@ private:
 private:
     NodeGraphPanel* m_graph_panel;
 
-    bool m_autostart = false; // load the MLS-MPM graph and apply the scenario at launch
-    bool m_autoplay = false; // ... and start playing once the terrain is in
-    bool m_autoplay_pending = false;
 
     std::vector<Scenario> m_scenarios;
     int m_selected_scenario = 0;
@@ -285,7 +281,6 @@ private:
     webgpu_compute::nodes::MpmSolverNode::EntrainmentMode m_map_entrainment = webgpu_compute::nodes::MpmSolverNode::EROSION;
     webgpu_compute::nodes::MpmSolverNode::EntrainmentMode m_sandbox_entrainment = webgpu_compute::nodes::MpmSolverNode::ENTRAINMENT_OFF;
 
-    bool m_startup_sandbox = false; // autostart loads the sandbox instead of the map
     std::string m_sandbox_root;
     std::vector<SandboxDataset> m_sandbox_datasets;
     std::string m_sandbox_scan_error;

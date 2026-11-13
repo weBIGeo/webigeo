@@ -152,24 +152,8 @@ constexpr const char* SETTINGS_APPLICATION = "avalanche";
 
 void AvalanchePanel::load_startup_settings()
 {
-#ifdef __EMSCRIPTEN__
-    // Web build: there is no per-user settings store worth relying on (Qt's WASM QSettings
-    // backend loads asynchronously), and the deployment exists to show the simulation - so
-    // it loads by default. The URL decides the rest:  ?avalanche=0 skips it, ?avalanche=play
-    // also starts playing. Temporary for the release; a proper setting would go into the
-    // site's own configuration.
-    const int mode = EM_ASM_INT({
-        const value = new URLSearchParams(window.location.search).get('avalanche');
-        if (value === '0' || value === 'off' || value === 'false') return 0;
-        if (value === 'play') return 2;
-        return 1;
-    });
-    m_autostart = mode != 0;
-    m_autoplay = mode == 2;
-#else
+#ifndef __EMSCRIPTEN__
     QSettings settings(SETTINGS_ORGANISATION, SETTINGS_APPLICATION);
-    m_autostart = settings.value("startup/autostart", false).toBool();
-    m_autoplay = settings.value("startup/autoplay", false).toBool();
     const auto read_mode = [&](const char* key, SimulationClock::Mode fallback) {
         return SimulationClock::Mode(std::clamp(settings.value(key, int(fallback)).toInt(), 0, int(SimulationClock::Mode::Accuracy)));
     };
@@ -188,7 +172,6 @@ void AvalanchePanel::load_startup_settings()
     m_sandbox_entrainment = read_entrainment("entrainment/sandbox_mode", m_sandbox_entrainment);
     m_selected_scenario = std::clamp(settings.value("startup/scenario", 0).toInt(), 0, int(m_scenarios.size()) - 1);
     m_selected_material_preset = std::clamp(settings.value("startup/material_preset", 0).toInt(), 0, int(m_material_presets.size()) - 1);
-    m_startup_sandbox = settings.value("startup/sandbox", false).toBool();
     m_sandbox_root = settings.value("sandbox/root", QString(DEFAULT_SANDBOX_ROOT)).toString().toStdString();
     m_sandbox_auto_export = settings.value("sandbox/auto_export", false).toBool();
     m_sandbox_view.set_layer(SandboxView::Layer(std::clamp(settings.value("sandbox/view_layer", 0).toInt(), 0, int(SandboxView::Layer::RefPressure))));
@@ -226,8 +209,6 @@ void AvalanchePanel::save_startup_settings() const
         return; // a batch must not change what the user has stored
 #ifndef __EMSCRIPTEN__
     QSettings settings(SETTINGS_ORGANISATION, SETTINGS_APPLICATION);
-    settings.setValue("startup/autostart", m_autostart);
-    settings.setValue("startup/autoplay", m_autoplay);
     settings.setValue("startup/scenario", m_selected_scenario);
     settings.setValue("startup/material_preset", m_selected_material_preset);
     settings.setValue("playback/map_mode", int(m_map_playback.mode));
@@ -238,7 +219,6 @@ void AvalanchePanel::save_startup_settings() const
     settings.setValue("playback/interpolate", m_playback_interpolate);
     settings.setValue("entrainment/map_mode", int(m_map_entrainment));
     settings.setValue("entrainment/sandbox_mode", int(m_sandbox_entrainment));
-    settings.setValue("startup/sandbox", m_startup_sandbox);
     settings.setValue("sandbox/root", QString::fromStdString(m_sandbox_root));
     settings.setValue("sandbox/auto_export", m_sandbox_auto_export);
     settings.setValue("sandbox/view_layer", int(m_sandbox_view.layer()));
@@ -266,7 +246,7 @@ void AvalanchePanel::ready()
 void AvalanchePanel::wait_for_stored_data()
 {
     // Web: the sandbox folder is stored in the browser (IndexedDB). Datasets from an earlier visit
-    // must be found before the first scan, and before the autostart picks AvaFrame's release areas.
+    // must be found before the first scan: the dataset list and the map scenarios use them.
     if (!avaframe_data::persistent_storage_ready()) {
         QTimer::singleShot(50, this, &AvalanchePanel::wait_for_stored_data);
         return;
@@ -283,44 +263,8 @@ void AvalanchePanel::start_up()
     if (const char* batch = std::getenv("WEBIGEO_SANDBOX_BATCH"); batch != nullptr && *batch != '\0') {
         if (load_batch(QString::fromUtf8(batch)))
             start_batch_run();
-        return;
     }
 #endif
-    if (!m_autostart)
-        return;
-    if (m_startup_sandbox) {
-        load_sandbox();
-        if (m_selected_material_preset > 0)
-            apply_material_preset(m_material_presets[size_t(m_selected_material_preset)]);
-        m_autoplay_pending = m_autoplay;
-        return;
-    }
-    m_graph_panel->load_preset(MPM_GRAPH_PRESET);
-    // Material first: it only writes solver settings. The scenario then writes the
-    // remaining ones and runs the graph, which fetches the terrain and seeds.
-    if (m_selected_material_preset > 0)
-        apply_material_preset(m_material_presets[size_t(m_selected_material_preset)]);
-    m_scenario_error = apply_scenario(m_scenarios[size_t(m_selected_scenario)]) ? std::string {} : std::string { "Autostart: could not apply the scenario." };
-    m_autoplay_pending = m_autoplay;
-}
-
-void AvalanchePanel::draw_startup_settings()
-{
-    ImGui::TextDisabled("Startup");
-#ifdef __EMSCRIPTEN__
-    ImGui::TextWrapped("Web build: loads at launch. Add ?avalanche=0 to the URL to skip it, ?avalanche=play to start playing too.");
-    return;
-#endif
-    bool changed = ImGui::Checkbox("Load this simulation at launch", &m_autostart);
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("Loads the MLS-MPM graph, applies the selected location and material preset\n"
-                          "and fetches the terrain when the app starts. Stored per user, not in the graph.");
-    if (m_autostart) {
-        ImGui::SameLine();
-        changed |= ImGui::Checkbox("and play", &m_autoplay);
-    }
-    if (changed)
-        save_startup_settings();
 }
 
 template <typename T> T* AvalanchePanel::find_node() const
@@ -527,8 +471,6 @@ void AvalanchePanel::load_sandbox()
 {
     m_graph_panel->load_preset(SANDBOX_GRAPH_PRESET);
     m_sandbox_configured.clear();
-    m_startup_sandbox = true;
-    save_startup_settings();
     m_scenario_error = apply_sandbox_dataset() ? std::string {} : std::string { "Could not load the sandbox dataset." };
 }
 
@@ -848,8 +790,6 @@ void AvalanchePanel::draw_sandbox_section(nodes::AvaFrameSandboxNode& sandbox)
     }
     ImGui::SameLine();
     if (ImGui::Button("Back to the map")) {
-        m_startup_sandbox = false;
-        save_startup_settings();
         m_graph_panel->load_preset(MPM_GRAPH_PRESET);
         m_scenario_error = apply_scenario(m_scenarios[size_t(m_selected_scenario)]) ? std::string {} : std::string { "Could not apply the scenario." };
     }
@@ -1136,10 +1076,6 @@ void AvalanchePanel::draw()
         return;
     sync_clock(*solver);
     sync_entrainment(*solver);
-    if (m_autoplay_pending && solver->has_valid_inputs() && !solver->is_running()) {
-        solver->clock().play();
-        m_autoplay_pending = false;
-    }
 }
 
 AvalanchePanel::Playback& AvalanchePanel::playback() { return find_node<nodes::AvaFrameSandboxNode>() != nullptr ? m_sandbox_playback : m_map_playback; }
@@ -1377,7 +1313,6 @@ void AvalanchePanel::draw_panel()
         }
         if (ImGui::Button("Load the AvaFrame sandbox"))
             load_sandbox();
-        draw_startup_settings();
         return;
     }
 
@@ -1740,7 +1675,6 @@ void AvalanchePanel::draw_panel()
     }
 
     ImGui::TextDisabled("Full parameters: compute graph editor.");
-    draw_startup_settings();
 
     if (settings_changed)
         solver->set_settings(settings);
