@@ -36,9 +36,10 @@ namespace webgpu_app {
  * so weBIGeo does not redistribute them (see 11-avaframe-comparison.md, "Native build only").
  *
  * The output is the same as the script's: dataset.json, dem.asc, release_<scenario>.asc,
- * reference/<benchmark>/{pft,pfv,ppr}.asc and params.json, path.json, and the dataset's entry
- * in index.json. Not ported: the preview and map overlay PNGs, which only served as check images
- * (the app draws both itself), and the synthetic datasets. Existing run results in <dataset>/mpm
+ * reference/<benchmark>/{pft,pfv,ppr}.asc and params.json, and the dataset's entry in
+ * index.json. Not ported: the preview and map overlay PNGs, which only served as check images
+ * (the app draws both itself), path.json (AIMEC path and split point, used only by the offline
+ * comparison, so the app does not download them), and the synthetic datasets. Existing run results in <dataset>/mpm
  * stay; unlike the script, nothing is deleted. */
 namespace avaframe_data {
 
@@ -46,6 +47,23 @@ namespace avaframe_data {
     constexpr const char* AVAFRAME_COMMIT = "9c3cefb89d626f5c0fb4c0329b41bc0c492ce175";
     /// Raw files of AvaFrame's repository at AVAFRAME_COMMIT (served with CORS, so the web build can fetch them).
     QString source_url();
+
+    /* Persistent storage of the sandbox folder. Web build: the folder lives in Emscripten's
+     * in-memory file system, which is gone after a reload, so it is mounted as IDBFS (the
+     * browser's IndexedDB): loaded once at startup, written back by flush. Native builds: the
+     * folder is on disk already, so ready is always true and the others do nothing. */
+    /// Web: mounts root as IDBFS and loads what an earlier visit stored. Asynchronous; poll ready().
+    void persistent_storage_begin(const QString& root);
+    /// True once the load finished (also when it failed: the folder then just stays in memory).
+    bool persistent_storage_ready();
+    /// Web: writes the folder back to IndexedDB, in the background. Safe to call at any time.
+    void persistent_storage_flush();
+    /// Data of an older AVAFRAME_COMMIT (marker file next to index.json) is dropped by removing
+    /// root/index.json, so the datasets count as missing and are downloaded again. Run results
+    /// stay. Folders without a marker (made by the script) are left alone.
+    void discard_outdated_data(const QString& root);
+    /// Records AVAFRAME_COMMIT in root, after a finished download.
+    void write_version_marker(const QString& root);
 
     struct Benchmark {
         const char* name; // folder in benchmarks/, e.g. avaKotNullTest

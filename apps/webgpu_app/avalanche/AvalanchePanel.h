@@ -169,6 +169,11 @@ private:
     /// the MLS-MPM graph at launch, which scenario and material to apply, and whether to
     /// start playing. The graph presets themselves stay untouched.
     void load_startup_settings();
+#ifdef __EMSCRIPTEN__
+    void wait_for_stored_data();
+#endif
+    /// The rest of ready(): the batch run or the autostart. Needs the sandbox datasets scanned.
+    void start_up();
     void save_startup_settings() const;
     void draw_startup_settings();
 

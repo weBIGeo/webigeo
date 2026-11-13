@@ -89,4 +89,4 @@ three, so its centroid lies 160 m away. All other centroids agree to under half 
 - The picker (avaGar) was not clicked in a test; scenarios were set through the startup prefs.
 - AvaFrame's resistance areas are not used. Its entrainment areas are: they set the snow cover
   of these scenarios when entrainment is on ([15-entrainment.md](15-entrainment.md)).
-- Web build: tested manually in the browser (25 Oct): the download and the map release work. The data is kept in the browser's memory, so a page reload needs the download again.
+- Web build: tested manually in the browser (25 Oct): the download and the map release work. The data was kept in the browser's memory then, so a page reload needed the download again; since then it is stored in IndexedDB (IDBFS), not yet tested manually in a browser.

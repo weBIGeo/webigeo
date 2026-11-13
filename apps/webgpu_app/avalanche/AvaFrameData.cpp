@@ -28,6 +28,9 @@
 #include <QPointer>
 #include <QThreadPool>
 #include <QCoreApplication>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -401,6 +404,92 @@ namespace avaframe_data {
 
     QString source_url() { return QString("https://raw.githubusercontent.com/OpenNHM/AvaFrame/%1/").arg(AVAFRAME_COMMIT); }
 
+    // ---------------------------------------------------------------------------------------------
+    // Persistent storage
+    // ---------------------------------------------------------------------------------------------
+
+    namespace {
+        constexpr const char* VERSION_MARKER = ".avaframe_commit";
+    }
+
+#ifdef __EMSCRIPTEN__
+    void persistent_storage_begin(const QString& root)
+    {
+        const QByteArray path = root.toUtf8();
+        // Module.alpSandboxStorage: 0 loading, 1 loaded, 2 failed (the folder then stays in memory).
+        EM_ASM_({
+            const path = UTF8ToString($0);
+            Module.alpSandboxStorage = 0;
+            try {
+                FS.mkdirTree(path);
+                FS.mount(IDBFS, {}, path);
+                FS.syncfs(true, function(error) {
+                    if (error) console.warn('AvaFrame sandbox: could not load the stored data', error);
+                    Module.alpSandboxStorage = error ? 2 : 1;
+                });
+            } catch (error) {
+                console.warn('AvaFrame sandbox: no persistent storage', error);
+                Module.alpSandboxStorage = 2;
+            }
+        }, path.constData());
+    }
+
+    bool persistent_storage_ready()
+    {
+        return EM_ASM_INT({ return Module.alpSandboxStorage === undefined || Module.alpSandboxStorage !== 0 ? 1 : 0; }) != 0;
+    }
+
+    void persistent_storage_flush()
+    {
+        EM_ASM({
+            if (Module.alpSandboxStorage !== 1)
+                return; // not mounted
+            // One write-back at a time; a request that arrives meanwhile runs right after it.
+            const run = function() {
+                if (Module.alpSandboxSyncing) {
+                    Module.alpSandboxSyncAgain = true;
+                    return;
+                }
+                Module.alpSandboxSyncing = true;
+                FS.syncfs(false, function(error) {
+                    if (error) console.warn('AvaFrame sandbox: could not store the data', error);
+                    Module.alpSandboxSyncing = false;
+                    if (Module.alpSandboxSyncAgain) {
+                        Module.alpSandboxSyncAgain = false;
+                        run();
+                    }
+                });
+            };
+            run();
+        });
+    }
+#else
+    void persistent_storage_begin(const QString&) { }
+    bool persistent_storage_ready() { return true; }
+    void persistent_storage_flush() { }
+#endif
+
+    void discard_outdated_data(const QString& root)
+    {
+        QFile marker(QDir(root).filePath(VERSION_MARKER));
+        const bool opened = marker.open(QIODevice::ReadOnly);
+        const QString text = opened ? QString::fromUtf8(marker.readAll()).trimmed() : QString();
+        if (!opened)
+            return;
+        if (text == AVAFRAME_COMMIT)
+            return;
+        qInfo() << "AvaFrame sandbox: the stored data is from another AvaFrame commit, it will be downloaded again";
+        QFile::remove(QDir(root).filePath("index.json"));
+        persistent_storage_flush(); // web: the removal must reach the browser's storage too
+    }
+
+    void write_version_marker(const QString& root)
+    {
+        QFile marker(QDir(root).filePath(VERSION_MARKER));
+        if (marker.open(QIODevice::WriteOnly))
+            marker.write(QByteArray(AVAFRAME_COMMIT) + "\n");
+    }
+
     const std::vector<Source>& real_datasets()
     {
         static const std::vector<Source> datasets = {
@@ -419,8 +508,7 @@ namespace avaframe_data {
     std::vector<QString> files_of(const Source& s)
     {
         const QString inputs = data_path(s);
-        std::vector<QString> files { inputs + "/" + s.name + ".asc", inputs + "/LINES/path_aimec.shp", inputs + "/POINTS/splitPoint.shp",
-            inputs + "/REL/" + s.scenarios.front() + ".prj" };
+        std::vector<QString> files { inputs + "/" + s.name + ".asc", inputs + "/REL/" + s.scenarios.front() + ".prj" };
         for (const char* scenario : s.scenarios) {
             files.push_back(inputs + "/REL/" + scenario + ".shp");
             files.push_back(inputs + "/REL/" + scenario + ".dbf");
@@ -714,35 +802,6 @@ namespace avaframe_data {
             reference_names.append(b.name);
         }
         meta["references"] = references;
-
-        // AIMEC path and split point.
-        QJsonObject path_meta;
-        for (const auto& [key, rel] : { std::pair { "path", "/LINES/path_aimec.shp" }, std::pair { "split_point", "/POINTS/splitPoint.shp" } }) {
-            const QByteArray* bytes = file(inputs + rel);
-            if (bytes == nullptr)
-                return {};
-            const auto shapes = read_shp(*bytes, rel, error);
-            if (!shapes)
-                return {};
-            if (shapes->empty() || shapes->front().empty())
-                continue;
-            QJsonArray xy, lat_lon;
-            for (const Point& p : shapes->front().front()) {
-                double lat = 0.0, lon = 0.0;
-                austria_lambert_to_wgs84(p.x, p.y, lat, lon);
-                xy.append(QJsonArray { round_to(p.x, 3), round_to(p.y, 3) });
-                lat_lon.append(QJsonArray { round_to(lat, 7), round_to(lon, 7) });
-            }
-            path_meta[key] = QJsonObject { { "xy", xy }, { "lat_lon", lat_lon } };
-        }
-        if (!path_meta.isEmpty()) {
-            QFile path_file(out.filePath("path.json"));
-            if (!path_file.open(QIODevice::WriteOnly) || path_file.write(QJsonDocument(path_meta).toJson()) < 0) {
-                error = "cannot write " + path_file.fileName();
-                return {};
-            }
-            meta["path"] = "path.json";
-        }
 
         QFile meta_file(out.filePath("dataset.json"));
         if (!meta_file.open(QIODevice::WriteOnly) || meta_file.write(QJsonDocument(meta).toJson()) < 0) {
